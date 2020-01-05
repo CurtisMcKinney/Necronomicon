@@ -149,6 +149,8 @@ typedef struct NecroBase
     NecroAstSymbol* fast_floor;
     NecroAstSymbol* fma;
     NecroAstSymbol* bit_reverse_uint;
+    NecroAstSymbol* bit_reverse_float;
+    NecroAstSymbol* bit_reverse_float64;
     NecroAstSymbol* floor;
     NecroAstSymbol* audio_sample_offset;
     NecroAstSymbol* abs_float;

@@ -154,6 +154,7 @@ NecroLLVMSymbol* necro_llvm_symbol_create(NecroPagedArena* arena, LLVMTypeRef ty
 
 NecroLLVMSymbol* necro_llvm_symbol_get(NecroPagedArena* arena, NecroMachAstSymbol* mach_symbol)
 {
+    assert(mach_symbol != NULL);
     if (mach_symbol->codegen_symbol == NULL)
     {
         NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_create(arena, NULL, NULL, NULL, mach_symbol);
@@ -458,7 +459,7 @@ bool necro_llvm_type_is_unboxed(NecroLLVM* context, LLVMTypeRef type)
 ///////////////////////////////////////////////////////
 LLVMValueRef necro_llvm_codegen_call(NecroLLVM* context, NecroMachAst* ast);
 LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst* ast);
-
+void necro_llvm_set_intrinsic_uop_type_and_value(NecroLLVM* context, NecroMachType* arg_mach_type, NecroAstSymbol* symbol_32, NecroAstSymbol* symbol_64, const char* name_32, const char* name_64, LLVMTypeRef cmp_type_32, LLVMTypeRef* fn_type, LLVMValueRef* fn_value);
 
 ///////////////////////////////////////////////////////
 // NecroDelayedPhiNodeValue
@@ -749,6 +750,80 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
             }
             value = LLVMBuildCall(context->builder, context->copysign_f64->value, (LLVMValueRef[]) { LLVMConstReal(LLVMDoubleTypeInContext(context->context), 1), param }, 2, "sign_value");
             LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(context->copysign_f64->value));
+        }
+        else
+        {
+            assert(false && "Only 32-bit and 64-bit Floats supported");
+        }
+        break;
+    }
+
+    case NECRO_PRIMOP_UOP_FBREV:
+    {
+        /*
+           %1 = bitcast double %0 to i64
+           %2 = bitreverse i64 %1
+           %3 = bitcast i64 %2 to double
+           ret double %3
+        */
+
+        LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        assert(arg_type != NULL);
+        const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
+        assert(uint32_type != NULL);
+        const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);
+        assert(f32_type != NULL);
+        const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);
+        assert(uint64_type != NULL);
+        const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);
+        assert(f64_type != NULL);
+
+        LLVMTypeRef bitrev_type = NULL;
+        LLVMValueRef fn_value   = NULL;
+
+        if (arg_type == f32_type)
+        {
+            assert(context->base->bit_reverse_float != NULL);
+            value = LLVMBuildBitCast(context->builder, param, uint32_type, "float_to_uint");
+            necro_llvm_set_intrinsic_uop_type_and_value(
+                context,
+                context->program->type_cache.uint32_type,
+                context->base->bit_reverse_float,
+                context->base->bit_reverse_float,
+                "llvm.bitreverse.i32",
+                "llvm.bitreverse.i64",
+                uint32_type,
+                &bitrev_type,
+                &fn_value);
+
+            LLVMValueRef* params = necro_paged_arena_alloc(&context->arena, sizeof(LLVMValueRef));
+            *params = value;
+
+            value = LLVMBuildCall(context->builder, fn_value, params, (unsigned int) 1, "call_bitreverse");
+            LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(fn_value));
+            value = LLVMBuildBitCast(context->builder, value, f32_type, "uint_to_float");
+        }
+        else if (arg_type == f64_type)
+        {
+            assert(context->base->bit_reverse_float64 != NULL);
+            value = LLVMBuildBitCast(context->builder, param, uint64_type, "float64_to_uint64");
+            necro_llvm_set_intrinsic_uop_type_and_value(
+                context,
+                context->program->type_cache.uint64_type,
+                context->base->bit_reverse_float64,
+                context->base->bit_reverse_float64,
+                "llvm.bitreverse.i32",
+                "llvm.bitreverse.i64",
+                uint32_type,
+                &bitrev_type,
+                &fn_value);
+
+            LLVMValueRef* params = necro_paged_arena_alloc(&context->arena, sizeof(LLVMValueRef));
+            *params = value;
+
+            value = LLVMBuildCall(context->builder, fn_value, params, (unsigned int) 1, "call_bitreverse");
+            LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(fn_value));
+            value = LLVMBuildBitCast(context->builder, value, f64_type, "uint64_to_float64");
         }
         else
         {

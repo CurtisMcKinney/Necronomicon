@@ -1344,6 +1344,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_UOP_FRNI:
     case NECRO_PRIMOP_UOP_FTOF:
     case NECRO_PRIMOP_UOP_FFLR:
+    case NECRO_PRIMOP_UOP_FBREV:
     {
         assert(arg_count == 1);
         NecroMachAst* param = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);

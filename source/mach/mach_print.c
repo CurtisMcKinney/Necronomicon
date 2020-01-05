@@ -495,6 +495,7 @@ void necro_mach_print_uop(NecroMachAst* ast, size_t depth)
     case NECRO_PRIMOP_UOP_FRNI: printf("frni "); break;
     case NECRO_PRIMOP_UOP_FTOF: printf("ftof "); break;
     case NECRO_PRIMOP_UOP_FFLR: printf("fflr "); break;
+    case NECRO_PRIMOP_UOP_FBREV: printf("fbrev "); break;
     default: assert(false); break;
     }
     necro_mach_print_value(ast->uop.param, NECRO_PRINT_VALUE_TYPE);

@@ -19,81 +19,10 @@
 ///////////////////////////////////////////////////////
 NecroBase necro_base_create()
 {
-    return (NecroBase)
-    {
-        // .ast                    = necro_ast_arena_create(necro_intern_string(intern, "Necro.Base")),
-        .ast                    = necro_ast_arena_empty(),
-
-        .higher_kind            = NULL,
-        .kind_kind              = NULL,
-        .star_kind              = NULL,
-        .nat_kind               = NULL,
-        .sym_kind               = NULL,
-
-        .ownership_kind         = NULL,
-        .ownership_share        = NULL,
-        .ownership_steal        = NULL,
-
-        .tuple2_con             = NULL,
-        .tuple3_con             = NULL,
-        .tuple4_con             = NULL,
-        .tuple5_con             = NULL,
-        .tuple6_con             = NULL,
-        .tuple7_con             = NULL,
-        .tuple8_con             = NULL,
-        .tuple9_con             = NULL,
-        .tuple10_con            = NULL,
-
-        .tuple2_type            = NULL,
-        .tuple3_type            = NULL,
-        .tuple4_type            = NULL,
-        .tuple5_type            = NULL,
-        .tuple6_type            = NULL,
-        .tuple7_type            = NULL,
-        .tuple8_type            = NULL,
-        .tuple9_type            = NULL,
-        .tuple10_type           = NULL,
-
-        .world_type             = NULL,
-        .unit_type              = NULL,
-        .unit_con               = NULL,
-        // .list_type              = NULL,
-        .int_type               = NULL,
-        .int_con                = NULL,
-        .float_type             = NULL,
-        .float_con              = NULL,
-        // .audio_type             = NULL,
-        .rational_type          = NULL,
-        .char_type              = NULL,
-        .char_con               = NULL,
-        .bool_type              = NULL,
-        .true_con               = NULL,
-        .false_con              = NULL,
-        .num_type_class         = NULL,
-        .eq_type_class          = NULL,
-        .ord_type_class         = NULL,
-        .functor_type_class     = NULL,
-        .applicative_type_class = NULL,
-        .monad_type_class       = NULL,
-        .default_type_class     = NULL,
-        .prev_fn                = NULL,
-        // .event_type             = NULL,
-        // .pattern_type           = NULL,
-        // .closure_type           = NULL,
-        // .ptr_type               = NULL,
-        .array_type             = NULL,
-        .range_type             = NULL,
-        .index_type             = NULL,
-        // .maybe_type             = NULL,
-
-        .pipe_forward           = NULL,
-        .pipe_back              = NULL,
-        .compose_forward        = NULL,
-        .compose_back           = NULL,
-
-        .mouse_x_fn             = NULL,
-        .mouse_y_fn             = NULL,
-    };
+    NecroBase base;
+    memset(&base, 0, sizeof(NecroBase));
+    base.ast = necro_ast_arena_empty();
+    return base;
 }
 
 void necro_base_destroy(NecroBase* base)
@@ -1564,58 +1493,70 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
 
     // Float
-    necro_base_setup_primitive(scoped_symtable, intern, "add<Float>",          NULL,               NECRO_PRIMOP_BINOP_FADD);
-    necro_base_setup_primitive(scoped_symtable, intern, "sub<Float>",          NULL,               NECRO_PRIMOP_BINOP_FSUB);
-    necro_base_setup_primitive(scoped_symtable, intern, "mul<Float>",          NULL,               NECRO_PRIMOP_BINOP_FMUL);
-    necro_base_setup_primitive(scoped_symtable, intern, "div<Float>",          NULL,               NECRO_PRIMOP_BINOP_FDIV);
-    necro_base_setup_primitive(scoped_symtable, intern, "rem<Float>",          NULL,               NECRO_PRIMOP_BINOP_FREM);
-    necro_base_setup_primitive(scoped_symtable, intern, "abs<Float>",          &base.abs_float,    NECRO_PRIMOP_INTR_FABS);
-    necro_base_setup_primitive(scoped_symtable, intern, "signum<Float>",       NULL,               NECRO_PRIMOP_UOP_FSGN);
-    necro_base_setup_primitive(scoped_symtable, intern, "fromInt<Float>",      NULL,               NECRO_PRIMOP_UOP_ITOF);
-    necro_base_setup_primitive(scoped_symtable, intern, "fromFloat<Float>",    NULL,               NECRO_PRIMOP_UOP_FTOF);
-    necro_base_setup_primitive(scoped_symtable, intern, "eq<Float>",           NULL,               NECRO_PRIMOP_CMP_EQ);
-    necro_base_setup_primitive(scoped_symtable, intern, "neq<Float>",          NULL,               NECRO_PRIMOP_CMP_NE);
-    necro_base_setup_primitive(scoped_symtable, intern, "gt<Float>",           NULL,               NECRO_PRIMOP_CMP_GT);
-    necro_base_setup_primitive(scoped_symtable, intern, "lt<Float>",           NULL,               NECRO_PRIMOP_CMP_LT);
-    necro_base_setup_primitive(scoped_symtable, intern, "gte<Float>",          NULL,               NECRO_PRIMOP_CMP_GE);
-    necro_base_setup_primitive(scoped_symtable, intern, "lte<Float>",          NULL,               NECRO_PRIMOP_CMP_LE);
-    necro_base_setup_primitive(scoped_symtable, intern, "fastFloor",           &base.fast_floor,   NECRO_PRIMOP_UOP_FFLR);
-    necro_base_setup_primitive(scoped_symtable, intern, "sine<Float>",         &base.sine_float,   NECRO_PRIMOP_INTR_SIN);
-    necro_base_setup_primitive(scoped_symtable, intern, "cosine<Float>",       &base.cosine_float, NECRO_PRIMOP_INTR_COS);
-    necro_base_setup_primitive(scoped_symtable, intern, "exp<Float>",          &base.exp_float,    NECRO_PRIMOP_INTR_EXP);
-    necro_base_setup_primitive(scoped_symtable, intern, "exp2<Float>",         &base.exp2_float,   NECRO_PRIMOP_INTR_EXP2);
-    necro_base_setup_primitive(scoped_symtable, intern, "log<Float>",          &base.log_float,    NECRO_PRIMOP_INTR_LOG);
-    necro_base_setup_primitive(scoped_symtable, intern, "log10<Float>",        &base.log10_float,  NECRO_PRIMOP_INTR_LOG10);
-    necro_base_setup_primitive(scoped_symtable, intern, "log2<Float>",         &base.log2_float,   NECRO_PRIMOP_INTR_LOG2);
-    necro_base_setup_primitive(scoped_symtable, intern, "pow<Float>",          &base.pow_float,    NECRO_PRIMOP_INTR_POW);
-    necro_base_setup_primitive(scoped_symtable, intern, "sqrt<Float>",         &base.sqrt_float,   NECRO_PRIMOP_INTR_SQRT);
+    necro_base_setup_primitive(scoped_symtable, intern, "add<Float>",           NULL,                    NECRO_PRIMOP_BINOP_FADD);
+    necro_base_setup_primitive(scoped_symtable, intern, "sub<Float>",           NULL,                    NECRO_PRIMOP_BINOP_FSUB);
+    necro_base_setup_primitive(scoped_symtable, intern, "mul<Float>",           NULL,                    NECRO_PRIMOP_BINOP_FMUL);
+    necro_base_setup_primitive(scoped_symtable, intern, "div<Float>",           NULL,                    NECRO_PRIMOP_BINOP_FDIV);
+    necro_base_setup_primitive(scoped_symtable, intern, "rem<Float>",           NULL,                    NECRO_PRIMOP_BINOP_FREM);
+    necro_base_setup_primitive(scoped_symtable, intern, "abs<Float>",           &base.abs_float,         NECRO_PRIMOP_INTR_FABS);
+    necro_base_setup_primitive(scoped_symtable, intern, "signum<Float>",        NULL,                    NECRO_PRIMOP_UOP_FSGN);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromInt<Float>",       NULL,                    NECRO_PRIMOP_UOP_ITOF);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromFloat<Float>",     NULL,                    NECRO_PRIMOP_UOP_FTOF);
+    necro_base_setup_primitive(scoped_symtable, intern, "eq<Float>",            NULL,                    NECRO_PRIMOP_CMP_EQ);
+    necro_base_setup_primitive(scoped_symtable, intern, "neq<Float>",           NULL,                    NECRO_PRIMOP_CMP_NE);
+    necro_base_setup_primitive(scoped_symtable, intern, "gt<Float>",            NULL,                    NECRO_PRIMOP_CMP_GT);
+    necro_base_setup_primitive(scoped_symtable, intern, "lt<Float>",            NULL,                    NECRO_PRIMOP_CMP_LT);
+    necro_base_setup_primitive(scoped_symtable, intern, "gte<Float>",           NULL,                    NECRO_PRIMOP_CMP_GE);
+    necro_base_setup_primitive(scoped_symtable, intern, "lte<Float>",           NULL,                    NECRO_PRIMOP_CMP_LE);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitAnd<Float>",        NULL,                    NECRO_PRIMOP_BINOP_AND);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitOr<Float>",         NULL,                    NECRO_PRIMOP_BINOP_OR);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitXor<Float>",        NULL,                    NECRO_PRIMOP_BINOP_XOR);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitShiftLeft<Float>",  NULL,                    NECRO_PRIMOP_BINOP_SHL);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitShiftRight<Float>", NULL,                    NECRO_PRIMOP_BINOP_SHR);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitReverse<Float>",    &base.bit_reverse_float, NECRO_PRIMOP_UOP_FBREV);
+    necro_base_setup_primitive(scoped_symtable, intern, "fastFloor",            &base.fast_floor,        NECRO_PRIMOP_UOP_FFLR);
+    necro_base_setup_primitive(scoped_symtable, intern, "sine<Float>",          &base.sine_float,        NECRO_PRIMOP_INTR_SIN);
+    necro_base_setup_primitive(scoped_symtable, intern, "cosine<Float>",        &base.cosine_float,      NECRO_PRIMOP_INTR_COS);
+    necro_base_setup_primitive(scoped_symtable, intern, "exp<Float>",           &base.exp_float,         NECRO_PRIMOP_INTR_EXP);
+    necro_base_setup_primitive(scoped_symtable, intern, "exp2<Float>",          &base.exp2_float,        NECRO_PRIMOP_INTR_EXP2);
+    necro_base_setup_primitive(scoped_symtable, intern, "log<Float>",           &base.log_float,         NECRO_PRIMOP_INTR_LOG);
+    necro_base_setup_primitive(scoped_symtable, intern, "log10<Float>",         &base.log10_float,       NECRO_PRIMOP_INTR_LOG10);
+    necro_base_setup_primitive(scoped_symtable, intern, "log2<Float>",          &base.log2_float,        NECRO_PRIMOP_INTR_LOG2);
+    necro_base_setup_primitive(scoped_symtable, intern, "pow<Float>",           &base.pow_float,         NECRO_PRIMOP_INTR_POW);
+    necro_base_setup_primitive(scoped_symtable, intern, "sqrt<Float>",          &base.sqrt_float,        NECRO_PRIMOP_INTR_SQRT);
 
     // F64
-    necro_base_setup_primitive(scoped_symtable, intern, "add<F64>",          NULL,             NECRO_PRIMOP_BINOP_FADD);
-    necro_base_setup_primitive(scoped_symtable, intern, "sub<F64>",          NULL,             NECRO_PRIMOP_BINOP_FSUB);
-    necro_base_setup_primitive(scoped_symtable, intern, "mul<F64>",          NULL,             NECRO_PRIMOP_BINOP_FMUL);
-    necro_base_setup_primitive(scoped_symtable, intern, "div<F64>",          NULL,             NECRO_PRIMOP_BINOP_FDIV);
-    necro_base_setup_primitive(scoped_symtable, intern, "rem<F64>",        NULL,             NECRO_PRIMOP_BINOP_FREM);
-    necro_base_setup_primitive(scoped_symtable, intern, "abs<F64>",          &base.abs_f64,    NECRO_PRIMOP_INTR_FABS);
-    necro_base_setup_primitive(scoped_symtable, intern, "signum<F64>",       NULL,             NECRO_PRIMOP_UOP_FSGN);
-    necro_base_setup_primitive(scoped_symtable, intern, "fromInt<F64>",      NULL,             NECRO_PRIMOP_UOP_ITOF);
-    necro_base_setup_primitive(scoped_symtable, intern, "fromFloat<F64>",    NULL,             NECRO_PRIMOP_UOP_FTOF);
-    necro_base_setup_primitive(scoped_symtable, intern, "eq<F64>",           NULL,             NECRO_PRIMOP_CMP_EQ);
-    necro_base_setup_primitive(scoped_symtable, intern, "neq<F64>",          NULL,             NECRO_PRIMOP_CMP_NE);
-    necro_base_setup_primitive(scoped_symtable, intern, "gt<F64>",           NULL,             NECRO_PRIMOP_CMP_GT);
-    necro_base_setup_primitive(scoped_symtable, intern, "lt<F64>",           NULL,             NECRO_PRIMOP_CMP_LT);
-    necro_base_setup_primitive(scoped_symtable, intern, "gte<F64>",          NULL,             NECRO_PRIMOP_CMP_GE);
-    necro_base_setup_primitive(scoped_symtable, intern, "lte<F64>",          NULL,             NECRO_PRIMOP_CMP_LE);
-    necro_base_setup_primitive(scoped_symtable, intern, "fastFloor",         &base.fast_floor, NECRO_PRIMOP_UOP_FFLR);
-    necro_base_setup_primitive(scoped_symtable, intern, "sine<F64>",         &base.sine_f64,   NECRO_PRIMOP_INTR_SIN);
-    necro_base_setup_primitive(scoped_symtable, intern, "cosine<F64>",       &base.cosine_f64, NECRO_PRIMOP_INTR_COS);
-    necro_base_setup_primitive(scoped_symtable, intern, "exp<F64>",          &base.exp_f64,    NECRO_PRIMOP_INTR_EXP);
-    necro_base_setup_primitive(scoped_symtable, intern, "exp2<F64>",         &base.exp2_f64,   NECRO_PRIMOP_INTR_EXP2);
-    necro_base_setup_primitive(scoped_symtable, intern, "log<F64>",          &base.log_f64,    NECRO_PRIMOP_INTR_LOG);
-    necro_base_setup_primitive(scoped_symtable, intern, "log10<F64>",        &base.log10_f64,  NECRO_PRIMOP_INTR_LOG10);
-    necro_base_setup_primitive(scoped_symtable, intern, "log2<F64>",         &base.log2_f64,   NECRO_PRIMOP_INTR_LOG2);
-    necro_base_setup_primitive(scoped_symtable, intern, "pow<F64>",          &base.pow_f64,    NECRO_PRIMOP_INTR_POW);
-    necro_base_setup_primitive(scoped_symtable, intern, "sqrt<F64>",         &base.sqrt_f64,   NECRO_PRIMOP_INTR_SQRT);
+    necro_base_setup_primitive(scoped_symtable, intern, "add<F64>",           NULL,                      NECRO_PRIMOP_BINOP_FADD);
+    necro_base_setup_primitive(scoped_symtable, intern, "sub<F64>",           NULL,                      NECRO_PRIMOP_BINOP_FSUB);
+    necro_base_setup_primitive(scoped_symtable, intern, "mul<F64>",           NULL,                      NECRO_PRIMOP_BINOP_FMUL);
+    necro_base_setup_primitive(scoped_symtable, intern, "div<F64>",           NULL,                      NECRO_PRIMOP_BINOP_FDIV);
+    necro_base_setup_primitive(scoped_symtable, intern, "rem<F64>",           NULL,                      NECRO_PRIMOP_BINOP_FREM);
+    necro_base_setup_primitive(scoped_symtable, intern, "abs<F64>",           &base.abs_f64,             NECRO_PRIMOP_INTR_FABS);
+    necro_base_setup_primitive(scoped_symtable, intern, "signum<F64>",        NULL,                      NECRO_PRIMOP_UOP_FSGN);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromInt<F64>",       NULL,                      NECRO_PRIMOP_UOP_ITOF);
+    necro_base_setup_primitive(scoped_symtable, intern, "fromFloat<F64>",     NULL,                      NECRO_PRIMOP_UOP_FTOF);
+    necro_base_setup_primitive(scoped_symtable, intern, "eq<F64>",            NULL,                      NECRO_PRIMOP_CMP_EQ);
+    necro_base_setup_primitive(scoped_symtable, intern, "neq<F64>",           NULL,                      NECRO_PRIMOP_CMP_NE);
+    necro_base_setup_primitive(scoped_symtable, intern, "gt<F64>",            NULL,                      NECRO_PRIMOP_CMP_GT);
+    necro_base_setup_primitive(scoped_symtable, intern, "lt<F64>",            NULL,                      NECRO_PRIMOP_CMP_LT);
+    necro_base_setup_primitive(scoped_symtable, intern, "gte<F64>",           NULL,                      NECRO_PRIMOP_CMP_GE);
+    necro_base_setup_primitive(scoped_symtable, intern, "lte<F64>",           NULL,                      NECRO_PRIMOP_CMP_LE);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitAnd<F64>",        NULL,                      NECRO_PRIMOP_BINOP_AND);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitOr<F64>",         NULL,                      NECRO_PRIMOP_BINOP_OR);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitXor<F64>",        NULL,                      NECRO_PRIMOP_BINOP_XOR);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitShiftLeft<F64>",  NULL,                      NECRO_PRIMOP_BINOP_SHL);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitShiftRight<F64>", NULL,                      NECRO_PRIMOP_BINOP_SHR);
+    necro_base_setup_primitive(scoped_symtable, intern, "bitReverse<F64>",    &base.bit_reverse_float64, NECRO_PRIMOP_UOP_FBREV);
+    necro_base_setup_primitive(scoped_symtable, intern, "fastFloor",          &base.fast_floor,          NECRO_PRIMOP_UOP_FFLR);
+    necro_base_setup_primitive(scoped_symtable, intern, "sine<F64>",          &base.sine_f64,            NECRO_PRIMOP_INTR_SIN);
+    necro_base_setup_primitive(scoped_symtable, intern, "cosine<F64>",        &base.cosine_f64,          NECRO_PRIMOP_INTR_COS);
+    necro_base_setup_primitive(scoped_symtable, intern, "exp<F64>",           &base.exp_f64,             NECRO_PRIMOP_INTR_EXP);
+    necro_base_setup_primitive(scoped_symtable, intern, "exp2<F64>",          &base.exp2_f64,            NECRO_PRIMOP_INTR_EXP2);
+    necro_base_setup_primitive(scoped_symtable, intern, "log<F64>",           &base.log_f64,             NECRO_PRIMOP_INTR_LOG);
+    necro_base_setup_primitive(scoped_symtable, intern, "log10<F64>",         &base.log10_f64,           NECRO_PRIMOP_INTR_LOG10);
+    necro_base_setup_primitive(scoped_symtable, intern, "log2<F64>",          &base.log2_f64,            NECRO_PRIMOP_INTR_LOG2);
+    necro_base_setup_primitive(scoped_symtable, intern, "pow<F64>",           &base.pow_f64,             NECRO_PRIMOP_INTR_POW);
+    necro_base_setup_primitive(scoped_symtable, intern, "sqrt<F64>",          &base.sqrt_f64,            NECRO_PRIMOP_INTR_SQRT);
 
     // ()
     necro_base_setup_primitive(scoped_symtable, intern, "eq<()>",  NULL, NECRO_PRIMOP_CMP_EQ);

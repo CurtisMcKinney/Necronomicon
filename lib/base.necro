@@ -256,7 +256,6 @@ tanF64 n = tanResult
     octant = floor <| (x * fourOverPi) 
     -- HACK -> Need to be able to convert from Float to 
     octantInt = if octant < 1 then 0
-    octantInt = if octant < 1 then 0
       else if octant < 2 then 1
       else if octant < 3 then 2
       else if octant < 4 then 3
@@ -286,9 +285,31 @@ tanF64 n = tanResult
       7 -> negate <| tan14s ((twoPi - x) * fourOverPi)
       _ -> 0 -- ?!?
 
+atanF64 :: F64 -> F64
+atanF64 n = if sign then negate z else z
+  where
+    sign = n < 0
+    absN = abs n
+    complement = n > 1
+    x = if complement then 1 / absN else absN
+    region = x > tanTwelthPi
+    x' = if region then (x - tanSixthPi) / (1 + tanSixthPi * x) else x
+    atanX = atan137s x'
+    y = if region then atanX + sixthPi else atanX
+    z = if complement then halfPi - y else y
+    -- Accurate to about 13.7 decimal digits over the range [0, pi/12].
+    atan137s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2)))) 
+      where
+        c1 = 48.70107004404898384
+        c2 = 49.5326263772254345
+        c3 = 9.40604244231624
+        c4 = 48.70107004404996166;
+        c5 = 65.7663163908956299;
+        c6 = 21.587934067020262;
+        x2 = x * 2
 ----------------------------------------
 
-class Integral a => Bits a where
+class Bits a where
   bitAnd        :: a -> a -> a
   bitOr         :: a -> a -> a
   bitXor        :: a -> a -> a
@@ -535,6 +556,14 @@ instance Trig Float where
   log2   x = primUndefined
   pow  x y = primUndefined
 
+instance Bits Float where
+  bitAnd        x y = primUndefined
+  bitOr         x y = primUndefined
+  bitXor        x y = primUndefined
+  bitShiftLeft  x y = primUndefined
+  bitShiftRight x y = primUndefined
+  bitReverse    x   = primUndefined
+
 instance Semigroup Float where
   append x y = x + y
 
@@ -598,6 +627,14 @@ instance Trig F64 where
   log10  x = primUndefined
   log2   x = primUndefined
   pow  x y = primUndefined
+
+instance Bits F64 where
+  bitAnd        x y = primUndefined
+  bitOr         x y = primUndefined
+  bitXor        x y = primUndefined
+  bitShiftLeft  x y = primUndefined
+  bitShiftRight x y = primUndefined
+  bitReverse    x   = primUndefined
 
 instance Semigroup F64 where
   append x y = x + y
@@ -1235,6 +1272,12 @@ sixthPi = pi / 6
 
 twelthPi :: Floating a => a
 twelthPi = pi / 12
+
+tanSixthPi :: F64
+tanSixthPi = tanF64 sixthPi
+
+tanTwelthPi :: F64
+tanTwelthPi = tanF64 twelthPi
 
 tau :: Floating a => a
 tau = 2 * pi
@@ -2335,12 +2378,27 @@ poly f s =
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
 
-testJit :: *World -> *World
-testJit w = printLn mouseX w |> printLn (tanF64 fMouse)
-  where
-    fMouse :: F64
-    fMouse = fromInt mouseX
 
+testJit :: *World -> *World
+testJit w = print f64 w |> print " -> " |> print rF64 |> print " -> " |> print rrF64 |> printLn " "
+  where
+    f64 :: F64
+    f64 = pi
+    rF64 = bitReverse f64
+    rrF64 = bitReverse rF64
+
+-- testJit :: *World -> *World
+-- testJit w = printLn f64 w |> printLn (bitReverse f64) |> printLn (bitReverse <| bitReverse f64)
+--   where
+--     f64 :: F64
+--     f64 = 5
+
+-- testJit :: *World -> *World
+-- testJit w = printLn mouseX w |> printLn (atanF64 fMouse)
+--   where
+--     fMouse :: F64
+--     fMouse = fromInt mouseX
+--
 -- testJit :: *World -> *World
 -- testJit w = printLn a w |> printLn b |> printLn c 
 --   where

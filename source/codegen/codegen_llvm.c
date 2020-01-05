@@ -805,13 +805,21 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         }
         else if (arg_type == f64_type)
         {
-            assert(context->base->bit_reverse_float64 != NULL);
+            NecroAstSymbol* bit_reverse_float = context->base->bit_reverse_float;
+            if (bit_reverse_float == NULL || 
+                bit_reverse_float->core_ast_symbol == NULL ||
+                bit_reverse_float->core_ast_symbol->mach_symbol == NULL)
+            {
+                bit_reverse_float = context->base->bit_reverse_float64;
+            }
+            assert(bit_reverse_float != NULL);
+            assert(bit_reverse_float->core_ast_symbol->mach_symbol != NULL);
             value = LLVMBuildBitCast(context->builder, param, uint64_type, "float64_to_uint64");
             necro_llvm_set_intrinsic_uop_type_and_value(
                 context,
                 context->program->type_cache.uint64_type,
-                context->base->bit_reverse_float64,
-                context->base->bit_reverse_float64,
+                bit_reverse_float,
+                bit_reverse_float,
                 "llvm.bitreverse.i32",
                 "llvm.bitreverse.i64",
                 uint32_type,

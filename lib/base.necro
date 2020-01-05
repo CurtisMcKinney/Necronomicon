@@ -2387,7 +2387,7 @@ poly f s =
 testJit :: *World -> *World
 testJit w = print f64 w |> print " -> " |> print rF64 |> print " -> " |> print rrF64 |> printLn " "
   where
-    f64 :: F64
+    f64 :: Float
     f64 = pi
     rF64 = bitReverse f64
     rrF64 = bitReverse rF64

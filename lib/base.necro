@@ -2377,6 +2377,7 @@ instance AudioFormat f => Finite (Audio f) where
 instance Poly Channel where
 instance Poly (Audio f) where
 
+-- TODO: Look at this more...should be constrained to blocksize, no?
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
   (fromInt n / fromInt d) * audioBlockSizeF
@@ -2391,7 +2392,7 @@ seqToAudio s =
       loop (#i0, a#) = (#audioSampleOffset, audioInitArray ()#) while i0 < audioBlockSize do
         let
           i1        = i0 + 1
-          time ~ 0  = time + audioSampleDelta 
+          time ~ 0  = time + audioSampleDelta
           value ~ 0 =
             thd3' <| loop (#cont, seqDuration0, prevValue#) = (#True, 0, value#) while cont do
               let

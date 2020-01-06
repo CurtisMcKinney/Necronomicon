@@ -868,12 +868,15 @@ void necro_core_transform_to_mach_2_lit(NecroMachProgram* program, NecroCoreAst*
     }
     else if (core_ast->lit.type == NECRO_AST_CONSTANT_STRING)
     {
-        if (core_ast->lit.string_literal->global_string_value == NULL)
+        NecroSymbol string_symbol = core_ast->lit.string_literal;
+        const bool  is_not_cached = string_symbol->global_string_value == NULL || (string_symbol->program != NULL && string_symbol->program != program);
+        if (is_not_cached)
         {
-            NecroMachType*      array_mach_type               = necro_mach_type_create_array(&program->arena, program->type_cache.word_uint_type, core_ast->lit.string_literal->length);
-            NecroMachAstSymbol* global_symbol                 = necro_mach_ast_symbol_create(&program->arena, necro_intern_unique_string(program->intern, "string"));
-            core_ast->lit.string_literal->global_string_value = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, array_mach_type));
-            global_symbol->global_string_symbol               = core_ast->lit.string_literal;
+            NecroMachType*      array_mach_type = necro_mach_type_create_array(&program->arena, program->type_cache.word_uint_type, core_ast->lit.string_literal->length);
+            NecroMachAstSymbol* global_symbol   = necro_mach_ast_symbol_create(&program->arena, necro_intern_unique_string(program->intern, "str"));
+            string_symbol->global_string_value  = necro_mach_value_create_global(program, global_symbol, necro_mach_type_create_ptr(&program->arena, array_mach_type));
+            string_symbol->program              = program;
+            global_symbol->global_string_symbol = core_ast->lit.string_literal;
             necro_mach_program_add_global(program, core_ast->lit.string_literal->global_string_value);
         }
     }

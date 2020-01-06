@@ -1174,7 +1174,6 @@ accumulateChannel1 f input1 =
           in
             (state', freezeArray o')
 
--- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
 accumulateChannelAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel
 accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
   case input1 of

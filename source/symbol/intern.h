@@ -29,6 +29,7 @@
 
 struct NecroInstSub;
 struct NecroMachAst;
+struct NecroMachProgram;
 
 typedef enum
 {
@@ -38,11 +39,12 @@ typedef enum
 
 struct NecroSymbolData
 {
-    size_t               hash;
-    size_t               symbol_num;
-    size_t               length;
-    const char*          str;
-    struct NecroMachAst* global_string_value;
+    size_t                   hash;
+    size_t                   symbol_num;
+    size_t                   length;
+    const char*              str;
+    struct NecroMachAst*     global_string_value;
+    struct NecroMachProgram* program;
 };
 
 typedef struct NecroSymbolData* NecroSymbol;

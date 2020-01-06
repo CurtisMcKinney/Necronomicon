@@ -55,16 +55,16 @@ max x y =
   else
     y
 
-uncurry :: (a -> b -> c) -> (a, b) -> c
+uncurry :: .(.a -> .b -> .c) -> (.a, .b) -> .c
 uncurry f (x, y) = f x y
 
-uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 :: .(.a -> .b -> .c -> .d) -> (.a, .b, .c) -> .d
 uncurry3 f (x, y, z) = f x y z
 
-uncurry' :: (a -> b -> c) -> (#a, b#) -> c
+uncurry' :: .(.a -> .b -> .c) -> (#.a, .b#) -> .c
 uncurry' f (#x, y#) = f x y
 
-uncurry3' :: (a -> b -> c -> d) -> (#a, b, c#) -> d
+uncurry3' :: .(.a -> .b -> .c -> .d) -> (#.a, .b, .c#) -> .d
 uncurry3' f (#x, y, z#) = f x y z
 
 mouseX :: Int
@@ -982,9 +982,6 @@ arrayFrom x =
     xa =
       loop a = unsafeEmptyArray () for i <- each do
         writeArray i x a
-
-defaulted :: Array 4 (Maybe Int)
-defaulted = default
 
 instance Foldable (Array n) where
   fold a =
@@ -2066,7 +2063,7 @@ ptrMalloc capacity = primUndefined
 ptrRealloc :: UInt -> Ptr *a -> Ptr *a
 ptrRealloc capacity ptr = primUndefined
 
-ptrFree :: Ptr a -> *()
+ptrFree :: Ptr .a -> *()
 ptrFree ptr = primUndefined
 
 -- unsafePtrPeek :: UInt -> *Ptr a -> (#a, *Ptr a#)

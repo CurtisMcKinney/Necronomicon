@@ -1105,20 +1105,32 @@ mapChannel2 f cx cy =
 -- withRangeOf :: f n -> g n -> f n
 -- withRangeOf x _ = x
 
-audioSampleRate :: UInt
-audioSampleRate = 48000
+audioSampleRate' :: UInt
+audioSampleRate' = 48000
 
-audioBlocksPerSecond :: UInt
-audioBlocksPerSecond = 64
+audioBlockSize' :: UInt
+audioBlockSize' = 64
 
 audioOverSampleAmount :: UInt
 audioOverSampleAmount = 32
 
 audioBlockSize :: UInt
-audioBlockSize = audioBlocksPerSecond * audioOverSampleAmount
+audioBlockSize = audioBlockSize' * audioOverSampleAmount
+
+audioSampleRate :: UInt
+audioSampleRate = audioSampleRate' * audioOverSampleAmount
 
 audioBlockSizeF :: Float
 audioBlockSizeF = fromUInt audioBlockSize
+
+audioBlocksPerSecond :: UInt
+audioBlocksPerSecond = audioSampleRate' / audioBlockSize'
+
+audioBlockDelta :: Rational
+audioBlockDelta = 1 // fromUInt audioBlocksPerSecond
+
+audioSampleDelta :: Rational
+audioSampleDelta = 1 // fromUInt audioSampleRate
 
 -- -- NOTE: Assumes audioBlockSize is a power of 2!
 -- audioBlockSizeLog2 :: UInt
@@ -1496,12 +1508,6 @@ percIsRunning totalTime state =
 perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
   accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) (percIsRunning (attackTime + decayTime)) input
-
-blockDelta :: Rational
-blockDelta = 1 // fromUInt audioBlocksPerSecond
-
-sampleDelta :: Rational
-sampleDelta = 1 // fromUInt (audioSampleRate * audioOverSampleAmount)
 
 
 --------------------
@@ -1942,7 +1948,7 @@ printBarOnLoop c w =
 instance Print a => Print (Seq a) where
   print s w = wout
     where
-      tick ~ 0       = tick + blockDelta
+      tick ~ 0       = tick + audioBlockDelta
       (#_, _, wout#) =
         loop (#cont, time, w'#) = (#True, 0, w#) while cont do
           let nextValueTime ~ 0 = nextValueTime + time in
@@ -2378,15 +2384,15 @@ calculateAudioSampleOffset valueTime tickTime =
   where
     Rational (#n, d#) = valueTime - tickTime
 
-demand :: (AudioFormat f) => Seq Float -> Audio f
-demand s =
+seqToAudio :: (AudioFormat f) => Seq Float -> Audio f
+seqToAudio s =
   Audio (pure (AudioRate (freezeArray aout)))
   where
     (#_, aout#) =
       loop (#i0, a#) = (#audioSampleOffset, audioInitArray ()#) while i0 < audioBlockSize do
         let
           i1        = i0 + 1
-          time ~ 0  = time + sampleDelta 
+          time ~ 0  = time + audioSampleDelta 
           value ~ 0 =
             thd3' <| loop (#cont, seqDuration0, prevValue#) = (#True, 0, value#) while cont do
               let
@@ -2404,11 +2410,11 @@ poly f s =
   case mutRefTake (\_ -> dynArrayEmpty 8) of
     (#thunks0, mref#) ->
       let
-        tick ~ 0                = tick + blockDelta
+        tick ~ 0                = tick + audioBlockDelta
         (#_, _, acc', thunks4#) =
           loop (#cont, time, acc, thunks1#) = (#True, 0, mempty, dynArrayIterator thunks0#) while cont do
             let nextValueTime ~ 0 = nextValueTime + time in
-              if nextValueTime < tick then
+              if nextValueTime <= tick then
                 case runSeq s () of
                   SeqValue (#t, _, Just x#) ->
                     (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
@@ -2439,15 +2445,15 @@ poly f s =
 --     rrF64 = bitReverse rF64
 
 -- outAudio 0 a w
--- demand [440 <660 880> 330 <990 880 770>]
-      -- |> add (saw (660 * demand (1 // 300) [1 2 <4 3>]))
+-- seqToAudio [440 <660 880> 330 <990 880 770>]
+      -- |> add (saw (660 * seqToAudio (1 // 300) [1 2 <4 3>]))
 
 testJit :: *World -> *World
 testJit w =
   outAudio 0 a w
   where
-    s = demand <| seqSpeed 4 [0.5 1 2 <4 3>]
-    t = demand <| seqSpeed 2 [0.5 1 2 <4 3>]
+    s = seqToAudio <| seqSpeed 4 [0.5 1 2 <4 3>]
+    t = seqToAudio <| seqSpeed 2 [0.5 1 2 <4 3>]
     a =
       saw (440 * stereo s t)
       |> perc 4 10 1

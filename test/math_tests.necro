@@ -1,0 +1,25 @@
+main :: *World -> *World
+main w = print one w 
+		  |> print " -> "
+          |> print unNegativeOne
+          |> printLn " "
+  where
+    one :: Float
+    one = fromInt mouseX
+    negativeBit :: UInt
+    negativeBit = bitShiftLeft 1 63
+    negativeOne :: Float
+    negativeOne = bitOr (toBits one) negativeBit |> fromBits
+    allBits :: UInt
+    allBits = -1
+    unNegativeOne :: Float
+    unNegativeOne = negativeOne |> toBits |> bitAnd (bitXor allBits negativeBit) |> fromBits
+
+--
+-- main :: *World -> *World
+-- main w = print f64 w |> print " -> " |> print rF64 |> print " -> " |> print rrF64 |> printLn " "
+--   where
+--     f64 :: Float
+--     f64 = pi
+--     rF64 = bitReverse f64
+--     rrF64 = bitReverse rF64

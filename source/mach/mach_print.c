@@ -468,6 +468,12 @@ void necro_mach_print_binop(NecroMachAst* ast, size_t depth)
     case NECRO_PRIMOP_BINOP_AND:  printf("and ");  break;
     case NECRO_PRIMOP_BINOP_SHL:  printf("shl ");  break;
     case NECRO_PRIMOP_BINOP_SHR:  printf("shr ");  break;
+    case NECRO_PRIMOP_BINOP_XOR:  printf("xor ");  break;
+    case NECRO_PRIMOP_BINOP_FAND: printf("fand "); break;
+    case NECRO_PRIMOP_BINOP_FOR:  printf("for ");  break;
+    case NECRO_PRIMOP_BINOP_FXOR: printf("fxor "); break;
+    case NECRO_PRIMOP_BINOP_FSHL: printf("fshl "); break;
+    case NECRO_PRIMOP_BINOP_FSHR: printf("fshr "); break;
     default: assert(false); break;
     }
     necro_mach_print_value(ast->binop.left, NECRO_PRINT_VALUE_TYPE);
@@ -482,20 +488,24 @@ void necro_mach_print_uop(NecroMachAst* ast, size_t depth)
     printf("%%%s = ", ast->uop.result->value.reg_symbol->name->str);
     switch (ast->uop.uop_type)
     {
-    case NECRO_PRIMOP_UOP_IABS: printf("iabs "); break;
-    case NECRO_PRIMOP_UOP_ISGN: printf("isgn "); break;
-    case NECRO_PRIMOP_UOP_UABS: printf("uabs "); break;
-    case NECRO_PRIMOP_UOP_USGN: printf("usgn "); break;
-    case NECRO_PRIMOP_UOP_FSGN: printf("fsgn "); break;
-    case NECRO_PRIMOP_UOP_ITOI: printf("itoi "); break;
-    case NECRO_PRIMOP_UOP_ITOU: printf("itou "); break;
-    case NECRO_PRIMOP_UOP_ITOF: printf("itof "); break;
-    case NECRO_PRIMOP_UOP_UTOI: printf("utoi "); break;
-    case NECRO_PRIMOP_UOP_FTRI: printf("ftri "); break;
-    case NECRO_PRIMOP_UOP_FRNI: printf("frni "); break;
-    case NECRO_PRIMOP_UOP_FTOF: printf("ftof "); break;
-    case NECRO_PRIMOP_UOP_FFLR: printf("fflr "); break;
+    case NECRO_PRIMOP_UOP_IABS:  printf("iabs "); break;
+    case NECRO_PRIMOP_UOP_ISGN:  printf("isgn "); break;
+    case NECRO_PRIMOP_UOP_UABS:  printf("uabs "); break;
+    case NECRO_PRIMOP_UOP_USGN:  printf("usgn "); break;
+    case NECRO_PRIMOP_UOP_FSGN:  printf("fsgn "); break;
+    case NECRO_PRIMOP_UOP_ITOI:  printf("itoi "); break;
+    case NECRO_PRIMOP_UOP_ITOU:  printf("itou "); break;
+    case NECRO_PRIMOP_UOP_ITOF:  printf("itof "); break;
+    case NECRO_PRIMOP_UOP_UTOI:  printf("utoi "); break;
+    case NECRO_PRIMOP_UOP_FTRI:  printf("ftri "); break;
+    case NECRO_PRIMOP_UOP_FRNI:  printf("frni "); break;
+    case NECRO_PRIMOP_UOP_FTOF:  printf("ftof "); break;
+    case NECRO_PRIMOP_UOP_FFLR:  printf("fflr "); break;
     case NECRO_PRIMOP_UOP_FBREV: printf("fbrev "); break;
+    case NECRO_PRIMOP_UOP_FTOB:  printf("ftob "); break;
+    case NECRO_PRIMOP_UOP_FFRB:  printf("ffrb "); break;
+    case NECRO_PRIMOP_UOP_NOT:   printf("not ");  break;
+    case NECRO_PRIMOP_UOP_FNOT:  printf("fnot "); break;
     default: assert(false); break;
     }
     necro_mach_print_value(ast->uop.param, NECRO_PRINT_VALUE_TYPE);

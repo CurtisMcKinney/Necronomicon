@@ -1816,13 +1816,16 @@ seqValueDurationMul speed (SeqValue (#t, c, v#)) =
   SeqValue (#t * speed, c, v#)
 
 seqSpeed :: Rational -> Seq a -> Seq a
-seqSpeed speed seq = Seq (\_ -> seqValueDurationMul (recip speed) (runSeq seq ()))
+seqSpeed speed seq =
+  Seq (\_ -> seqValueDurationMul (recip speed) (runSeq seq ()))
 
 bpm :: Int -> Rational
-bpm tempoInBPM = tempoInBPM // 60
+bpm tempoInBPM =
+  tempoInBPM // 60
 
 toSeq :: SeqValue a -> Seq a
-toSeq sv = Seq (\_ -> sv)
+toSeq sv =
+  Seq (\_ -> sv)
 
 -- altTest :: SeqValue Int
 -- altTest = runSeq (alternative [0 1 _ 3] [_ <2 9> 55 _]) ()
@@ -1999,12 +2002,12 @@ printLn :: Print a => a -> *World -> *World
 printLn x w =
   printNewline (print x w)
 
-trace :: Print a => a -> b -> b
+trace :: Print a => a -> .b -> .b
 trace x y =
   case print x primUndefined of
     _ -> y
 
-traceLn :: Print a => a -> b -> b
+traceLn :: Print a => a -> .b -> .b
 traceLn x y =
   case printLn x primUndefined of
     _ -> y
@@ -2179,12 +2182,19 @@ dynTierSwapToEndAndDelete index (DynTier (#capacity, count, highWaterMark, ptr#)
 dynTierAppend :: *a -> DynTier *a -> DynTier *a
 dynTierAppend element (DynTier (#capacity, count, highWaterMark, ptr#)) =
   DynTier (#capacity, count + 1, highWaterMark + 1, unsafePtrPoke count element ptr#)
+  |> trace "dynTierAppend, capacity: "
+  |> trace capacity
+  |> trace ", count: "
+  |> traceLn count
 
+-- TODO: Nested case branching seems broken!?!?!?
 dynArrayPromoteElement :: DynArray *a -> DynArray *a
 dynArrayPromoteElement (DynArray (#low, high#)) =
   case dynTierPop low of
-    (#Nothing,      low'#) -> DynArray (#low', high#)
-    (#Just element, low'#) -> DynArray (#low', dynTierAppend element high#)
+    (#m, low'#) ->
+      case m of
+        Nothing      -> DynArray (#low', high#)
+        Just element -> DynArray (#low', dynTierAppend element high#)
 
 -- NOTE: This assumes that the low tier has been completely moved to the high tier
 dynArrayResize :: DynArray *a -> DynArray *a
@@ -2256,12 +2266,18 @@ dynArrayDelete (DynArrayIndex (#tier, index#)) (DynArray (#low, high#)) =
 --     DynArrayIndex (#DynTierLow,  index'#) -> DynArray (#dynTierSwapToEndAndDelete index' low, high#)
 --     DynArrayIndex (#DynTierHigh, index'#) -> DynArray (#low, dynTierSwapToEndAndDelete index' high#)
 
+    -- DynArray (#low, dynTierAppend (appendMk ()) <| DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#)
+
 dynArrayEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> DynArray *a -> DynArray *a
 dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray (#low, DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#)) =
   if highCount < highWaterMark then
     DynArray (#low, dynTierModifyElement (highCount + 1) emplaceInit <| DynTier (#highCapacity, highCount + 1, highWaterMark, highPtr#)#)
+    |> trace "dynArrayEmplaceOrAppend, EMPLACE, highCount: " |> trace highCount
+    |> trace ", highWaterMark: " |> traceLn highWaterMark
   else
-    DynArray (#low, dynTierAppend (appendMk ()) <| DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#)
+    dynArrayAppend (appendMk ()) (DynArray (#low, DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#))
+    |> trace "dynArrayEmplaceOrAppend, APPEND, highCount: " |> trace highCount
+    |> trace ", highWaterMark: " |> traceLn highWaterMark
 
 data DynArrayIterator a = DynArrayIterator (#DynArrayIndex, DynArray a#)
 
@@ -2342,7 +2358,7 @@ polyThunkInit :: a -> Float -> PolyThunk *() a -> PolyThunk *() a
 polyThunkInit x sampleOffset (PolyThunk (#updateState, copyState, _, _, _#))  =
   case dynDeepCopyInto copyState x of
     (#copyState', x'#) ->
-      PolyThunk (#updateState, copyState', x', PolyThunkInit, sampleOffset#)
+      traceLn "polyThunkInit" <| PolyThunk (#updateState, copyState', x', PolyThunkInit, sampleOffset#)
 
 polyThunkEvalGo :: (a -> b) -> a -> b
 polyThunkEvalGo f x =
@@ -2368,8 +2384,8 @@ class (Monoid p, Finite p) => Poly p where
 instance Finite Channel where
   isRunning c =
     case c of
-      ChannelEnd -> True
-      _          -> False
+      ChannelEnd -> False
+      _          -> True
 
 instance AudioFormat f => Finite (Audio f) where
   isRunning (Audio cs) = foldl (\b x -> b && isRunning x) True cs
@@ -2377,12 +2393,12 @@ instance AudioFormat f => Finite (Audio f) where
 instance Poly Channel where
 instance Poly (Audio f) where
 
--- TODO: Look at this more...should be constrained to blocksize, no?
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
   (fromInt n / fromInt d) * audioBlockSizeF
   where
-    Rational (#n, d#) = valueTime - tickTime
+    Rational (#n, d#) =
+      (valueTime - (tickTime - audioBlockDelta)) / audioBlockDelta
 
 seqToAudio :: (AudioFormat f) => Seq Float -> Audio f
 seqToAudio s =
@@ -2398,14 +2414,14 @@ seqToAudio s =
               let
                 nextValueTime ~ 0 = nextValueTime + seqDuration0
               in
-                if nextValueTime > time then (#False, 0, prevValue#) else
+                if nextValueTime >= time then (#False, 0, prevValue#) else
                   case runSeq s () of
                     SeqValue (#seqDuration1, _, Just seqValue#) -> (#True, seqDuration1, seqValue#)
                     SeqValue (#seqDuration1, _, _#)             -> (#True, seqDuration1, prevValue#)
         in
           (#i1, writeArray (unsafeUIntToIndex i0) (fromFloat value) a#)
 
-poly :: Poly b => (a -> b) -> Seq a -> b
+poly :: (Print a, Poly b) => (a -> b) -> Seq a -> b
 poly f s =
   case mutRefTake (\_ -> dynArrayEmpty 8) of
     (#thunks0, mref#) ->
@@ -2414,7 +2430,7 @@ poly f s =
         (#_, _, acc', thunks4#) =
           loop (#cont, time, acc, thunks1#) = (#True, 0, mempty, dynArrayIterator thunks0#) while cont do
             let nextValueTime ~ 0 = nextValueTime + time in
-              if nextValueTime <= tick then
+              if nextValueTime < tick then
                 case runSeq s () of
                   SeqValue (#t, _, Just x#) ->
                     (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
@@ -2428,13 +2444,20 @@ poly f s =
                         if isRunning evalResult then
                           (#True, 0, append acc evalResult, dynArrayIteratorNext thunks2#)
                         else
-                          (#True, 0, acc, dynArrayIteratorFree thunks2#)
+                          traceLn "eval End" (#True, 0, acc, dynArrayIteratorFree thunks2#)
                       _ ->
                         (#False, 0, acc, thunks2#)
       in
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
 
+testJit :: *World -> *World
+testJit w =
+  outAudio 0 badAudio w
+  where
+    badSynth f = saw (fromFloat f) |> mul 0.025 |> perc 0.01 2 1 |> pan 0.5
+    badBeat    = seqSpeed (2 // 1) [440 660 880 990]
+    badAudio   = poly badSynth badBeat
 
 -- testJit :: *World -> *World
 -- testJit w = print f64 w |> print " -> " |> print rF64 |> print " -> " |> print rrF64 |> printLn " "
@@ -2444,21 +2467,16 @@ poly f s =
 --     rF64 = bitReverse f64
 --     rrF64 = bitReverse rF64
 
--- outAudio 0 a w
--- seqToAudio [440 <660 880> 330 <990 880 770>]
-      -- |> add (saw (660 * seqToAudio (1 // 300) [1 2 <4 3>]))
-
-testJit :: *World -> *World
-testJit w =
-  outAudio 0 a w
-  where
-    s = seqToAudio <| seqSpeed 4 [0.5 1 2 <4 3>]
-    t = seqToAudio <| seqSpeed 2 [0.5 1 2 <4 3>]
-    a =
-      saw (440 * stereo s t)
-      |> perc 4 10 1
-      |> mul 0.25
-      |> pan 0.5
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     s = seqToAudio <| seqSpeed 4 [(fromInt mouseX / 64.0) 1 2 <4 3>]
+--     t = seqToAudio <| seqSpeed 2 [0.5 1 2 <4 3>]
+--     a =
+--       saw (440 * stereo s t)
+--       |> mul 0.25
+--       |> pan 0.5
 
 -- testJit :: *World -> *World
 -- testJit w = printLn f64 w |> printLn (bitReverse f64) |> printLn (bitReverse <| bitReverse f64)
@@ -2606,13 +2624,13 @@ testJit w =
 ---------------------------
 -- TODO: Chad Bot
 ---------------------------
--- TODO: Complex numbers
--- TODO: 64-bit issue Chad was having
 
+-- TODO: Sample offset is negative???
 -- TODO: Out of order monomorphic instances (i.e. 'instance Ring Complex' textually appearing before 'instance Ring F64') can cause erroneous 'Not An Instance' errors. Maybe need a better dep analysis story to make this work since we don't figure this out until inference which is at that point too late to fix.
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
 -- TODO: Look at all the .i.i.i weirdness in llvm names???
 
+-- TODO: Optimize const expr globals
 -- TODO: Set blocksPerSecond correctly?
 -- TODO: Memory access test audio stuff!
 -- TODO: JIT test function, testAssertion :: Bool -> *World -> *World

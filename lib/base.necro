@@ -15,8 +15,8 @@ testAssertion b w = primUndefined
 -- testAndPrintAssertion :: (Print a, Eq a) => a -> a -> *World -> *World
 -- testAndPrintAssertion x y w = testAssertion (x == y) <| printLn x w
 
-flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
-flip f y x = f x y
+boolToInt :: Bool -> Int
+boolToInt b = primUndefined
 
 id :: .a -> .a
 id x = x
@@ -25,19 +25,34 @@ fst :: (.a, .b) -> .a
 fst (x, _) = x
 
 snd :: (.a, .b) -> .b
-snd t =
-  case t of
-    (_, y) -> y
+snd (_, y) = y
 
 fst' :: (#.a, .b#) -> .a
-fst' t =
-  case t of
-    (#x, _#) -> x
+fst' (#x, _#) = x
 
 snd' :: (#.a, .b#) -> .b
-snd' t =
-  case t of
-    (#_, y#) -> y
+snd' (#_, y#) = y
+
+fst3 :: (.a, .b, .c) -> .a
+fst3 (x, _, _) = x
+
+snd3 :: (.a, .b, .c) -> .b
+snd3 (_, y, _) = y
+
+thd3 :: (.a, .b, .c) -> .c
+thd3 (_, _, z) = z
+
+fst3' :: (#.a, .b, .c#) -> .a
+fst3' (#x, _, _#) = x
+
+snd3' :: (#.a, .b, .c#) -> .b
+snd3' (#_, y, _#) = y
+
+thd3' :: (#.a, .b, .c#) -> .c
+thd3' (#_, _, z#) = z
+
+flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
+flip f y x = f x y
 
 -- TODO: Fold into Ord class
 min :: Ord a => a -> a -> a
@@ -55,16 +70,16 @@ max x y =
   else
     y
 
-uncurry :: (a -> b -> c) -> (a, b) -> c
+uncurry :: .(.a -> .b -> .c) -> (.a, .b) -> .c
 uncurry f (x, y) = f x y
 
-uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 :: .(.a -> .b -> .c -> .d) -> (.a, .b, .c) -> .d
 uncurry3 f (x, y, z) = f x y z
 
-uncurry' :: (a -> b -> c) -> (#a, b#) -> c
+uncurry' :: .(.a -> .b -> .c) -> (#.a, .b#) -> .c
 uncurry' f (#x, y#) = f x y
 
-uncurry3' :: (a -> b -> c -> d) -> (#a, b, c#) -> d
+uncurry3' :: .(.a -> .b -> .c -> .d) -> (#.a, .b, .c#) -> .d
 uncurry3' f (#x, y, z#) = f x y z
 
 mouseX :: Int
@@ -219,8 +234,8 @@ tanF32 :: F64 -> F64
 tanF32 n = tanResult
   where
     x = rem n twoPi
-    octant = floor <| (x * fourOverPi) 
-    -- HACK -> Need to be able to convert from Float to 
+    octant = floor <| (x * fourOverPi)
+    -- HACK -> Need to be able to convert from Float to
     octantInt = if octant < 1 then 0
       else if octant < 2 then 1
       else if octant < 3 then 2
@@ -253,8 +268,8 @@ tanF64 :: F64 -> F64
 tanF64 n = tanResult
   where
     x = rem n twoPi
-    octant = floor <| (x * fourOverPi) 
-    -- HACK -> Need to be able to convert from Float to 
+    octant = floor <| (x * fourOverPi)
+    -- HACK -> Need to be able to convert from Float to
     octantInt = if octant < 1 then 0
       else if octant < 2 then 1
       else if octant < 3 then 2
@@ -298,7 +313,7 @@ atanF64 n = if sign then negate z else z
     y = if region then atanX + sixthPi else atanX
     z = if complement then halfPi - y else y
     -- Accurate to about 13.7 decimal digits over the range [0, pi/12].
-    atan137s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2)))) 
+    atan137s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
       where
         c1 = 48.70107004404898384
         c2 = 49.5326263772254345
@@ -719,17 +734,16 @@ instance Num Rational where
   abs    (Rational (#xn, xd#)) = Rational (#abs xn, xd#)
   signum (Rational (#xn, _#))  = Rational (#signum xn, 1#)
 
-instance EuclideanRing Rational where
-  rem x y = primUndefined
-  div (Rational (#xn, xd#)) (Rational (#yn, yd#)) =
-    (xn * yd) // (xd * yn)
-
 instance DivisionRing Rational where
   recip (Rational (#n, d#)) =
     if n == 0 then
       Rational (#0, 1#)
     else
       d // n
+
+instance EuclideanRing Rational where
+  rem x y = primUndefined
+  div x y = x * recip y
 
 instance Field Rational where
 
@@ -741,6 +755,9 @@ instance Monoid Rational where
 
 instance Default Rational where
   default = 0
+
+rationalToFloat :: Rational -> Float
+rationalToFloat r = fromInt (numerator r) / fromInt (denominator r)
 
 
 --------------------
@@ -995,9 +1012,6 @@ arrayFrom x =
       loop a = unsafeEmptyArray () for i <- each do
         writeArray i x a
 
-defaulted :: Array 4 (Maybe Int)
-defaulted = default
-
 instance Foldable (Array n) where
   fold a =
     loop x = mempty for i <- each do
@@ -1103,11 +1117,32 @@ mapChannel2 f cx cy =
 -- withRangeOf :: f n -> g n -> f n
 -- withRangeOf x _ = x
 
+audioSampleRate' :: UInt
+audioSampleRate' = 48000
+
+audioBlockSize' :: UInt
+audioBlockSize' = 64
+
+audioOverSampleAmount :: UInt
+audioOverSampleAmount = 32
+
 audioBlockSize :: UInt
-audioBlockSize = 32 * 64
+audioBlockSize = audioBlockSize' * audioOverSampleAmount
+
+audioSampleRate :: UInt
+audioSampleRate = audioSampleRate' * audioOverSampleAmount
 
 audioBlockSizeF :: Float
-audioBlockSizeF = 32 * 64
+audioBlockSizeF = fromUInt audioBlockSize
+
+audioBlocksPerSecond :: UInt
+audioBlocksPerSecond = audioSampleRate' / audioBlockSize'
+
+audioBlockDelta :: Rational
+audioBlockDelta = 1 // fromUInt audioBlocksPerSecond
+
+audioSampleDelta :: Rational
+audioSampleDelta = 1 // fromUInt audioSampleRate
 
 -- -- NOTE: Assumes audioBlockSize is a power of 2!
 -- audioBlockSizeLog2 :: UInt
@@ -1151,7 +1186,6 @@ accumulateChannel1 f input1 =
           in
             (state', freezeArray o')
 
--- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
 accumulateChannelAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel
 accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
   case input1 of
@@ -1163,7 +1197,8 @@ accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
             False -> ChannelEnd
             _     -> AudioRate a
   where
-    ia = audioInitArray ()
+    offsetToEndRange = Range audioSampleOffset 1 0
+    ia               = audioInitArray ()
     out ~ (default, primUndefined) =
       case out of
         (state, _) ->
@@ -1172,12 +1207,12 @@ accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
               case input1 of
                 ChannelEnd          -> (#state, ia#)
                 BlockRate input1Val ->
-                  loop (#s, o#) = (#state, ia#) for i <- each do
+                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                     case f input1Val s of
                       (#s', x#) ->
                         (#s', writeArray i x o#)
                 AudioRate input1Buffer ->
-                  loop (#s, o#) = (#state, ia#) for i <- each do
+                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                     case f (readArray i input1Buffer) s of
                       (#s', x#) ->
                         (#s', writeArray i x o#)
@@ -1444,24 +1479,25 @@ stereo :: Audio Mono -> Audio Mono -> Audio Stereo
 stereo (Audio (Mono l)) (Audio (Mono r)) =
   Audio (Stereo (#l, r#))
 
+-- accumulateSaw :: F64 -> F64 -> (#F64, F64#)
+-- accumulateSaw freq acc =
+--   (#acc3, out#)
+--   where
+--     acc2 = fma freq recipSampleRate acc
+--     acc3 = acc2 - fastFloor acc2
+--     out  = fma acc3 2.0 (-1.0)
+
 accumulateSaw :: F64 -> F64 -> (#F64, F64#)
 accumulateSaw freq acc =
   (#acc3, out#)
   where
-    acc2 = fma freq recipSampleRate acc
-    acc3 = acc2 - fastFloor acc2
-    out  = fma acc3 2.0 (-1.0)
+    acc2 = freq * recipSampleRate + acc
+    acc3 = acc2 - floor acc2
+    out  = acc3 * 2.0 + (-1.0)
 
 saw :: AudioFormat f => Audio f -> Audio f
 saw freq =
   accumulate1 accumulateSaw freq
-
--- TODO: Replace with llvm instruction!
-select :: Bool -> a -> a -> a
-select c t f = if c then t else f
-
-boolToInt :: Bool -> Int
-boolToInt b = primUndefined
 
 -- TODO: Use curve!
 accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> F64 -> (#F64, F64#)
@@ -1483,12 +1519,6 @@ percIsRunning totalTime state =
 perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
   accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) (percIsRunning (attackTime + decayTime)) input
-
-blocksPerSecond :: Rational
-blocksPerSecond = 48000 // 64
-
-blockDelta :: Rational
-blockDelta = recip blocksPerSecond
 
 
 --------------------
@@ -1929,7 +1959,7 @@ printBarOnLoop c w =
 instance Print a => Print (Seq a) where
   print s w = wout
     where
-      tick ~ 0       = tick + blockDelta
+      tick ~ 0       = tick + audioBlockDelta
       (#_, _, wout#) =
         loop (#cont, time, w'#) = (#True, 0, w#) while cont do
           let nextValueTime ~ 0 = nextValueTime + time in
@@ -2078,7 +2108,7 @@ ptrMalloc capacity = primUndefined
 ptrRealloc :: UInt -> Ptr *a -> Ptr *a
 ptrRealloc capacity ptr = primUndefined
 
-ptrFree :: Ptr a -> *()
+ptrFree :: Ptr .a -> *()
 ptrFree ptr = primUndefined
 
 -- unsafePtrPeek :: UInt -> *Ptr a -> (#a, *Ptr a#)
@@ -2359,22 +2389,44 @@ instance AudioFormat f => Finite (Audio f) where
 instance Poly Channel where
 instance Poly (Audio f) where
 
+-- TODO: Look at this more...should be constrained to blocksize, no?
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
   (fromInt n / fromInt d) * audioBlockSizeF
   where
     Rational (#n, d#) = valueTime - tickTime
 
+seqToAudio :: (AudioFormat f) => Seq Float -> Audio f
+seqToAudio s =
+  Audio (pure (AudioRate (freezeArray aout)))
+  where
+    (#_, aout#) =
+      loop (#i0, a#) = (#audioSampleOffset, audioInitArray ()#) while i0 < audioBlockSize do
+        let
+          i1        = i0 + 1
+          time ~ 0  = time + audioSampleDelta
+          value ~ 0 =
+            thd3' <| loop (#cont, seqDuration0, prevValue#) = (#True, 0, value#) while cont do
+              let
+                nextValueTime ~ 0 = nextValueTime + seqDuration0
+              in
+                if nextValueTime > time then (#False, 0, prevValue#) else
+                  case runSeq s () of
+                    SeqValue (#seqDuration1, _, Just seqValue#) -> (#True, seqDuration1, seqValue#)
+                    SeqValue (#seqDuration1, _, _#)             -> (#True, seqDuration1, prevValue#)
+        in
+          (#i1, writeArray (unsafeUIntToIndex i0) (fromFloat value) a#)
+
 poly :: Poly b => (a -> b) -> Seq a -> b
 poly f s =
   case mutRefTake (\_ -> dynArrayEmpty 8) of
     (#thunks0, mref#) ->
       let
-        tick ~ 0                = tick + blockDelta
+        tick ~ 0                = tick + audioBlockDelta
         (#_, _, acc', thunks4#) =
           loop (#cont, time, acc, thunks1#) = (#True, 0, mempty, dynArrayIterator thunks0#) while cont do
             let nextValueTime ~ 0 = nextValueTime + time in
-              if nextValueTime < tick then
+              if nextValueTime <= tick then
                 case runSeq s () of
                   SeqValue (#t, _, Just x#) ->
                     (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
@@ -2395,24 +2447,24 @@ poly f s =
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
 
-testJit :: *World -> *World
-testJit w = print one w 
-		  |> print " -> "
-          |> print unNegativeOne
-          |> printLn " "
-		  |> printLn (bitNot one |> bitAnd (fromBits negativeBit |> bitNot))
-  where
-    one :: Float
-    one = fromInt mouseX
-    negativeBit :: UInt
-    negativeBit = bitShiftLeft 1 63
-    negativeOne :: Float
-    negativeOne = bitOr (toBits one) negativeBit |> fromBits
-    allBits :: UInt
-    allBits = -1
-    unNegativeOne :: Float
-    unNegativeOne = negativeOne |> bitAnd (bitNot negativeBit |> fromBits)
-    -- unNegativeOne = negativeOne |> toBits |> bitAnd (bitXor allBits negativeBit) |> fromBits
+-- testJit :: *World -> *World
+-- testJit w = print one w 
+-- 		  |> print " -> "
+--           |> print unNegativeOne
+--           |> printLn " "
+-- 		  |> printLn (bitNot one |> bitAnd (fromBits negativeBit |> bitNot))
+--   where
+--     one :: Float
+--     one = fromInt mouseX
+--     negativeBit :: UInt
+--     negativeBit = bitShiftLeft 1 63
+--     negativeOne :: Float
+--     negativeOne = bitOr (toBits one) negativeBit |> fromBits
+--     allBits :: UInt
+--     allBits = -1
+--     unNegativeOne :: Float
+--     unNegativeOne = negativeOne |> bitAnd (bitNot negativeBit |> fromBits)
+--     -- unNegativeOne = negativeOne |> toBits |> bitAnd (bitXor allBits negativeBit) |> fromBits
 
 -- testJit :: *World -> *World
 -- testJit w = print one w 
@@ -2457,6 +2509,22 @@ testJit w = print one w
 --     rrF64 = bitReverse rF64
 --
 
+-- outAudio 0 a w
+-- seqToAudio [440 <660 880> 330 <990 880 770>]
+      -- |> add (saw (660 * seqToAudio (1 // 300) [1 2 <4 3>]))
+
+testJit :: *World -> *World
+testJit w =
+  outAudio 0 a w
+  where
+    s = seqToAudio <| seqSpeed 4 [0.5 1 2 <4 3>]
+    t = seqToAudio <| seqSpeed 2 [0.5 1 2 <4 3>]
+    a =
+      saw (440 * stereo s t)
+      |> perc 4 10 1
+      |> mul 0.25
+      |> pan 0.5
+
 -- testJit :: *World -> *World
 -- testJit w = printLn f64 w |> printLn (bitReverse f64) |> printLn (bitReverse <| bitReverse f64)
 --   where
@@ -2470,14 +2538,14 @@ testJit w = print one w
 --     fMouse = fromInt mouseX
 --
 -- testJit :: *World -> *World
--- testJit w = printLn a w |> printLn b |> printLn c 
+-- testJit w = printLn a w |> printLn b |> printLn c
 --   where
 --     a = Complex (#8, 2#)
 --     b = Complex (#2, 1#)
 --     c = sqrt (Complex (#negate 3.4, pi#))
 --
 -- testJit :: *World -> *World
--- testJit w = printLn a w |> printLn b |> printLn c 
+-- testJit w = printLn a w |> printLn b |> printLn c
 --   where
 --     a = Complex (#(negate pi), 3#)
 --     b = Complex (#3, 4#)

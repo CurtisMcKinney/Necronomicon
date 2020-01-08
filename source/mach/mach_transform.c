@@ -2292,16 +2292,6 @@ void necro_mach_test()
 */
 
     {
-        const char* test_name   = "Poly 0";
-        const char* test_source = ""
-            "myCoolSynth :: Audio Mono\n"
-            "myCoolSynth = poly saw [440 220 _ <110 55 _ 330>]\n"
-            "main :: *World -> *World\n"
-            "main w = w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
         const char* test_name   = "Basic 0";
         const char* test_source = ""
             "main :: *World -> *World\n"
@@ -3790,6 +3780,17 @@ void necro_mach_test()
             "main w = print [11 22 _ <4 5 6>] w\n";
         necro_mach_test_string(test_name, test_source);
     }
+
+    {
+        const char* test_name   = "Poly 0";
+        const char* test_source = ""
+            "myCoolSynth :: Audio Mono\n"
+            "myCoolSynth = poly saw [440 220 _ <110 55 _ 330>]\n"
+            "main :: *World -> *World\n"
+            "main w = w\n";
+        necro_mach_test_string(test_name, test_source);
+    }
+
 
 /*
 

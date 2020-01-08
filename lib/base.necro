@@ -318,19 +318,22 @@ atanF64 n = if sign then negate z else z
         c1 = 48.70107004404898384
         c2 = 49.5326263772254345
         c3 = 9.40604244231624
-        c4 = 48.70107004404996166;
-        c5 = 65.7663163908956299;
-        c6 = 21.587934067020262;
+        c4 = 48.70107004404996166
+        c5 = 65.7663163908956299
+        c6 = 21.587934067020262
         x2 = x * 2
 ----------------------------------------
 
 class Bits a where
   bitAnd        :: a -> a -> a
+  bitNot        :: a -> a
   bitOr         :: a -> a -> a
   bitXor        :: a -> a -> a
   bitShiftLeft  :: a -> UInt -> a
   bitShiftRight :: a -> UInt -> a
   bitReverse    :: a -> a
+  toBits        :: a -> UInt
+  fromBits      :: UInt -> a
 
 sqr :: Semiring a => a -> a
 sqr n = n * n
@@ -504,11 +507,14 @@ instance Integral UInt where
 
 instance Bits UInt where
   bitAnd        x y = primUndefined
+  bitNot        x   = primUndefined
   bitOr         x y = primUndefined
   bitXor        x y = primUndefined
   bitShiftLeft  x y = primUndefined
   bitShiftRight x y = primUndefined
   bitReverse    x   = primUndefined
+  toBits        x   = x
+  fromBits      x   = x
 
 instance Semigroup UInt where
   append x y = x + y
@@ -573,11 +579,14 @@ instance Trig Float where
 
 instance Bits Float where
   bitAnd        x y = primUndefined
+  bitNot        x   = primUndefined
   bitOr         x y = primUndefined
   bitXor        x y = primUndefined
   bitShiftLeft  x y = primUndefined
   bitShiftRight x y = primUndefined
   bitReverse    x   = primUndefined
+  toBits        x   = primUndefined
+  fromBits      x   = primUndefined
 
 instance Semigroup Float where
   append x y = x + y
@@ -645,11 +654,14 @@ instance Trig F64 where
 
 instance Bits F64 where
   bitAnd        x y = primUndefined
+  bitNot        x   = primUndefined
   bitOr         x y = primUndefined
   bitXor        x y = primUndefined
   bitShiftLeft  x y = primUndefined
   bitShiftRight x y = primUndefined
   bitReverse    x   = primUndefined
+  toBits        x   = primUndefined
+  fromBits      x   = primUndefined
 
 instance Semigroup F64 where
   append x y = x + y
@@ -2164,6 +2176,9 @@ dynArrayTrace opName (DynArray (#low, high#)) =
   let high' = traceLn " " <| traceLn "  }" <| dynTierTrace high in
   DynArray (#low', high'#)
 
+-- dynArrayTrace :: Array n Char -> DynArray *a -> DynArray *a
+-- dynArrayTrace _ a = a
+
 dynArrayIndexEmpty :: DynArrayIndex
 dynArrayIndexEmpty = DynArrayIndex (#DynTierLow, 0#)
 
@@ -2482,12 +2497,66 @@ testJit w =
     badAudio   = poly badSynth badBeat
 
 -- testJit :: *World -> *World
+-- testJit w = print one w
+-- 		  |> print " -> "
+--           |> print unNegativeOne
+--           |> printLn " "
+-- 		  |> printLn (bitNot one |> bitAnd (fromBits negativeBit |> bitNot))
+--   where
+--     one :: Float
+--     one = fromInt mouseX
+--     negativeBit :: UInt
+--     negativeBit = bitShiftLeft 1 63
+--     negativeOne :: Float
+--     negativeOne = bitOr (toBits one) negativeBit |> fromBits
+--     allBits :: UInt
+--     allBits = -1
+--     unNegativeOne :: Float
+--     unNegativeOne = negativeOne |> bitAnd (bitNot negativeBit |> fromBits)
+--     -- unNegativeOne = negativeOne |> toBits |> bitAnd (bitXor allBits negativeBit) |> fromBits
+
+-- testJit :: *World -> *World
+-- testJit w = print one w
+-- 		  |> print " -> "
+--           |> print negativeBit
+--           |> print " -> "
+--           |> print negativeOne
+--           |> print " -> "
+--           |> print unNegativeOne
+--           |> printLn " "
+--   where
+--     one :: Float
+--     one = fromInt mouseX
+--     negativeBit :: UInt
+--     negativeBit = bitShiftLeft 1 63
+--     negativeOne :: Float
+--     negativeOne = bitOr (toBits one) negativeBit |> fromBits
+--     allBits :: UInt
+--     allBits = -1
+--     unNegativeOne :: Float
+--     unNegativeOne = negativeOne |> toBits |> bitAnd (bitXor allBits negativeBit) |> fromBits
+--
+
+-- bitOneOne = bitAnd (bitXor (-1) negativeBit) bitOne |> fromBits
+
+-- testJit :: *World -> *World
+-- testJit w = print one w |> print " -> " |> print bitOne |> print " -> " |> print bitOneOne |> printLn " "
+--   where
+--     one :: Float
+--     one = 1
+--     -- negativeBit :: UInt
+--     -- negativeBit = bitShiftRight 1 63
+--     bitOne = bitShiftLeft one 2
+--     bitOneOne = bitShiftRight bitOne 2
+--
+-- testJit :: *World -> *World
 -- testJit w = print f64 w |> print " -> " |> print rF64 |> print " -> " |> print rrF64 |> printLn " "
 --   where
---     f64 :: F64
+--     f64 :: Float
 --     f64 = pi
 --     rF64 = bitReverse f64
 --     rrF64 = bitReverse rF64
+--
 
 -- testJit :: *World -> *World
 -- testJit w =

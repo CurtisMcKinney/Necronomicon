@@ -939,7 +939,17 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
     ast->type         = NECRO_MACH_BINOP;
     assert(left->type == NECRO_MACH_VALUE);
     assert(right->type == NECRO_MACH_VALUE);
-    necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
+
+	switch (op_type)
+	{
+    case NECRO_PRIMOP_BINOP_FSHL: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FSHR:
+		break;
+	default:
+		necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
+		break;
+	}
+
     // typecheck
     switch (op_type)
     {
@@ -966,6 +976,7 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
     case NECRO_PRIMOP_BINOP_AND:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_SHL:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_SHR:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_XOR:
     {
         // Type check that it's an uint type
         necro_mach_type_check_is_uint_type(left->necro_machine_type);
@@ -978,12 +989,25 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
     case NECRO_PRIMOP_BINOP_FADD: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FSUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FMUL: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FDIV:
+    case NECRO_PRIMOP_BINOP_FDIV: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FAND:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FOR:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FXOR: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FREM:
     {
         // Type check that it's a float type
         necro_mach_type_check_is_float_type(left->necro_machine_type);
         necro_mach_type_check_is_float_type(right->necro_machine_type);
+        ast->necro_machine_type = left->necro_machine_type;
+        // ast->necro_machine_type = left->necro_machine_type;
+        ast->binop.result       = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
+        break;
+    }
+    case NECRO_PRIMOP_BINOP_FSHL: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FSHR:
+    {
+        necro_mach_type_check_is_float_type(left->necro_machine_type);
+        necro_mach_type_check_is_uint_type(right->necro_machine_type);
         ast->necro_machine_type = left->necro_machine_type;
         // ast->necro_machine_type = left->necro_machine_type;
         ast->binop.result       = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
@@ -1033,6 +1057,7 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
         break;
     }
     case NECRO_PRIMOP_UOP_UABS: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_NOT:  /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_USGN:
     {
         necro_mach_type_check_is_uint_type(param->necro_machine_type);
@@ -1041,6 +1066,7 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
         break;
     }
     case NECRO_PRIMOP_UOP_FSGN: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_FNOT: /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_FBREV:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
@@ -1048,6 +1074,20 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
         break;
     }
+	case NECRO_PRIMOP_UOP_FTOB:
+	{
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_F64 ? program->type_cache.uint64_type : program->type_cache.word_uint_type;
+        ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
+		break;
+	}
+	case NECRO_PRIMOP_UOP_FFRB:
+	{
+        necro_mach_type_check_is_uint_type(param->necro_machine_type);
+        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_UINT64 ? program->type_cache.f64_type : program->type_cache.word_float_type;
+        ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
+		break;
+	}
     case NECRO_PRIMOP_UOP_ITOU:
     {
         necro_mach_type_check_is_int_type(param->necro_machine_type);
@@ -1072,14 +1112,14 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
     case NECRO_PRIMOP_UOP_FTRI:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
-        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_F64 ? program->type_cache.int64_type : program->type_cache.int32_type;
+        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_F64 ? program->type_cache.int64_type : program->type_cache.word_int_type;
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
     case NECRO_PRIMOP_UOP_FRNI:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
-        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_F64 ? program->type_cache.int64_type : program->type_cache.int32_type;
+        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_F64 ? program->type_cache.int64_type : program->type_cache.word_int_type;
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }

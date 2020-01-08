@@ -616,6 +616,69 @@ LLVMValueRef necro_llvm_codegen_extract_value(NecroLLVM* context, NecroMachAst* 
     return value;
 }
 
+
+#define NECRO_CODEGEN_FLOAT_X_FLOAT_BIT_BINOP(BIT_BINOP)\
+{\
+    LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->binop.left->necro_machine_type);\
+    assert(arg_type != NULL);\
+    const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);\
+    assert(f32_type != NULL);\
+    const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);\
+    assert(f64_type != NULL);\
+    if (arg_type == f32_type)\
+    {\
+        const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);\
+        assert(uint32_type != NULL);\
+        LLVMValueRef lhs = LLVMBuildBitCast(context->builder, left, uint32_type, "lhs_float_to_uint");\
+        LLVMValueRef rhs = LLVMBuildBitCast(context->builder, right, uint32_type, "rhs_float_to_uint");\
+        value = BIT_BINOP(context->builder, lhs, rhs, name);\
+        value = LLVMBuildBitCast(context->builder, value, f32_type, "uint_to_float");\
+    }\
+    else if (arg_type == f64_type)\
+    {\
+        const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);\
+        assert(uint64_type != NULL);\
+        LLVMValueRef lhs = LLVMBuildBitCast(context->builder, left, uint64_type, "lhs_float64_to_uint64");\
+        LLVMValueRef rhs = LLVMBuildBitCast(context->builder, right, uint64_type, "rhs_float64_to_uint64");\
+        value = BIT_BINOP(context->builder, lhs, rhs, name);\
+        value = LLVMBuildBitCast(context->builder, value, f64_type, "uint64_to_float64");\
+    }\
+    else\
+    {\
+        assert(false && "Only 32-bit and 64-bit Floats supported");\
+    }\
+}
+
+#define NECRO_CODEGEN_FLOAT_X_UINT_BIT_BINOP(BIT_BINOP)\
+{\
+    LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->binop.left->necro_machine_type);\
+    assert(arg_type != NULL);\
+    const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);\
+    assert(f32_type != NULL);\
+    const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);\
+    assert(f64_type != NULL);\
+    if (arg_type == f32_type)\
+    {\
+        const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);\
+        assert(uint32_type != NULL);\
+        value = LLVMBuildBitCast(context->builder, left, uint32_type, "float_to_uint");\
+        value = BIT_BINOP(context->builder, value, right, name);\
+        value = LLVMBuildBitCast(context->builder, value, f32_type, "uint_to_float");\
+    }\
+    else if (arg_type == f64_type)\
+    {\
+        const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);\
+        assert(uint64_type != NULL);\
+        value = LLVMBuildBitCast(context->builder, left, uint64_type, "float64_to_uint64");\
+        value = BIT_BINOP(context->builder, value, right, name);\
+        value = LLVMBuildBitCast(context->builder, value, f64_type, "uint64_to_float64");\
+    }\
+    else\
+    {\
+        assert(false && "Only 32-bit and 64-bit Floats supported");\
+    }\
+}
+
 LLVMValueRef necro_llvm_codegen_binop(NecroLLVM* context, NecroMachAst* ast)
 {
     assert(context != NULL);
@@ -647,6 +710,22 @@ LLVMValueRef necro_llvm_codegen_binop(NecroLLVM* context, NecroMachAst* ast)
     case NECRO_PRIMOP_BINOP_XOR:  value = LLVMBuildXor(context->builder, left, right, name);  break;
     case NECRO_PRIMOP_BINOP_SHL:  value = LLVMBuildShl(context->builder, left, right, name);  break;
     case NECRO_PRIMOP_BINOP_SHR:  value = LLVMBuildLShr(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FAND:
+      NECRO_CODEGEN_FLOAT_X_FLOAT_BIT_BINOP(LLVMBuildAnd);
+      break;
+    case NECRO_PRIMOP_BINOP_FOR:
+      NECRO_CODEGEN_FLOAT_X_FLOAT_BIT_BINOP(LLVMBuildOr);
+      break;
+    case NECRO_PRIMOP_BINOP_FXOR:
+      NECRO_CODEGEN_FLOAT_X_FLOAT_BIT_BINOP(LLVMBuildXor);
+      break;
+    case NECRO_PRIMOP_BINOP_FSHL:
+      NECRO_CODEGEN_FLOAT_X_UINT_BIT_BINOP(LLVMBuildShl);
+      break;
+    case NECRO_PRIMOP_BINOP_FSHR:
+      NECRO_CODEGEN_FLOAT_X_UINT_BIT_BINOP(LLVMBuildLShr);
+      break;
+
     default:
         assert(false);
         break;
@@ -767,7 +846,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
            ret double %3
         */
 
-        LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        const LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
         assert(arg_type != NULL);
         const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
         assert(uint32_type != NULL);
@@ -805,13 +884,21 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         }
         else if (arg_type == f64_type)
         {
-            assert(context->base->bit_reverse_float64 != NULL);
+            NecroAstSymbol* bit_reverse_float = context->base->bit_reverse_float;
+            if (bit_reverse_float == NULL || 
+                bit_reverse_float->core_ast_symbol == NULL ||
+                bit_reverse_float->core_ast_symbol->mach_symbol == NULL)
+            {
+                bit_reverse_float = context->base->bit_reverse_float64;
+            }
+            assert(bit_reverse_float != NULL);
+            assert(bit_reverse_float->core_ast_symbol->mach_symbol != NULL);
             value = LLVMBuildBitCast(context->builder, param, uint64_type, "float64_to_uint64");
             necro_llvm_set_intrinsic_uop_type_and_value(
                 context,
                 context->program->type_cache.uint64_type,
-                context->base->bit_reverse_float64,
-                context->base->bit_reverse_float64,
+                bit_reverse_float,
+                bit_reverse_float,
                 "llvm.bitreverse.i32",
                 "llvm.bitreverse.i64",
                 uint32_type,
@@ -824,6 +911,111 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
             value = LLVMBuildCall(context->builder, fn_value, params, (unsigned int) 1, "call_bitreverse");
             LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(fn_value));
             value = LLVMBuildBitCast(context->builder, value, f64_type, "uint64_to_float64");
+        }
+        else
+        {
+            assert(false && "Only 32-bit and 64-bit Floats supported");
+        }
+        break;
+    }
+
+	case NECRO_PRIMOP_UOP_NOT:  value = LLVMBuildNot(context->builder, param, name);  break;
+	case NECRO_PRIMOP_UOP_FNOT:
+	{
+		/*
+			%1 = bitcast double %0 to i64
+			%2 = not i64 %1
+			%3 = bitcast i64 %2 to double
+			ret double %3
+		*/
+
+		const LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+		assert(arg_type != NULL);
+		const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);
+		assert(f32_type != NULL);
+		const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);
+		assert(f64_type != NULL);
+		if (arg_type == f32_type)
+		{
+			const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
+			assert(uint32_type != NULL);
+			value = LLVMBuildBitCast(context->builder, param, uint32_type, "float_to_uint");
+			value = LLVMBuildNot(context->builder, value, name);
+			value = LLVMBuildBitCast(context->builder, value, f32_type, "uint_to_float");
+		}
+		else if (arg_type == f64_type)
+		{
+			const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);
+			assert(uint64_type != NULL);
+			value = LLVMBuildBitCast(context->builder, param, uint64_type, "float64_to_uint64");
+			value = LLVMBuildNot(context->builder, value, name);
+			value = LLVMBuildBitCast(context->builder, value, f64_type, "uint64_to_float64");
+		}
+        else
+        {
+            assert(false && "Only 32-bit and 64-bit Floats supported");
+        }
+		break;
+	}
+
+    case NECRO_PRIMOP_UOP_FTOB:
+    {
+        /*
+           %1 = bitcast double %0 to i64
+           ret i64 %1
+        */
+
+        const LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        assert(arg_type != NULL);
+        const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);
+        assert(f32_type != NULL);
+        const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);
+        assert(f64_type != NULL);
+
+        if (arg_type == f32_type)
+        {
+			const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
+			assert(uint32_type != NULL);
+            value = LLVMBuildBitCast(context->builder, param, uint32_type, "float_to_uint");
+        }
+        else if (arg_type == f64_type)
+        {
+			const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);
+			assert(uint64_type != NULL);
+            value = LLVMBuildBitCast(context->builder, param, uint64_type, "float64_to_uint64");
+        }
+        else
+        {
+            assert(false && "Only 32-bit and 64-bit Floats supported");
+        }
+        break;
+    }
+
+    case NECRO_PRIMOP_UOP_FFRB:
+    {
+        /*
+           %1 = bitcast i64 %0 to double
+           ret double %1
+        */
+
+        const LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        assert(arg_type != NULL);
+		const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
+		assert(uint32_type != NULL);
+		const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);
+		assert(uint64_type != NULL);
+
+        if (arg_type == uint32_type)
+        {
+			const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);
+			assert(f32_type != NULL);
+            value = LLVMBuildBitCast(context->builder, param, f32_type, "uint_to_float");
+        }
+        else if (arg_type == uint64_type)
+        {
+			const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);
+			assert(f64_type != NULL);
+        	value = LLVMBuildBitCast(context->builder, param, f64_type, "uint64_to_float64");
         }
         else
         {
@@ -1616,7 +1808,11 @@ void necro_llvm_compile(NecroCompileInfo info, NecroLLVM* context)
 {
     UNUSED(info);
     char* emit_error = NULL;
+#ifdef _WIN32
     char* output_location = "./build/necro_test.asm";
+#else
+	char* output_location = "../necro_test.asm";
+#endif
     if (LLVMTargetMachineEmitToFile(context->target_machine, context->mod, output_location, LLVMAssemblyFile, &emit_error) != 0)
     // char* output_location = "./build/necro_test.o";
     // if (LLVMTargetMachineEmitToFile(context->target_machine, context->mod, output_location, LLVMObjectFile, &emit_error) != 0)

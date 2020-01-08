@@ -950,12 +950,22 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
 {
     assert(program != NULL);
     NecroMachAst* left   = ast->binop.left;
-    NecroMachAst* right  = ast->binop.left;
+    NecroMachAst* right  = ast->binop.right;
     NecroMachAst* result = ast->binop.result;
     necro_mach_ast_type_check(program, left);
     necro_mach_ast_type_check(program, right);
     necro_mach_ast_type_check(program, result);
-    necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
+
+	switch (ast->binop.binop_type)
+	{
+    case NECRO_PRIMOP_BINOP_FSHL: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FSHR:
+		break;
+	default:
+		necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
+		break;
+	}
+
     switch (ast->binop.binop_type)
     {
     case NECRO_PRIMOP_BINOP_IADD: /* FALL THROUGH */
@@ -979,6 +989,7 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_AND:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_SHL:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_SHR:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_XOR:
     {
         necro_mach_type_check_is_uint_type(left->necro_machine_type);
         necro_mach_type_check_is_uint_type(right->necro_machine_type);
@@ -986,11 +997,23 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
         necro_mach_type_check_is_uint_type(ast->necro_machine_type);
         break;
     }
+    case NECRO_PRIMOP_BINOP_FSHL: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FSHR:
+    {
+        necro_mach_type_check_is_float_type(left->necro_machine_type);
+        necro_mach_type_check_is_uint_type(right->necro_machine_type);
+        necro_mach_type_check_is_float_type(result->necro_machine_type);
+        necro_mach_type_check_is_float_type(ast->necro_machine_type);
+        break;
+    }
     case NECRO_PRIMOP_BINOP_FADD: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FSUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FMUL: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FDIV:
-    case NECRO_PRIMOP_BINOP_FREM:
+    case NECRO_PRIMOP_BINOP_FDIV: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FREM: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FAND: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FOR:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FXOR:
     {
         necro_mach_type_check_is_float_type(left->necro_machine_type);
         necro_mach_type_check_is_float_type(right->necro_machine_type);
@@ -1026,6 +1049,7 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
         break;
     }
     case NECRO_PRIMOP_UOP_UABS: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_NOT:  /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_USGN:
     {
         necro_mach_type_check_is_uint_type(param->necro_machine_type);
@@ -1033,9 +1057,22 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
         break;
     }
     case NECRO_PRIMOP_UOP_FSGN: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_FNOT: /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_FBREV:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
+        necro_mach_type_check_is_float_type(result->necro_machine_type);
+        break;
+    }
+    case NECRO_PRIMOP_UOP_FTOB:
+    {
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        necro_mach_type_check_is_uint_type(result->necro_machine_type);
+        break;
+    }
+    case NECRO_PRIMOP_UOP_FFRB:
+    {
+        necro_mach_type_check_is_uint_type(param->necro_machine_type);
         necro_mach_type_check_is_float_type(result->necro_machine_type);
         break;
     }

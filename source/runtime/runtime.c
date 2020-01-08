@@ -433,28 +433,28 @@ extern DLLEXPORT void necro_runtime_init()
 
 static void query_pointer(Display *d)
 {
-  static bool once;
-  int i = 0;
-  unsigned m;
-  Window w;
+    static bool once = false;
+    int i = 0;
+    unsigned m;
+    Window w;
 
-  if (once == false)
-  {
-    once = true;
-    root = DefaultRootWindow(d);
-  }
-
-  if (!XQueryPointer(d, root, &root, &w, &mouse_x, &mouse_y, &i, &i, &m)) {
-    for (i = 0; i < ScreenCount(d); ++i)
+    if (once == false)
     {
-      if (root == RootWindow(d, i))
-      {
-        break;
-      }
+        once = true;
+        root = DefaultRootWindow(d);
     }
-  }
 
-  /* fprintf(stdout, "X: %d Y: %d\n", x, y); */
+    if (!XQueryPointer(d, root, &root, &w, &mouse_x, &mouse_y, &i, &i, &m)) {
+        for (i = 0; i < ScreenCount(d); ++i)
+        {
+            if (root == RootWindow(d, i))
+            {
+                break;
+            }
+        }
+    }
+
+    /* fprintf(stdout, "X: %d Y: %d\n", x, y); */
 }
 
 extern DLLEXPORT void necro_runtime_update()
@@ -464,6 +464,13 @@ extern DLLEXPORT void necro_runtime_update()
 
     assert(display != NULL);
     query_pointer(display);
+
+    // ADD ESCAPE KEY SUPPORT
+
+    /* if (input_record[i].Event.KeyEvent.uChar.AsciiChar == 27 || input_record[i].Event.KeyEvent.uChar.AsciiChar == 3 || input_record[i].Event.KeyEvent.uChar.AsciiChar == 4) */
+    /* { */
+    /*     necro_runtime_state = NECRO_RUNTIME_IS_DONE; */
+    /* } */
 }
 
 extern DLLEXPORT size_t necro_runtime_is_done()

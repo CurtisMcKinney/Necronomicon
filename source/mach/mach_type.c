@@ -57,7 +57,7 @@ NecroMachTypeCache necro_mach_type_cache_create(NecroMachProgram* program)
     program->type_cache.word_int_type   = necro_mach_type_create_word_sized_int(program);
     program->type_cache.word_float_type = necro_mach_type_create_word_sized_float(program);
     // Init Table
-    const size_t initial_capacity       = 512;
+    const size_t initial_capacity       = 64;
     program->type_cache.buckets         = emalloc(initial_capacity * sizeof(NecroMachTypeCacheBucket));
     program->type_cache.count           = 0;
     program->type_cache.capacity        = initial_capacity;
@@ -86,12 +86,12 @@ void _necro_mach_type_cache_grow(NecroMachTypeCache* cache)
     for (size_t i = 0; i < old_capacity; ++i)
     {
         NecroMachTypeCacheBucket* bucket = old_buckets + i;
-        if (bucket->necro_type == NULL)
+        if (bucket->hash == 0 && bucket->mach_type == NULL && bucket->necro_type == NULL)
             continue;
         size_t bucket_index = bucket->hash & (cache->capacity - 1);
         while (true)
         {
-            if (cache->buckets[bucket_index].mach_type == NULL)
+            if (cache->buckets[bucket_index].hash == 0 && cache->buckets[bucket_index].mach_type == NULL && cache->buckets[bucket_index].necro_type == NULL)
             {
                 cache->buckets[bucket_index] = *bucket;
                 cache->count++;
@@ -209,11 +209,10 @@ NecroMachType* _necro_mach_type_cache_get(NecroMachProgram* program, NecroType* 
             // Found
             return bucket->mach_type;
         }
-        else if (bucket->mach_type == NULL)
+        else if (bucket->hash == 0 && bucket->mach_type == NULL && bucket->necro_type == NULL)
         {
             // Create
             bucket->hash       = hash;
-            printf("insert, hash: %zu\n", hash);
             bucket->mach_type  = _necro_mach_type_from_necro_type(program, type);
             assert(bucket->mach_type != NULL);
             bucket->necro_type = type;

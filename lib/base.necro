@@ -2147,6 +2147,23 @@ data DynArray    a = DynArray (#DynTier a, DynTier a#)
 data DynTierIndex  = DynTierLow | DynTierHigh
 data DynArrayIndex = DynArrayIndex (#DynTierIndex, UInt#)
 
+dynTierTrace :: DynTier *a -> DynTier *a
+dynTierTrace (DynTier (#cap, count, hwm, ptr#)) =
+  DynTier (#cap, count, hwm, ptr#)
+  |> trace "    DynTier { cap: "
+  |> trace cap
+  |> trace ", count: "
+  |> trace count
+  |> trace ", hwm: "
+  |> trace hwm
+  |> traceLn '}'
+
+dynArrayTrace :: Array n Char -> DynArray *a -> DynArray *a
+dynArrayTrace opName (DynArray (#low, high#)) =
+  let low'  = dynTierTrace <| traceLn "  {" <| traceLn "  DynArray " <| traceLn opName low in
+  let high' = traceLn " " <| traceLn "  }" <| dynTierTrace high in
+  DynArray (#low', high'#)
+
 dynArrayIndexEmpty :: DynArrayIndex
 dynArrayIndexEmpty = DynArrayIndex (#DynTierLow, 0#)
 
@@ -2163,7 +2180,7 @@ dynTierPop (DynTier (#capacity, count, highWaterMark, ptr#)) =
   if count > 0 then
     case unsafePtrSwapElement (count - 1) primUndefined ptr of
       (#element, ptr'#) ->
-        (#Just element, DynTier (#capacity, count - 1, highWaterMark - 1, ptr'#)#)
+        (#Just element, DynTier (#capacity, count - 1, highWaterMark, ptr'#)#)
   else
     (#Nothing, DynTier (#capacity, count, highWaterMark, ptr#)#)
 
@@ -2182,10 +2199,11 @@ dynTierSwapToEndAndDelete index (DynTier (#capacity, count, highWaterMark, ptr#)
 dynTierAppend :: *a -> DynTier *a -> DynTier *a
 dynTierAppend element (DynTier (#capacity, count, highWaterMark, ptr#)) =
   DynTier (#capacity, count + 1, highWaterMark + 1, unsafePtrPoke count element ptr#)
-  |> trace "dynTierAppend, capacity: "
-  |> trace capacity
-  |> trace ", count: "
-  |> traceLn count
+
+  -- |> trace "dynTierAppend, capacity: "
+  -- |> trace capacity
+  -- |> trace ", count: "
+  -- |> traceLn count
 
 -- TODO: Nested case branching seems broken!?!?!?
 dynArrayPromoteElement :: DynArray *a -> DynArray *a
@@ -2204,10 +2222,11 @@ dynArrayResize (DynArray (#DynTier (#lcap, lcount, lhwm, lowPtr#), DynTier (#hig
   else
     let
       newCap  = highCapacity * 2
-      newLow  = DynTier (#highCapacity, highCount, hhwm, highPtr#)
+      newLow  = DynTier (#highCapacity, highCount, 0, highPtr#)
       newHigh = DynTier (#newCap, 0, 0, ptrRealloc newCap lowPtr#)
     in
       DynArray (#newLow, newHigh#)
+      |> dynArrayTrace "GROW: "
 
 dynArrayAppend :: *a -> DynArray *a -> DynArray *a
 dynArrayAppend element a =
@@ -2224,11 +2243,15 @@ dynTierModifyElement index f (DynTier (#capacity, count, highWaterMark, ptr0#)) 
       (#element, ptr1#) ->
         DynTier (#capacity, count, highWaterMark, unsafePtrPoke index (f element) ptr1#)
 
-dynArrayModifyElement :: DynArrayIndex -> (*a -> *a) -> DynArray *a -> DynArray *a
-dynArrayModifyElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
-  case tier of
-    DynTierLow  -> DynArray (#dynTierModifyElement index f low, high#)
-    DynTierHigh -> DynArray (#low, dynTierModifyElement index f high#)
+-- dynArrayModifyElement :: DynArrayIndex -> (*a -> *a) -> DynArray *a -> DynArray *a
+-- dynArrayModifyElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
+--   case tier of
+--     DynTierLow  -> DynArray (#dynTierModifyElement index f low, high#)
+--     DynTierHigh -> DynArray (#low, dynTierModifyElement index f high#)
+
+data DynArrayResult a = DynArrayEnd | DynArrayNothing | DynArrayJust a
+
+  -- traceLn count <| trace ", count: " <| trace index <| trace "index: " <|
 
 dynTierWithElement :: UInt -> (*a -> (#b, *a#)) -> DynTier *a -> (#Maybe b, DynTier *a#)
 dynTierWithElement index f (DynTier (#capacity, count, highWaterMark, ptr0#)) =
@@ -2241,23 +2264,28 @@ dynTierWithElement index f (DynTier (#capacity, count, highWaterMark, ptr0#)) =
           (#result, element1#) ->
             (#Just result, DynTier (#capacity, count, highWaterMark, unsafePtrPoke index element1 ptr1#)#)
 
-dynArrayWithElement :: DynArrayIndex -> (*a -> (#b, *a#)) -> DynArray *a -> (#Maybe b, DynArray *a#)
+dynArrayWithElement :: DynArrayIndex -> (*a -> (#b, *a#)) -> DynArray *a -> (#DynArrayResult b, DynArray *a#)
 dynArrayWithElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
   case tier of
     DynTierLow ->
       case dynTierWithElement index f low of
         (#result, low'#) ->
-          (#result, DynArray (#low', high#)#)
+          case result of
+            Just result' -> (#DynArrayJust result', DynArray (#low', high#)#)
+            _            -> (#DynArrayNothing, DynArray (#low', high#)#)
     DynTierHigh ->
       case dynTierWithElement index f high of
         (#result, high'#) ->
-          (#result, DynArray (#low, high'#)#)
+          case result of
+            Just result' -> (#DynArrayJust result', DynArray (#low, high'#)#)
+            _            -> (#DynArrayEnd, DynArray (#low, high'#)#)
 
 dynArrayDelete :: DynArrayIndex -> DynArray *a -> DynArray *a
 dynArrayDelete (DynArrayIndex (#tier, index#)) (DynArray (#low, high#)) =
   case tier of
     DynTierLow  -> DynArray (#dynTierSwapToEndAndDelete index low, high#)
     DynTierHigh -> DynArray (#low, dynTierSwapToEndAndDelete index high#)
+  |> dynArrayTrace "DELETE: "
 
 -- TODO: Nested case literals seem broken!
 -- dynArrayDelete :: DynArrayIndex -> DynArray *a -> DynArray *a
@@ -2271,13 +2299,9 @@ dynArrayDelete (DynArrayIndex (#tier, index#)) (DynArray (#low, high#)) =
 dynArrayEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> DynArray *a -> DynArray *a
 dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray (#low, DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#)) =
   if highCount < highWaterMark then
-    DynArray (#low, dynTierModifyElement (highCount + 1) emplaceInit <| DynTier (#highCapacity, highCount + 1, highWaterMark, highPtr#)#)
-    |> trace "dynArrayEmplaceOrAppend, EMPLACE, highCount: " |> trace highCount
-    |> trace ", highWaterMark: " |> traceLn highWaterMark
+    dynArrayTrace "EMPLACE: " <| DynArray (#low, dynTierModifyElement highCount emplaceInit <| DynTier (#highCapacity, highCount + 1, highWaterMark, highPtr#)#)
   else
-    dynArrayAppend (appendMk ()) (DynArray (#low, DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#))
-    |> trace "dynArrayEmplaceOrAppend, APPEND, highCount: " |> trace highCount
-    |> trace ", highWaterMark: " |> traceLn highWaterMark
+    dynArrayTrace "APPEND:  " <| dynArrayAppend (appendMk ()) (DynArray (#low, DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#))
 
 data DynArrayIterator a = DynArrayIterator (#DynArrayIndex, DynArray a#)
 
@@ -2291,7 +2315,7 @@ dynArrayIteratorEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> DynArrayIterator 
 dynArrayIteratorEmplaceOrAppend emplaceInit appendMk (DynArrayIterator (#_, array#)) =
   DynArrayIterator (#dynArrayIndexEmpty, dynArrayEmplaceOrAppend emplaceInit appendMk array#)
 
-dynArrayIteratorWithElement :: (*a -> (#b, *a#)) -> DynArrayIterator *a -> (#Maybe b, DynArrayIterator *a#)
+dynArrayIteratorWithElement :: (*a -> (#b, *a#)) -> DynArrayIterator *a -> (#DynArrayResult b, DynArrayIterator *a#)
 dynArrayIteratorWithElement f (DynArrayIterator (#index, array#)) =
   case dynArrayWithElement index f array of
     (#result, array'#) ->
@@ -2309,21 +2333,19 @@ dynArrayIteratorNext (DynArrayIterator (#DynArrayIndex (#tier, index#), DynArray
       DynArrayIterator (#DynArrayIndex (#DynTierHigh, index + 1#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
 
 dynArrayIteratorFree :: DynArrayIterator *a -> DynArrayIterator *a
-dynArrayIteratorFree iter =
-  case iter of
-    DynArrayIterator (#index, array#) ->
-      case dynArrayDelete index array of
-        DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#) ->
-          case index of
-            DynArrayIndex (#tier, _#) ->
-              case tier of
-                DynTierLow ->
-                  if lcount > 0 then
-                    DynArrayIterator (#index, DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
-                  else
-                    DynArrayIterator (#DynArrayIndex (#DynTierHigh, 0#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
-                DynTierHigh ->
-                  DynArrayIterator (#index, DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+dynArrayIteratorFree (DynArrayIterator (#index, array#)) =
+  case dynArrayDelete index array of
+    DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#) ->
+      case index of
+        DynArrayIndex (#tier, _#) ->
+          case tier of
+            DynTierLow ->
+              if lcount > 0 then
+                DynArrayIterator (#index, DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+              else
+                DynArrayIterator (#DynArrayIndex (#DynTierHigh, 0#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+            DynTierHigh ->
+              DynArrayIterator (#index, DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
 
 
 --------------------
@@ -2358,7 +2380,7 @@ polyThunkInit :: a -> Float -> PolyThunk *() a -> PolyThunk *() a
 polyThunkInit x sampleOffset (PolyThunk (#updateState, copyState, _, _, _#))  =
   case dynDeepCopyInto copyState x of
     (#copyState', x'#) ->
-      traceLn "polyThunkInit" <| PolyThunk (#updateState, copyState', x', PolyThunkInit, sampleOffset#)
+      PolyThunk (#updateState, copyState', x', PolyThunkInit, sampleOffset#)
 
 polyThunkEvalGo :: (a -> b) -> a -> b
 polyThunkEvalGo f x =
@@ -2440,13 +2462,13 @@ poly f s =
                 case dynArrayIteratorWithElement (polyThunkEval f) thunks1 of
                   (#maybeEvalResult, thunks2#) ->
                     case maybeEvalResult of
-                      Just evalResult ->
+                      DynArrayJust evalResult ->
                         if isRunning evalResult then
                           (#True, 0, append acc evalResult, dynArrayIteratorNext thunks2#)
                         else
-                          traceLn "eval End" (#True, 0, acc, dynArrayIteratorFree thunks2#)
-                      _ ->
-                        (#False, 0, acc, thunks2#)
+                          (#True, 0, acc, dynArrayIteratorFree thunks2#)
+                      DynArrayNothing -> (#True, 0, acc, dynArrayIteratorNext thunks2#)
+                      DynArrayEnd     -> (#False, 0, acc, thunks2#)
       in
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
@@ -2455,8 +2477,8 @@ testJit :: *World -> *World
 testJit w =
   outAudio 0 badAudio w
   where
-    badSynth f = saw (fromFloat f) |> mul 0.025 |> perc 0.01 2 1 |> pan 0.5
-    badBeat    = seqSpeed (2 // 1) [440 660 880 990]
+    badSynth f = saw (fromFloat f) |> mul 0.025 |> perc 0.025 6 1 |> pan 0.5
+    badBeat    = seqSpeed (1 // 1) [400 600 [800:500] <900 <600 [700:1200]> <300 200>>]
     badAudio   = poly badSynth badBeat
 
 -- testJit :: *World -> *World

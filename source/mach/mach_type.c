@@ -72,6 +72,7 @@ void necro_mach_type_cache_destroy(NecroMachTypeCache* cache)
     *cache = necro_mach_type_cache_empty();
 }
 
+// TODO: Fix cache grow bug !!!!
 void _necro_mach_type_cache_grow(NecroMachTypeCache* cache)
 {
     size_t                    old_count    = cache->count;
@@ -85,7 +86,7 @@ void _necro_mach_type_cache_grow(NecroMachTypeCache* cache)
     for (size_t i = 0; i < old_capacity; ++i)
     {
         NecroMachTypeCacheBucket* bucket = old_buckets + i;
-        if (bucket->mach_type == NULL)
+        if (bucket->necro_type == NULL)
             continue;
         size_t bucket_index = bucket->hash & (cache->capacity - 1);
         while (true)
@@ -212,7 +213,9 @@ NecroMachType* _necro_mach_type_cache_get(NecroMachProgram* program, NecroType* 
         {
             // Create
             bucket->hash       = hash;
+            printf("insert, hash: %zu\n", hash);
             bucket->mach_type  = _necro_mach_type_from_necro_type(program, type);
+            assert(bucket->mach_type != NULL);
             bucket->necro_type = type;
             cache->count++;
             return bucket->mach_type;

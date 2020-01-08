@@ -148,13 +148,13 @@ bool necro_runtime_was_test_successful()
 // TODO: Different Allocators based on size: Slab Allocator => Buddy => OS
 extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size)
 {
-    printf("necro_runtime_alloc: %zu\n", size);
+    printf("necro_runtime_alloc: %zu\n\n", size);
     return malloc(size);
 }
 
 extern DLLEXPORT uint8_t* necro_runtime_realloc(uint8_t* ptr, size_t size)
 {
-    printf("necro_runtime_realloc, ptr: %p, size: %zu\n", ptr, size);
+    printf("necro_runtime_realloc, ptr: %p, size: %zu\n\n", ptr, size);
     return realloc(ptr, size);
 }
 

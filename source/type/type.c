@@ -2506,32 +2506,32 @@ size_t necro_type_hash(NecroType* type)
     switch (type->type)
     {
     case NECRO_TYPE_VAR:
-        h = (size_t) type->var.var_symbol ^ necro_constraint_list_hash(type->var.var_symbol->constraints);
+        h = type->var.var_symbol->name->hash ^ necro_constraint_list_hash(type->var.var_symbol->constraints) << 1;
         break;
     case NECRO_TYPE_APP:
-        h = 1361 ^ necro_type_hash(type->app.type1) ^ necro_type_hash(type->app.type2);
+        h = 1361 ^ necro_type_hash(type->app.type1) ^ necro_type_hash(type->app.type2) << 1;
         break;
     case NECRO_TYPE_FUN:
-        h = 8191 ^ necro_type_hash(type->fun.type1) ^ necro_type_hash(type->fun.type2);
+        h = 8193 ^ necro_type_hash(type->fun.type1) ^ necro_type_hash(type->fun.type2) << 1;
         break;
     case NECRO_TYPE_CON:
     {
-        h = 52103 ^ (size_t) type->con.con_symbol;
+        h = 52103 ^ type->con.con_symbol->name->hash << 1;
         NecroType* args = type->con.args;
         while (args != NULL)
         {
-            h = h ^ necro_type_hash(args->list.item);
+            h = h ^ necro_type_hash(args->list.item) << 1;
             args = args->list.next;
         }
         break;
     }
     case NECRO_TYPE_FOR:
     {
-        h = 4111  ^ necro_type_hash(type->for_all.var_symbol->type) ^ necro_type_hash(type->for_all.type);
+        h = 4111  ^ necro_type_hash(type->for_all.var_symbol->type) ^ necro_type_hash(type->for_all.type) << 1;
         break;
     }
     case NECRO_TYPE_NAT:
-        h = type->nat.value ^ 37;
+        h = type->nat.value ^ 37 << 1;
         break;
     case NECRO_TYPE_SYM:
         h = type->sym.value->hash;
@@ -2576,7 +2576,7 @@ bool necro_type_exact_unify(NecroType* type1, NecroType* type2)
     }
     case NECRO_TYPE_FOR:
     {
-        if (type1->for_all.var_symbol != type2->for_all.var_symbol)
+        if (type1->for_all.var_symbol->name != type2->for_all.var_symbol->name)
             return false;
         NecroConstraintList* constraints1 = type1->for_all.var_symbol->type->var.var_symbol->constraints;
         NecroConstraintList* constraints2 = type2->for_all.var_symbol->type->var.var_symbol->constraints;

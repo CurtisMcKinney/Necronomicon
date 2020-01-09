@@ -1022,7 +1022,6 @@ instance Foldable (Array n) where
         (#y, a2#) ->
           (#f x y, a2#)
 
-
 --------------------
 -- Index
 --------------------
@@ -1039,6 +1038,45 @@ bitReverseIndex (Index i) = Index (bitReverse i)
 
 toIndexMultiple :: Index n -> Index (NatMul n (NatMax k 1))
 toIndexMultiple (Index i) = Index i
+
+each :: Range n
+each = Range 0 1 0
+
+audioSampleRate' :: UInt
+audioSampleRate' = 48000
+
+audioBlockSize' :: UInt
+audioBlockSize' = 64
+
+audioOverSampleAmount :: UInt
+audioOverSampleAmount = 32
+
+audioBlockSize :: UInt
+audioBlockSize = audioBlockSize' * audioOverSampleAmount
+
+audioSampleRate :: UInt
+audioSampleRate = audioSampleRate' * audioOverSampleAmount
+
+audioBlockSizeF :: Float
+audioBlockSizeF = fromUInt audioBlockSize
+
+audioBlocksPerSecond :: UInt
+audioBlocksPerSecond = audioSampleRate' / audioBlockSize'
+
+audioBlockDelta :: Rational
+audioBlockDelta = 1 // fromUInt audioBlocksPerSecond
+
+audioSampleDelta :: Rational
+audioSampleDelta = 1 // fromUInt audioSampleRate
+
+-- -- NOTE: Assumes audioBlockSize is a power of 2!
+-- audioBlockSizeLog2 :: UInt
+-- audioBlockSizeLog2 =
+--   fst' <| loop (#bits, n#) = (#0, audioBlockSize#) while n > 0 do
+--     (#bits + 1, bitShiftRight n 1#)
+
+audioSampleOffset :: UInt
+audioSampleOffset = 0
 
 
 --------------------
@@ -1058,8 +1096,8 @@ outChannel n c w =
 
 audioInitArray :: () -> *Array BlockSize F64
 audioInitArray u =
-  loop a = unsafeEmptyArray () for i <- Range audioSampleOffset 1 (audioBlockSize - audioSampleOffset) do
-    writeArray i 0.0 a
+  snd' <| loop (#i, a#) = (#0, unsafeEmptyArray ()#) while i < audioSampleOffset do
+    (#i + 1, writeArray (Index i) 0 a#)
 
 mapChannel :: (F64 -> F64) -> Channel -> Channel
 mapChannel f c =
@@ -1106,55 +1144,8 @@ mapChannel2 f cx cy =
     offsetToEndRange = Range audioSampleOffset 1 0
     ia               = audioInitArray ()
 
--- data ProxyNat (n :: Nat) = ProxyNat
-
--- natValue :: ProxyNat n -> UInt
--- natValue p = primUndefined
-
--- range :: UInt -> UInt -> UInt -> Proxy n -> Range n
--- range startOffset increment endOffset p = Range startOffset increment (natValue p - endOffset)
-
--- withRangeOf :: f n -> g n -> f n
--- withRangeOf x _ = x
-
-audioSampleRate' :: UInt
-audioSampleRate' = 48000
-
-audioBlockSize' :: UInt
-audioBlockSize' = 64
-
-audioOverSampleAmount :: UInt
-audioOverSampleAmount = 32
-
-audioBlockSize :: UInt
-audioBlockSize = audioBlockSize' * audioOverSampleAmount
-
-audioSampleRate :: UInt
-audioSampleRate = audioSampleRate' * audioOverSampleAmount
-
-audioBlockSizeF :: Float
-audioBlockSizeF = fromUInt audioBlockSize
-
-audioBlocksPerSecond :: UInt
-audioBlocksPerSecond = audioSampleRate' / audioBlockSize'
-
-audioBlockDelta :: Rational
-audioBlockDelta = 1 // fromUInt audioBlocksPerSecond
-
-audioSampleDelta :: Rational
-audioSampleDelta = 1 // fromUInt audioSampleRate
-
--- -- NOTE: Assumes audioBlockSize is a power of 2!
--- audioBlockSizeLog2 :: UInt
--- audioBlockSizeLog2 =
---   fst' <| loop (#bits, n#) = (#0, audioBlockSize#) while n > 0 do
---     (#bits + 1, bitShiftRight n 1#)
-
-audioSampleOffset :: UInt
-audioSampleOffset = 0
-
 -- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
--- TODO: Handle input1 Ending!
+-- TODO: Handle state Ending!
 -- TODO: Finish with this and port change to maybeEnd version
 accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
 accumulateChannel1 f input1 =
@@ -1479,21 +1470,22 @@ stereo :: Audio Mono -> Audio Mono -> Audio Stereo
 stereo (Audio (Mono l)) (Audio (Mono r)) =
   Audio (Stereo (#l, r#))
 
--- accumulateSaw :: F64 -> F64 -> (#F64, F64#)
--- accumulateSaw freq acc =
---   (#acc3, out#)
---   where
---     acc2 = fma freq recipSampleRate acc
---     acc3 = acc2 - fastFloor acc2
---     out  = fma acc3 2.0 (-1.0)
-
+-- NOTE: Turns out floor is faster than fastFloor???
 accumulateSaw :: F64 -> F64 -> (#F64, F64#)
 accumulateSaw freq acc =
   (#acc3, out#)
   where
-    acc2 = freq * recipSampleRate + acc
+    acc2 = fma freq recipSampleRate acc
     acc3 = acc2 - floor acc2
-    out  = acc3 * 2.0 + (-1.0)
+    out  = fma acc3 2.0 (-1.0)
+
+-- accumulateSaw :: F64 -> F64 -> (#F64, F64#)
+-- accumulateSaw freq acc =
+--   (#acc3, out#)
+--   where
+--     acc2 = freq * recipSampleRate + acc
+--     acc3 = acc2 - floor acc2
+--     out  = acc3 * 2.0 + (-1.0)
 
 saw :: AudioFormat f => Audio f -> Audio f
 saw freq =
@@ -1876,7 +1868,6 @@ tupleTick slot maxSlot sv =
 interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 interleaveTick slot maxSlot sv =
   slotTick slot maxSlot SeqLoopEnd sv
-
 
 
 --------------------
@@ -2488,13 +2479,55 @@ poly f s =
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
 
+-- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
+-- TODO: Test arg copying
+-- TODO: Test multiple polys
+-- TODO: Test shared beats, etc (NOTE: Known to assert false currently)
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio   = poly badSynth badBeat
+--     badBeat    = [400 600 [800:500] <900 <600 [700:1200]> <300 200>>]
+--     badSynth f =
+--       saw (fromFloat f)
+--       |> mul 0.025
+--       |> perc 0.0125 6 1
+--       |> pan 0.5
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio   = poly badSynth badBeat
+--     badBeat    = [_ 600] |> seqSpeed (1 // 10)
+--     badSynth f =
+--       saw (fromFloat f)
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (saw 440) w
+
 testJit :: *World -> *World
 testJit w =
   outAudio 0 badAudio w
   where
-    badSynth f = saw (fromFloat f) |> mul 0.025 |> perc 0.025 6 1 |> pan 0.5
-    badBeat    = seqSpeed (1 // 1) [400 600 [800:500] <900 <600 [700:1200]> <300 200>>]
-    badAudio   = poly badSynth badBeat
+    freqMul1 = saw 0.1   * 0.01 + 0.5
+    freqMul2 = saw 0.07  * -0.01 + 0.5
+    freqMul3 = saw 0.114 * 0.01 + 0.5
+    badBeat1 = [400 _ 600 <_ 700> 800] |> seqSpeed (3 // 2)
+    badBeat2 = [400 _ 600 <_ 700> <_ 1200> 1350] @* (seqSpeed (1 // 9) [0.5 1 2 3 0.25]) |> seqSpeed (3 // 2)
+    badBeat3 = [100 60 75] |> seqSpeed ((3 // 2) / 8)
+    badSynth fm a p f =
+      saw (fromFloat f) + saw (fromFloat f * fm)
+      |> mul (0.0125 * a)
+      |> perc 0.0125 6 1
+      |> pan p
+    badAudio =
+      poly (badSynth freqMul1 0.65 0.25) badBeat1 +
+      poly (badSynth freqMul2 0.65 0.75) badBeat2 +
+      poly (badSynth freqMul3 2    0.5)  badBeat3
 
 -- testJit :: *World -> *World
 -- testJit w = print one w

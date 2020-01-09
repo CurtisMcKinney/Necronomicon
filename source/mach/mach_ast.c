@@ -393,9 +393,16 @@ NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* f
     assert(type != NULL);
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACH_FN_DEF);
-    NecroMachAst* alloc_size = necro_mach_value_create_word_uint(program, necro_mach_type_calculate_size_in_bytes(program, type));
-    NecroMachAst* void_ptr   = necro_mach_build_call(program, fn_def, program->runtime.necro_runtime_alloc->ast->fn_def.fn_value, (NecroMachAst*[]) { alloc_size }, 1, NECRO_MACH_CALL_C, "void_ptr");
-    NecroMachAst* data_ptr   = necro_mach_build_bit_cast(program, fn_def, void_ptr, necro_mach_type_create_ptr(&program->arena, type));
+    size_t size = necro_mach_type_calculate_size_in_bytes(program, type);
+    assert(size > 0);
+    // Branchless Align
+    size +=
+        ((size & (sizeof(size_t) - 1)) != 0) *
+        (sizeof(size_t) - (size & (sizeof(size_t) - 1)));
+    if (program->word_size == NECRO_WORD_8_BYTES) assert(size % 8 == 0);
+    NecroMachAst* alloc_size    = necro_mach_value_create_word_uint(program, size);
+    NecroMachAst* void_ptr      = necro_mach_build_call(program, fn_def, program->runtime.necro_runtime_alloc->ast->fn_def.fn_value, (NecroMachAst*[]) { alloc_size }, 1, NECRO_MACH_CALL_C, "void_ptr");
+    NecroMachAst* data_ptr      = necro_mach_build_bit_cast(program, fn_def, void_ptr, necro_mach_type_create_ptr(&program->arena, type));
     return data_ptr;
 }
 

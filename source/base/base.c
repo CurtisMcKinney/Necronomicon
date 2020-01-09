@@ -565,24 +565,24 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* index_con_list = necro_ast_create_list(arena, index_con, NULL);
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, index_s_type, index_con_list));
 
-    // each value
-    {
-        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "each", NULL,
-            necro_ast_create_type_app(arena,
-                necro_ast_create_conid(arena, intern, "Range", NECRO_CON_TYPE_VAR),
-                necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_FREE_VAR)),
-            NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
-        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "each",
-            necro_ast_create_rhs(arena,
-                necro_ast_create_fexpr(arena,
-                    necro_ast_create_fexpr(arena,
-                        necro_ast_create_fexpr(arena,
-                            necro_ast_create_conid(arena, intern, "Range", NECRO_CON_VAR),
-                            necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR), necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 0 }))),
-                        necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR), necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 1 }))),
-                    necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR), necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 0 }))),
-                NULL)));
-    }
+    // // each value
+    // {
+    //     necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "each", NULL,
+    //         necro_ast_create_type_app(arena,
+    //             necro_ast_create_conid(arena, intern, "Range", NECRO_CON_TYPE_VAR),
+    //             necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_FREE_VAR)),
+    //         NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+    //     necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "each",
+    //         necro_ast_create_rhs(arena,
+    //             necro_ast_create_fexpr(arena,
+    //                 necro_ast_create_fexpr(arena,
+    //                     necro_ast_create_fexpr(arena,
+    //                         necro_ast_create_conid(arena, intern, "Range", NECRO_CON_VAR),
+    //                         necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR), necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 0 }))),
+    //                     necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR), necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 1 }))),
+    //                 necro_ast_create_fexpr(arena, necro_ast_create_var(arena, intern, "fromInt", NECRO_VAR_VAR), necro_ast_create_constant(arena, (NecroParseAstConstant) { .type = NECRO_AST_CONSTANT_INTEGER, .int_literal = 0 }))),
+    //             NULL)));
+    // }
 
     //--------------------
     // Classes

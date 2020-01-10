@@ -301,17 +301,39 @@ tanF64 n = tanResult
       _ -> 0 -- ?!?
 
 atanF64 :: F64 -> F64
-atanF64 n = if sign then negate z else z
+atanF64 n = bitOr z sign
+  where
+    sign = bitAnd iEEESignMaskF n
+    absN = bitAnd n (bitNot iEEESignMaskF)
+    complement = n > 1
+    x = if complement then 1 / absN else absN
+    region = x > tanTwelthPi
+    x' = if region then (x - tanSixthPi) / (1 + tanSixthPi * x) else x
+    -- y = if region then atanX + sixthPi else atanX
+    y = atan137s + (sixthPi * (if region then 1 else 0))
+    z = if complement then halfPi - y else y
+    -- Accurate to about 13.7 decimal digits over the range [0, pi/12].
+    atan137s = (x' * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
+      where
+        c1 = 48.70107004404898384
+        c2 = 49.5326263772254345
+        c3 = 9.40604244231624
+        c4 = 48.70107004404996166
+        c5 = 65.7663163908956299
+        c6 = 21.587934067020262
+        x2 = x' * 2
+
+slowAtanF64 :: F64 -> F64
+slowAtanF64 n = if sign then negate z else z
   where
     sign = n < 0
     absN = abs n
     complement = n > 1
     x = if complement then 1 / absN else absN
     region = x > tanTwelthPi
-    x' = if region then (x - tanSixthPi) / (1 + tanSixthPi * x) else x
-    atanX = atan137s x'
     y = if region then atanX + sixthPi else atanX
     z = if complement then halfPi - y else y
+    atanX = atan137s x
     -- Accurate to about 13.7 decimal digits over the range [0, pi/12].
     atan137s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
       where
@@ -600,7 +622,6 @@ instance Default Float where
 negate :: Ring a => a -> a
 negate x = 0 - x
 
-
 --------------------
 -- F64
 --------------------
@@ -680,6 +701,36 @@ floor x = primUndefined
 
 fma :: F64 -> F64 -> F64 -> F64
 fma x y z = primUndefined
+
+
+
+------------------------------------------------------------
+-- iEEE 754 Double Precisions Float Format constants
+------------------------------------------------------------
+iEEESignMask :: UInt
+iEEESignMask = bitShiftLeft 1 63
+
+iEEESignMaskF :: F64
+iEEESignMaskF = fromBits iEEESignMask
+
+iEEENumExponentBits :: UInt
+iEEENumExponentBits = 11
+
+iEEENumSignificandBits :: UInt
+iEEENumSignificandBits = 52
+
+iEEEExponentMask :: UInt
+iEEEExponentMask = bitShiftLeft (-1) iEEENumSignificandBits |> bitAnd (bitNot iEEESignMask) 
+
+iEEEExponentMaskF :: F64
+iEEEExponentMaskF = fromBits iEEEExponentMask
+
+iEEESignificandMask :: UInt
+iEEESignificandMask = bitAnd (-1) (bitNot (bitOr iEEEExponentMask iEEESignMask))
+
+iEEESignificandMaskF :: F64
+iEEESignificandMaskF = fromBits iEEESignificandMask 
+
 
 
 --------------------
@@ -2447,6 +2498,39 @@ poly f s =
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
 
+
+-- testJit :: *World -> *World
+-- testJit w = printLn "IEEE format=========================================" w 
+--           |> print "iEEESignMask"
+-- 		  |> print " -> "
+--           |> printLn iEEESignMask
+--           |> print "iEEESignMaskF"
+-- 		  |> print " -> "
+--           |> printLn iEEESignMaskF
+--           |> print "iEEEExponentMask"
+-- 		  |> print " -> "
+--           |> printLn iEEEExponentMask
+--           |> print "iEEEExponentMaskF"
+-- 		  |> print " -> "
+--           |> printLn iEEEExponentMaskF
+--           |> print "iEEESignificandMask"
+-- 		  |> print " -> "
+--           |> printLn iEEESignificandMask
+--           |> print "iEEESignificandMaskF"
+-- 		  |> print " -> "
+--           |> printLn iEEESignificandMaskF
+--           |> print "all bits"
+-- 		  |> print " -> "
+--           |> printLn allBits
+--           |> print "all bits F"
+-- 		  |> print " -> "
+--           |> printLn allBitsF
+--     where
+--       allBits :: UInt
+--       allBits = -1
+--       allBitsF :: Float
+--       allBitsF = fromBits allBits
+
 -- testJit :: *World -> *World
 -- testJit w = print one w 
 -- 		  |> print " -> "
@@ -2513,17 +2597,17 @@ poly f s =
 -- seqToAudio [440 <660 880> 330 <990 880 770>]
       -- |> add (saw (660 * seqToAudio (1 // 300) [1 2 <4 3>]))
 
-testJit :: *World -> *World
-testJit w =
-  outAudio 0 a w
-  where
-    s = seqToAudio <| seqSpeed 4 [0.5 1 2 <4 3>]
-    t = seqToAudio <| seqSpeed 2 [0.5 1 2 <4 3>]
-    a =
-      saw (440 * stereo s t)
-      |> perc 4 10 1
-      |> mul 0.25
-      |> pan 0.5
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     s = seqToAudio <| seqSpeed 4 [0.5 1 2 <4 3>]
+--     t = seqToAudio <| seqSpeed 2 [0.5 1 2 <4 3>]
+--     a =
+--       saw (440 * stereo s t)
+--       |> perc 4 10 1
+--       |> mul 0.25
+--       |> pan 0.5
 
 -- testJit :: *World -> *World
 -- testJit w = printLn f64 w |> printLn (bitReverse f64) |> printLn (bitReverse <| bitReverse f64)
@@ -2531,11 +2615,11 @@ testJit w =
 --     f64 :: F64
 --     f64 = 5
 
--- testJit :: *World -> *World
--- testJit w = printLn mouseX w |> printLn (atanF64 fMouse)
---   where
---     fMouse :: F64
---     fMouse = fromInt mouseX
+testJit :: *World -> *World
+testJit w = printLn mouseX w |> printLn (atanF64 fMouse)
+  where
+    fMouse :: F64
+    fMouse = fromInt mouseX
 --
 -- testJit :: *World -> *World
 -- testJit w = printLn a w |> printLn b |> printLn c

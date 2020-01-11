@@ -636,6 +636,7 @@ NecroResult(NecroType) necro_ast_to_type_sig_go(NecroInfer* infer, NecroAst* ast
         if (attribute_type != NECRO_TYPE_ATTRIBUTE_NONE)
         {
             // can't stack attributes!
+            // TODO: Error message!? Likely this is happening because an errant uniqueness attribute was added to a constructor.
             necro_unreachable(NecroType);
         }
         else if (ast->attribute.type == NECRO_TYPE_ATTRIBUTE_STAR)

@@ -57,6 +57,7 @@ typedef struct
     char*           data;
     size_t          size;
     size_t          count;
+    size_t          total_mem_usage;
 } NecroPagedArena;
 
 NecroPagedArena necro_paged_arena_empty();
@@ -79,6 +80,9 @@ void* __necro_paged_arena_alloc(NecroPagedArena* arena, size_t size);
 #define necro_paged_arena_create() __necro_paged_arena_create()
 #define necro_paged_arena_alloc __necro_paged_arena_alloc
 #endif // DEBUG_MEMORY
+
+NecroPagedArena necro_paged_arena_create_with_capacity(size_t capacity);
+
 
 //=====================================================
 // NecroSnapshotArena

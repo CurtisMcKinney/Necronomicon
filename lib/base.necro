@@ -12,6 +12,23 @@
 testAssertion :: Bool -> *World -> *World
 testAssertion b w = primUndefined
 
+panic :: UInt -> UInt
+panic x = primUndefined
+
+boundsCheck :: Array n Char -> UInt -> UInt -> UInt
+boundsCheck str index capacity =
+  if index < capacity then index else
+    index
+    |> traceLn "bounds check FAILED:"
+    |> trace "| "
+    |> traceLn str
+    |> trace "| index:    "
+    |> traceLn index
+    |> trace "| capacity: "
+    |> traceLn capacity
+    |> traceLn " "
+    |> panic
+
 -- testAndPrintAssertion :: (Print a, Eq a) => a -> a -> *World -> *World
 -- testAndPrintAssertion x y w = testAssertion (x == y) <| printLn x w
 
@@ -986,6 +1003,13 @@ either lf rf e =
 --------------------
 -- Array
 --------------------
+
+data Range (n :: Nat) = Range UInt UInt UInt
+data Index (n :: Nat) = Index UInt
+
+each :: Range n
+each = Range 0 1 0
+
 unsafeEmptyArray :: () -> *Array n a
 unsafeEmptyArray u = primUndefined
 
@@ -1000,6 +1024,14 @@ readArrayU i a = primUndefined
 
 writeArray :: Index n -> a -> *Array n a -> *Array n a
 writeArray i x a = primUndefined
+
+writeArrayChecked :: Array n Char -> UInt -> Index n -> a -> *Array n a -> *Array n a
+writeArrayChecked str capacity (Index i) x a =
+  writeArray (Index (boundsCheck str capacity i)) x a
+
+readArrayChecked :: Array n Char -> UInt -> Index n -> Array n a -> a
+readArrayChecked str capacity (Index i) a =
+  readArray (Index (boundsCheck str capacity i)) a
 
 instance Default a => Default (Array n a) where
   default = arrayFrom default
@@ -1038,9 +1070,6 @@ bitReverseIndex (Index i) = Index (bitReverse i)
 
 toIndexMultiple :: Index n -> Index (NatMul n (NatMax k 1))
 toIndexMultiple (Index i) = Index i
-
-each :: Range n
-each = Range 0 1 0
 
 audioSampleRate' :: UInt
 audioSampleRate' = 48000
@@ -1478,14 +1507,6 @@ accumulateSaw freq acc =
     acc2 = fma freq recipSampleRate acc
     acc3 = acc2 - floor acc2
     out  = fma acc3 2.0 (-1.0)
-
--- accumulateSaw :: F64 -> F64 -> (#F64, F64#)
--- accumulateSaw freq acc =
---   (#acc3, out#)
---   where
---     acc2 = freq * recipSampleRate + acc
---     acc3 = acc2 - floor acc2
---     out  = acc3 * 2.0 + (-1.0)
 
 saw :: AudioFormat f => Audio f -> Audio f
 saw freq =
@@ -2114,6 +2135,16 @@ unsafePtrPoke index value ptr = primUndefined
 unsafePtrSwapElement :: UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
 unsafePtrSwapElement index element ptr = primUndefined
 
+unsafePtrPokeChecked :: Array n Char -> UInt -> UInt -> *a -> Ptr *a -> Ptr *a
+unsafePtrPokeChecked str capacity index value ptr =
+  unsafePtrPoke (boundsCheck str index capacity) value ptr
+
+unsafePtrSwapElementChecked :: Array n Char -> UInt -> UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
+unsafePtrSwapElementChecked str capacity index element ptr =
+  unsafePtrSwapElement (boundsCheck str index capacity) element ptr
+
+-- TODO: Checked readArray and writeArray!
+
 -- unsafeCastPtr :: *Ptr a -> *Ptr b
 -- unsafeCastPtr = primUndefined
 
@@ -2183,8 +2214,8 @@ dynArrayEmpty capacity =
 
 dynTierPop :: DynTier *a -> (#Maybe *a, DynTier *a#)
 dynTierPop (DynTier (#capacity, count, highWaterMark, ptr#)) =
-  if count > 0 then
-    case unsafePtrSwapElement (count - 1) primUndefined ptr of
+  if count > 0 && count < capacity then
+    case unsafePtrSwapElementChecked "dynTierPop" capacity (count - 1) primUndefined ptr of
       (#element, ptr'#) ->
         (#Just element, DynTier (#capacity, count - 1, highWaterMark, ptr'#)#)
   else
@@ -2195,16 +2226,16 @@ dynTierSwapToEndAndDelete index (DynTier (#capacity, count, highWaterMark, ptr#)
   if index >= capacity then
     DynTier (#capacity, count, highWaterMark, ptr#)
   else
-    case unsafePtrSwapElement index primUndefined ptr of
+    case unsafePtrSwapElementChecked "dynTierSwapToEndAndDelete 1" capacity index primUndefined ptr of
       (#indexElement, ptr2#) ->
-        case unsafePtrSwapElement (count - 1) indexElement ptr2 of
+        case unsafePtrSwapElementChecked "dynTierSwapToEndAndDelete 2" capacity (count - 1) indexElement ptr2 of
           (#endElement, ptr3#) ->
-            DynTier (#capacity, count - 1, highWaterMark, unsafePtrPoke index endElement ptr3#)
+            DynTier (#capacity, count - 1, highWaterMark, unsafePtrPokeChecked "dynTierSwapToEndAndDelete 3" capacity index endElement ptr3#)
 
 -- NOTE: This assumes that the tier is correctly sized!
 dynTierAppend :: *a -> DynTier *a -> DynTier *a
 dynTierAppend element (DynTier (#capacity, count, highWaterMark, ptr#)) =
-  DynTier (#capacity, count + 1, highWaterMark + 1, unsafePtrPoke count element ptr#)
+  DynTier (#capacity, count + 1, highWaterMark + 1, unsafePtrPokeChecked "dynTierAppend" capacity count element ptr#)
 
   -- |> trace "dynTierAppend, capacity: "
   -- |> trace capacity
@@ -2245,9 +2276,9 @@ dynTierModifyElement index f (DynTier (#capacity, count, highWaterMark, ptr0#)) 
   if index >= count then
     DynTier (#capacity, count, highWaterMark, ptr0#)
   else
-    case unsafePtrSwapElement index primUndefined ptr0 of
+    case unsafePtrSwapElementChecked "dynTierModifyElement 1" count index primUndefined ptr0 of
       (#element, ptr1#) ->
-        DynTier (#capacity, count, highWaterMark, unsafePtrPoke index (f element) ptr1#)
+        DynTier (#capacity, count, highWaterMark, unsafePtrPokeChecked "dynTierModifyElement 2" count index (f element) ptr1#)
 
 -- dynArrayModifyElement :: DynArrayIndex -> (*a -> *a) -> DynArray *a -> DynArray *a
 -- dynArrayModifyElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
@@ -2264,11 +2295,11 @@ dynTierWithElement index f (DynTier (#capacity, count, highWaterMark, ptr0#)) =
   if index >= count then
     (#Nothing, DynTier (#capacity, count, highWaterMark, ptr0#)#)
   else
-    case unsafePtrSwapElement index primUndefined ptr0 of
+    case unsafePtrSwapElementChecked "dynTierWithElement 1" count index primUndefined ptr0 of
       (#element0, ptr1#) ->
         case f element0 of
           (#result, element1#) ->
-            (#Just result, DynTier (#capacity, count, highWaterMark, unsafePtrPoke index element1 ptr1#)#)
+            (#Just result, DynTier (#capacity, count, highWaterMark, unsafePtrPokeChecked "dynTierWithElement 2" count index element1 ptr1#)#)
 
 dynArrayWithElement :: DynArrayIndex -> (*a -> (#b, *a#)) -> DynArray *a -> (#DynArrayResult b, DynArray *a#)
 dynArrayWithElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
@@ -2518,9 +2549,9 @@ testJit w =
     freqMul3 = saw 0.114 * 0.01 + 0.5
     badBeat1 = [400 _ 600 <_ 700> 800] |> seqSpeed (3 // 2)
     badBeat2 = [400 _ 600 <_ 700> <_ 1200> 1350] @* (seqSpeed (1 // 9) [0.5 1 2 3 0.25]) |> seqSpeed (3 // 2)
-    badBeat3 = [100 60 75] |> seqSpeed ((3 // 2) / 8)
+    badBeat3 = [100 60 75 100 60 75 80] |> seqSpeed ((3 // 2) / 8)
     badSynth fm a p f =
-      saw (fromFloat f) + saw (fromFloat f * fm)
+      saw f + saw (f * fm)
       |> mul (0.0125 * a)
       |> perc 0.0125 6 1
       |> pan p

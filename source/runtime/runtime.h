@@ -42,6 +42,7 @@ extern DLLEXPORT int    necro_runtime_get_mouse_x(size_t _dummy);
 extern DLLEXPORT int    necro_runtime_get_mouse_y(size_t _dummy);
 extern DLLEXPORT size_t necro_runtime_test_assertion(size_t is_true, size_t world);
 bool                    necro_runtime_was_test_successful();
+extern DLLEXPORT size_t necro_runtime_panic(size_t world);
 
 //--------------------
 // Audio

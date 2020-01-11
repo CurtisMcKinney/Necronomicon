@@ -132,6 +132,7 @@ typedef struct NecroBase
 
     // Runtime functions
     NecroAstSymbol* test_assertion;
+    NecroAstSymbol* panic;
     NecroAstSymbol* mouse_x_fn;
     NecroAstSymbol* mouse_y_fn;
     NecroAstSymbol* ptr_malloc;

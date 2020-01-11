@@ -1554,7 +1554,12 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         assert(arg_count == 1);
         NecroMachType* mach_type    = necro_mach_type_from_necro_type(program, app_ast->necro_type);
         NecroMachAst*  object_count = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
-        NecroMachAst*  object_size  = necro_mach_value_create_word_uint(program, necro_mach_type_calculate_size_in_bytes(program, mach_type->ptr_type.element_type));
+        size_t         size         = necro_mach_type_calculate_size_in_bytes(program, mach_type->ptr_type.element_type);
+        size +=
+            ((size & (sizeof(size_t) - 1)) != 0) *
+            (sizeof(size_t) - (size & (sizeof(size_t) - 1)));
+        if (program->word_size == NECRO_WORD_8_BYTES) assert(size % 8 == 0);
+        NecroMachAst*  object_size  = necro_mach_value_create_word_uint(program, size);
         NecroMachAst*  alloc_size   = necro_mach_build_binop(program, outer->machine_def.update_fn, object_count, object_size, NECRO_PRIMOP_BINOP_UMUL);
         NecroMachAst*  void_ptr     = necro_mach_build_call(program, outer->machine_def.update_fn, program->runtime.necro_runtime_alloc->ast->fn_def.fn_value, (NecroMachAst*[]) { alloc_size }, 1, NECRO_MACH_CALL_C, "void_ptr");
         NecroMachAst*  data_ptr     = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, void_ptr, mach_type);
@@ -1569,7 +1574,12 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachType* mach_type     = necro_mach_type_from_necro_type(program, app_ast->necro_type);
         NecroMachType* uint_ptr_type = necro_mach_type_create_ptr(&program->arena, program->type_cache.uint8_type);
         NecroMachAst*  uint8_ptr_val = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, ptr_value, uint_ptr_type);
-        NecroMachAst*  object_size   = necro_mach_value_create_word_uint(program, necro_mach_type_calculate_size_in_bytes(program, mach_type->ptr_type.element_type));
+        size_t         size         = necro_mach_type_calculate_size_in_bytes(program, mach_type->ptr_type.element_type);
+        size +=
+            ((size & (sizeof(size_t) - 1)) != 0) *
+            (sizeof(size_t) - (size & (sizeof(size_t) - 1)));
+        if (program->word_size == NECRO_WORD_8_BYTES) assert(size % 8 == 0);
+        NecroMachAst*  object_size   = necro_mach_value_create_word_uint(program, size);
         NecroMachAst*  alloc_size    = necro_mach_build_binop(program, outer->machine_def.update_fn, object_count, object_size, NECRO_PRIMOP_BINOP_UMUL);
         NecroMachAst*  void_ptr      = necro_mach_build_call(program, outer->machine_def.update_fn, program->runtime.necro_runtime_realloc->ast->fn_def.fn_value, (NecroMachAst*[]) { uint8_ptr_val, alloc_size }, 2, NECRO_MACH_CALL_C, "void_ptr");
         NecroMachAst*  data_ptr      = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, void_ptr, mach_type);

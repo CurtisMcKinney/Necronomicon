@@ -91,10 +91,11 @@ NecroPagedArena necro_paged_arena_empty()
 {
     return (NecroPagedArena)
     {
-        .pages = NULL,
-        .data  = NULL,
-        .size  = 0,
-        .count = 0,
+        .pages           = NULL,
+        .data            = NULL,
+        .size            = 0,
+        .count           = 0,
+        .total_mem_usage = 0,
     };
 }
 
@@ -113,10 +114,25 @@ NecroPagedArena __necro_paged_arena_create()
     page->next = NULL;
     return (NecroPagedArena)
     {
-        .pages = page,
-        .data  = (char*)(page + 1),
-        .size  = NECRO_PAGED_ARENA_INITIAL_SIZE,
-        .count = 0,
+        .pages           = page,
+        .data            = (char*)(page + 1),
+        .size            = NECRO_PAGED_ARENA_INITIAL_SIZE,
+        .count           = 0,
+        .total_mem_usage = NECRO_PAGED_ARENA_INITIAL_SIZE,
+    };
+}
+
+NecroPagedArena necro_paged_arena_create_with_capacity(size_t capacity)
+{
+    NecroArenaPage* page = emalloc(sizeof(NecroArenaPage) + capacity);
+    page->next = NULL;
+    return (NecroPagedArena)
+    {
+        .pages           = page,
+        .data            = (char*)(page + 1),
+        .size            = capacity,
+        .count           = 0,
+        .total_mem_usage = capacity,
     };
 }
 
@@ -146,10 +162,11 @@ void* __necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
 #else
         NecroArenaPage* page = __emalloc(sizeof(NecroArenaPage) + arena->size);
 #endif // DEBUG_MEMORY
-        page->next   = arena->pages;
-        arena->pages = page;
-        arena->data  = (char*)(page + 1);
-        arena->count = 0;
+        page->next              = arena->pages;
+        arena->pages            = page;
+        arena->data             = (char*)(page + 1);
+        arena->count            = 0;
+        arena->total_mem_usage += arena->size;
     }
     // TRACE_ARENA("paged_arena_alloc { data %p, count: %d, size: %d }, requested bytes: %d\n", arena->data, arena->count, arena->size, size);
     char* data = arena->data + arena->count;
@@ -174,6 +191,7 @@ void necro_paged_arena_destroy(NecroPagedArena* arena)
     }
     *arena = necro_paged_arena_empty();
 }
+
 
 //=====================================================
 // NecroSnapshotArena

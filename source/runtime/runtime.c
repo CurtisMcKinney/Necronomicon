@@ -145,6 +145,13 @@ bool necro_runtime_was_test_successful()
     return is_test_true;
 }
 
+extern DLLEXPORT size_t necro_runtime_panic(size_t world)
+{
+    fprintf(stderr, "****panic!\n");
+    necro_exit(-1);
+    return world;
+}
+
 typedef struct NecroHeap
 {
     uint8_t* data;
@@ -173,9 +180,7 @@ extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size)
     // return malloc(size);
     if (size == 0)
         return NULL;
-    // size *= 2;
     size += 16; // PADDING?!?!?! This will crash without padding, suggesting that our allocation sizes are getting off somewhere, or an errant writeArray is happening in NecroLang somewhere!?!?!?!
-    // assert(size % 8 == 0);
     if (necro_heap.bump + size >= necro_heap.capacity)
     {
         fprintf(stderr, "Necro memory exhausted!\n");
@@ -192,6 +197,7 @@ extern DLLEXPORT uint8_t* necro_runtime_realloc(uint8_t* ptr, size_t size)
     // printf("necro_runtime_realloc, ptr: %p, size: %zu\n\n", ptr, size);
     // return realloc(ptr, size);
     necro_runtime_free(ptr);
+    printf("REALLOC\n");
     return necro_runtime_alloc(size);
 }
 
@@ -200,6 +206,7 @@ extern DLLEXPORT void necro_runtime_free(uint8_t* data)
     UNUSED(data);
     // free(data);
 }
+
 
 ///////////////////////////////////////////////////////
 // Audio
@@ -228,21 +235,6 @@ extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double
     necro_downsample(downsample, channel_num, necro_runtime_audio_num_output_channels, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, necro_runtime_audio_output_buffer);
     return world;
 }
-
-// extern DLLEXPORT size_t necro_runtime_print_audio_block(size_t channel_num, double* audio_block, size_t world)
-// {
-//     if (channel_num >= necro_runtime_audio_num_output_channels)
-//         return world;
-//     printf("AudioBlock { ");
-//     assert(necro_runtime_audio_block_size >= 2);
-//     size_t penultimate_sample = necro_runtime_audio_block_size - 2;
-//     for (size_t i = 0; i < penultimate_sample; ++i)
-//     {
-//         printf("%.3f, ", audio_block[i]);
-//     }
-//     printf("%.3f }\n", audio_block[penultimate_sample + 1]);
-//     return world;
-// }
 
 static int necro_runtime_audio_pa_callback(const void* input_buffer, void* output_buffer, unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo* time_info, PaStreamCallbackFlags status_flags, void* user_data)
 {

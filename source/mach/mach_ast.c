@@ -1521,6 +1521,17 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         program->runtime.necro_runtime_test_assertion = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_test_assertion, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
+    // necro_runtime_panic
+    {
+        NecroAstSymbol*     ast_symbol            = program->base->panic;
+        ast_symbol->is_primitive                  = true;
+        ast_symbol->core_ast_symbol->is_primitive = true;
+        NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                 = true;
+        NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_uint_type }, 1);
+        program->runtime.necro_runtime_panic      = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_panic, NECRO_STATE_POINTWISE)->fn_def.symbol;
+    }
+
     // necro_runtime_print_int
     {
         NecroAstSymbol*     ast_symbol            = program->base->print_int;

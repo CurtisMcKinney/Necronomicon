@@ -2480,7 +2480,7 @@ seqToAudio s =
         in
           (#i1, writeArray (unsafeUIntToIndex i0) (fromFloat value) a#)
 
-poly :: (Print a, Poly b) => (a -> b) -> Seq a -> b
+poly :: Poly b => (a -> b) -> Seq a -> b
 poly f s =
   case mutRefTake (\_ -> dynArrayEmpty 8) of
     (#thunks0, mref#) ->
@@ -2509,6 +2509,13 @@ poly f s =
       in
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
+
+poly2 :: Poly c => (a -> b -> c) -> Seq a -> Seq b -> c
+poly2 f x y = poly (uncurry' f) (map2 (\x' y' -> (#x', y'#)) x y)
+
+-- TODO: Need map3
+-- poly3 :: Poly d => (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> d
+-- poly3 f x y z = poly (uncurry3' f) (map2 (\x' y' z' -> (#x', y', z'#)) x y z)
 
 -- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
 -- TODO: Test arg copying
@@ -2540,16 +2547,47 @@ poly f s =
 -- testJit w =
 --   outAudio 0 (saw 440) w
 
+-- -- TODO: Deep copy arrays, but don't deep copy unique arrays
+-- -- TODO: id in poly causing compile assert... probably due to inlining???
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badBeat    = [100 1200 1400 1800] |> seqSpeed (1 // 2) |> map saw
+--     badSynth a = a * 0.1 |> perc 1 3 1 |> pan 0.5
+--     badAudio   = poly badSynth badBeat
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badBeat1     = seqSpeed (6 // 1) [100 600 800 900]
+--     badBeat2     = seqSpeed (3 // 1) [0.2 0.8 0.4 0.6]
+--     badSynth f p = saw (f * fromInt (mouseX / 32 + 1)) * 0.05 |> perc 0.0125 1 1 |> pan p
+--     badAudio     = poly2 badSynth badBeat1 badBeat2
+
+--TODO: map3, etc
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badBeat1       = seqSpeed (6 // 1) [100 600 800 900]
+--     badBeat2       = seqSpeed (3 // 1) [900 800 600 100 1200 100 600 800 900 1200]
+--     badBeat3       = seqSpeed (3 // 1) [0.2 0.8 0.4 0.6]
+--     badSynth f g p = (saw f + saw g) * 0.05 |> perc 0.0125 1 1 |> pan p
+--     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
+
 testJit :: *World -> *World
 testJit w =
   outAudio 0 badAudio w
   where
-    freqMul1 = saw 0.1   * 0.01 + 0.5
-    freqMul2 = saw 0.07  * -0.01 + 0.5
-    freqMul3 = saw 0.114 * 0.01 + 0.5
-    badBeat1 = [400 _ 600 <_ 700> 800] |> seqSpeed (3 // 2)
-    badBeat2 = [400 _ 600 <_ 700> <_ 1200> 1350] @* (seqSpeed (1 // 9) [0.5 1 2 3 0.25]) |> seqSpeed (3 // 2)
-    badBeat3 = [100 60 75 100 60 75 80] |> seqSpeed ((3 // 2) / 8)
+    freqMul1  = saw 0.1   * 0.01 + 0.5
+    freqMul2  = saw 0.07  * -0.01 + 0.5
+    freqMul3  = saw 0.114 * 0.01 + 0.5
+    beatSpeed = 3 // 2
+    badBeat1  = seqSpeed beatSpeed [400 _ 600 <_ 700> 800]
+    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> 1350] @* (seqSpeed (1 // 9) [0.5 1 2 3 0.25]))
+    badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
     badSynth fm a p f =
       saw f + saw (f * fm)
       |> mul (0.0125 * a)
@@ -2689,9 +2727,6 @@ testJit w =
 
 
 -- + poly (fromInt .> saw) [1 2 3]
-
--- poly2 :: Poly c => (a -> b -> c) -> Seq a -> Seq b -> c
--- poly2 f x y = poly (uncurry' f) <| map2 (\x' y' -> (#x', y'#)) x y
 
 -- coolMultiSaw :: Audio Mono
 -- coolMultiSaw = poly2 multiSaw freq filterFreq

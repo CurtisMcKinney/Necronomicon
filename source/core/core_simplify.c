@@ -1726,8 +1726,8 @@ void necro_core_ast_pre_simplify_test()
     {
         const char* test_name   = "Panic";
         const char* test_source = ""
-            "panic :: Audio Stereo\n"
-            "panic = pan 0.25 (440 * 33)\n";
+            "panic666 :: Audio Stereo\n"
+            "panic666 = pan 0.25 (440 * 33)\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
 

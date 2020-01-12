@@ -155,6 +155,7 @@ typedef struct NecroBase
     NecroAstSymbol* bit_xor_float;
     NecroAstSymbol* bit_shift_left_float;
     NecroAstSymbol* bit_shift_right_float;
+    NecroAstSymbol* bit_shift_right_a_float;
     NecroAstSymbol* bit_reverse_float;
     NecroAstSymbol* to_bits_float;
     NecroAstSymbol* from_bits_float;
@@ -164,6 +165,7 @@ typedef struct NecroBase
     NecroAstSymbol* bit_xor_float64;
     NecroAstSymbol* bit_shift_left_float64;
     NecroAstSymbol* bit_shift_right_float64;
+    NecroAstSymbol* bit_shift_right_a_float64;
     NecroAstSymbol* bit_reverse_float64;
     NecroAstSymbol* to_bits_float64;
     NecroAstSymbol* from_bits_float64;

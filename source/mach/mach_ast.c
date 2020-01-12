@@ -943,7 +943,8 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
 	switch (op_type)
 	{
     case NECRO_PRIMOP_BINOP_FSHL: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FSHR:
+    case NECRO_PRIMOP_BINOP_FSHR: /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FSHRA:
 		break;
 	default:
 		necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
@@ -956,7 +957,7 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
     case NECRO_PRIMOP_BINOP_IADD: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_ISUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_IMUL: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_IDIV:
+    case NECRO_PRIMOP_BINOP_IDIV: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_IREM:
     {
         // Type check that it's an int type
@@ -976,6 +977,7 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
     case NECRO_PRIMOP_BINOP_AND:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_SHL:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_SHR:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_SHRA: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_XOR:
     {
         // Type check that it's an uint type
@@ -990,7 +992,7 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
     case NECRO_PRIMOP_BINOP_FSUB: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FMUL: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FDIV: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FAND:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FAND: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FOR:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FXOR: /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FREM:
@@ -1003,8 +1005,9 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
         ast->binop.result       = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
         break;
     }
-    case NECRO_PRIMOP_BINOP_FSHL: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FSHR:
+    case NECRO_PRIMOP_BINOP_FSHL:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FSHR:  /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FSHRA:
     {
         necro_mach_type_check_is_float_type(left->necro_machine_type);
         necro_mach_type_check_is_uint_type(right->necro_machine_type);

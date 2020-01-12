@@ -1377,12 +1377,14 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_BINOP_OR:
     case NECRO_PRIMOP_BINOP_SHL:
     case NECRO_PRIMOP_BINOP_SHR:
+    case NECRO_PRIMOP_BINOP_SHRA:
 	case NECRO_PRIMOP_BINOP_XOR:
     case NECRO_PRIMOP_BINOP_FAND:
     case NECRO_PRIMOP_BINOP_FOR:
     case NECRO_PRIMOP_BINOP_FXOR:
     case NECRO_PRIMOP_BINOP_FSHL:
     case NECRO_PRIMOP_BINOP_FSHR:
+    case NECRO_PRIMOP_BINOP_FSHRA:
     {
         assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
         assert(arg_count == 2);

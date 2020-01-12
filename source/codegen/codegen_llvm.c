@@ -710,6 +710,7 @@ LLVMValueRef necro_llvm_codegen_binop(NecroLLVM* context, NecroMachAst* ast)
     case NECRO_PRIMOP_BINOP_XOR:  value = LLVMBuildXor(context->builder, left, right, name);  break;
     case NECRO_PRIMOP_BINOP_SHL:  value = LLVMBuildShl(context->builder, left, right, name);  break;
     case NECRO_PRIMOP_BINOP_SHR:  value = LLVMBuildLShr(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_SHRA: value = LLVMBuildAShr(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FAND:
       NECRO_CODEGEN_FLOAT_X_FLOAT_BIT_BINOP(LLVMBuildAnd);
       break;
@@ -724,6 +725,9 @@ LLVMValueRef necro_llvm_codegen_binop(NecroLLVM* context, NecroMachAst* ast)
       break;
     case NECRO_PRIMOP_BINOP_FSHR:
       NECRO_CODEGEN_FLOAT_X_UINT_BIT_BINOP(LLVMBuildLShr);
+      break;
+    case NECRO_PRIMOP_BINOP_FSHRA:
+      NECRO_CODEGEN_FLOAT_X_UINT_BIT_BINOP(LLVMBuildAShr);
       break;
 
     default:
@@ -1847,7 +1851,7 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     NecroCompileInfo    info            = necro_test_compile_info();
     if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
         info.opt_level = 1;
-    // info.verbosity = 2;
+    info.verbosity = 2;
 
     //--------------------
     // Compile

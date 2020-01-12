@@ -267,10 +267,16 @@ tanF32 n = tanResult
 tanF64 :: F64 -> F64
 tanF64 n = tanResult
   where
-    x = rem n twoPi
+    wrappedN = if n < 0 then twoPi - n else n
+    -- THIS DOESN'T WORK hrmph!!
+    -- wrappedN = rem n twoPi
+    -- signMask = bitShiftRightA wrappedN 63
+    -- x = wrappedN + (bitAnd (twoPi - wrappedN - wrappedN) signMask)
+    x = rem wrappedN twoPi
+    -- TO DO --> This needs to be truncate not floor!!!!
     octant = floor <| (x * fourOverPi)
     -- HACK -> Need to be able to convert from Float to
-    octantInt = if octant < 1 then 0
+    octantInt = if octant2 < 1 then 0
       else if octant < 2 then 1
       else if octant < 3 then 2
       else if octant < 4 then 3
@@ -278,6 +284,8 @@ tanF64 n = tanResult
       else if octant < 6 then 5
       else if octant < 7 then 6
       else 7
+    octant2 = traceLn octant octant
+    octantInt2 = traceLn octantInt octantInt
     -- Accurate to about 14 decimal digits over the range (0, pi/4)
     -- This computes tan (pi * x/4), range reduction must be used before input
     tan14s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
@@ -289,7 +297,7 @@ tanF64 n = tanResult
         c5 = 12244.4839556747426927793
         c6 = -336.611376245464339493
         x2 = (x * x)
-    tanResult = case octantInt of
+    tanResult = case octantInt2 of
       0 -> tan14s (x * fourOverPi)
       1 -> 1 / (tan14s ((halfPi - x) * fourOverPi))
       2 -> -1 / (tan14s ((x - halfPi) * fourOverPi))
@@ -300,18 +308,51 @@ tanF64 n = tanResult
       7 -> negate <| tan14s ((twoPi - x) * fourOverPi)
       _ -> 0 -- ?!?
 
+
+-- create a scalar for branchless selection if x > y
+scalarIfGreaterThan :: F64 -> F64 -> F64
+scalarIfGreaterThan x y = bitAnd subtractionMask 1
+  where
+    subtraction = y - (x + f64Epsilon)
+    subtractionSign = bitAnd subtraction iEEESignMaskF
+    subtractionMask = bitShiftRightA subtractionSign 63
+
+-- create a mask (0xFFFFFFFFFFFFFFFF or 0x0000000000000000) for branchless masking if x > y
+maskIfGreaterThan :: F64 -> F64 -> F64
+maskIfGreaterThan x y = bitShiftRightA subtractionSign 63
+  where
+    subtraction = y - (x + f64Epsilon)
+    subtractionSign = bitAnd subtraction iEEESignMaskF
+
+-- branchless 64 bit atan
 atanF64 :: F64 -> F64
-atanF64 n = bitOr z sign
+atanF64 n = bitOr sign z
   where
     sign = bitAnd iEEESignMaskF n
     absN = bitAnd n (bitNot iEEESignMaskF)
-    complement = n > 1
-    x = if complement then 1 / absN else absN
-    region = x > tanTwelthPi
-    x' = if region then (x - tanSixthPi) / (1 + tanSixthPi * x) else x
-    -- y = if region then atanX + sixthPi else atanX
-    y = atan137s + (sixthPi * (if region then 1 else 0))
-    z = if complement then halfPi - y else y
+    -- absN = abs n
+    -- complement = absN > 1
+    -- complementCon = if complement then allBitsF else 0
+    -- Set sign bit if absN > 1
+    complement = bitAnd (1 - (absN + f64Epsilon)) iEEESignMaskF
+    -- right fill to get mask
+    complementCon = bitShiftRightA complement 63
+    -- x = if complement then 1 / absN else absN
+    x = (bitAnd complementCon (1 / absN)) + (bitAnd absN (bitNot complementCon))
+    -- region = x > tanTwelthPi
+    -- regionCon = if region then 1 else 0
+    -- Set sign bit if x > tanTwelthPi
+    region = bitAnd (tanTwelthPi - (x + f64Epsilon)) iEEESignMaskF
+    -- right fill to get mask
+    regionMask = bitShiftRightA region 63
+    -- create scalar from mask for selection
+    regionCon = bitAnd regionMask 1
+    -- x' = if region then (x - tanSixthPi) / (1 + tanSixthPi * x) else x
+    x' = (x - (tanSixthPi * regionCon)) / (1 + (tanSixthPi * x * regionCon))
+    -- y = if region then atan137s + sixthPi else atan137s
+    y = atan137s + (sixthPi * regionCon)
+    -- z = if complement then halfPi - y else y
+    z = y + (bitAnd complementCon (halfPi - y - y))
     -- Accurate to about 13.7 decimal digits over the range [0, pi/12].
     atan137s = (x' * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
       where
@@ -328,12 +369,13 @@ slowAtanF64 n = if sign then negate z else z
   where
     sign = n < 0
     absN = abs n
-    complement = n > 1
+    complement = absN > 1
     x = if complement then 1 / absN else absN
     region = x > tanTwelthPi
+    x' = if region then (x - tanSixthPi) / (1 + tanSixthPi * x) else x
     y = if region then atanX + sixthPi else atanX
     z = if complement then halfPi - y else y
-    atanX = atan137s x
+    atanX = atan137s x'
     -- Accurate to about 13.7 decimal digits over the range [0, pi/12].
     atan137s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
       where
@@ -347,15 +389,16 @@ slowAtanF64 n = if sign then negate z else z
 ----------------------------------------
 
 class Bits a where
-  bitAnd        :: a -> a -> a
-  bitNot        :: a -> a
-  bitOr         :: a -> a -> a
-  bitXor        :: a -> a -> a
-  bitShiftLeft  :: a -> UInt -> a
-  bitShiftRight :: a -> UInt -> a
-  bitReverse    :: a -> a
-  toBits        :: a -> UInt
-  fromBits      :: UInt -> a
+  bitAnd         :: a -> a -> a
+  bitNot         :: a -> a
+  bitOr          :: a -> a -> a
+  bitXor         :: a -> a -> a
+  bitShiftLeft   :: a -> UInt -> a
+  bitShiftRight  :: a -> UInt -> a -- logical right shift
+  bitShiftRightA :: a -> UInt -> a -- arithmetic right shift
+  bitReverse     :: a -> a
+  toBits         :: a -> UInt
+  fromBits       :: UInt -> a
 
 sqr :: Semiring a => a -> a
 sqr n = n * n
@@ -528,15 +571,16 @@ instance Num UInt where
 instance Integral UInt where
 
 instance Bits UInt where
-  bitAnd        x y = primUndefined
-  bitNot        x   = primUndefined
-  bitOr         x y = primUndefined
-  bitXor        x y = primUndefined
-  bitShiftLeft  x y = primUndefined
-  bitShiftRight x y = primUndefined
-  bitReverse    x   = primUndefined
-  toBits        x   = x
-  fromBits      x   = x
+  bitAnd         x y = primUndefined
+  bitNot         x   = primUndefined
+  bitOr          x y = primUndefined
+  bitXor         x y = primUndefined
+  bitShiftLeft   x y = primUndefined
+  bitShiftRight  x y = primUndefined
+  bitShiftRightA x y = primUndefined
+  bitReverse     x   = primUndefined
+  toBits         x   = x
+  fromBits       x   = x
 
 instance Semigroup UInt where
   append x y = x + y
@@ -600,15 +644,16 @@ instance Trig Float where
   pow  x y = primUndefined
 
 instance Bits Float where
-  bitAnd        x y = primUndefined
-  bitNot        x   = primUndefined
-  bitOr         x y = primUndefined
-  bitXor        x y = primUndefined
-  bitShiftLeft  x y = primUndefined
-  bitShiftRight x y = primUndefined
-  bitReverse    x   = primUndefined
-  toBits        x   = primUndefined
-  fromBits      x   = primUndefined
+  bitAnd         x y = primUndefined
+  bitNot         x   = primUndefined
+  bitOr          x y = primUndefined
+  bitXor         x y = primUndefined
+  bitShiftLeft   x y = primUndefined
+  bitShiftRight  x y = primUndefined
+  bitShiftRightA x y = primUndefined
+  bitReverse     x   = primUndefined
+  toBits         x   = primUndefined
+  fromBits       x   = primUndefined
 
 instance Semigroup Float where
   append x y = x + y
@@ -674,15 +719,16 @@ instance Trig F64 where
   pow  x y = primUndefined
 
 instance Bits F64 where
-  bitAnd        x y = primUndefined
-  bitNot        x   = primUndefined
-  bitOr         x y = primUndefined
-  bitXor        x y = primUndefined
-  bitShiftLeft  x y = primUndefined
-  bitShiftRight x y = primUndefined
-  bitReverse    x   = primUndefined
-  toBits        x   = primUndefined
-  fromBits      x   = primUndefined
+  bitAnd         x y = primUndefined
+  bitNot         x   = primUndefined
+  bitOr          x y = primUndefined
+  bitXor         x y = primUndefined
+  bitShiftLeft   x y = primUndefined
+  bitShiftRight  x y = primUndefined
+  bitShiftRightA x y = primUndefined
+  bitReverse     x   = primUndefined
+  toBits         x   = primUndefined
+  fromBits       x   = primUndefined
 
 instance Semigroup F64 where
   append x y = x + y
@@ -731,7 +777,17 @@ iEEESignificandMask = bitAnd (-1) (bitNot (bitOr iEEEExponentMask iEEESignMask))
 iEEESignificandMaskF :: F64
 iEEESignificandMaskF = fromBits iEEESignificandMask 
 
+allBits :: UInt
+allBits = -1
 
+allBitsF :: F64
+allBitsF = fromBits allBits
+
+f64EpsilonU :: UInt
+f64EpsilonU = 4372995238176751616
+
+f64Epsilon :: F64
+f64Epsilon = fromBits f64EpsilonU
 
 --------------------
 -- Rational
@@ -2616,10 +2672,22 @@ poly f s =
 --     f64 = 5
 
 testJit :: *World -> *World
-testJit w = printLn mouseX w |> printLn (atanF64 fMouse)
+testJit w =
+    printLn fMouse w
+    |> print "fMask 1 fMouse: "
+    |> printLn fMask
+    |> print "fSelection 1 fMouse: "
+    |> printLn fSelection
+    |> print "tan -1.8125: "
+    |> printLn (tanF64 -1.8125)
+    |> print "slowAtanF64: "
+    |> printLn (slowAtanF64 fMouse)
   where
-    fMouse :: F64
-    fMouse = fromInt mouseX
+    fMouseRaw :: F64
+    fMouseRaw = fromInt mouseX
+    fMouse = ((fMouseRaw / 1920) - 0.5) * 4
+    fSelection = scalarIfGreaterThan fMouse 1
+    fMask = maskIfGreaterThan fMouse 1
 --
 -- testJit :: *World -> *World
 -- testJit w = printLn a w |> printLn b |> printLn c

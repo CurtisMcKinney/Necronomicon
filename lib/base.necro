@@ -1,4 +1,6 @@
 --------------------
+-- Necro.Base
+--------------------
 
 -- -- TODO: Move into tests!
 -- data ETest1 a     = ETest1 (Maybe a)
@@ -1153,7 +1155,6 @@ mapChannel f c =
   where
     offsetToEndRange = Range audioSampleOffset 1 0
 
--- Loop constructs capturing owned/unique free_vars should be a type error!
 mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
 mapChannel2 f cx cy =
   case cx of
@@ -1185,41 +1186,11 @@ mapChannel2 f cx cy =
     offsetToEndRange = Range audioSampleOffset 1 0
     ia               = audioInitArray ()
 
--- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
--- TODO: Handle state Ending!
--- TODO: Finish with this and port change to maybeEnd version
-accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
-accumulateChannel1 f input1 =
-  case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
-      case out of
-        (_, a) -> AudioRate a
-  where
-    offsetToEndRange = Range audioSampleOffset 1 0
-    ia               = audioInitArray ()
-    out ~ (default, primUndefined) =
-      case out of
-        (state, _) ->
-          let
-            (#state', o'#) =
-              case input1 of
-                ChannelEnd          -> (#state, ia#)
-                BlockRate input1Val ->
-                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
-                    case f input1Val s of
-                      (#s', x#) ->
-                        (#s', writeArray i x o#)
-                AudioRate input1Buffer ->
-                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
-                    case f (readArray i input1Buffer) s of
-                      (#s', x#) ->
-                        (#s', writeArray i x o#)
-          in
-            (state', freezeArray o')
+constTrue :: a -> Bool
+constTrue _ = True
 
-accumulateChannelAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel
-accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
+accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel
+accumulateChannel1 f isRunningFunc input1 =
   case input1 of
     ChannelEnd -> ChannelEnd
     _          ->
@@ -1248,6 +1219,58 @@ accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
                     case f (readArray i input1Buffer) s of
                       (#s', x#) ->
                         (#s', writeArray i x o#)
+          in
+            (state', freezeArray o')
+
+accumulateChannel2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel -> Channel
+accumulateChannel2 f isRunningFunc input1 input2 =
+  case input1 of
+    ChannelEnd -> ChannelEnd
+    _          ->
+      case input2 of
+        ChannelEnd -> ChannelEnd
+        _          ->
+          case out of
+            (s, a) ->
+              case isRunningFunc s of
+                False -> ChannelEnd
+                _     -> AudioRate a
+  where
+    offsetToEndRange = Range audioSampleOffset 1 0
+    ia               = audioInitArray ()
+    out ~ (default, primUndefined) =
+      case out of
+        (state, _) ->
+          let
+            (#state', o'#) =
+              case input1 of
+                ChannelEnd          -> (#state, ia#)
+                BlockRate input1Val ->
+                  case input2 of
+                    ChannelEnd          -> (#state, ia#)
+                    BlockRate input2Val ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f input1Val input2Val s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+                    AudioRate input2Buffer ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f input1Val (readArray i input2Buffer) s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+                AudioRate input1Buffer ->
+                  case input2 of
+                    ChannelEnd          -> (#state, ia#)
+                    BlockRate input2Val ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f (readArray i input1Buffer) input2Val s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+                    AudioRate input2Buffer ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f (readArray i input1Buffer) (readArray i input2Buffer) s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
           in
             (state', freezeArray o')
 
@@ -1424,10 +1447,10 @@ data Audio f     = Audio (f Channel)
 
 -- TODO: Equal power panning
 class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
-  accumulate1       :: Default s => (F64 -> s -> (#s, F64#)) -> Audio f -> Audio f
-  accumulateFinite1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f
-  pan               :: Audio Mono -> Audio f -> Audio Stereo
-  outAudio          :: UInt -> Audio f -> *World -> *World
+  accumulate1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f
+  accumulate2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f -> Audio f
+  pan         :: Audio Mono -> Audio f -> Audio Stereo
+  outAudio    :: UInt -> Audio f -> *World -> *World
 
 instance Functor Mono where
   map f (Mono x) = Mono (f x)
@@ -1445,10 +1468,10 @@ instance Foldable Mono where
   foldl f i (Mono x) = f i x
 
 instance AudioFormat Mono where
-  outAudio  n (Audio (Mono c))  w                = outChannel n c w
-  accumulate1 f (Audio (Mono c))                 = Audio (Mono (accumulateChannel1 f c))
-  accumulateFinite1 f sf (Audio (Mono c))        = Audio (Mono (accumulateChannelAndMaybeEnd1 f sf c))
-  pan (Audio (Mono amount)) (Audio (Mono input)) = Audio (Stereo (#mul input (sub 1 amount), mul input amount#))
+  outAudio  n (Audio (Mono c))  w                           = outChannel n c w
+  accumulate1 f isRunning (Audio (Mono c))                  = Audio (Mono (accumulateChannel1 f isRunning c))
+  accumulate2 f isRunning (Audio (Mono x)) (Audio (Mono y)) = Audio (Mono (accumulateChannel2 f isRunning x y))
+  pan (Audio (Mono amount)) (Audio (Mono input))            = Audio (Stereo (#mul input (sub 1 amount), mul input amount#))
 
 instance Functor Stereo where
   map f (Stereo (#x, y#)) = Stereo (#f x, f y#)
@@ -1466,11 +1489,10 @@ instance Foldable Stereo where
   foldl f i (Stereo (#l, r#)) = f (f i l) r
 
 instance AudioFormat Stereo where
-  outAudio  n (Audio (Stereo (#l, r#))) w             = outChannel (add n 1) r (outChannel n l w)
-  accumulate1 f (Audio (Stereo (#l, r#)))             = Audio (Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#))
-  accumulateFinite1 f sf (Audio (Stereo (#l, r#)))    = Audio (Stereo (#accumulateChannelAndMaybeEnd1 f sf l, accumulateChannelAndMaybeEnd1 f sf r#))
-  pan (Audio (Mono amount)) (Audio (Stereo (#l, r#))) = Audio (Stereo (#mul l (sub 1 amount), mul r amount#))
-
+  outAudio  n (Audio (Stereo (#l, r#))) w                                         = outChannel (add n 1) r (outChannel n l w)
+  accumulate1 f isRunning (Audio (Stereo (#l, r#)))                               = Audio (Stereo (#accumulateChannel1 f isRunning l, accumulateChannel1 f isRunning r#))
+  accumulate2 f isRunning (Audio (Stereo (#xl, xr#))) (Audio (Stereo (#yl, yr#))) = Audio (Stereo (#accumulateChannel2 f isRunning xl yl, accumulateChannel2 f isRunning xr yr#))
+  pan (Audio (Mono amount)) (Audio (Stereo (#l, r#)))                             = Audio (Stereo (#mul l (sub 1 amount), mul r amount#))
 
 instance AudioFormat f => Eq (Audio f) where
   eq  (Audio x) (Audio y) = foldl (\cond x -> cond && x) True  (map2 eq x y)
@@ -1509,6 +1531,10 @@ instance AudioFormat f => Semigroup (Audio f) where
 instance AudioFormat f => Monoid (Audio f) where
   mempty = Audio (pure mempty)
 
+--------------------
+-- UGens
+--------------------
+
 stereo :: Audio Mono -> Audio Mono -> Audio Stereo
 stereo (Audio (Mono l)) (Audio (Mono r)) =
   Audio (Stereo (#l, r#))
@@ -1524,7 +1550,19 @@ accumulateSaw freq acc =
 
 saw :: AudioFormat f => Audio f -> Audio f
 saw freq =
-  accumulate1 accumulateSaw freq
+  accumulate1 accumulateSaw constTrue freq
+
+accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
+accumulatePulse width freq acc =
+  (#acc3, out#)
+  where
+    acc2 = fma freq recipSampleRate acc
+    acc3 = acc2 - floor acc2
+    out  = fma (fromInt (boolToInt (acc3 > width))) 2.0 (-1.0)
+
+pulse :: AudioFormat f => Audio f -> Audio f -> Audio f
+pulse width freq =
+  accumulate2 accumulatePulse constTrue width freq
 
 -- TODO: Use curve!
 accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> F64 -> (#F64, F64#)
@@ -1545,7 +1583,7 @@ percIsRunning totalTime state =
 
 perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
-  accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) (percIsRunning (attackTime + decayTime)) input
+  accumulate1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) (percIsRunning (attackTime + decayTime)) input
 
 
 --------------------
@@ -2589,7 +2627,7 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 
 -- testJit :: *World -> *World
 -- testJit w =
---   outAudio 0 (saw 440) w
+--   outAudio 0 (pulse 0.5 220 * 0.1) w
 
 -- -- TODO: Deep copy arrays, but don't deep copy unique arrays
 -- -- TODO: id in poly causing compile assert... probably due to inlining???
@@ -2633,15 +2671,20 @@ testJit w =
     badBeat1  = seqSpeed beatSpeed [400 _ 600 <_ 700> 800]
     badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> 1350] @* (seqSpeed (1 // 9) [0.5 1 2 3 0.25]))
     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
-    badSynth fm a p f =
+    bassSynth fm a p f =
       saw (fromFloat f) + saw (fromFloat f * fm)
+      |> mul (0.0125 * fromFloat a)
+      |> perc 0.0125 4.5 1
+      |> pan p
+    badSynth fm a p f =
+      pulse fm (fromFloat f) + saw (fromFloat f * fm)
       |> mul (0.0125 * fromFloat a)
       |> perc 0.0125 6 1
       |> pan p
     badAudio =
-      poly (badSynth freqMul1 0.65 0.25) badBeat1 +
-      poly (badSynth freqMul2 0.65 0.75) badBeat2 +
-      poly (badSynth freqMul3 2    0.5)  badBeat3
+      poly (badSynth  freqMul1 0.5 0.25) badBeat1 +
+      poly (badSynth  freqMul2 0.5 0.75) badBeat2 +
+      poly (bassSynth freqMul3 2.3 0.5)  badBeat3
 
 -- testJit :: *World -> *World
 -- testJit w = print one w
@@ -2747,35 +2790,6 @@ testJit w =
 -- [] => Tuple
 -- {} => Interleave
 
--- sawTest :: Audio Mono
--- sawTest = saw 440
-
--- coolSynth :: Audio Mono
--- coolSynth =
---   saw 440 |> perc 0.1 10 (-3)
-
--- -- TODO: Test new poly scheme
--- percSynth :: Audio Mono
--- percSynth = poly (saw .> perc 0.1 3 1 .> mul 0.1) [440 220 _ <110 55 _ 330>]
--- -- percSynth = poly percSaw [440 220 _ <110 55 _ 330>]
--- -- percSynth = poly (\f -> saw f |> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
-
--- panTest :: Audio Stereo
--- panTest = saw 440 |> pan 0.25
-
--- myCoolSynth2 :: Audio Mono
--- myCoolSynth2 =
---   poly (\f -> saw (offset + offset2 + f)) [440 220 _ <110 55 _ 330>]
---   where
---     offset  = myLocalSawThing 220
---     offset2 = 40
-
-
--- + poly (fromInt .> saw) [1 2 3]
-
--- coolMultiSaw :: Audio Mono
--- coolMultiSaw = poly2 multiSaw freq filterFreq
-
 -- tupleTest :: Seq Float
 -- tupleTest =
 --   <0 _ 1 2>
@@ -2840,36 +2854,21 @@ testJit w =
 
 -- properFraction :: (Fractional a, Integral b) -> a -> (b, b)
 
--- TODO:
--- accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
--- accumulatePulse width freq acc =
---   (#acc3, out#)
---   where
---     acc2 = fma freq recipSampleRate acc
---     acc3 = acc2 - fastFloor acc2
---     out  = fma (fromInt (boolToInt (acc3 > width))) 2.0 (-1.0)
---
--- pulse :: AudioFormat f => Audio f -> Audio f
--- pulse freq = accumulateAudio2 accumulatePulse freq
-
 -- TODO / One Day... We need ~ constraints for this to work...
 -- class Freeze a where
 --   freeze :: (Freeze b, a ~ b) => *a -> b
 
----------------------------
--- TODO: Chad Bot
----------------------------
-
--- TODO: Sample offset is negative???
+-- TODO: Set audioSampleOffset to NOT be constant and insure that it is never used at a global scope!!!!! (It is magical...)
+-- TODO: repeat combinator
+-- TODO: accumulate2, etc
+-- TODO: FFT stuff
+-- TODO: Nested case literals seem broken!
 -- TODO: Out of order monomorphic instances (i.e. 'instance Ring Complex' textually appearing before 'instance Ring F64') can cause erroneous 'Not An Instance' errors. Maybe need a better dep analysis story to make this work since we don't figure this out until inference which is at that point too late to fix.
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
 -- TODO: Look at all the .i.i.i weirdness in llvm names???
 
 -- TODO: Optimize const expr globals
--- TODO: Set blocksPerSecond correctly?
 -- TODO: Memory access test audio stuff!
--- TODO: JIT test function, testAssertion :: Bool -> *World -> *World
--- TODO: Put Uniqueness unify AFTER type unify for better error messages?
 -- TODO: type sig coerce constraint!
 -- TODO: Put constant check on initializers, not in type signatures. It doesn't need to be in the type system to be checked! Then we can nix Default for Monoid?
 -- TODO: FFT generated signals, pure FFT
@@ -2877,7 +2876,6 @@ testJit w =
 -- TODO: endAfterTick IO combinator: endAfterTick :: *World -> *World
 -- TODO: Immutable and Mutable (Unique) FFT API
 -- TODO: Writing audio files
--- TODO: Nested case literals seem broken!
 
 -- TODO: Concept of Constant Values somehow being worked into the type system for things like default and mutRef
 -- TODO: Inline compose operators! .> and <.

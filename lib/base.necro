@@ -143,7 +143,8 @@ class UFunctor f where
 
 class FunctorN f where
   map2 :: (a -> b -> c) -> f a -> f b -> f c
-  -- TODO: map3, etc
+  map3 :: (a -> b -> c ->d) -> f a -> f b -> f c -> f d
+  -- TODO: map4, etc
 
 class Functor f => Applicative f where
   pure :: a -> f a
@@ -955,6 +956,17 @@ instance FunctorN Maybe where
           Nothing -> nothing
           Just y  ->
             Just (f x y)
+  map3 f mx my mz =
+    case mx of
+      Nothing -> nothing
+      Just x  ->
+        case my of
+          Nothing -> nothing
+          Just y  ->
+            case mz of
+              Nothing -> nothing
+              Just z  ->
+                Just (f x y z)
 
 instance Applicative Maybe where
   pure x   = Just x
@@ -1421,7 +1433,8 @@ instance Functor Mono where
   map f (Mono x) = Mono (f x)
 
 instance FunctorN Mono where
-  map2 f (Mono x) (Mono y) = Mono (f x y)
+  map2 f (Mono x) (Mono y)          = Mono (f x y)
+  map3 f (Mono x) (Mono y) (Mono z) = Mono (f x y z)
 
 instance Applicative Mono where
   pure x               = Mono x
@@ -1441,7 +1454,8 @@ instance Functor Stereo where
   map f (Stereo (#x, y#)) = Stereo (#f x, f y#)
 
 instance FunctorN Stereo where
-  map2 f (Stereo (#x1, x2#)) (Stereo (#y1, y2#)) = Stereo (#f x1 y1, f x2 y2#)
+  map2 f (Stereo (#x1, x2#)) (Stereo (#y1, y2#))                     = Stereo (#f x1 y1, f x2 y2#)
+  map3 f (Stereo (#x1, x2#)) (Stereo (#y1, y2#)) (Stereo (#z1, z2#)) = Stereo (#f x1 y1 z1, f x2 y2 z2#)
 
 instance Applicative Stereo where
   pure x                                     = Stereo (#x, x#)
@@ -1550,6 +1564,18 @@ mergeSeqValueTimes xt xc yt yc =
         SeqPure -> xt
         _       -> min xt yt
 
+mergeSeqValueTimes3 :: Rational -> SeqControl -> Rational -> SeqControl -> Rational -> SeqControl -> Rational
+mergeSeqValueTimes3 xt xc yt yc zt zc =
+  case xc of
+    SeqPure -> mergeSeqValueTimes yt yc zt zc
+    _ ->
+      case yc of
+        SeqPure -> mergeSeqValueTimes xt xc zt zc
+        _       ->
+          case zc of
+            SeqPure -> mergeSeqValueTimes xt xc yt yc
+            _       -> min (min xt yt) zt
+
 instance Enum SeqControl where
   toEnum n =
     case n of
@@ -1603,6 +1629,8 @@ instance Functor SeqValue where
 instance FunctorN SeqValue where
   map2 f (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
     SeqValue (#mergeSeqValueTimes xt xc yt yc, xc <> yc, map2 f xv yv#)
+  map3 f (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) (SeqValue (#zt, zc, zv#)) =
+    SeqValue (#mergeSeqValueTimes3 xt xc yt yc zt zc, xc <> yc <> zc, map3 f xv yv zv#)
 
 instance Applicative SeqValue where
   pure x = SeqValue (#1, SeqPure, Just x#)
@@ -1672,6 +1700,21 @@ runSeq2 sx sy =
           in
             (#x, y#)
 
+runSeq3 :: Seq a -> Seq b -> Seq c -> (#SeqValue a, SeqValue b, SeqValue c#)
+runSeq3 sx sy sz =
+  acc
+  where
+    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+      case acc of
+        (#SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#), SeqValue (#zt, zc, zv#)#) ->
+          let
+            t = min (min xt yt) zt
+            x = if xt <= t then runSeq sx () else SeqValue (#xt - t, xc, xv#)
+            y = if yt <= t then runSeq sy () else SeqValue (#yt - t, yc, yv#)
+            z = if zt <= t then runSeq sz () else SeqValue (#zt - t, zc, zv#)
+          in
+            (#x, y, z#)
+
 seqValueDuration :: SeqValue a -> Rational
 seqValueDuration (SeqValue (#t, _, _#)) = t
 
@@ -1714,7 +1757,8 @@ instance Applicative Seq where
   ap fs xs = Seq (\_ -> ap (runSeq fs ()) (runSeq xs ()))
 
 instance FunctorN Seq where
-  map2 f sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 f x y)
+  map2 f sx sy    = Seq (\_ -> let (#x, y#)    = runSeq2 sx sy    in map2 f x y)
+  map3 f sx sy sz = Seq (\_ -> let (#x, y, z#) = runSeq3 sx sy sz in map3 f x y z)
 
 instance Eq a => Eq (Seq a) where
   eq  sx sy = let (#x, y#) = runSeq2 sx sy in x == y
@@ -2514,8 +2558,8 @@ poly2 :: Poly c => (a -> b -> c) -> Seq a -> Seq b -> c
 poly2 f x y = poly (uncurry' f) (map2 (\x' y' -> (#x', y'#)) x y)
 
 -- TODO: Need map3
--- poly3 :: Poly d => (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> d
--- poly3 f x y z = poly (uncurry3' f) (map2 (\x' y' z' -> (#x', y', z'#)) x y z)
+poly3 :: Poly d => (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> d
+poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 
 -- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
 -- TODO: Test arg copying
@@ -2566,7 +2610,8 @@ poly2 f x y = poly (uncurry' f) (map2 (\x' y' -> (#x', y'#)) x y)
 --     badSynth f p = saw (f * fromInt (mouseX / 32 + 1)) * 0.05 |> perc 0.0125 1 1 |> pan p
 --     badAudio     = poly2 badSynth badBeat1 badBeat2
 
---TODO: map3, etc
+-- -- TODO: Look at arg copying scheme....seems off (related to array copying?0
+-- -- TODO: map3, etc
 -- testJit :: *World -> *World
 -- testJit w =
 --   outAudio 0 badAudio w
@@ -2574,7 +2619,7 @@ poly2 f x y = poly (uncurry' f) (map2 (\x' y' -> (#x', y'#)) x y)
 --     badBeat1       = seqSpeed (6 // 1) [100 600 800 900]
 --     badBeat2       = seqSpeed (3 // 1) [900 800 600 100 1200 100 600 800 900 1200]
 --     badBeat3       = seqSpeed (3 // 1) [0.2 0.8 0.4 0.6]
---     badSynth f g p = (saw f + saw g) * 0.05 |> perc 0.0125 1 1 |> pan p
+--     badSynth f g p = (saw (fromFloat f) + saw (fromFloat g)) * 0.05 |> perc 0.0125 1 1 |> pan (fromFloat p)
 --     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
 
 testJit :: *World -> *World
@@ -2589,8 +2634,8 @@ testJit w =
     badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> 1350] @* (seqSpeed (1 // 9) [0.5 1 2 3 0.25]))
     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
     badSynth fm a p f =
-      saw f + saw (f * fm)
-      |> mul (0.0125 * a)
+      saw (fromFloat f) + saw (fromFloat f * fm)
+      |> mul (0.0125 * fromFloat a)
       |> perc 0.0125 6 1
       |> pan p
     badAudio =

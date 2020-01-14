@@ -476,6 +476,11 @@ NecroResult(NecroConstraintList) necro_type_not_a_class_error(NecroAstSymbol* as
     return necro_error_map(NecroType, NecroConstraintList, necro_default_type_error1(NECRO_TYPE_NOT_A_CLASS, ast_symbol, type, NULL, source_loc, end_loc));
 }
 
+NecroResult(NecroType) necro_type_malformed_uniqueness_attribute_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_default_type_error1(NECRO_TYPE_MALFORMED_UNIQUENESS_ATTRIBUTE, ast_symbol, type, NULL, source_loc, end_loc);
+}
+
 NecroResult(NecroConstraintList) necro_type_malformed_constraint(struct NecroConstraint* constraint)
 {
     necro_error_single_break_point();
@@ -1251,6 +1256,12 @@ void necro_print_rigid_type_variable_error(NecroResultError* error, const char* 
     UNUSED(source_name);
 }
 
+void necro_print_malformed_uniqueness_attribute_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "In Data Constructors only anonymous dots may be applied to types, and they may only be applied to Type Constructors and Type Applications.";
+    necro_print_default_error_format("Malformed Uniqueness Attribute", error->default_type_error_data1.source_loc, error->default_type_error_data1.end_loc, source_str, source_name, explanation);
+}
+
 void necro_print_mismatched_kind_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char*          error_name  = "Mismatched Kinds";
@@ -1589,6 +1600,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_TYPE_OCCURS:                                     necro_print_occurs_error(error, source_str, source_name); break;
     case NECRO_TYPE_FINAL_DO_STATEMENT:                         necro_print_final_do_statement_error(error, source_str, source_name); break;
     case NECRO_TYPE_RIGID_TYPE_VARIABLE:                        necro_print_rigid_type_variable_error(error, source_str, source_name); break;
+    case NECRO_TYPE_MALFORMED_UNIQUENESS_ATTRIBUTE:             necro_print_malformed_uniqueness_attribute_error(error, source_str, source_name); break;
 
     case NECRO_TYPE_NOT_A_CLASS:                                necro_print_type_not_a_class_error(error, source_str, source_name); break;
     case NECRO_TYPE_NOT_A_VISIBLE_METHOD:                       necro_print_type_not_a_visible_member_error(error, source_str, source_name); break;

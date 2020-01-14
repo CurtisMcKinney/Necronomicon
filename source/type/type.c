@@ -3037,6 +3037,10 @@ NecroResult(NecroType) necro_uniqueness_propagate_data_con(NecroPagedArena* aren
         {
             if (!necro_type_is_inhabited(base, type))
                 type->ownership = base->ownership_share->type;
+            else if (type->ownership != NULL && type->ownership->type == NECRO_TYPE_VAR)
+            {
+                type->ownership->var.bound = data_type_uvar;
+            }
             else
                 type->ownership = NULL;
             type->ownership = necro_type_find(type->ownership);
@@ -3063,6 +3067,10 @@ NecroResult(NecroType) necro_uniqueness_propagate_data_con(NecroPagedArena* aren
     {
         if (!necro_type_is_inhabited(base, type))
             type->ownership = base->ownership_share->type;
+        else if (type->ownership != NULL && type->ownership->type == NECRO_TYPE_VAR)
+        {
+            type->ownership->var.bound = data_type_uvar;
+        }
         else
             type->ownership = NULL;
         NecroType* app = type;

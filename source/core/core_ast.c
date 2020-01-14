@@ -399,8 +399,6 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_app(NecroCoreAstTransform*
     assert(ast->type == NECRO_AST_FUNCTION_EXPRESSION);
     NecroCoreAst* expr1    = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->fexpression.aexp));
     NecroCoreAst* expr2    = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->fexpression.next_fexpression));
-    // assert(expr1->necro_type != NULL);
-    // assert(expr2->necro_type != NULL);
     NecroCoreAst* core_ast = necro_core_ast_create_app(context->arena,expr1, expr2);
     core_ast->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
     return ok(NecroCoreAst, core_ast);

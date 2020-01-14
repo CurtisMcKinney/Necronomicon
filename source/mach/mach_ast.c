@@ -1123,6 +1123,13 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
+    case NECRO_PRIMOP_UOP_FTRU:
+    {
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_F64 ? program->type_cache.uint64_type : program->type_cache.word_uint_type;
+        ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
+        break;
+    }
     case NECRO_PRIMOP_UOP_FRNI:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);

@@ -321,7 +321,7 @@ NecroCoreAst* necro_core_ast_duplicate_with_subs(NecroPagedArena* arena, NecroIn
 ///////////////////////////////////////////////////////
 // Pre-Simplify
 //--------------------
-// Very simple pre-simplification phase using hardcoded rewrite rules
+// Very simple pre-simplification phase using hardcoded rewrite rules (i.e. Peephole optimization)
 // Performs these simplifications:
 //     * Unwraps "wrapped" types (i.e. types of shape data Wrapper a = Wrapper a (polymorphism isn't important, it's the fact that it's a single constructor with a single member))
 //     * Inlines id
@@ -633,6 +633,8 @@ NecroCoreAst* necro_core_ast_pre_simplify_bind(NecroCorePreSimplify* context, Ne
     ast->bind.ast_symbol->type = necro_type_inline_wrapper_types(context->arena, context->base, context->intern, ast->bind.ast_symbol->type);
     NecroCoreAst* expr         = necro_core_ast_pre_simplify_go(context, ast->bind.expr);
     NecroCoreAst* initializer  = necro_core_ast_pre_simplify_go(context, ast->bind.initializer);
+    if (ast->necro_type == NULL && ast->bind.ast_symbol->type != NULL)
+        ast->necro_type = necro_type_find(ast->bind.ast_symbol->type);
     if (expr == ast->bind.expr && initializer == ast->bind.initializer)
         return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
     NecroCoreAst* new_ast         = necro_core_ast_create_bind(context->arena, ast->bind.ast_symbol, expr, initializer);
@@ -871,6 +873,26 @@ NecroCoreAst* necro_ast_inline_app_lambda(NecroCorePreSimplify* context, NecroCo
     return new_let;
 }
 
+NecroCoreAst* necro_ast_instantiate_nat_val(NecroCorePreSimplify* context, NecroCoreAst* ast, NecroCoreAst* fn, NecroCoreAst* param)
+{
+    assert(ast->ast_type == NECRO_CORE_AST_APP);
+    if (fn->ast_type != NECRO_CORE_AST_VAR)
+        return ast;
+    if (fn->var.ast_symbol->primop_type != NECRO_PRIMOP_NAT_VAL)
+        return ast;
+    NecroType* param_type = necro_type_find(param->necro_type);
+    assert(param_type->type == NECRO_TYPE_CON);
+    assert(param_type->con.args != NULL);
+    assert(param_type->con.args->list.item != NULL);
+    NecroType* nat_type   = necro_type_find(param_type->con.args->list.item);
+    NecroAstConstant uint_constant;
+    uint_constant.uint_literal    = necro_nat_to_size_t(context->base, nat_type);
+    uint_constant.type            = NECRO_AST_CONSTANT_UNSIGNED_INTEGER;
+    NecroCoreAst*    uint_literal = necro_core_ast_create_lit(context->arena, uint_constant);
+    uint_literal->necro_type      = context->base->uint_type->type;
+    return uint_literal;
+}
+
 // Rewrite: \_ -> expr ==> expr
 NecroCoreAst* necro_ast_inline_app_const_1(NecroCorePreSimplify* context, NecroCoreAst* ast, NecroCoreAst* fn, NecroCoreAst* param)
 {
@@ -1062,6 +1084,8 @@ NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, Nec
         inlined               = necro_ast_inline_app_lambda(context, ast, fn, param);
         if (inlined != ast) return inlined;
         inlined               = necro_ast_inline_app_const_1(context, ast, fn, param);
+        if (inlined != ast) return inlined;
+        inlined               = necro_ast_instantiate_nat_val(context, ast, fn, param);
         if (inlined != ast) return inlined;
     }
 

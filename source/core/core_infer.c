@@ -36,6 +36,7 @@ NecroCoreInfer necro_core_infer_create(NecroIntern* intern, NecroBase* base, Nec
 ///////////////////////////////////////////////////////
 NecroResult(NecroType) necro_core_infer_go(NecroCoreInfer* infer, NecroCoreAst* ast);
 
+// TODO: With uvars in numbers, isn't this wrong now?
 NecroResult(NecroType) necro_core_infer_lit(NecroCoreInfer* infer, NecroCoreAst* ast)
 {
     assert(ast->ast_type == NECRO_CORE_AST_LIT);
@@ -48,6 +49,10 @@ NecroResult(NecroType) necro_core_infer_lit(NecroCoreInfer* infer, NecroCoreAst*
     case NECRO_AST_CONSTANT_INTEGER:
     case NECRO_AST_CONSTANT_INTEGER_PATTERN:
         ast->necro_type = infer->base->int_type->type;
+        return ok(NecroType, ast->necro_type);
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER:
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER_PATTERN:
+        ast->necro_type = infer->base->uint_type->type;
         return ok(NecroType, ast->necro_type);
     case NECRO_AST_CONSTANT_CHAR:
     case NECRO_AST_CONSTANT_CHAR_PATTERN:

@@ -1128,6 +1128,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrSwapElement", NULL, NECRO_PRIMOP_PTR_SWAP);
 
     necro_base_setup_primitive(scoped_symtable, intern, "mutRef", NULL, NECRO_PRIMOP_MREF);
+    necro_base_setup_primitive(scoped_symtable, intern, "natVal", NULL, NECRO_PRIMOP_NAT_VAL);
 
     // PolyThunk
     necro_base_setup_primitive(scoped_symtable, intern, "polyThunkEval",   NULL, NECRO_PRIMOP_PTHUNK_EVAL);

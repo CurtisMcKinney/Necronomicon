@@ -841,28 +841,40 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_array(NecroCoreAstTransfor
 }
 
 // Simple interpreter for Natural Numbers and operations on Natural Numbers
-size_t necro_nat_to_size_t(NecroBase* base, NecroType* n)
+size_t necro_nat_to_size_t(const NecroBase* base, const NecroType* n)
 {
-    n = necro_type_find(n);
+    n = necro_type_find_const(n);
     if (n->type == NECRO_TYPE_NAT)
         return n->nat.value;
     else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->block_size_type)
         return necro_runtime_get_block_size();
+    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->sample_rate_type)
+        return necro_runtime_get_sample_rate();
     else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->nat_mul_type)
     {
         assert(n->con.args != NULL);
         assert(n->con.args->list.next != NULL);
-        NecroType* arg1 = n->con.args->list.item;
-        NecroType* arg2 = n->con.args->list.next->list.item;
-        return necro_nat_to_size_t(base, arg1) * necro_nat_to_size_t(base, arg2);
+        NecroType*   arg1   = n->con.args->list.item;
+        NecroType*   arg2   = n->con.args->list.next->list.item;
+        const size_t result = necro_nat_to_size_t(base, arg1) * necro_nat_to_size_t(base, arg2);
+        return result;
     }
     else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->nat_max_type)
     {
         assert(n->con.args != NULL);
         assert(n->con.args->list.next != NULL);
-        NecroType* arg1 = n->con.args->list.item;
-        NecroType* arg2 = n->con.args->list.next->list.item;
-        return MAX(necro_nat_to_size_t(base, arg1), necro_nat_to_size_t(base, arg2));
+        NecroType*   arg1   = n->con.args->list.item;
+        NecroType*   arg2   = n->con.args->list.next->list.item;
+        const size_t result = MAX(necro_nat_to_size_t(base, arg1), necro_nat_to_size_t(base, arg2));
+        return result;
+    }
+    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->nat_next_power_of_2)
+    {
+        assert(n->con.args != NULL);
+        assert(n->con.args->list.next == NULL);
+        NecroType*   arg    = n->con.args->list.item;
+        const size_t result = next_highest_pow_of_2((uint32_t)necro_nat_to_size_t(base, arg));
+        return result;
     }
     assert(false);
     return 0;

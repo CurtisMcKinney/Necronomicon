@@ -115,8 +115,10 @@ typedef struct NecroBase
     NecroAstSymbol* prim_undefined;
     NecroAstSymbol* proj_fn;
     NecroAstSymbol* block_size_type;
+    NecroAstSymbol* sample_rate_type;
     NecroAstSymbol* nat_mul_type;
     NecroAstSymbol* nat_max_type;
+    NecroAstSymbol* nat_next_power_of_2;
     NecroAstSymbol* sample_rate;
     NecroAstSymbol* recip_sample_rate;
 
@@ -209,4 +211,5 @@ NecroAstSymbol*     necro_base_get_env_con(NecroBase* base, size_t num);
 NecroAstSymbol*     necro_base_get_branch_type(NecroBase* base, size_t branch_size);
 NecroAstSymbol*     necro_base_get_branch_con(NecroBase* base, size_t branch_size, size_t alternative);
 NecroCoreAstSymbol* necro_base_get_proj_symbol(NecroPagedArena* arena, NecroBase* base);
+bool                necro_base_is_nat_op_type(const NecroBase* base, const NecroType* type);
 #endif // NECRO_BASE_H

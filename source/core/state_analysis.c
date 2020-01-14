@@ -607,7 +607,7 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
         {
             return sa->base->uint_type->type;
         }
-        else if (type->con.con_symbol == sa->base->block_size_type || type->con.con_symbol == sa->base->nat_mul_type || type->con.con_symbol == sa->base->nat_max_type)
+        else if (necro_base_is_nat_op_type(sa->base, type))
         {
             return type;
         }

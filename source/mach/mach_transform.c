@@ -1347,6 +1347,7 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_UOP_ITOF:
     case NECRO_PRIMOP_UOP_UTOI:
     case NECRO_PRIMOP_UOP_FTRI:
+    case NECRO_PRIMOP_UOP_FTRU:
     case NECRO_PRIMOP_UOP_FRNI:
     case NECRO_PRIMOP_UOP_FTOF:
     case NECRO_PRIMOP_UOP_FFLR:

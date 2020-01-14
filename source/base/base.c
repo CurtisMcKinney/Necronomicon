@@ -306,6 +306,18 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_scope_insert_ast_symbol(arena, scoped_symtable->top_type_scope, block_size_symbol);
 
     /*
+        HACK: Magical SampleRate :: Nat data type
+        Magically appears as the value of the current sample rate, fixed at compile time.
+        We need to actually funnel the real sample rate into this...
+        Probably should create a better way of handling this...
+    */
+    NecroAstSymbol* sample_rate_symbol     = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.SampleRate"), necro_intern_string(intern, "SampleRate"), necro_intern_string(intern, "Necro.Base"), NULL);
+    sample_rate_symbol->type               = necro_type_con_create(arena, sample_rate_symbol, NULL);
+    sample_rate_symbol->type->kind         = base.nat_kind->type;
+    sample_rate_symbol->type->pre_supplied = true;
+    necro_scope_insert_ast_symbol(arena, scoped_symtable->top_type_scope, sample_rate_symbol);
+
+    /*
         HACK: NatMul :: (Nat -> Nat -> Nat)  data type
         Uses a simple interpreter and simple Hindley-Milner type unification instead of full blown dependent typing!
     */
@@ -324,6 +336,16 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     nat_max_symbol->type->kind         = necro_type_fn_create(arena, base.nat_kind->type, necro_type_fn_create(arena, base.nat_kind->type, base.nat_kind->type));
     nat_max_symbol->type->pre_supplied = true;
     necro_scope_insert_ast_symbol(arena, scoped_symtable->top_type_scope, nat_max_symbol);
+
+    /*
+        HACK: NatNextPowerOfTwo :: Nat -> Nat
+        Uses a simple interpreter and simple Hindley-Milner type unification instead of full blown dependent typing!
+    */
+    NecroAstSymbol* nat_next_power_of_2_symbol     = necro_ast_symbol_create(arena, necro_intern_string(intern, "Necro.Base.NatNextPowerOfTwo"), necro_intern_string(intern, "NatNextPowerOfTwo"), necro_intern_string(intern, "Necro.Base"), NULL);
+    nat_next_power_of_2_symbol->type               = necro_type_con_create(arena, nat_next_power_of_2_symbol, NULL);
+    nat_next_power_of_2_symbol->type->kind         = necro_type_fn_create(arena, base.nat_kind->type, base.nat_kind->type);
+    nat_next_power_of_2_symbol->type->pre_supplied = true;
+    necro_scope_insert_ast_symbol(arena, scoped_symtable->top_type_scope, nat_next_power_of_2_symbol);
 
     // primUndefined
     top = necro_ast_create_top_decl(arena, necro_ast_create_fn_type_sig(arena, intern, "primUndefined", NULL,
@@ -1034,8 +1056,10 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.index_con              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "Index"));
     // base.maybe_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Maybe"));;
     base.block_size_type        = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "BlockSize"));
+    base.sample_rate_type       = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "SampleRate"));
     base.nat_mul_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "NatMul"));
     base.nat_max_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "NatMax"));
+    base.nat_next_power_of_2    = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "NatNextPowerOfTwo"));
 
     base.pipe_forward           = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "|>"));;
     base.pipe_back              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "<|"));;
@@ -1202,6 +1226,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "pow<Float>",           &base.pow_float,             NECRO_PRIMOP_INTR_POW);
     necro_base_setup_primitive(scoped_symtable, intern, "sqrt<Float>",          &base.sqrt_float,            NECRO_PRIMOP_INTR_SQRT);
     necro_base_setup_primitive(scoped_symtable, intern, "floatToInt",           NULL,                        NECRO_PRIMOP_UOP_FTRI);
+    necro_base_setup_primitive(scoped_symtable, intern, "floatToUInt",          NULL,                        NECRO_PRIMOP_UOP_FTRU);
 
     // F64
     necro_base_setup_primitive(scoped_symtable, intern, "add<F64>",           NULL,                          NECRO_PRIMOP_BINOP_FADD);
@@ -1239,6 +1264,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "pow<F64>",           &base.pow_f64,                 NECRO_PRIMOP_INTR_POW);
     necro_base_setup_primitive(scoped_symtable, intern, "sqrt<F64>",          &base.sqrt_f64,                NECRO_PRIMOP_INTR_SQRT);
     necro_base_setup_primitive(scoped_symtable, intern, "f64ToInt",           NULL,                          NECRO_PRIMOP_UOP_FTRI);
+    necro_base_setup_primitive(scoped_symtable, intern, "f64ToUInt",          NULL,                          NECRO_PRIMOP_UOP_FTRU);
 
     // ()
     necro_base_setup_primitive(scoped_symtable, intern, "eq<()>",  NULL, NECRO_PRIMOP_CMP_EQ);
@@ -1359,6 +1385,16 @@ NecroCoreAstSymbol* necro_base_get_proj_symbol(NecroPagedArena* arena, NecroBase
         base->proj_fn->core_ast_symbol->arity = 2;
     }
     return base->proj_fn->core_ast_symbol;
+}
+
+bool necro_base_is_nat_op_type(const NecroBase* base, const NecroType* type)
+{
+    return
+        type->con.con_symbol == base->block_size_type  ||
+        type->con.con_symbol == base->nat_mul_type     ||
+        type->con.con_symbol == base->nat_max_type     ||
+        type->con.con_symbol == base->sample_rate_type ||
+        type->con.con_symbol == base->nat_next_power_of_2;
 }
 
 #define NECRO_BASE_TEST_VERBOSE 0

@@ -61,28 +61,43 @@ NecroDownsample* necro_downsample_create(const double freq_cutoff, const double 
     const double m       = NECRO_DOWNSAMPLE_FILTER_NUM_TAPS - 1;
     for (size_t i = 0; i < NECRO_DOWNSAMPLE_FILTER_NUM_TAPS; ++i)
     {
-        const double arg = ((double) i) - m / 2.0; // Shift to make filter causal
+        const double arg = ((double) i) - (m / 2.0); // Shift to make filter causal
         downsample->coefficients[i]  = omega_c * necro_sinc(omega_c * arg * M_PI);
     }
 
     //--------------------
     // Convolve FIR coefficients with window
-    const double dm = m + 1;
-    // const double beta = 3.0;
+    const double dm   = m + 1;
+    const double beta = 5.0;
     for (size_t i = 0; i < NECRO_DOWNSAMPLE_FILTER_NUM_TAPS; ++i)
     {
-        double ri = (double) i + 1;
+        // double ri = (double) i + 1;
         // Hanning
         // downsample->coefficients[i] *= 0.5 - 0.5 * cos(2.0 * M_PI * ri / dm);
         // Hamming
-        downsample->coefficients[i] *= 0.54 - 0.46 * cos(2.0 * M_PI * ri / dm);
+        // downsample->coefficients[i] *= 0.54 - 0.46 * cos(2.0 * M_PI * ri / dm);
         // Nuttall
-        // downsample->coefficients[i]  *= 0.355768 - 0.487396 * cos(2.0 * M_PI * ri / dm) + 0.144232 * cos(4.0 * M_PI * ri / dm) - 0.012604 * cos(6.0 * M_PI * ri / dm);
+        // downsample->coefficients[i]  *= 0.355768 - 0.487396 * cos((2.0 * M_PI * ri) / dm) + 0.144232 * cos((4.0 * M_PI * ri) / dm) - 0.012604 * cos((6.0 * M_PI * ri) / dm);
+        // Blackman - Nuttall
+        // downsample->coefficients[i]  *= 0.3635819 - 0.4891775 * cos((2.0 * M_PI * ri) / dm) + 0.1365995 * cos((4.0 * M_PI * ri) / dm) - 0.0106411 * cos((6.0 * M_PI * ri) / dm);
+        // Blackman - Harris
+        // downsample->coefficients[i]  *= 0.35875 - 0.48829 * cos((2.0 * M_PI * ri) / dm) + 0.14128 * cos((4.0 * M_PI * ri) / dm) - 0.01168 * cos((6.0 * M_PI * ri) / dm);
         // Sinc
-        // downsample->coefficients[i] *= pow(necro_sinc(((double) (2 * i + 1 - num_taps)) / m * M_PI), beta);
+        // downsample->coefficients[i] *= pow(necro_sinc((((double) (2 * i + 1 - NECRO_DOWNSAMPLE_FILTER_NUM_TAPS)) / m) * M_PI), beta);
         // Sine
-        // downsample->coefficients[i] *= pow(sin(((double) (i + 1)) * M_PI / dm), beta);
+        downsample->coefficients[i] *= pow(sin(((double) (i + 1)) * M_PI / dm), beta);
     }
+
+    // Unity gain adjustment
+    double gain_sum = 0.0;
+    for (size_t i = 0; i < NECRO_DOWNSAMPLE_FILTER_NUM_TAPS; ++i)
+        gain_sum += downsample->coefficients[i];
+    gain_sum /= (double) NECRO_DOWNSAMPLE_FILTER_NUM_TAPS;
+    for (size_t i = 0; i < NECRO_DOWNSAMPLE_FILTER_NUM_TAPS; ++i)
+        gain_sum /= gain_sum;
+
+    // for (size_t i = NECRO_DOWNSAMPLE_FILTER_NUM_TAPS / 2; i < NECRO_DOWNSAMPLE_FILTER_NUM_TAPS; ++i)
+    //     downsample->coefficients[i] *= 0.0;
 
     return downsample;
 }

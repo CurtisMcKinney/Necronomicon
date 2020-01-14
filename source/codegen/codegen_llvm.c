@@ -948,6 +948,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
     case NECRO_PRIMOP_UOP_UTOI: value = param; break; // TODO: Different bit sizes?
 
     case NECRO_PRIMOP_UOP_FTRI: value = LLVMBuildFPToSI(context->builder, param, result_type, name); break; // TODO: Finish
+    case NECRO_PRIMOP_UOP_FTRU: value = LLVMBuildFPToUI(context->builder, param, result_type, name); break; // TODO: Finish
     case NECRO_PRIMOP_UOP_FRNI: value = LLVMBuildFPToSI(context->builder, param, result_type, name); break;
     case NECRO_PRIMOP_UOP_FTOF:
     {

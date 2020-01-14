@@ -624,8 +624,14 @@ negate x = 0 - x
 floatToInt :: Float -> Int
 floatToInt x = primUndefined
 
+floatToUInt :: Float -> UInt
+floatToUInt x = primUndefined
+
 f64ToInt :: F64 -> Int
 f64ToInt x = primUndefined
+
+f64ToUInt :: F64 -> UInt
+f64ToUInt x = primUndefined
 
 
 --------------------
@@ -1183,7 +1189,7 @@ audioBlockSizeF = fromUInt audioBlockSize
 audioSampleRate :: UInt
 audioSampleRate = audioSampleRate' * audioOverSampleAmount
 
-audioSampleRateF :: UInt
+audioSampleRateF :: F64
 audioSampleRateF = fromUInt audioSampleRate
 
 audioBlocksPerSecond :: UInt
@@ -1849,28 +1855,37 @@ perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
   accumulate1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) (percIsRunning (attackTime + decayTime)) input
 
-data AudioBuffer s = AudioBuffer (.Array (NatMul BlockSize (NatMax s 1)) F64)
+data AudioBuffer s = AudioBuffer (.Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) F64)
 
 data DelayState s = DelayState (#.AudioBuffer s, UInt, F64#)
 
 mkDelayState :: F64 -> () -> *DelayState s
 mkDelayState initialDelayTime _ = DelayState (#AudioBuffer (arrayFrom 0), 0, initialDelayTime#)
 
+-- proxyVal :: Proxy n -> UInt
+-- proxyVal p = primUndefined
+
+-- TODO: Easy way out: arraySize combinator
 -- TODO: Way to have buffer size exist in types and in expressions
--- TODO: SampleRate :: Nat
 -- TODO: Interpolate delayTime!
+-- TODO: delay playback speed? Reverse delay? delay bank etc?
+-- TODO: initialDelayTime, maxDelayTime, audioBufferSize, etc
 
--- accumulateDelay :: F64 -> F64 -> F64 -> *DelayState -> (#*DelayState s, F64#)
--- accumulateDelay maxDelayTime targetDelayTime input (DelayState (#AudioBuffer buffer0, index, delayTime#)) =
---   (#DelayState (#AudioBuffer buffer2, index + 1, delayTime'#), input + out#)
---   where
---     delayTime'       = delayTime * 0.9 + min maxDelayTime targetDelayTime * 0.1
---     delayIndex       = (index + floatToInt (delayTime' * audioSampleRateF)) % audioBlockSize
---     buffer1          = writeArray delayIndex input buffer0
---     (#buffer2, out#) = readArrayU (Index index) buffer1
+-- Linear interpolation scheme for delay time!
+    -- delayTime'       = ...
 
--- -- TODO: delay playback speed? Reverse delay? delay bank etc?
--- -- TODO: initialDelayTime, maxDelayTime, audioBufferSize, etc
+accumulateDelay :: UInt -> F64 -> F64 -> *DelayState s -> (#*DelayState s, F64#)
+accumulateDelay bufferSizeMinus1 targetDelayTime input (DelayState (#AudioBuffer buffer0, index, delayTime#)) =
+  (#DelayState (#AudioBuffer buffer2, index + 1, delayTime'#), input + out#)
+  where
+    delayTime'       = targetDelayTime
+    delayIndex       = bitAnd (index + f64ToUInt (delayTime' * audioSampleRateF)) bufferSizeMinus1
+    (#out, buffer1#) = readArrayU (Index index) buffer0
+    buffer2          = writeArray (Index delayIndex) input buffer1
+
+-- accumulateDelayGo :: *DelayState 2 -> (#*DelayState 2, F64#)
+-- accumulateDelayGo state = accumulateDelay 1024 1 0 state
+
 -- delay :: AudioFormat f => Audio f -> Audio f -> Audio f
 -- delay delayTime input =
 --   accumulateChannel2U (mkDelayState 1) accumulateDelay (\s -> (#s, True#)) delayTime input
@@ -2879,8 +2894,8 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --     badBeat    = [400 600 [800:500] <900 <600 [700:1200]> <300 200>>]
 --     badSynth f =
 --       saw (fromFloat f)
---       |> mul 0.025
---       |> perc 0.0125 6 1
+--       |> mul 0.0125
+--       |> perc 0.0125 3 1
 --       |> pan 0.5
 
 -- testJit :: *World -> *World
@@ -2894,7 +2909,11 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 
 -- testJit :: *World -> *World
 -- testJit w =
---   outAudio 0 (pulse 0.5 220 * 0.1) w
+--   outAudio 0 (saw 220 * 0.05 |> perc 2 10 1) w
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (pulse 0.5 220 * 0.05 |> perc 2 10 1) w
 
 -- -- TODO: Deep copy arrays, but don't deep copy unique arrays
 -- -- TODO: id in poly causing compile assert... probably due to inlining???

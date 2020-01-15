@@ -1961,15 +1961,9 @@ data AudioBuffer s = AudioBuffer (.Array (NatNextPowerOfTwo (NatMul SampleRate (
 
 data DelayState s = DelayState (#.AudioBuffer s, UInt, F64#)
 
--- TODO: delay feedback amount parameter
--- TODO: Easy way out: arraySize combinator
--- TODO: Way to have buffer size exist in types and in expressions
 -- TODO: Interpolate delayTime!
 -- TODO: delay playback speed? Reverse delay? delay bank etc?
 -- TODO: initialDelayTime, maxDelayTime, audioBufferSize, etc
-
--- Linear interpolation scheme for delay time!
-    -- delayTime'       = ...
 
 accumulateDelay :: UInt -> F64 -> F64 -> F64 -> *DelayState s -> (#*DelayState s, F64#)
 accumulateDelay bufferSizeMinus1 targetDelayTime feedbackAmount input (DelayState (#AudioBuffer buffer0, index, delayTime#)) =
@@ -1985,15 +1979,12 @@ accumulateDelay bufferSizeMinus1 targetDelayTime feedbackAmount input (DelayStat
 natSecondsToNatBufferSamples :: NatVal seconds -> NatVal (NatNextPowerOfTwo (NatMul SampleRate (NatMax seconds 1)))
 natSecondsToNatBufferSamples _ = NatVal
 
-natSecondsToSamples :: NatVal seconds -> UInt
-natSecondsToSamples n = natVal (natSecondsToNatBufferSamples n)
-
 mkDelayState :: NatVal s -> () -> *DelayState s
 mkDelayState _ _ = DelayState (#AudioBuffer (arrayFrom 0), 0, 1#)
 
 delay :: AudioFormat f => NatVal seconds -> Audio f -> Audio f -> Audio f -> Audio f
 delay nv delayTime feedbackAmount input =
-  accumulate3U (mkDelayState nv) (accumulateDelay (natSecondsToSamples nv - 1)) (\s -> (#s, True#)) delayTime feedbackAmount input
+  accumulate3U (mkDelayState nv) (accumulateDelay (natVal (natSecondsToNatBufferSamples nv) - 1)) (\s -> (#s, True#)) delayTime feedbackAmount input
 
 oneSec :: NatVal 1
 oneSec = NatVal
@@ -3275,6 +3266,7 @@ testJit w =
 -- TODO: Out of order monomorphic instances (i.e. 'instance Ring Complex' textually appearing before 'instance Ring F64') can cause erroneous 'Not An Instance' errors. Maybe need a better dep analysis story to make this work since we don't figure this out until inference which is at that point too late to fix.
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
 -- TODO: Look at all the .i.i.i weirdness in llvm names???
+-- TODO: Strange Attractor / MandelBrot oscillators
 
 -- TODO: Optimize const expr globals
 -- TODO: Memory access test audio stuff!

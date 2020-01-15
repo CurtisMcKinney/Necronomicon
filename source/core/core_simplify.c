@@ -338,6 +338,7 @@ NecroCoreAst* necro_core_ast_duplicate_with_subs(NecroPagedArena* arena, NecroIn
     TODO:
         * necro_core_ast_post_simplify
         * Inline forwardN, i.e. forward2 x y = f x y ==> f x y, forward3 x y z = f x y z ==> f x y z
+        * Simplify .> and <.
 */
 
 NecroType*    necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* base, NecroIntern* intern, NecroType* type);
@@ -1066,6 +1067,7 @@ NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, Nec
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
+    assert(ast->necro_type != NULL);
 
     // Unwrap fully applied wrapper types
     if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR && ast->app.expr1->var.ast_symbol->is_constructor && ast->app.expr1->var.ast_symbol->is_wrapper)

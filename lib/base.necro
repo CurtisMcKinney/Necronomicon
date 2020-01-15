@@ -1906,7 +1906,8 @@ stereo :: Audio Mono -> Audio Mono -> Audio Stereo
 stereo (Audio (Mono l)) (Audio (Mono r)) =
   Audio (Stereo (#l, r#))
 
--- NOTE: Turns out floor is faster than fastFloor???
+-----------
+-- saw
 accumulateSaw :: F64 -> F64 -> (#F64, F64#)
 accumulateSaw freq acc =
   (#acc3, out#)
@@ -1915,11 +1916,13 @@ accumulateSaw freq acc =
     acc3 = acc2 - floor acc2
     out  = fma acc3 2.0 (-1.0)
 
+-- NOTE: Turns out floor is faster than fastFloor???
 saw :: AudioFormat f => Audio f -> Audio f
 saw freq =
   accumulate1 accumulateSaw constTrue freq
 
--- NOTE: Turns out floor is faster than fastFloor???
+-----------
+-- tri
 accumulateTri :: F64 -> F64 -> (#F64, F64#)
 accumulateTri freq acc =
   (#acc3, out#)
@@ -1933,6 +1936,8 @@ tri :: AudioFormat f => Audio f -> Audio f
 tri freq =
   accumulate1 accumulateTri constTrue freq
 
+-----------
+-- pulse
 accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
 accumulatePulse width freq acc =
   (#acc3, out#)
@@ -1945,28 +1950,72 @@ pulse :: AudioFormat f => Audio f -> Audio f -> Audio f
 pulse width freq =
   accumulate2 accumulatePulse constTrue width freq
 
--- TODO: Use curve!
-accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> F64 -> (#F64, F64#)
-accumulatePerc (#attackTime, recipAttackTime, recipDecayTime, curve#) input state =
-  (#state', out#)
-  where
-    state'    = state + recipSampleRate
-    attackEnv = state' * recipAttackTime * isAttack
-    decayEnv  = 1 - ((state' - attackTime) * recipDecayTime)
-    isAttack  = fromInt (boolToInt (state' <= attackTime))
-    isDecay   = 1 - isAttack
-    env       = attackEnv * isAttack + decayEnv * isDecay
-    out       = env * input
+-----------
+-- perc
+data PercState = PercState (#F64, F64, F64, F64#)
 
-percIsRunning :: F64 -> F64 -> Bool
-percIsRunning totalTime state =
-  state < totalTime
+  -- |> trace "level: "
+  -- |> trace level
+  -- |> trace ", endLevel: "
+  -- |> trace endLevel
+  -- |> trace ", length: "
+  -- |> trace length
+  -- |> trace ", curve: "
+  -- |> trace curve
+  -- |> trace " -> PercState { a2: "
+  -- |> trace a2
+  -- |> trace ", b1: "
+  -- |> trace b1
+  -- |> trace ", grow: "
+  -- |> trace grow
+  -- |> trace ", currTime: "
+  -- |> trace currTime
+  -- |> traceLn " }"
+
+
+mkPercState :: F64 -> F64 -> F64 -> F64 -> F64 -> () -> *PercState
+mkPercState level endLevel length curve currTime _ =
+  PercState (#a2, b1, grow, currTime#)
+  where
+    length' = length * audioSampleRateF
+    b1      = (endLevel - level) / (1 - exp curve)
+    a2      = level + b1
+    grow    = exp (curve / length')
+
+-- TODO: Pre-create Decay PercState?
+accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> *PercState -> (#*PercState, F64#)
+accumulatePerc (#attackTime, decayTime, totalTime, curve#) input (PercState (#a20, b10, grow0, currTime0#)) =
+  (#PercState (#a2, b12, grow, currTime#), out#)
+  where
+    currTime1 = currTime0 + recipSampleRate
+    PercState (#a2, b1, grow, currTime#) =
+      if currTime1 > attackTime && currTime0 <= attackTime then
+        mkPercState (a20 - b10) 0 decayTime curve currTime1 ()
+      else if currTime1 > totalTime && currTime0 <= totalTime then
+        PercState (#a20, a20, 1, currTime1#)
+      else
+        PercState (#a20, b10, grow0, currTime1#)
+    b12   = b1 * grow
+    level = a2 - b12
+    out   = level * input
+
+percIsRunning :: F64 -> *PercState -> (#*PercState, Bool#)
+percIsRunning totalTime (PercState (#a2, b1, grow, currTime#)) =
+  (#PercState (#a2, b1, grow, currTime#), currTime < totalTime#)
 
 perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
-  accumulate1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) (percIsRunning (attackTime + decayTime)) input
+  accumulate1U mk update isRunning input
+  where
+    totalTime = attackTime + decayTime
+    mk        = mkPercState 0 1 attackTime curve 0
+    update    = accumulatePerc (#attackTime, decayTime, totalTime, curve#)
+    isRunning = percIsRunning totalTime
 
-data NatVal (n :: Nat) = NatVal
+-----------
+-- delay
+data NatVal  (n :: Nat) = NatVal
+data Seconds (n :: Nat) = Seconds
 
 natVal :: NatVal n -> UInt
 natVal n = primUndefined
@@ -1980,40 +2029,40 @@ data DelayState s = DelayState (#.AudioBuffer s, UInt, F64#)
 -- TODO: initialDelayTime, maxDelayTime, audioBufferSize, etc
 
 accumulateDelay :: UInt -> F64 -> F64 -> F64 -> *DelayState s -> (#*DelayState s, F64#)
-accumulateDelay bufferSizeMinus1 targetDelayTime feedbackAmount input (DelayState (#AudioBuffer buffer0, index, delayTime#)) =
+accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState (#AudioBuffer buffer0, index, delayTime#)) =
   (#DelayState (#AudioBuffer buffer2, index', delayTime'#), out#)
   where
     delayTime'       = targetDelayTime
     delayIndex       = bitAnd (index + f64ToUInt (delayTime' * audioSampleRateF)) bufferSizeMinus1
     (#del, buffer1#) = readArrayU (Index index) buffer0
-    out              = input + del * feedbackAmount
+    out              = input * (1 - mix) + del * mix
     buffer2          = writeArray (Index delayIndex) out buffer1
     index'           = bitAnd (index + 1) bufferSizeMinus1
 
-natSecondsToNatBufferSamples :: NatVal seconds -> NatVal (NatNextPowerOfTwo (NatMul SampleRate (NatMax seconds 1)))
+natSecondsToNatBufferSamples :: Seconds n -> NatVal (NatNextPowerOfTwo (NatMul SampleRate (NatMax n 1)))
 natSecondsToNatBufferSamples _ = NatVal
 
-mkDelayState :: NatVal s -> () -> *DelayState s
+mkDelayState :: Seconds s -> () -> *DelayState s
 mkDelayState _ _ = DelayState (#AudioBuffer (arrayFrom 0), 0, 1#)
 
-delay :: AudioFormat f => NatVal seconds -> Audio f -> Audio f -> Audio f -> Audio f
-delay nv delayTime feedbackAmount input =
-  accumulate3U (mkDelayState nv) (accumulateDelay (natVal (natSecondsToNatBufferSamples nv) - 1)) (\s -> (#s, True#)) delayTime feedbackAmount input
+delay :: AudioFormat f => Seconds n -> Audio f -> Audio f -> Audio f -> Audio f
+delay maxDelayTime delayTime mix input =
+  accumulate3U (mkDelayState maxDelayTime) (accumulateDelay (natVal (natSecondsToNatBufferSamples maxDelayTime) - 1)) (\s -> (#s, True#)) delayTime mix input
 
-oneSec :: NatVal 1
-oneSec = NatVal
+oneSec :: Seconds 1
+oneSec = Seconds
 
-twoSec :: NatVal 2
-twoSec = NatVal
+twoSec :: Seconds 2
+twoSec = Seconds
 
-threeSec :: NatVal 3
-threeSec = NatVal
+threeSec :: Seconds 3
+threeSec = Seconds
 
-fourSec :: NatVal 4
-fourSec = NatVal
+fourSec :: Seconds 4
+fourSec = Seconds
 
-fiveSec :: NatVal 5
-fiveSec = NatVal
+fiveSec :: Seconds 5
+fiveSec = Seconds
 
 
 --------------------
@@ -3071,34 +3120,35 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --     badSynth f g p = (saw (fromFloat f) + saw (fromFloat g)) * 0.05 |> perc 0.0125 1 1 |> pan (fromFloat p)
 --     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
 
+-- TODO: perc curve parameter!
 -- TODO: Take a look at multiplication of AudioRate x BlockRate!!!
 testJit :: *World -> *World
 testJit w =
   outAudio 0 badAudio w
   where
-    freqMul1  = saw 0.1   *  0.01 + 0.5
-    freqMul2  = saw 0.07  * -0.01 + 0.5
-    freqMul3  = saw 0.114 *  0.01 + 0.5
+    freqMul1  = tri 0.1   *  0.0045 + 0.5
+    freqMul2  = tri 0.07  * -0.0045 + 0.5
+    freqMul3  = tri 0.114 *  0.0045 + 0.5
     beatSpeed = 3 // 2
-    badBeat1  = seqSpeed beatSpeed [400 _ 600 <_ 700> 800] * 0.5
-    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> 1350] @* (seqSpeed (1 // 9) [0.25 0.5 1 1.5 2 3 0.125]))
+    badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ 700> 800]
+    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ 0.5 1 1.5 2 3 _]))
     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
     bassSynth fm a p f =
       tri (fromFloat f - 0.1) + tri (fromFloat f * fm * 2) + tri (fromFloat f * (1 - fm)) + tri (fromFloat (f * 0.5))
       |> mul (0.04 * fromFloat a)
-      |> perc 0.005 4.125 1
+      |> perc 0.005 5 -1
       |> pan p
     badSynth fm a p f =
-      pulse (fm - 0.1) (fromFloat f - 0.1) + pulse 0.2 (fromFloat f * fm)
+      pulse (fm + 0.1) (fromFloat f - 0.5) + pulse (fm - 0.1) (fromFloat f * fm + tri 3 * 8)
       |> mul (0.0125 * fromFloat a)
-      |> perc 0.005 4 1
+      |> perc 0.005 4.5 -2.25
       |> pan p
     synths =
-      poly (badSynth freqMul1 1 0.25) badBeat1 +
-      poly (badSynth freqMul2 1 0.75) badBeat2
-      |> delay oneSec 0.666667 0.55
+      poly (badSynth freqMul1 0.7 0.25) badBeat1 +
+      poly (badSynth freqMul2 1.1 0.75) badBeat2
+      |> delay oneSec 1.333334 0.6
     badAudio =
-      poly (bassSynth freqMul3 2.5 0.5)  badBeat3 +
+      poly (bassSynth freqMul3 2.6 0.5) badBeat3 +
       synths
 
 -- testJit :: *World -> *World

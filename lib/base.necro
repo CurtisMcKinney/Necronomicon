@@ -1919,6 +1919,20 @@ saw :: AudioFormat f => Audio f -> Audio f
 saw freq =
   accumulate1 accumulateSaw constTrue freq
 
+-- NOTE: Turns out floor is faster than fastFloor???
+accumulateTri :: F64 -> F64 -> (#F64, F64#)
+accumulateTri freq acc =
+  (#acc3, out#)
+  where
+    acc2 = fma freq recipSampleRate acc
+    acc3 = acc2 - floor acc2
+    saw  = fma acc3 2.0 (-1.0)
+    out  = fma (abs saw) 2 (-1.0)
+
+tri :: AudioFormat f => Audio f -> Audio f
+tri freq =
+  accumulate1 accumulateTri constTrue freq
+
 accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
 accumulatePulse width freq acc =
   (#acc3, out#)
@@ -3057,33 +3071,34 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --     badSynth f g p = (saw (fromFloat f) + saw (fromFloat g)) * 0.05 |> perc 0.0125 1 1 |> pan (fromFloat p)
 --     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
 
+-- TODO: Take a look at multiplication of AudioRate x BlockRate!!!
 testJit :: *World -> *World
 testJit w =
   outAudio 0 badAudio w
   where
-    freqMul1  = saw 0.1   * 0.01 + 0.5
+    freqMul1  = saw 0.1   *  0.01 + 0.5
     freqMul2  = saw 0.07  * -0.01 + 0.5
-    freqMul3  = saw 0.114 * 0.01 + 0.5
+    freqMul3  = saw 0.114 *  0.01 + 0.5
     beatSpeed = 3 // 2
     badBeat1  = seqSpeed beatSpeed [400 _ 600 <_ 700> 800] * 0.5
-    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> 1350] @* (seqSpeed (1 // 9) [0.25 0.5 1 1.5 0.125]))
+    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> 1350] @* (seqSpeed (1 // 9) [0.25 0.5 1 1.5 2 3 0.125]))
     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
     bassSynth fm a p f =
-      saw (fromFloat f) + pulse 0.15 (fromFloat f * fm) + pulse 0.1 (fromFloat (f * 0.5))
-      |> mul (0.0125 * fromFloat a)
-      |> perc 0.01 4.5 1
+      tri (fromFloat f - 0.1) + tri (fromFloat f * fm * 2) + tri (fromFloat f * (1 - fm)) + tri (fromFloat (f * 0.5))
+      |> mul (0.04 * fromFloat a)
+      |> perc 0.005 4.125 1
       |> pan p
     badSynth fm a p f =
       pulse (fm - 0.1) (fromFloat f - 0.1) + pulse 0.2 (fromFloat f * fm)
       |> mul (0.0125 * fromFloat a)
-      |> perc 0.0125 4 1
+      |> perc 0.005 4 1
       |> pan p
     synths =
-      poly (badSynth freqMul1 0.75 0.25) badBeat1 +
-      poly (badSynth freqMul2 0.75 0.75) badBeat2
-      |> delay oneSec 0.666667 0.5
+      poly (badSynth freqMul1 1 0.25) badBeat1 +
+      poly (badSynth freqMul2 1 0.75) badBeat2
+      |> delay oneSec 0.666667 0.55
     badAudio =
-      poly (bassSynth freqMul3 2.3 0.5)  badBeat3 +
+      poly (bassSynth freqMul3 2.5 0.5)  badBeat3 +
       synths
 
 -- testJit :: *World -> *World

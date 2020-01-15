@@ -1104,11 +1104,20 @@ mutRefPut x ptr =
 -- Array
 --------------------
 
-data Range (n :: Nat) = Range UInt UInt UInt
-data Index (n :: Nat) = Index UInt
+-- TODO: Make range unboxed? Proper unboxed types? End constructor name with # to create unboxed type?
+-- data HashTag = HashTag# UInt UInt UInt
+data Range  (n :: Nat) = Range UInt UInt UInt
+data Index  (n :: Nat) = Index UInt
+data NatVal (n :: Nat) = NatVal
+
+natVal :: NatVal n -> UInt
+natVal n = primUndefined
+
+mkRange :: UInt -> UInt -> NatVal n -> Range n
+mkRange init inc end = Range init inc (natVal end)
 
 each :: Range n
-each = Range 0 1 0
+each = mkRange 0 1 NatVal
 
 unsafeEmptyArray :: () -> *Array n a
 unsafeEmptyArray u = primUndefined
@@ -1242,7 +1251,7 @@ mapChannel f c =
       <| loop a = audioInitArray () for i <- offsetToEndRange do
         writeArray i (f (readArray i b)) a
   where
-    offsetToEndRange = Range audioSampleOffset 1 0
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
 
 mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
 mapChannel2 f cx cy =
@@ -1272,7 +1281,7 @@ mapChannel2 f cx cy =
           <| loop a = ia for i <- offsetToEndRange do
             writeArray i (f (readArray i x) (readArray i y)) a
   where
-    offsetToEndRange = Range audioSampleOffset 1 0
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
 
 constTrue :: a -> Bool
@@ -1289,7 +1298,7 @@ accumulateChannel1 f isRunningFunc input1 =
             False -> ChannelEnd
             _     -> AudioRate a
   where
-    offsetToEndRange = Range audioSampleOffset 1 0
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
     out ~ (default, primUndefined) =
       case out of
@@ -1325,7 +1334,7 @@ accumulateChannel2 f isRunningFunc input1 input2 =
                 False -> ChannelEnd
                 _     -> AudioRate a
   where
-    offsetToEndRange = Range audioSampleOffset 1 0
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
     out ~ (default, primUndefined) =
       case out of
@@ -1380,7 +1389,7 @@ accumulateChannel3 f isRunningFunc input1 input2 input3 =
                     False -> ChannelEnd
                     _     -> AudioRate a
   where
-    offsetToEndRange = Range audioSampleOffset 1 0
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
     out ~ (default, primUndefined) =
       case out of
@@ -1461,7 +1470,7 @@ accumulateChannel1U mkState f isRunningFunc input1 =
             False -> ChannelEnd
             _     -> AudioRate a
   where
-    offsetToEndRange = Range audioSampleOffset 1 0
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
     out =
       case mutRefTake mkState of
@@ -1499,7 +1508,7 @@ accumulateChannel2U mkState f isRunningFunc input1 input2 =
                 False -> ChannelEnd
                 _     -> AudioRate a
   where
-    offsetToEndRange = Range audioSampleOffset 1 0
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
     out =
       case mutRefTake mkState of
@@ -1554,7 +1563,7 @@ accumulateChannel3U mkState f isRunningFunc input1 input2 input3 =
                 False -> ChannelEnd
                 _     -> AudioRate a
   where
-    offsetToEndRange = Range audioSampleOffset 1 0
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
     out =
       case mutRefTake mkState of
@@ -2014,11 +2023,7 @@ perc attackTime decayTime curve input =
 
 -----------
 -- delay
-data NatVal  (n :: Nat) = NatVal
 data Seconds (n :: Nat) = Seconds
-
-natVal :: NatVal n -> UInt
-natVal n = primUndefined
 
 data AudioBuffer s = AudioBuffer (.Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) F64)
 
@@ -3120,7 +3125,7 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --     badSynth f g p = (saw (fromFloat f) + saw (fromFloat g)) * 0.05 |> perc 0.0125 1 1 |> pan (fromFloat p)
 --     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
 
--- TODO: perc curve parameter!
+-- TODO: Range with end in range
 -- TODO: Looks like maybe the precedence between (+) and (*) and (|>) is a little wonky?
 testJit :: *World -> *World
 testJit w =
@@ -3130,18 +3135,18 @@ testJit w =
     freqMul2  = tri 0.07  * -0.0045 + 0.5
     freqMul3  = tri 0.114 *  0.0045 + 0.5
     beatSpeed = 3 // 2
-    badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ 700> 800]
+    badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
     badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ 0.5 1 1.5 2 3 _]))
     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
     badSynth1 f =
-      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (tri (fromFloat f) * 0.5)
-      |> mul 0.06
-      |> perc 0.01 3.5 -2.0
+      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (tri (fromFloat f) * 0.75)
+      |> mul 0.05
+      |> perc 0.01 3.0 -2.0
       |> pan 0.35
     badSynth2 f =
-      tri (fromFloat f * freqMul2) + tri (fromFloat f * 0.998) + pulse 0.5 (fromFloat f * freqMul2 + tri 3.0 * 6)
-      |> mul 0.012
-      |> perc 0.02 3.5 -2.25
+      tri (fromFloat f * freqMul2 * 2) + tri (fromFloat f * 0.998) + pulse 0.4875 (fromFloat f * freqMul2 + tri 2.0 * 6)
+      |> mul 0.02
+      |> perc 0.025 4.0 -2.25
       |> pan 0.65
     bassSynth f =
       tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul3 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))

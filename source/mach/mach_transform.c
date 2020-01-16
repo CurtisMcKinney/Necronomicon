@@ -3636,7 +3636,7 @@ void necro_mach_test()
             "stereo' (Audio ml) (Audio mr) =\n"
             "  case ml of\n"
             "    Mono l -> case mr of\n"
-            "      Mono r -> Audio (Stereo (#l, r#))\n"
+            "      Mono r -> Audio (Stereo# l r)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
@@ -3757,7 +3757,7 @@ void necro_mach_test()
         const char* test_name   = "Print Rational";
         const char* test_source = ""
             "main :: *World -> *World\n"
-            "main w = printLn (Rational (#1, 4#)) w\n";
+            "main w = printLn (1 // 4) w\n";
         necro_mach_test_string(test_name, test_source);
     }
 

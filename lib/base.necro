@@ -3125,18 +3125,20 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --     badSynth f g p = (saw (fromFloat f) + saw (fromFloat g)) * 0.05 |> perc 0.0125 1 1 |> pan (fromFloat p)
 --     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
 
+    -- badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ 0.5 1 1.5 2 3]))
+
 -- TODO: Range with end in range
 -- TODO: Looks like maybe the precedence between (+) and (*) and (|>) is a little wonky?
 testJit :: *World -> *World
 testJit w =
   outAudio 0 badAudio w
   where
-    freqMul1  = tri 0.2  *  0.0045 + 0.5
-    freqMul2  = tri 0.14 *  0.0045 + 0.5
-    freqMul3  = tri 0.23 * -0.0045 + 0.5
+    freqMul1  = tri 0.2  *  0.0035 + tri 0.6 *  0.00025 + 0.5
+    freqMul2  = tri 0.14 *  0.0035 + tri 0.5 * -0.00025 + 0.5
+    freqMul3  = tri 0.23 * -0.0035 + tri 0.4 *  0.00025 + 0.5
     beatSpeed = 3 // 2
     badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
-    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ 0.5 1 1.5 2 3]))
+    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ 0.25 0.5 0.75 1 1.5]))
     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
     badSynth1 f =
       tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (tri (fromFloat f) * 0.75)
@@ -3144,12 +3146,12 @@ testJit w =
       |> perc 0.01 3.0 -3.0
       |> pan 0.375
     badSynth2 f =
-      tri (fromFloat f * freqMul2 * 2.01) + tri (fromFloat f * 0.999) + (pulse 0.4 (fromFloat f * freqMul2 + tri 2.0 * 6) * 0.667)
-      |> mul 0.025
-      |> perc 0.025 4.0 -2.0
+      tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.4)
+      |> mul 0.035
+      |> perc 0.025 4.0 -2.25
       |> pan 0.625
     bassSynth f =
-      tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul3 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))
+      tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))
       |> mul 0.075
       |> perc 0.005 5 -1.75
       |> pan 0.51
@@ -3333,6 +3335,8 @@ testJit w =
 -- class Freeze a where
 --   freeze :: (Freeze b, a ~ b) => *a -> b
 
+-- TODO: Figure out what's going on with allocation sizes!
+-- TODO: https://ccrma.stanford.edu/~jos/pasp/Freeverb.html
 -- TODO: uint32 -> uint64
 -- TODO: Set audioSampleOffset to NOT be constant and insure that it is never used at a global scope!!!!! (It is magical...)
 -- TODO: repeat combinator

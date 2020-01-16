@@ -1573,7 +1573,7 @@ void necro_core_ast_pre_simplify_test()
             "stereo' (Audio ml) (Audio mr) =\n"
             "  case ml of\n"
             "    Mono l -> case mr of\n"
-            "      Mono r -> Audio (Stereo (#l, r#))\n"
+            "      Mono r -> Audio (Stereo# l r)\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);

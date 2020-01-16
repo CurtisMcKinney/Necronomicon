@@ -3125,8 +3125,6 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --     badSynth f g p = (saw (fromFloat f) + saw (fromFloat g)) * 0.05 |> perc 0.0125 1 1 |> pan (fromFloat p)
 --     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
 
-    -- badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ 0.5 1 1.5 2 3]))
-
 -- TODO: Range with end in range
 -- TODO: Looks like maybe the precedence between (+) and (*) and (|>) is a little wonky?
 testJit :: *World -> *World

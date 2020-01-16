@@ -796,106 +796,106 @@ rationalToFloat r = fromInt (numerator r) / fromInt (denominator r)
 --------------------
 -- Complex
 --------------------
-data Complex = Complex (#F64, F64#)
+data Complex = Complex# F64 F64
 
 realPart :: Complex -> F64
-realPart (Complex (#r, _#)) = r
+realPart (Complex# r _) = r
 
 imagPart :: Complex -> F64
-imagPart (Complex (#_, i#)) = i
+imagPart (Complex# _ i) = i
 
 mkPolar :: F64 -> F64 -> Complex
-mkPolar r theta = Complex (#r * cosine theta, r * sine theta#)
+mkPolar r theta = Complex# (r * cosine theta) (r * sine theta)
 
 cis :: F64 -> Complex
-cis theta = Complex (#cosine theta, sine theta #)
+cis theta = Complex# (cosine theta) (sine theta)
 
 polar :: Complex -> (F64, F64)
 polar c = (magnitude c, phase c)
 
 sqrMagnitude :: Complex -> F64
-sqrMagnitude (Complex (#r, i#)) = (r * r) + (i * i)
+sqrMagnitude (Complex# r i) = (r * r) + (i * i)
 
 magnitude :: Complex -> F64
-magnitude (Complex (#r, i#)) = sqrt ((r * r) + (i * i))
+magnitude (Complex# r i) = sqrt ((r * r) + (i * i))
 
 conjugate :: Complex -> Complex
-conjugate (Complex (#r, i#)) = Complex (#r, negate i#)
+conjugate (Complex# r i) = Complex# r (negate i)
 
 phase :: Complex -> F64
 phase c = primUndefined
 -- TODO: ADD ATAN2!
--- phase (Complex (#r, i#)) = atan2 r i
+-- phase (Complex# r i) = atan2 r i
 
 instance Eq Complex where
-  eq  (Complex (#rx, ix#)) (Complex (#ry, iy#)) = rx == ry && ix == iy
-  neq (Complex (#rx, ix#)) (Complex (#ry, iy#)) = rx /= ry || ix /= iy
+  eq  (Complex# rx ix) (Complex# ry iy) = rx == ry && ix == iy
+  neq (Complex# rx ix) (Complex# ry iy) = rx /= ry || ix /= iy
 
 instance Semiring Complex where
-  zero                                          = Complex (#0, 0#)
-  one                                           = Complex (#1, 0#)
-  add (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx + ry, ix + iy#)
-  mul (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx * ry - ix * iy, rx * iy + ix * ry#)
+  zero                                  = Complex# 0 0
+  one                                   = Complex# 1 0
+  add (Complex# rx ix) (Complex# ry iy) = Complex# (rx + ry) (ix + iy)
+  mul (Complex# rx ix) (Complex# ry iy) = Complex# (rx * ry - ix * iy) (rx * iy + ix * ry)
 
 instance Ring Complex where
-  sub (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx - ry, ix - iy#)
-  fromInt z                                     = Complex (#fromInt z, 0#)
+  sub (Complex# rx ix) (Complex# ry iy) = Complex# (rx - ry) (ix - iy)
+  fromInt z                             = Complex# (fromInt z) 0
 
 instance EuclideanRing Complex where
-  div x y = Complex (#zx / yIntoConjugate, zi / yIntoConjugate#)
+  div x y = Complex# (zx / yIntoConjugate) (zi / yIntoConjugate)
     where
-      conjugateY = conjugate y
+      conjugateY     = conjugate y
       yIntoConjugate = y * conjugateY |> realPart
-      (Complex (#zx, zi#)) = x * conjugateY
+      Complex# zx zi = x * conjugateY
   rem x y = x - y * w
     where
       z = x / y
       w = case z of
-        Complex (#rz, iz#) -> Complex (#floor rz, floor iz#)
+        Complex# rz iz -> Complex# (floor rz) (floor iz)
 
 instance DivisionRing Complex where
-  recip (Complex (#r, i#)) = Complex (#r / sqrRsqrI, negate (i / sqrRsqrI)#)
+  recip (Complex# r i) = Complex# (r / sqrRsqrI) (negate (i / sqrRsqrI))
     where
       sqrRsqrI = (r * r) + (i * i)
 
 instance Num Complex where
-  abs z    = Complex (#magnitude z, 0#)
+  abs z    = Complex# (magnitude z) 0
   signum z =
     case z of
-      Complex (#r, i#) ->
+      Complex# r i ->
         if r == 0 && i == 0 then 0 else
           let m = magnitude z in
-            Complex (#r / m, i / m#)
+            Complex# (r / m) (i / m)
 
 instance Field Complex where
 
 instance Floating Complex where
-  fromFloat f = Complex (#fromFloat f, 0#)
+  fromFloat f = Complex# (fromFloat f) 0
   sqrt z = case z of
-    Complex (#r, i#) ->
+    Complex# r i ->
       if r == 0 then
         let
           u = sqrt ((abs i) / r)
           v = if i < 0 then negate u else u
         in
-          Complex (#u, v#)
+          Complex# u v
       else
         let
           u = sqrt (2 * (magnitude z + abs r))
           v = u / 2
         in
           if r > 0 then
-            Complex (#v, i / u#)
+            Complex# v (i / u)
           else
             let
               vByI = if i < 0 then negate v else v
             in
-              Complex (#(abs i) / u, vByI#)
+              Complex# ((abs i) / u) vByI
 
 -- TODO - ADD SINEH and COSINEH
 -- instance Trig Complex where
---   sine (Complex (#r, i#)) = Complex (#sine r * cosineh i, cosine r * sineh i)
---   cosine (Complex (#r, i#)) = Complex (#cosine r * cosineh i, (negate <| sine r) * sineh i)
+--   sine (Complex# r, i) = Complex# (sine r * cosineh i) (cosine r * sineh i)
+--   cosine (Complex# r i) = Complex# (cosine r * cosineh i) (negate (sine r) * sineh i)
 --   exp    :: a -> a
 --   exp2   :: a -> a
 --   log    :: a -> a
@@ -1763,7 +1763,7 @@ tau = 2 * pi
 --     let
 --       sample = readArray (bitReverseIndex i) audioBuffer
 --       winval = readArray i windowBuffer
---       c      = Complex (#sample * winval, 0#)
+--       c      = Complex# (sample * winval) 0
 --     in
 --       writeArray (toIndexMultiple i) c a'
 
@@ -1801,9 +1801,9 @@ tau = 2 * pi
 -- AudioFormat
 --------------------
 data Mono a      = Mono a
-data Stereo a    = Stereo (#a, a#)
-data Quad a      = Quad (#a, a, a, a#)
-data Ambisonic a = Ambisonic (#a, a, a, a#)
+data Stereo a    = Stereo# a a
+data Quad a      = Quad# a a a a
+data Ambisonic a = Ambisonic# a a a a
 data Audio f     = Audio (f Channel)
 
 -- TODO: Equal power panning
@@ -1841,33 +1841,33 @@ instance AudioFormat Mono where
   accumulate1U mk f isRunning (Audio (Mono c))                                   = Audio (Mono (accumulateChannel1U mk f isRunning c))
   accumulate2U mk f isRunning (Audio (Mono x)) (Audio (Mono y))                  = Audio (Mono (accumulateChannel2U mk f isRunning x y))
   accumulate3U mk f isRunning (Audio (Mono x)) (Audio (Mono y)) (Audio (Mono z)) = Audio (Mono (accumulateChannel3U mk f isRunning x y z))
-  pan (Audio (Mono amount)) (Audio (Mono input))                                 = Audio (Stereo (#input * (1 - amount), input * amount#))
+  pan (Audio (Mono amount)) (Audio (Mono input))                                 = Audio (Stereo# (input * (1 - amount)) (input * amount))
 
 instance Functor Stereo where
-  map f (Stereo (#x, y#)) = Stereo (#f x, f y#)
+  map f (Stereo# x y) = Stereo# (f x) (f y)
 
 instance FunctorN Stereo where
-  map2 f (Stereo (#x1, x2#)) (Stereo (#y1, y2#))                                         = Stereo (#f x1 y1, f x2 y2#)
-  map3 f (Stereo (#x1, x2#)) (Stereo (#y1, y2#)) (Stereo (#z1, z2#))                     = Stereo (#f x1 y1 z1, f x2 y2 z2#)
-  map4 f (Stereo (#w1, w2#)) (Stereo (#x1, x2#)) (Stereo (#y1, y2#)) (Stereo (#z1, z2#)) = Stereo (#f w1 x1 y1 z1, f w2 x2 y2 z2#)
+  map2 f (Stereo# x1 x2) (Stereo# y1 y2)                                 = Stereo# (f x1 y1) (f x2 y2)
+  map3 f (Stereo# x1 x2) (Stereo# y1 y2) (Stereo# z1 z2)                 = Stereo# (f x1 y1 z1) (f x2 y2 z2)
+  map4 f (Stereo# w1 w2) (Stereo# x1 x2) (Stereo# y1 y2) (Stereo# z1 z2) = Stereo# (f w1 x1 y1 z1) (f w2 x2 y2 z2)
 
 instance Applicative Stereo where
-  pure x                                     = Stereo (#x, x#)
-  ap (Stereo (#f1, f2#)) (Stereo (#x1, x2#)) = Stereo (#f1 x2, f2 x2#)
+  pure x                             = Stereo# x x
+  ap (Stereo# f1 f2) (Stereo# x1 x2) = Stereo# (f1 x2) (f2 x2)
 
 instance Foldable Stereo where
-  fold (Stereo (#l, r#))      = l <> r
-  foldl f i (Stereo (#l, r#)) = f (f i l) r
+  fold (Stereo# l r)      = l <> r
+  foldl f i (Stereo# l r) = f (f i l) r
 
 instance AudioFormat Stereo where
-  outAudio  n (Audio (Stereo (#l, r#))) w                                                                         = outChannel (n + 1) r (outChannel n l w)
-  accumulate1 f isRunning (Audio (Stereo (#l, r#)))                                                               = Audio (Stereo (#accumulateChannel1 f isRunning l, accumulateChannel1 f isRunning r#))
-  accumulate2 f isRunning (Audio (Stereo (#xl, xr#))) (Audio (Stereo (#yl, yr#)))                                 = Audio (Stereo (#accumulateChannel2 f isRunning xl yl, accumulateChannel2 f isRunning xr yr#))
-  accumulate3 f isRunning (Audio (Stereo (#xl, xr#))) (Audio (Stereo (#yl, yr#))) (Audio (Stereo (#zl, zr#)))     = Audio (Stereo (#accumulateChannel3 f isRunning xl yl zl, accumulateChannel3 f isRunning xr yr zr#))
-  accumulate1U mk f isRunning (Audio (Stereo (#l, r#)))                                                           = Audio (Stereo (#accumulateChannel1U mk f isRunning l, accumulateChannel1U mk f isRunning r#))
-  accumulate2U mk f isRunning (Audio (Stereo (#xl, xr#))) (Audio (Stereo (#yl, yr#)))                             = Audio (Stereo (#accumulateChannel2U mk f isRunning xl yl, accumulateChannel2U mk f isRunning xr yr#))
-  accumulate3U mk f isRunning (Audio (Stereo (#xl, xr#))) (Audio (Stereo (#yl, yr#))) (Audio (Stereo (#zl, zr#))) = Audio (Stereo (#accumulateChannel3U mk f isRunning xl yl zl, accumulateChannel3U mk f isRunning xr yr zr#))
-  pan (Audio (Mono amount)) (Audio (Stereo (#l, r#)))                                                             = Audio (Stereo (#l * (1 - amount), r * amount#))
+  outAudio  n (Audio (Stereo# l r)) w                                                                 = outChannel (n + 1) r (outChannel n l w)
+  accumulate1 f isRunning (Audio (Stereo# l r))                                                       = Audio (Stereo# (accumulateChannel1 f isRunning l) (accumulateChannel1 f isRunning r))
+  accumulate2 f isRunning (Audio (Stereo# xl xr)) (Audio (Stereo# yl yr))                             = Audio (Stereo# (accumulateChannel2 f isRunning xl yl) (accumulateChannel2 f isRunning xr yr))
+  accumulate3 f isRunning (Audio (Stereo# xl xr)) (Audio (Stereo# yl yr)) (Audio (Stereo# zl zr))     = Audio (Stereo# (accumulateChannel3 f isRunning xl yl zl) (accumulateChannel3 f isRunning xr yr zr))
+  accumulate1U mk f isRunning (Audio (Stereo# l r))                                                   = Audio (Stereo# (accumulateChannel1U mk f isRunning l) (accumulateChannel1U mk f isRunning r))
+  accumulate2U mk f isRunning (Audio (Stereo# xl xr)) (Audio (Stereo# yl yr))                         = Audio (Stereo# (accumulateChannel2U mk f isRunning xl yl) (accumulateChannel2U mk f isRunning xr yr))
+  accumulate3U mk f isRunning (Audio (Stereo# xl xr)) (Audio (Stereo# yl yr)) (Audio (Stereo# zl zr)) = Audio (Stereo# (accumulateChannel3U mk f isRunning xl yl zl) (accumulateChannel3U mk f isRunning xr yr zr))
+  pan (Audio (Mono amount)) (Audio (Stereo# l r))                                                     = Audio (Stereo# (l * (1 - amount)) (r * amount))
 
 instance AudioFormat f => Eq (Audio f) where
   eq  (Audio x) (Audio y) = foldl (\cond x -> cond && x) True  (map2 eq x y)
@@ -1912,7 +1912,7 @@ instance AudioFormat f => Monoid (Audio f) where
 
 stereo :: Audio Mono -> Audio Mono -> Audio Stereo
 stereo (Audio (Mono l)) (Audio (Mono r)) =
-  Audio (Stereo (#l, r#))
+  Audio (Stereo# l r)
 
 -----------
 -- saw
@@ -1960,7 +1960,7 @@ pulse width freq =
 
 -----------
 -- perc
-data PercState = PercState (#F64, F64, F64, F64#)
+data PercState = PercState# F64 F64 F64 F64
 
   -- |> trace "level: "
   -- |> trace level
@@ -1983,7 +1983,7 @@ data PercState = PercState (#F64, F64, F64, F64#)
 
 mkPercState :: F64 -> F64 -> F64 -> F64 -> F64 -> () -> *PercState
 mkPercState level endLevel length curve currTime _ =
-  PercState (#a2, b1, grow, currTime#)
+  PercState# a2 b1 grow currTime
   where
     length' = length * audioSampleRateF
     b1      = (endLevel - level) / (1 - exp curve)
@@ -1992,24 +1992,24 @@ mkPercState level endLevel length curve currTime _ =
 
 -- TODO: Pre-create Decay PercState?
 accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> *PercState -> (#*PercState, F64#)
-accumulatePerc (#attackTime, decayTime, totalTime, curve#) input (PercState (#a20, b10, grow0, currTime0#)) =
-  (#PercState (#a2, b12, grow, currTime#), out#)
+accumulatePerc (#attackTime, decayTime, totalTime, curve#) input (PercState# a20 b10 grow0 currTime0) =
+  (#PercState# a2 b12 grow currTime, out#)
   where
     currTime1 = currTime0 + recipSampleRate
-    PercState (#a2, b1, grow, currTime#) =
+    PercState# a2 b1 grow currTime =
       if currTime1 > attackTime && currTime0 <= attackTime then
         mkPercState (a20 - b10) 0 decayTime curve currTime1 ()
       else if currTime1 > totalTime && currTime0 <= totalTime then
-        PercState (#a20, a20, 1, currTime1#)
+        PercState# a20 a20 1 currTime1
       else
-        PercState (#a20, b10, grow0, currTime1#)
+        PercState# a20 b10 grow0 currTime1
     b12   = b1 * grow
     level = a2 - b12
     out   = level * input
 
 percIsRunning :: F64 -> *PercState -> (#*PercState, Bool#)
-percIsRunning totalTime (PercState (#a2, b1, grow, currTime#)) =
-  (#PercState (#a2, b1, grow, currTime#), currTime < totalTime#)
+percIsRunning totalTime (PercState# a2 b1 grow currTime) =
+  (#PercState# a2 b1 grow currTime, currTime < totalTime#)
 
 perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
 perc attackTime decayTime curve input =
@@ -2026,15 +2026,15 @@ data Seconds (n :: Nat) = Seconds
 
 data AudioBuffer s = AudioBuffer (.Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) F64)
 
-data DelayState s = DelayState (#.AudioBuffer s, UInt, F64#)
+data DelayState s = DelayState# (.AudioBuffer s) UInt F64
 
 -- TODO: Interpolate delayTime!
 -- TODO: delay playback speed? Reverse delay? delay bank etc?
 -- TODO: initialDelayTime, maxDelayTime, audioBufferSize, etc
 
 accumulateDelay :: UInt -> F64 -> F64 -> F64 -> *DelayState s -> (#*DelayState s, F64#)
-accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState (#AudioBuffer buffer0, index, delayTime#)) =
-  (#DelayState (#AudioBuffer buffer2, index', delayTime'#), out#)
+accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState# (AudioBuffer buffer0) index delayTime) =
+  (#DelayState# (AudioBuffer buffer2) index' delayTime', out#)
   where
     delayTime'       = targetDelayTime
     delayIndex       = bitAnd (index + f64ToUInt (delayTime' * audioSampleRateF)) bufferSizeMinus1
@@ -2047,7 +2047,7 @@ natSecondsToNatBufferSamples :: Seconds n -> NatVal (NatNextPowerOfTwo (NatMul S
 natSecondsToNatBufferSamples _ = NatVal
 
 mkDelayState :: Seconds s -> () -> *DelayState s
-mkDelayState _ _ = DelayState (#AudioBuffer (arrayFrom 0), 0, 1#)
+mkDelayState _ _ = DelayState# (AudioBuffer (arrayFrom 0)) 0 1
 
 delay :: AudioFormat f => Seconds n -> Audio f -> Audio f -> Audio f -> Audio f
 delay maxDelayTime delayTime mix input =
@@ -2073,7 +2073,7 @@ fiveSec = Seconds
 -- Seq
 --------------------
 data SeqControl = SeqEnd | SeqBlockEnd | SeqNormal | SeqLoopEnd | SeqPure
-data SeqValue a = SeqValue (#Rational, SeqControl, Maybe a#)
+data SeqValue a = SeqValue# Rational SeqControl (Maybe a)
 data Seq a      = Seq (() -> SeqValue a)
 
 mergeSeqValueTimes :: Rational -> SeqControl -> Rational -> SeqControl -> Rational
@@ -2160,50 +2160,50 @@ seqControlAlternative x y =
     y
 
 instance Functor SeqValue where
-  map f (SeqValue (#t, c, x#)) =
-    SeqValue (#t, c, map f x#)
+  map f (SeqValue# t c x) =
+    SeqValue# t c (map f x)
 
 instance FunctorN SeqValue where
-  map2 f (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
-    SeqValue (#mergeSeqValueTimes xt xc yt yc, xc <> yc, map2 f xv yv#)
-  map3 f (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) (SeqValue (#zt, zc, zv#)) =
-    SeqValue (#mergeSeqValueTimes3 xt xc yt yc zt zc, xc <> yc <> zc, map3 f xv yv zv#)
-  map4 f (SeqValue (#wt, wc, wv#)) (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) (SeqValue (#zt, zc, zv#)) =
-    SeqValue (#mergeSeqValueTimes4 wt wc xt xc yt yc zt zc, wc <> xc <> yc <> zc, map4 f wv xv yv zv#)
+  map2 f (SeqValue# xt xc xv) (SeqValue# yt yc yv) =
+    SeqValue# (mergeSeqValueTimes xt xc yt yc) (xc <> yc) (map2 f xv yv)
+  map3 f (SeqValue# xt xc xv) (SeqValue# yt yc yv) (SeqValue# zt zc zv) =
+    SeqValue# (mergeSeqValueTimes3 xt xc yt yc zt zc) (xc <> yc <> zc) (map3 f xv yv zv)
+  map4 f (SeqValue# wt wc wv) (SeqValue# xt xc xv) (SeqValue# yt yc yv) (SeqValue# zt zc zv) =
+    SeqValue# (mergeSeqValueTimes4 wt wc xt xc yt yc zt zc) (wc <> xc <> yc <> zc) (map4 f wv xv yv zv)
 
 instance Applicative SeqValue where
-  pure x = SeqValue (#1, SeqPure, Just x#)
-  ap (SeqValue (#ft, fc, fv#)) (SeqValue (#xt, xc, xv#)) =
-    SeqValue (#mergeSeqValueTimes xt xc ft fc, fc <> xc, ap fv xv#)
+  pure x = SeqValue# 1 SeqPure (Just x)
+  ap (SeqValue# ft fc fv) (SeqValue# xt xc xv) =
+    SeqValue# (mergeSeqValueTimes xt xc ft fc) (fc <> xc) (ap fv xv)
 
 instance Semigroup a => Semigroup (SeqValue a) where
-  append (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
-    SeqValue (#mergeSeqValueTimes xt xc yt yc, append xc yc, append xv yv#)
+  append (SeqValue# xt xc xv) (SeqValue# yt yc yv) =
+    SeqValue# (mergeSeqValueTimes xt xc yt yc) (append xc yc) (append xv yv)
 
 instance Monoid (SeqValue a) where
-  mempty = SeqValue (#1, SeqPure, nothing#)
+  mempty = SeqValue# 1 SeqPure nothing
 
 instance Alternative SeqValue where
-  empty = SeqValue (#1, SeqEnd, nothing#)
-  alternative (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
-    SeqValue (#mergeSeqValueTimes xt xc yt yc, seqControlAlternative xc yc, alternative xv yv#)
+  empty = SeqValue# 1 SeqEnd nothing
+  alternative (SeqValue# xt xc xv) (SeqValue# yt yc yv) =
+    SeqValue# (mergeSeqValueTimes xt xc yt yc) (seqControlAlternative xc yc) (alternative xv yv)
 
 instance Default (SeqValue a) where
-  default = SeqValue (#1, SeqPure, nothing#)
+  default = SeqValue# 1 SeqPure nothing
 
 instance Eq a => Eq (SeqValue a) where
-  eq  (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, tc, yv#)) = xt == yt && xc == tc && xv == yv
-  neq (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, tc, yv#)) = xt /= yt || xc /= tc || xv /= yv
+  eq  (SeqValue# xt xc xv) (SeqValue# yt tc yv) = xt == yt && xc == tc && xv == yv
+  neq (SeqValue# xt xc xv) (SeqValue# yt tc yv) = xt /= yt || xc /= tc || xv /= yv
 
 instance Semiring a => Semiring (SeqValue a) where
-  zero    = SeqValue (#1, SeqPure, Just zero#)
-  one     = SeqValue (#1, SeqPure, Just one#)
+  zero    = SeqValue# 1 SeqPure (Just zero)
+  one     = SeqValue# 1 SeqPure (Just one)
   add x y = map2 add x y
   mul x y = map2 mul x y
 
 instance Ring a => Ring (SeqValue a) where
   sub x y   = map2 sub x y
-  fromInt i = SeqValue (#1, SeqPure, Just (fromInt i)#)
+  fromInt i = SeqValue# 1 SeqPure (Just (fromInt i))
 
 instance EuclideanRing a => EuclideanRing (SeqValue a) where
   div x y = map2 div x y
@@ -2219,8 +2219,8 @@ instance Num a => Num (SeqValue a) where
 instance Field a => Field (SeqValue a) where
 
 instance Floating a => Floating (SeqValue a) where
-  fromFloat f = SeqValue (#1, SeqPure, Just (fromFloat f)#)
-  sqrt f = map sqrt f
+  fromFloat f = SeqValue# 1 SeqPure (Just (fromFloat f))
+  sqrt f      = map sqrt f
 
 runSeq :: Seq a -> () -> SeqValue a
 runSeq (Seq stepFunc) _ = stepFunc ()
@@ -2229,13 +2229,13 @@ runSeq2 :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
 runSeq2 sx sy =
   acc
   where
-    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+    acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
       case acc of
-        (#SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#)#) ->
+        (#SeqValue# xt xc xv, SeqValue# yt yc yv#) ->
           let
             t = min xt yt
-            x = if xt <= t then runSeq sx () else SeqValue (#xt - t, xc, xv#)
-            y = if yt <= t then runSeq sy () else SeqValue (#yt - t, yc, yv#)
+            x = if xt <= t then runSeq sx () else SeqValue# (xt - t) xc xv
+            y = if yt <= t then runSeq sy () else SeqValue# (yt - t) yc yv
           in
             (#x, y#)
 
@@ -2243,14 +2243,14 @@ runSeq3 :: Seq a -> Seq b -> Seq c -> (#SeqValue a, SeqValue b, SeqValue c#)
 runSeq3 sx sy sz =
   acc
   where
-    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+    acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
       case acc of
-        (#SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#), SeqValue (#zt, zc, zv#)#) ->
+        (#SeqValue# xt xc xv, SeqValue# yt yc yv, SeqValue# zt zc zv#) ->
           let
             t = min (min xt yt) zt
-            x = if xt <= t then runSeq sx () else SeqValue (#xt - t, xc, xv#)
-            y = if yt <= t then runSeq sy () else SeqValue (#yt - t, yc, yv#)
-            z = if zt <= t then runSeq sz () else SeqValue (#zt - t, zc, zv#)
+            x = if xt <= t then runSeq sx () else SeqValue# (xt - t) xc xv
+            y = if yt <= t then runSeq sy () else SeqValue# (yt - t) yc yv
+            z = if zt <= t then runSeq sz () else SeqValue# (zt - t) zc zv
           in
             (#x, y, z#)
 
@@ -2258,35 +2258,35 @@ runSeq4 :: Seq a -> Seq b -> Seq c -> Seq d -> (#SeqValue a, SeqValue b, SeqValu
 runSeq4 sw sx sy sz =
   acc
   where
-    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+    acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
       case acc of
-        (#SeqValue (#wt, wc, wv#),SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#), SeqValue (#zt, zc, zv#)#) ->
+        (#SeqValue# wt wc wv, SeqValue# xt xc xv, SeqValue# yt yc yv, SeqValue# zt zc zv#) ->
           let
             t = min (min (min wt xt) yt) zt
-            w = if wt <= t then runSeq sw () else SeqValue (#wt - t, wc, wv#)
-            x = if xt <= t then runSeq sx () else SeqValue (#xt - t, xc, xv#)
-            y = if yt <= t then runSeq sy () else SeqValue (#yt - t, yc, yv#)
-            z = if zt <= t then runSeq sz () else SeqValue (#zt - t, zc, zv#)
+            w = if wt <= t then runSeq sw () else SeqValue# (wt - t) wc wv
+            x = if xt <= t then runSeq sx () else SeqValue# (xt - t) xc xv
+            y = if yt <= t then runSeq sy () else SeqValue# (yt - t) yc yv
+            z = if zt <= t then runSeq sz () else SeqValue# (zt - t) zc zv
           in
             (#w, x, y, z#)
 
 seqValueDuration :: SeqValue a -> Rational
-seqValueDuration (SeqValue (#t, _, _#)) = t
+seqValueDuration (SeqValue# t _ _) = t
 
 seqValueControl :: SeqValue a -> SeqControl
-seqValueControl (SeqValue (#_, c, _#)) = c
+seqValueControl (SeqValue# _ c _) = c
 
 runSeqOnLeft :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
 runSeqOnLeft ls rs =
   acc
   where
-    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+    acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
       case acc of
-        (#SeqValue (#lt, lc, _#), SeqValue (#rt, rc, rv#)#) ->
+        (#SeqValue# lt lc _, SeqValue# rt rc rv#) ->
           let
             t = min lt rt
-            l = if lt <= t then runSeq ls () else SeqValue (#lt - t, lc, nothing#)
-            r = if rt <= t then runSeq rs () else SeqValue (#rt - t, rc, rv#)
+            l = if lt <= t then runSeq ls () else SeqValue# (lt - t) lc nothing
+            r = if rt <= t then runSeq rs () else SeqValue# (rt - t) rc rv
           in
             (#l, r#)
 
@@ -2294,13 +2294,13 @@ runSeqOnRight :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
 runSeqOnRight ls rs =
   acc
   where
-    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+    acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
       case acc of
-        (#SeqValue (#lt, lc, lv#), SeqValue (#rt, rc, _#)#) ->
+        (#SeqValue# lt lc lv, SeqValue# rt rc _#) ->
           let
             t = min lt rt
-            l = if lt <= t then runSeq ls () else SeqValue (#lt - t, lc, lv#)
-            r = if rt <= t then runSeq rs () else SeqValue (#rt - t, rc, nothing#)
+            l = if lt <= t then runSeq ls () else SeqValue# (lt - t) lc lv
+            r = if rt <= t then runSeq rs () else SeqValue# (rt - t) rc nothing
           in
           (#l, r#)
 
@@ -2351,10 +2351,10 @@ instance Semigroup (Seq a) where
   append sx sy = [sx sy]
 
 instance Monoid (Seq a) where
-  mempty = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
+  mempty = Seq (\_ -> SeqValue# 1 SeqPure nothing)
 
 instance Alternative Seq where
-  empty             = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
+  empty             = Seq (\_ -> SeqValue# 1 SeqPure nothing)
   alternative sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in alternative x y)
 
 -- TODO: <|>
@@ -2430,15 +2430,15 @@ rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 righ
 
 restSeqValue :: SeqValue a
 restSeqValue =
-  SeqValue (#1, SeqPure, nothing#)
+  SeqValue# 1 SeqPure nothing
 
 rest :: Seq a
 rest =
   Seq (\_ -> restSeqValue)
 
 seqValueDurationMul :: Rational -> SeqValue a -> SeqValue a
-seqValueDurationMul speed (SeqValue (#t, c, v#)) =
-  SeqValue (#t * speed, c, v#)
+seqValueDurationMul speed (SeqValue# t c v) =
+  SeqValue# (t * speed) c v
 
 seqSpeed :: Rational -> Seq a -> Seq a
 seqSpeed speed seq =
@@ -2473,10 +2473,10 @@ seqLoopEndIfLastSlot slot maxSlot =
 slotTick :: Int -> Int -> SeqControl -> SeqValue a -> (#Int, SeqValue a#)
 slotTick slot maxSlot controlIfNotNormal sv =
   case sv of
-    SeqValue (#t, c, v#) ->
+    SeqValue# t c v ->
       case c of
         SeqNormal -> (#slot, sv#)
-        _         -> (#(slot + 1) % maxSlot, SeqValue (#t, controlIfNotNormal, v#)#)
+        _         -> (#(slot + 1) % maxSlot, SeqValue# t controlIfNotNormal v#)
 
 seqTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 seqTick slot maxSlot sv =
@@ -2558,7 +2558,7 @@ instance Print a => Print (Maybe a) where
       Just x  -> print x w
 
 instance Print a => Print (SeqValue a) where
-  print (SeqValue (#t, _, v#)) w =
+  print (SeqValue# t _ v) w =
     print '(' w
     |> print t
     |> print ':'
@@ -2582,9 +2582,9 @@ instance Print a => Print (Seq a) where
               (#False, 0, w'#)
             else
               case runSeq s () of
-                SeqValue (#t, c, Just x#) ->
+                SeqValue# t c (Just x) ->
                   (#True, t, print x w' |> print ' ' |> printBarOnLoop c#)
-                SeqValue (#t, c, _#) ->
+                SeqValue# t c _ ->
                   (#True, t, printBarOnLoop c w'#)
 
 instance Print Channel where
@@ -2606,7 +2606,7 @@ instance Foldable f => Print (Audio f) where
     |> printNewline
 
 instance Print Complex where
-  print (Complex (#r, i#)) w =
+  print (Complex# r i) w =
     print '(' w
     |> print r
     |> print " + i"
@@ -2669,8 +2669,8 @@ traceLn x y =
 --       (#tick' ~ 0, time' ~ 0, acc' ~ mempty#) =
 --         loop (#tick, time, acc#) = (#tick' + 1, time', acc'#) while time < tick do
 --           case runSeq s () of
---             SeqValue (#t, _, Just x#) -> (#tick, time + t, f acc x#)
---             SeqValue (#t, _, _#)      -> (#tick, time + t, acc#)
+--             SeqValue# t _ (Just x) -> (#tick, time + t, f acc x#)
+--             SeqValue# t _ _        -> (#tick, time + t, acc#)
 --
 -- Seq laws:
 -- Should expect to not be called again until the duration amount has passed
@@ -2718,66 +2718,66 @@ traceLn x y =
 -- DynArray
 ----------------------
 
-data DynTier     a = DynTier (#UInt, UInt, UInt, Ptr a#)
-data DynArray    a = DynArray (#DynTier a, DynTier a#)
+data DynTier     a = DynTier# UInt UInt UInt (Ptr a)
+data DynArray    a = DynArray# (DynTier a) (DynTier a)
 data DynTierIndex  = DynTierLow | DynTierHigh
-data DynArrayIndex = DynArrayIndex (#DynTierIndex, UInt#)
+data DynArrayIndex = DynArrayIndex# DynTierIndex UInt
 
 dynTierTrace :: DynTier *a -> DynTier *a
-dynTierTrace (DynTier (#cap, count, hwm, ptr#)) =
-  DynTier (#cap, count, hwm, ptr#)
+dynTierTrace (DynTier# cap count hwm ptr) =
+  DynTier# cap count hwm ptr
   |> trace "    DynTier { cap: "
   |> trace cap
   |> trace ", count: "
   |> trace count
   |> trace ", hwm: "
   |> trace hwm
-  |> traceLn '}'
+  |> traceLn " }"
 
 dynArrayTrace :: Array n Char -> DynArray *a -> DynArray *a
-dynArrayTrace opName (DynArray (#low, high#)) =
+dynArrayTrace opName (DynArray# low high) =
   let low'  = dynTierTrace <| traceLn "  {" <| traceLn "  DynArray " <| traceLn opName low in
   let high' = traceLn " " <| traceLn "  }" <| dynTierTrace high in
-  DynArray (#low', high'#)
+  DynArray# low' high'
 
 -- dynArrayTrace :: Array n Char -> DynArray *a -> DynArray *a
 -- dynArrayTrace _ a = a
 
 dynArrayIndexEmpty :: DynArrayIndex
-dynArrayIndexEmpty = DynArrayIndex (#DynTierLow, 0#)
+dynArrayIndexEmpty = DynArrayIndex# DynTierLow 0
 
 dynTierEmpty :: UInt -> DynTier *a
 dynTierEmpty capacity =
-  DynTier (#capacity, 0, 0, ptrMalloc capacity#)
+  DynTier# capacity 0 0 (ptrMalloc capacity)
 
 dynArrayEmpty :: UInt -> DynArray *a
 dynArrayEmpty capacity =
-  DynArray (#dynTierEmpty 0, dynTierEmpty capacity#)
+  DynArray# (dynTierEmpty 0) (dynTierEmpty capacity)
 
 dynTierPop :: DynTier *a -> (#Maybe *a, DynTier *a#)
-dynTierPop (DynTier (#capacity, count, highWaterMark, ptr#)) =
+dynTierPop (DynTier# capacity count highWaterMark ptr) =
   if count > 0 && count < capacity then
     case unsafePtrSwapElementChecked "dynTierPop" capacity (count - 1) primUndefined ptr of
       (#element, ptr'#) ->
-        (#Just element, DynTier (#capacity, count - 1, highWaterMark, ptr'#)#)
+        (#Just element, DynTier# capacity (count - 1) highWaterMark ptr'#)
   else
-    (#Nothing, DynTier (#capacity, count, highWaterMark, ptr#)#)
+    (#Nothing, DynTier# capacity count highWaterMark ptr#)
 
 dynTierSwapToEndAndDelete :: UInt -> DynTier *a -> DynTier *a
-dynTierSwapToEndAndDelete index (DynTier (#capacity, count, highWaterMark, ptr#))=
+dynTierSwapToEndAndDelete index (DynTier# capacity count highWaterMark ptr)=
   if index >= capacity then
-    DynTier (#capacity, count, highWaterMark, ptr#)
+    DynTier# capacity count highWaterMark ptr
   else
     case unsafePtrSwapElementChecked "dynTierSwapToEndAndDelete 1" capacity index primUndefined ptr of
       (#indexElement, ptr2#) ->
         case unsafePtrSwapElementChecked "dynTierSwapToEndAndDelete 2" capacity (count - 1) indexElement ptr2 of
           (#endElement, ptr3#) ->
-            DynTier (#capacity, count - 1, highWaterMark, unsafePtrPokeChecked "dynTierSwapToEndAndDelete 3" capacity index endElement ptr3#)
+            DynTier# capacity (count - 1) highWaterMark (unsafePtrPokeChecked "dynTierSwapToEndAndDelete 3" capacity index endElement ptr3)
 
 -- NOTE: This assumes that the tier is correctly sized!
 dynTierAppend :: *a -> DynTier *a -> DynTier *a
-dynTierAppend element (DynTier (#capacity, count, highWaterMark, ptr#)) =
-  DynTier (#capacity, count + 1, highWaterMark + 1, unsafePtrPokeChecked "dynTierAppend" capacity count element ptr#)
+dynTierAppend element (DynTier# capacity count highWaterMark ptr) =
+  DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynTierAppend" capacity count element ptr)
 
   -- |> trace "dynTierAppend, capacity: "
   -- |> trace capacity
@@ -2786,41 +2786,41 @@ dynTierAppend element (DynTier (#capacity, count, highWaterMark, ptr#)) =
 
 -- TODO: Nested case branching seems broken!?!?!?
 dynArrayPromoteElement :: DynArray *a -> DynArray *a
-dynArrayPromoteElement (DynArray (#low, high#)) =
+dynArrayPromoteElement (DynArray# low high) =
   case dynTierPop low of
     (#m, low'#) ->
       case m of
-        Nothing      -> DynArray (#low', high#)
-        Just element -> DynArray (#low', dynTierAppend element high#)
+        Nothing      -> DynArray# low' high
+        Just element -> DynArray# low' (dynTierAppend element high)
 
 -- NOTE: This assumes that the low tier has been completely moved to the high tier
 dynArrayResize :: DynArray *a -> DynArray *a
-dynArrayResize (DynArray (#DynTier (#lcap, lcount, lhwm, lowPtr#), DynTier (#highCapacity, highCount, hhwm, highPtr#)#)) =
+dynArrayResize (DynArray# (DynTier# lcap lcount lhwm lowPtr) (DynTier# highCapacity highCount hhwm highPtr)) =
   if highCount < highCapacity then
-    DynArray (#DynTier (#lcap, lcount, lhwm, lowPtr#), DynTier (#highCapacity, highCount, hhwm, highPtr#)#)
+    DynArray# (DynTier# lcap lcount lhwm lowPtr) (DynTier# highCapacity highCount hhwm highPtr)
   else
     let
       newCap  = highCapacity * 2
-      newLow  = DynTier (#highCapacity, highCount, 0, highPtr#)
-      newHigh = DynTier (#newCap, 0, 0, ptrRealloc newCap lowPtr#)
+      newLow  = DynTier# highCapacity highCount 0 highPtr
+      newHigh = DynTier# newCap 0 0 (ptrRealloc newCap lowPtr)
     in
-      DynArray (#newLow, newHigh#)
+      DynArray# newLow newHigh
       |> dynArrayTrace "GROW: "
 
 dynArrayAppend :: *a -> DynArray *a -> DynArray *a
 dynArrayAppend element a =
   case dynArrayResize (dynArrayPromoteElement a) of
-    DynArray (#low, high#) ->
-      DynArray (#low, dynTierAppend element high#)
+    DynArray# low high ->
+      DynArray# low (dynTierAppend element high)
 
 dynTierModifyElement :: UInt -> (*a -> *a) -> DynTier *a -> DynTier *a
-dynTierModifyElement index f (DynTier (#capacity, count, highWaterMark, ptr0#)) =
+dynTierModifyElement index f (DynTier# capacity count highWaterMark ptr0) =
   if index >= count then
-    DynTier (#capacity, count, highWaterMark, ptr0#)
+    DynTier# capacity count highWaterMark ptr0
   else
     case unsafePtrSwapElementChecked "dynTierModifyElement 1" count index primUndefined ptr0 of
       (#element, ptr1#) ->
-        DynTier (#capacity, count, highWaterMark, unsafePtrPokeChecked "dynTierModifyElement 2" count index (f element) ptr1#)
+        DynTier# capacity count highWaterMark (unsafePtrPokeChecked "dynTierModifyElement 2" count index (f element) ptr1)
 
 -- dynArrayModifyElement :: DynArrayIndex -> (*a -> *a) -> DynArray *a -> DynArray *a
 -- dynArrayModifyElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
@@ -2833,37 +2833,37 @@ data DynArrayResult a = DynArrayEnd | DynArrayNothing | DynArrayJust a
   -- traceLn count <| trace ", count: " <| trace index <| trace "index: " <|
 
 dynTierWithElement :: UInt -> (*a -> (#b, *a#)) -> DynTier *a -> (#Maybe b, DynTier *a#)
-dynTierWithElement index f (DynTier (#capacity, count, highWaterMark, ptr0#)) =
+dynTierWithElement index f (DynTier# capacity count highWaterMark ptr0) =
   if index >= count then
-    (#Nothing, DynTier (#capacity, count, highWaterMark, ptr0#)#)
+    (#Nothing, DynTier# capacity count highWaterMark ptr0#)
   else
     case unsafePtrSwapElementChecked "dynTierWithElement 1" count index primUndefined ptr0 of
       (#element0, ptr1#) ->
         case f element0 of
           (#result, element1#) ->
-            (#Just result, DynTier (#capacity, count, highWaterMark, unsafePtrPokeChecked "dynTierWithElement 2" count index element1 ptr1#)#)
+            (#Just result, DynTier# capacity count highWaterMark (unsafePtrPokeChecked "dynTierWithElement 2" count index element1 ptr1)#)
 
 dynArrayWithElement :: DynArrayIndex -> (*a -> (#b, *a#)) -> DynArray *a -> (#DynArrayResult b, DynArray *a#)
-dynArrayWithElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
+dynArrayWithElement (DynArrayIndex# tier index) f (DynArray# low high) =
   case tier of
     DynTierLow ->
       case dynTierWithElement index f low of
         (#result, low'#) ->
           case result of
-            Just result' -> (#DynArrayJust result', DynArray (#low', high#)#)
-            _            -> (#DynArrayNothing, DynArray (#low', high#)#)
+            Just result' -> (#DynArrayJust result', DynArray# low' high#)
+            _            -> (#DynArrayNothing, DynArray# low' high#)
     DynTierHigh ->
       case dynTierWithElement index f high of
         (#result, high'#) ->
           case result of
-            Just result' -> (#DynArrayJust result', DynArray (#low, high'#)#)
-            _            -> (#DynArrayEnd, DynArray (#low, high'#)#)
+            Just result' -> (#DynArrayJust result', DynArray# low high'#)
+            _            -> (#DynArrayEnd, DynArray# low high'#)
 
 dynArrayDelete :: DynArrayIndex -> DynArray *a -> DynArray *a
-dynArrayDelete (DynArrayIndex (#tier, index#)) (DynArray (#low, high#)) =
+dynArrayDelete (DynArrayIndex# tier index) (DynArray# low high) =
   case tier of
-    DynTierLow  -> DynArray (#dynTierSwapToEndAndDelete index low, high#)
-    DynTierHigh -> DynArray (#low, dynTierSwapToEndAndDelete index high#)
+    DynTierLow  -> DynArray# (dynTierSwapToEndAndDelete index low) high
+    DynTierHigh -> DynArray# low (dynTierSwapToEndAndDelete index high)
   |> dynArrayTrace "DELETE: "
 
 -- TODO: Nested case literals seem broken!
@@ -2876,55 +2876,55 @@ dynArrayDelete (DynArrayIndex (#tier, index#)) (DynArray (#low, high#)) =
     -- DynArray (#low, dynTierAppend (appendMk ()) <| DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#)
 
 dynArrayEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> DynArray *a -> DynArray *a
-dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray (#low, DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#)) =
+dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray# low (DynTier# highCapacity highCount highWaterMark highPtr)) =
   if highCount < highWaterMark then
-    dynArrayTrace "EMPLACE: " <| DynArray (#low, dynTierModifyElement highCount emplaceInit <| DynTier (#highCapacity, highCount + 1, highWaterMark, highPtr#)#)
+    dynArrayTrace "EMPLACE: " <| DynArray# low (dynTierModifyElement highCount emplaceInit <| DynTier# highCapacity (highCount + 1) highWaterMark highPtr)
   else
-    dynArrayTrace "APPEND:  " <| dynArrayAppend (appendMk ()) (DynArray (#low, DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#))
+    dynArrayTrace "APPEND:  " <| dynArrayAppend (appendMk ()) (DynArray# low (DynTier# highCapacity highCount highWaterMark highPtr))
 
-data DynArrayIterator a = DynArrayIterator (#DynArrayIndex, DynArray a#)
+data DynArrayIterator a = DynArrayIterator# DynArrayIndex (DynArray a)
 
 dynArrayIterator :: DynArray *a -> DynArrayIterator *a
-dynArrayIterator a = DynArrayIterator (#dynArrayIndexEmpty, a#)
+dynArrayIterator x = DynArrayIterator# dynArrayIndexEmpty x
 
 dynArrayIteratorEnd :: DynArrayIterator *a -> DynArray *a
-dynArrayIteratorEnd (DynArrayIterator (#_, array#)) = array
+dynArrayIteratorEnd (DynArrayIterator# _ array) = array
 
 dynArrayIteratorEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> DynArrayIterator *a -> DynArrayIterator *a
-dynArrayIteratorEmplaceOrAppend emplaceInit appendMk (DynArrayIterator (#_, array#)) =
-  DynArrayIterator (#dynArrayIndexEmpty, dynArrayEmplaceOrAppend emplaceInit appendMk array#)
+dynArrayIteratorEmplaceOrAppend emplaceInit appendMk (DynArrayIterator# _ array) =
+  DynArrayIterator# dynArrayIndexEmpty (dynArrayEmplaceOrAppend emplaceInit appendMk array)
 
 dynArrayIteratorWithElement :: (*a -> (#b, *a#)) -> DynArrayIterator *a -> (#DynArrayResult b, DynArrayIterator *a#)
-dynArrayIteratorWithElement f (DynArrayIterator (#index, array#)) =
+dynArrayIteratorWithElement f (DynArrayIterator# index array) =
   case dynArrayWithElement index f array of
     (#result, array'#) ->
-      (#result, DynArrayIterator (#index, array'#)#)
+      (#result, DynArrayIterator# index array'#)
 
 dynArrayIteratorNext :: DynArrayIterator *a -> DynArrayIterator *a
-dynArrayIteratorNext (DynArrayIterator (#DynArrayIndex (#tier, index#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)) =
+dynArrayIteratorNext (DynArrayIterator# (DynArrayIndex# tier index) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))) =
   case tier of
     DynTierLow ->
       if index < lcount then
-        DynArrayIterator (#DynArrayIndex (#DynTierLow, index + 1#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+        DynArrayIterator# (DynArrayIndex# DynTierLow (index + 1)) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
       else
-        DynArrayIterator (#DynArrayIndex (#DynTierHigh, 0#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+        DynArrayIterator# (DynArrayIndex# DynTierHigh 0) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
     DynTierHigh ->
-      DynArrayIterator (#DynArrayIndex (#DynTierHigh, index + 1#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+      DynArrayIterator# (DynArrayIndex# DynTierHigh (index + 1)) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
 
 dynArrayIteratorFree :: DynArrayIterator *a -> DynArrayIterator *a
-dynArrayIteratorFree (DynArrayIterator (#index, array#)) =
+dynArrayIteratorFree (DynArrayIterator# index array) =
   case dynArrayDelete index array of
-    DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#) ->
+    DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr) ->
       case index of
-        DynArrayIndex (#tier, _#) ->
+        DynArrayIndex# tier _ ->
           case tier of
             DynTierLow ->
               if lcount > 0 then
-                DynArrayIterator (#index, DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+                DynArrayIterator# index (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
               else
-                DynArrayIterator (#DynArrayIndex (#DynTierHigh, 0#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+                DynArrayIterator# (DynArrayIndex# DynTierHigh 0) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
             DynTierHigh ->
-              DynArrayIterator (#index, DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+              DynArrayIterator# index (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
 
 
 --------------------
@@ -2938,7 +2938,7 @@ dynArrayIteratorFree (DynArrayIterator (#index, array#)) =
 --    * Higher Kinded Types do not have uniqueness types and do not propagate uniqueness, instead Type Applications have uniqueness types associated with them and are propagating!
 --    * Propagation behavior is enforced by the type of the data constructor function!
 data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
-data PolyThunk a    = PolyThunk (#Ptr .(), Ptr .(), a, PolyThunkState, Float#)
+data PolyThunk a    = PolyThunk# (Ptr .()) (Ptr .()) a PolyThunkState Float
 -- UpdateState, CopyState, Arg, ThunkState, SampleOffset
 
 dynDeepCopy :: a -> (#Ptr *(), a#)
@@ -2953,13 +2953,13 @@ polyThunkAlloc :: a -> Float -> () -> *PolyThunk a
 polyThunkAlloc x sampleOffset u =
   case dynDeepCopy x of
     (#copyState, x'#) ->
-      PolyThunk (#primUndefined, copyState, x', PolyThunkAlloc, sampleOffset#)
+      PolyThunk# primUndefined copyState x' PolyThunkAlloc sampleOffset
 
 polyThunkInit :: a -> Float -> *PolyThunk a -> *PolyThunk a
-polyThunkInit x sampleOffset (PolyThunk (#updateState, copyState, _, _, _#))  =
+polyThunkInit x sampleOffset (PolyThunk# updateState copyState _ _ _)  =
   case dynDeepCopyInto copyState x of
     (#copyState', x'#) ->
-      PolyThunk (#updateState, copyState', x', PolyThunkInit, sampleOffset#)
+      PolyThunk# updateState copyState' x' PolyThunkInit sampleOffset
 
 polyThunkEvalGo :: (a -> b) -> a -> b
 polyThunkEvalGo f x =
@@ -2973,6 +2973,7 @@ polyThunkEval f t =
     dummy = polyThunkEvalGo f primUndefined
   in
     primUndefined
+
 
 ----------------------
 -- Poly
@@ -3017,8 +3018,8 @@ seqToAudio s =
               in
                 if nextValueTime >= time then (#False, 0, prevValue#) else
                   case runSeq s () of
-                    SeqValue (#seqDuration1, _, Just seqValue#) -> (#True, seqDuration1, seqValue#)
-                    SeqValue (#seqDuration1, _, _#)             -> (#True, seqDuration1, prevValue#)
+                    SeqValue# seqDuration1 _ (Just seqValue) -> (#True, seqDuration1, seqValue#)
+                    SeqValue# seqDuration1 _ _               -> (#True, seqDuration1, prevValue#)
         in
           (#i1, writeArray (unsafeUIntToIndex i0) (fromFloat value) a#)
 
@@ -3033,9 +3034,9 @@ poly f s =
             let nextValueTime ~ 0 = nextValueTime + time in
               if nextValueTime < tick then
                 case runSeq s () of
-                  SeqValue (#t, _, Just x#) ->
+                  SeqValue# t _ (Just x) ->
                     (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
-                  SeqValue (#t, _, _#) ->
+                  SeqValue# t _ _ ->
                     (#True, t, acc, thunks1#)
               else
                 case dynArrayIteratorWithElement (polyThunkEval f) thunks1 of
@@ -3138,14 +3139,14 @@ testJit w =
     badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ 0.5 1 1.5 2 3]))
     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
     badSynth1 f =
-      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (tri (fromFloat f) * 0.667)
+      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (tri (fromFloat f) * 0.75)
       |> mul 0.05
       |> perc 0.01 3.0 -3.0
       |> pan 0.375
     badSynth2 f =
-      tri (fromFloat f * freqMul2 * 2) + tri (fromFloat f * 0.998) + (pulse 0.4875 (fromFloat f * freqMul2 + tri 2.0 * 6) * 0.667)
-      |> mul 0.02
-      |> perc 0.025 4.0 -2.75
+      tri (fromFloat f * freqMul2 * 2.01) + tri (fromFloat f * 0.999) + (pulse 0.4 (fromFloat f * freqMul2 + tri 2.0 * 6) * 0.667)
+      |> mul 0.025
+      |> perc 0.025 4.0 -2.0
       |> pan 0.625
     bassSynth f =
       tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul3 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))
@@ -3248,15 +3249,15 @@ testJit w =
 -- testJit :: *World -> *World
 -- testJit w = printLn a w |> printLn b |> printLn c
 --   where
---     a = Complex (#8, 2#)
---     b = Complex (#2, 1#)
---     c = sqrt (Complex (#negate 3.4, pi#))
+--     a = Complex# 8 2
+--     b = Complex# 2 1
+--     c = sqrt (Complex# (negate 3.4) pi)
 --
 -- testJit :: *World -> *World
 -- testJit w = printLn a w |> printLn b |> printLn c
 --   where
---     a = Complex (#(negate pi), 3#)
---     b = Complex (#3, 4#)
+--     a = Complex# (negate pi) 3
+--     b = Complex# 3 4
 --     c = a / b
 
 
@@ -3305,7 +3306,7 @@ testJit w =
 --     tick ~ 0 = tick + 1
 --     value    = tick * 100 + fromInt mouseY * fromInt mouseX
 --   in
---     SeqValue (#2, SeqNormal, Just value#)
+--     SeqValue# 2 SeqNormal (Just value)
 
 -- -- Simplification is getting out of hand, current setup is n^2 which is....bad.
 -- seqTest :: Seq Float
@@ -3332,6 +3333,7 @@ testJit w =
 -- class Freeze a where
 --   freeze :: (Freeze b, a ~ b) => *a -> b
 
+-- TODO: uint32 -> uint64
 -- TODO: Set audioSampleOffset to NOT be constant and insure that it is never used at a global scope!!!!! (It is magical...)
 -- TODO: repeat combinator
 -- TODO: accumulate2, etc

@@ -180,7 +180,7 @@ extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size)
     // return malloc(size);
     if (size == 0)
         return NULL;
-    size += 128; // PADDING?!?!?! This will crash without padding, suggesting that our allocation sizes are getting off somewhere, or an errant writeArray is happening in NecroLang somewhere!?!?!?!
+    size *= 2; // PADDING?!?!?! This will crash without padding, suggesting that our allocation sizes are getting off somewhere, or an errant writeArray is happening in NecroLang somewhere!?!?!?!
     if (necro_heap.bump + size >= necro_heap.capacity)
     {
         fprintf(stderr, "Necro memory exhausted!\n");

@@ -883,16 +883,34 @@ void necro_infer_set_is_wrapper_type(NecroAst* ast)
     NecroAstSymbol* symbol = ast->data_declaration.ast_symbol;
     if (symbol->is_primitive)
         return;
-    if (ast->data_declaration.constructor_list->list.next_item != NULL)
-        return;
-    NecroAst* data_con = ast->data_declaration.constructor_list->list.item;
+    NecroAst*       data_con        = ast->data_declaration.constructor_list->list.item;
+    NecroAstSymbol* data_con_symbol = data_con->constructor.conid->conid.ast_symbol;
     if (data_con->type == NECRO_AST_CONID)
         return;
+    if (ast->data_declaration.constructor_list->list.next_item != NULL)
+    {
+        if (data_con_symbol->source_name->str[data_con_symbol->source_name->length - 1] == '#')
+            assert(false && "TODO: Unboxed types cannot be sum types error!");
+        else
+            return;
+    }
     assert(data_con->type == NECRO_AST_CONSTRUCTOR);
     if (data_con->constructor.arg_list == NULL || data_con->constructor.arg_list->list.next_item != NULL)
+    {
+        if (data_con_symbol->source_name->str[data_con_symbol->source_name->length - 1] == '#')
+        {
+            // unboxed type
+            data_con_symbol->is_unboxed = true;
+            symbol->is_unboxed          = true;
+        }
         return;
-    symbol->is_wrapper                                        = true;
-    data_con->constructor.conid->conid.ast_symbol->is_wrapper = true;
+    }
+    else
+    {
+        // wrapper type
+        symbol->is_wrapper                                        = true;
+        data_con->constructor.conid->conid.ast_symbol->is_wrapper = true;
+    }
 }
 
 NecroResult(NecroType) necro_infer_simple_type(NecroInfer* infer, NecroAst* ast)

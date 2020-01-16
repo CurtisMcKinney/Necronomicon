@@ -683,6 +683,15 @@ bool necro_lex_identifier(NecroLexer* lexer)
         code_point   = necro_lex_next_char(lexer);
     }
 
+    // End with #
+    if (is_type_identifier && code_point == '#')
+    {
+        NecroSourceLoc curr_loc        = lexer->loc;
+        uint32_t       next_code_point = necro_lex_next_char(lexer);
+        if (next_code_point != ')')
+            loc_snapshot = curr_loc; // if the next character is not ')' then the end of the identifier is '#'
+    }
+
     lexer->loc               = loc_snapshot; // Manual rewind
     size_t identifier_length = lexer->loc.pos - identifier_begin;
     assert(identifier_length > 0);

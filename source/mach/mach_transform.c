@@ -20,40 +20,19 @@
 
 /*
     TODO:
+        * Stateful unboxed types
         * Stateful unboxed tuple types!
         * Constant for loop range optimization!
-        * fma
-        * fastFloor
-        * recipSampleRate
-        * BlockRate
-        * Real type class
-        * Audio type class
-        * BlockSize :: Nat <--- Need to handle this when we compile ranges which use it
-        * Mono type
         * Add Num as super class to Audio!
-
-        * Stateful unboxed types
 
         * Buchla digital oscillator design
         * Don't use wavetables for maximum oversampling fidelity?
-        * New types
-        * Rational type
-        * apats on for loops
-        * Unboxed Tuples / Types
-        * Look into PortAudio / Jack / Custom Audio Output system
-        * Defunctionalization
-        * newtypes
-        * Array empty + ops
         * Handle deep_copy_fn with arrays!
-        * For loop initializer handling!
-        * Test stateful for loops which need initializers and stateful recursive shit in for loops which need initializers
         * Exhaustive Case expression / Redundant Case Expression
         * llvm allocator?
         * llvm codegen
-        * wildcard flag in NecroCoreAstVar
         * bind_rec (for mutual recursion)
         * Somehow we have a memory leak?
-        * Defunctionalization
 */
 
 
@@ -841,11 +820,14 @@ void necro_core_transform_to_mach_2_app(NecroMachProgram* program, NecroCoreAst*
     {
         fn_type = fn_value->necro_machine_type;
     }
-    assert(fn_type->type == NECRO_MACH_TYPE_FN);
-    if (symbol->is_constructor)
-        assert(fn_type->fn_type.num_parameters == (arg_count + 1));
-    else
-        assert(fn_type->fn_type.num_parameters == arg_count);
+    if (!symbol->is_unboxed)
+    {
+        assert(fn_type->type == NECRO_MACH_TYPE_FN);
+        if (symbol->is_constructor)
+            assert(fn_type->fn_type.num_parameters == (arg_count + 1));
+        else
+            assert(fn_type->fn_type.num_parameters == arg_count);
+    }
 }
 
 void necro_core_transform_to_mach_2_lit(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
@@ -1672,6 +1654,21 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     }
 }
 
+NecroMachAst* necro_core_transform_to_mach_3_unboxed_con(NecroMachProgram* program, NecroCoreAst* core_ast, size_t arg_count, NecroMachAst* outer)
+{
+    NecroMachAst* unboxed_con = necro_mach_value_create_undefined(program, necro_mach_type_from_necro_type(program, core_ast->necro_type));
+    size_t        arg_index   = arg_count - 1;
+    NecroCoreAst* function    = core_ast;
+    while (function->ast_type == NECRO_CORE_AST_APP)
+    {
+        NecroMachAst* arg = necro_core_transform_to_mach_3_go(program, function->app.expr2, outer);
+        unboxed_con       = necro_mach_build_insert_value(program, outer->machine_def.update_fn, unboxed_con, arg, arg_index, "unboxed_con");
+        function          = function->app.expr1;
+        arg_index--;
+    }
+    return unboxed_con;
+}
+
 NecroMachAst* necro_core_transform_to_mach_3_app(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
 {
     assert(program != NULL);
@@ -1700,6 +1697,8 @@ NecroMachAst* necro_core_transform_to_mach_3_app(NecroMachProgram* program, Necr
     bool                 uses_state = false;
     if (ast_symbol->primop_type > NECRO_PRIMOP_PRIM_FN) //PRIM_OP Early Exit!
         return necro_core_transform_to_mach_3_primop(program, function, core_ast, arg_count, outer);
+    else if (ast_symbol->is_unboxed)
+        return necro_core_transform_to_mach_3_unboxed_con(program, core_ast, arg_count, outer);
     assert(fn_value != NULL);
     if (fn_value->type == NECRO_MACH_DEF)
     {
@@ -1923,12 +1922,18 @@ NecroMachAst* necro_core_transform_to_mach_3_for(NecroMachProgram* program, Necr
 
     // TODO: Make range unboxed?
     NecroMachAst*  init_value        = necro_core_transform_to_mach_3_go(program, core_ast->loop.value_init, outer);
-    NecroMachAst*  init_index_ptr    = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (size_t[]) { 0, 1 }, 2, "init_index_ptr");
-    NecroMachAst*  init_index_value  = necro_mach_build_load(program, outer->machine_def.update_fn, init_index_ptr, "init_index");
-    NecroMachAst*  increment_ptr     = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (size_t[]) { 0, 2 }, 2, "increment_ptr");
-    NecroMachAst*  increment_value   = necro_mach_build_load(program, outer->machine_def.update_fn, increment_ptr, "increment");
-    NecroMachAst*  end_ptr           = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (size_t[]) { 0, 3 }, 2, "end_ptr");
-    NecroMachAst*  end_index         = necro_mach_build_load(program, outer->machine_def.update_fn, end_ptr, "end");
+
+    // NecroMachAst*  init_index_ptr    = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (size_t[]) { 0, 1 }, 2, "init_index_ptr");
+    // NecroMachAst*  init_index_value  = necro_mach_build_load(program, outer->machine_def.update_fn, init_index_ptr, "init_index");
+    // NecroMachAst*  increment_ptr     = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (size_t[]) { 0, 2 }, 2, "increment_ptr");
+    // NecroMachAst*  increment_value   = necro_mach_build_load(program, outer->machine_def.update_fn, increment_ptr, "increment");
+    // NecroMachAst*  end_ptr           = necro_mach_build_gep(program, outer->machine_def.update_fn, range_value, (size_t[]) { 0, 3 }, 2, "end_ptr");
+    // NecroMachAst*  end_index         = necro_mach_build_load(program, outer->machine_def.update_fn, end_ptr, "end");
+
+    NecroMachAst*  init_index_value = necro_mach_build_extract_value(program, outer->machine_def.update_fn, range_value, 0, "init_index");
+    NecroMachAst*  increment_value  = necro_mach_build_extract_value(program, outer->machine_def.update_fn, range_value, 1, "increment");
+    NecroMachAst*  end_index        = necro_mach_build_extract_value(program, outer->machine_def.update_fn, range_value, 2, "end_index");
+
     NecroMachAst*  current_state_ptr = necro_mach_value_get_state_ptr(outer->machine_def.update_fn);
     NecroMachAst*  for_state_array   = (core_ast->persistent_slot == 0xFFFFFFFF) ? NULL : necro_mach_build_gep(program, outer->machine_def.update_fn, current_state_ptr, (size_t[]) { 0, core_ast->persistent_slot }, 2, "for_state_array");
     NecroMachType* for_state_type    = (core_ast->persistent_slot == 0xFFFFFFFF) ? NULL : necro_mach_type_create_ptr(&program->arena, for_state_array->necro_machine_type->ptr_type.element_type->array_type.element_type);
@@ -2240,7 +2245,7 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_MACH_TEST_VERBOSE 0
+#define NECRO_MACH_TEST_VERBOSE 1
 void necro_mach_test_string(const char* test_name, const char* str)
 {
 

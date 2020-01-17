@@ -84,7 +84,7 @@ NecroDownsample* necro_downsample_create(const double freq_cutoff, const double 
     //--------------------
     // Convolve FIR coefficients with window
     const double dm   = m + 1;
-    const double beta = 10.0; // range is 1 -> 10
+    const double beta = 9.0; // range is 1 -> 10
     for (size_t i = 0; i < NECRO_DOWNSAMPLE_FILTER_NUM_TAPS; ++i)
     {
         // double ri = (double) i + 1;

@@ -2249,7 +2249,7 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_MACH_TEST_VERBOSE 1
+#define NECRO_MACH_TEST_VERBOSE 0
 void necro_mach_test_string(const char* test_name, const char* str)
 {
 

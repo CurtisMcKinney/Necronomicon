@@ -28,8 +28,8 @@
         * Decimate
 */
 
-#define NECRO_DOWNSAMPLE_FILTER_NUM_TAPS      256
-#define NECRO_DOWNSAMPLE_FILTER_NUM_TAPS_MASK 255
+#define NECRO_DOWNSAMPLE_FILTER_NUM_TAPS      128
+#define NECRO_DOWNSAMPLE_FILTER_NUM_TAPS_MASK 127
 
 typedef struct NecroDownsample
 {

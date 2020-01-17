@@ -1183,7 +1183,7 @@ audioSampleRate' :: UInt
 audioSampleRate' = 48000
 
 audioBlockSize' :: UInt
-audioBlockSize' = 64
+audioBlockSize' = 256
 
 audioOverSampleAmount :: UInt
 audioOverSampleAmount = 32
@@ -1807,11 +1807,12 @@ tau = 2 * pi
 --------------------
 -- AudioFormat
 --------------------
-data Mono a      = Mono a
-data Stereo a    = Stereo# a a
-data Quad a      = Quad# a a a a
-data Ambisonic a = Ambisonic# a a a a
--- data Audio f     = Audio (f Channel)
+data Mono a             = Mono a
+data Stereo a           = Stereo# a a
+data Quad a             = Quad# a a a a
+data Ambisonic a        = Ambisonic# a a a a
+data AudioBuffer s      = AudioBuffer (.Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) F64)
+data Seconds (n :: Nat) = Seconds
 
 -- TODO: Equal power panning
 class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
@@ -1822,6 +1823,7 @@ class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
   accumulate2U :: (() -> *s) -> (F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio
   accumulate3U :: (() -> *s) -> (F64 -> F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio -> f Audio
   pan          :: Mono Audio -> f Audio -> Stereo Audio
+  mixDown      :: f Audio -> Mono Audio
   outAudio     :: UInt -> f Audio -> *World -> *World
 
 instance Functor Mono where
@@ -1849,6 +1851,7 @@ instance AudioFormat Mono where
   accumulate2U mk f isRunning (Mono x) (Mono y)          = Mono (accumulateAudio2U mk f isRunning x y)
   accumulate3U mk f isRunning (Mono x) (Mono y) (Mono z) = Mono (accumulateAudio3U mk f isRunning x y z)
   pan (Mono amount) (Mono input)                         = Stereo# (input * (1 - amount)) (input * amount)
+  mixDown x                                              = x
 
 instance Functor Stereo where
   map f (Stereo# x y) = Stereo# (f x) (f y)
@@ -1875,43 +1878,7 @@ instance AudioFormat Stereo where
   accumulate2U mk f isRunning (Stereo# xl xr) (Stereo# yl yr)                 = Stereo# (accumulateAudio2U mk f isRunning xl yl) (accumulateAudio2U mk f isRunning xr yr)
   accumulate3U mk f isRunning (Stereo# xl xr) (Stereo# yl yr) (Stereo# zl zr) = Stereo# (accumulateAudio3U mk f isRunning xl yl zl) (accumulateAudio3U mk f isRunning xr yr zr)
   pan (Mono amount) (Stereo# l r)                                             = Stereo# (l * (1 - amount)) (r * amount)
-
--- instance AudioFormat f => Eq (Audio f) where
---   eq  (Audio x) (Audio y) = foldl (\cond x -> cond && x) True  (map2 eq x y)
---   neq (Audio x) (Audio y) = foldl (\cond x -> cond || x) False (map2 neq x y)
-
--- instance AudioFormat f => Semiring (Audio f) where
---   zero                    = Audio (pure 0)
---   one                     = Audio (pure 1)
---   add (Audio x) (Audio y) = Audio (map2 add x y)
---   mul (Audio x) (Audio y) = Audio (map2 mul x y)
-
--- instance AudioFormat f => Ring (Audio f) where
---   fromInt i               = Audio (pure (fromInt i))
---   sub (Audio x) (Audio y) = Audio (map2 sub x y)
-
--- instance AudioFormat f => EuclideanRing (Audio f) where
---   div (Audio x) (Audio y) = Audio (map2 div x y)
---   rem (Audio x) (Audio y) = Audio (map2 rem x y)
-
--- instance AudioFormat f => DivisionRing (Audio f) where
---   recip (Audio cs) = Audio (map recip cs)
-
--- instance AudioFormat f => Num (Audio f) where
---   signum (Audio c) = Audio (map signum c)
---   abs    (Audio c) = Audio (map abs c)
-
--- instance AudioFormat f => Field (Audio f) where
-
--- instance AudioFormat f => Floating (Audio f) where
---   fromFloat f = Audio (pure (fromFloat f))
---   sqrt (Audio x) = Audio (map sqrt x)
-
--- instance AudioFormat f => Semigroup (Audio f) where
---   append (Audio x) (Audio y) = Audio (map2 append x y)
-
--- instance AudioFormat f => Monoid (Audio f) where
---   mempty = Audio (pure mempty)
+  mixDown (Stereo# l r)                                                       = Mono (l + r)
 
 -- Mono
 instance Eq a => Eq (Mono a) where
@@ -2055,25 +2022,6 @@ pulse width freq =
 -- perc
 data PercState = PercState# F64 F64 F64 F64
 
-  -- |> trace "level: "
-  -- |> trace level
-  -- |> trace ", endLevel: "
-  -- |> trace endLevel
-  -- |> trace ", length: "
-  -- |> trace length
-  -- |> trace ", curve: "
-  -- |> trace curve
-  -- |> trace " -> PercState { a2: "
-  -- |> trace a2
-  -- |> trace ", b1: "
-  -- |> trace b1
-  -- |> trace ", grow: "
-  -- |> trace grow
-  -- |> trace ", currTime: "
-  -- |> trace currTime
-  -- |> traceLn " }"
-
-
 mkPercState :: F64 -> F64 -> F64 -> F64 -> F64 -> () -> *PercState
 mkPercState level endLevel length curve currTime _ =
   PercState# a2 b1 grow currTime
@@ -2114,11 +2062,52 @@ perc attackTime decayTime curve input =
     isRunning = percIsRunning totalTime
 
 -----------
+-- Wave tables
+
+natSecondsToNatBufferSamples :: Seconds n -> NatVal (NatNextPowerOfTwo (NatMul SampleRate (NatMax n 1)))
+natSecondsToNatBufferSamples _ = NatVal
+
+waveTableSize :: UInt
+waveTableSize =
+  natVal (natSecondsToNatBufferSamples oneSec)
+
+waveTableSizeF :: F64
+waveTableSizeF =
+  fromUInt waveTableSize
+
+waveTableSizeMinus1 :: UInt
+waveTableSizeMinus1 =
+  waveTableSize - 1
+
+sinTable :: AudioBuffer 1
+sinTable =
+  AudioBuffer <| freezeArray <| loop a = unsafeEmptyArray () for i <- each do
+    writeArray i (sine ((fromUInt (indexToUInt i) / waveTableSizeF) * tau)) a
+
+-- TODO: Accumulator will grow very large, reducing precision?
+-- TODO: need ceil
+accumulateWaveTable :: AudioBuffer 1 -> UInt -> F64 -> F64 -> (#F64, F64#)
+accumulateWaveTable (AudioBuffer buffer) bufferSizeMinus1 freq phase0 =
+  (#phase1, out#)
+  where
+    phase1  = fma freq recipSampleRate phase0
+    findex  = phase1 * waveTableSizeF
+    delta   = (floor findex + 1) - findex
+    index1  = bitAnd (f64ToUInt findex) bufferSizeMinus1
+    index2  = bitAnd (index1 + 1) bufferSizeMinus1
+    sample1 = readArray (unsafeUIntToIndex index1) buffer
+    sample2 = readArray (unsafeUIntToIndex index2) buffer
+    out     = sample1 * delta + sample2 * (1 - delta)
+
+waveTableOsc :: AudioFormat f => AudioBuffer 1 -> f Audio -> f Audio
+waveTableOsc buffer freq =
+  accumulate1 (accumulateWaveTable buffer waveTableSizeMinus1) constTrue freq
+
+sin :: AudioFormat f => f Audio -> f Audio
+sin freq = waveTableOsc sinTable freq
+
+-----------
 -- delay
-data Seconds (n :: Nat) = Seconds
-
-data AudioBuffer s = AudioBuffer (.Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) F64)
-
 data DelayState s = DelayState# (.AudioBuffer s) UInt F64
 
 -- TODO: Interpolate delayTime!
@@ -2135,9 +2124,6 @@ accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState# (AudioBu
     out              = input * (1 - mix) + del * mix
     buffer2          = writeArray (Index delayIndex) out buffer1
     index'           = bitAnd (index + 1) bufferSizeMinus1
-
-natSecondsToNatBufferSamples :: Seconds n -> NatVal (NatNextPowerOfTwo (NatMul SampleRate (NatMax n 1)))
-natSecondsToNatBufferSamples _ = NatVal
 
 mkDelayState :: Seconds s -> () -> *DelayState s
 mkDelayState _ _ = DelayState# (AudioBuffer (arrayFrom 0)) 0 1
@@ -2544,16 +2530,6 @@ toSeq :: SeqValue a -> Seq a
 toSeq sv =
   Seq (\_ -> sv)
 
--- altTest :: SeqValue Int
--- altTest = runSeq (alternative [0 1 _ 3] [_ <2 9> 55 _]) ()
-
--- seqLoop :: (Seq a -> Seq a) -> Seq a
--- seqLoop sf = Seq (\_ -> let x ~ default = runSeq (sf (toSeq x)) () in x)
-
--- myRecSeq :: Seq Int
--- myRecSeq = seqLoop <| \x ->
---   [1 2 <(x * 4) _ 4>]
-
 seqLoopEndIfLastSlot :: Int -> Int -> SeqControl
 seqLoopEndIfLastSlot slot maxSlot =
   if (slot + 1) < maxSlot then
@@ -2832,9 +2808,6 @@ dynArrayTrace opName (DynArray# low high) =
   let high' = traceLn " " <| traceLn "  }" <| dynTierTrace high in
   DynArray# low' high'
 
--- dynArrayTrace :: Array n Char -> DynArray *a -> DynArray *a
--- dynArrayTrace _ a = a
-
 dynArrayIndexEmpty :: DynArrayIndex
 dynArrayIndexEmpty = DynArrayIndex# DynTierLow 0
 
@@ -2914,15 +2887,7 @@ dynTierModifyElement index f (DynTier# capacity count highWaterMark ptr0) =
       (#element, ptr1#) ->
         DynTier# capacity count highWaterMark (unsafePtrPokeChecked "dynTierModifyElement 2" count index (f element) ptr1)
 
--- dynArrayModifyElement :: DynArrayIndex -> (*a -> *a) -> DynArray *a -> DynArray *a
--- dynArrayModifyElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
---   case tier of
---     DynTierLow  -> DynArray (#dynTierModifyElement index f low, high#)
---     DynTierHigh -> DynArray (#low, dynTierModifyElement index f high#)
-
 data DynArrayResult a = DynArrayEnd | DynArrayNothing | DynArrayJust a
-
-  -- traceLn count <| trace ", count: " <| trace index <| trace "index: " <|
 
 dynTierWithElement :: UInt -> (*a -> (#b, *a#)) -> DynTier *a -> (#Maybe b, DynTier *a#)
 dynTierWithElement index f (DynTier# capacity count highWaterMark ptr0) =
@@ -2957,15 +2922,6 @@ dynArrayDelete (DynArrayIndex# tier index) (DynArray# low high) =
     DynTierLow  -> DynArray# (dynTierSwapToEndAndDelete index low) high
     DynTierHigh -> DynArray# low (dynTierSwapToEndAndDelete index high)
   |> dynArrayTrace "DELETE: "
-
--- TODO: Nested case literals seem broken!
--- dynArrayDelete :: DynArrayIndex -> DynArray *a -> DynArray *a
--- dynArrayDelete index (DynArray (#low, high#)) =
---   case index of
---     DynArrayIndex (#DynTierLow,  index'#) -> DynArray (#dynTierSwapToEndAndDelete index' low, high#)
---     DynArrayIndex (#DynTierHigh, index'#) -> DynArray (#low, dynTierSwapToEndAndDelete index' high#)
-
-    -- DynArray (#low, dynTierAppend (appendMk ()) <| DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#)
 
 dynArrayEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> DynArray *a -> DynArray *a
 dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray# low (DynTier# highCapacity highCount highWaterMark highPtr)) =
@@ -3085,13 +3041,9 @@ instance Finite a => Finite (Mono a) where
 instance Finite a => Finite (Stereo a) where
   isRunning (Stereo# l r) = isRunning l && isRunning r
 
--- instance AudioFormat f => Finite (Audio f) where
---   isRunning (Audio cs) = foldl (\b x -> b && isRunning x) True cs
-
 instance Poly Audio where
 instance Poly (Mono a) where
 instance Poly a => Poly (Stereo a) where
--- instance Poly (Audio f) where
 
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
@@ -3121,7 +3073,6 @@ seqToAudio s =
         in
           (#i1, writeArray (unsafeUIntToIndex i0) (fromFloat value) a#)
 
--- TODO: poly with 3 arguments?!?!!?
 poly :: Poly b => (a -> b) -> Seq a -> b
 poly f s =
   case mutRefTake (\_ -> dynArrayEmpty 8) of
@@ -3155,13 +3106,11 @@ poly f s =
 poly2 :: Poly c => (a -> b -> c) -> Seq a -> Seq b -> c
 poly2 f x y = poly (uncurry' f) (map2 (\x' y' -> (#x', y'#)) x y)
 
--- TODO: Need map3
 poly3 :: Poly d => (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> d
 poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 
 -- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
 -- TODO: Test arg copying
--- TODO: Test multiple polys
 -- TODO: Test shared beats, etc (NOTE: Known to assert false currently)
 
 -- testJit :: *World -> *World
@@ -3224,37 +3173,42 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --     badSynth f g p = (saw (fromFloat f) + saw (fromFloat g)) * 0.05 |> perc 0.0125 1 1 |> pan (fromFloat p)
 --     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
 
-    -- drone ~ 0 =
-    --   let feed = right drone |> mul 4000 in
-    --   tri (150 + feed) + tri (200 + feed) + tri (600 + feed) |> perc 30 10 1 |> mul 0.1 |> pan 0.5 |> mul (abs (tri (stereo 1.33334 2)))
-      -- (drone * 1.5)
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio =
+--       stereo (sin 220) (sin 440)
+--       |> perc 5 5 -1
+--       |> mul 0.1
 
--- TODO: Reworking Audio setup, look at mach_transform bug with poly!
+
+-- TODO: Clipping detection
 -- TODO: Looks like maybe the precedence between (+) and (*) and (|>) is a little wonky?
 testJit :: *World -> *World
 testJit w =
   outAudio 0 badAudio w
   where
-    freqMul1  = tri 0.2  *  0.0035 + tri 0.6 *  0.00025 + 0.5
-    freqMul2  = tri 0.14 *  0.0035 + tri 0.5 * -0.00025 + 0.5
-    freqMul3  = tri 0.23 * -0.0035 + tri 0.4 *  0.00025 + 0.5
+    freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
+    freqMul2  = sin 0.14 *  0.0035 + sin 0.5 * -0.00025 + 0.5
+    freqMul3  = sin 0.23 * -0.0035 + sin 0.4 *  0.00025 + 0.5
     beatSpeed = 3 // 2
     badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
-    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ 0.25 0.5 0.75 1 1.5]))
+    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ _ 0.25 0.5 0.75 1 1.5]))
     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
     badSynth1 f =
-      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (tri (fromFloat f) * 0.75)
-      |> mul 0.05
+      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (sin (fromFloat f) * 0.75)
+      |> mul 0.1
       |> perc 0.01 3.0 -3.0
       |> pan 0.375
     badSynth2 f =
-      tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.4)
-      |> mul 0.035
+      tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.3)
+      |> mul 0.07
       |> perc 0.025 4.0 -2.25
       |> pan 0.625
     bassSynth f =
-      tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))
-      |> mul 0.075
+      sin (fromFloat (f * 0.5)) + tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))
+      |> mul 0.125
       |> perc 0.005 5 -1.75
       |> pan 0.51
     synths =
@@ -3442,7 +3396,6 @@ testJit w =
 -- TODO: uint32 -> uint64
 -- TODO: Set audioSampleOffset to NOT be constant and insure that it is never used at a global scope!!!!! (It is magical...)
 -- TODO: repeat combinator
--- TODO: accumulate2, etc
 -- TODO: FFT stuff
 -- TODO: Nested case literals seem broken!
 -- TODO: Out of order monomorphic instances (i.e. 'instance Ring Complex' textually appearing before 'instance Ring F64') can cause erroneous 'Not An Instance' errors. Maybe need a better dep analysis story to make this work since we don't figure this out until inference which is at that point too late to fix.

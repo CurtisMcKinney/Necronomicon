@@ -1286,6 +1286,11 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "||",        NULL, NECRO_PRIMOP_BINOP_OR);
     necro_base_setup_primitive(scoped_symtable, intern, "boolToInt", NULL, NECRO_PRIMOP_UOP_UTOI);
 
+    // misc
+    NecroAstSymbol* polyThunkEvalGo = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "polyThunkEvalGo"));;
+    assert(polyThunkEvalGo != NULL);
+    polyThunkEvalGo->never_inline = true;
+
     //--------------------
     // Compile, part II
     base.scoped_symtable = scoped_symtable;

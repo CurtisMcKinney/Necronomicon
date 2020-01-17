@@ -183,6 +183,7 @@ typedef struct NecroAstSymbol
     bool                           is_primitive;            // Whether or not a symbol is primitive.
     bool                           is_unboxed;
     bool                           is_wrapper;              // Equivalant to newtype
+    bool                           never_inline;
 } NecroAstSymbol;
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast);
@@ -215,6 +216,7 @@ typedef struct NecroCoreAstSymbol
     bool                       is_wrapper;
     bool                       is_deep_copy_fn;
     bool                       is_wildcard;
+    bool                       never_inline;
 } NecroCoreAstSymbol;
 
 NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena, NecroSymbol name, struct NecroType* type);

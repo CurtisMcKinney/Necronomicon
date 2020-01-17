@@ -1244,7 +1244,11 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
         // Unwrapped Env
         args[1] = env;
     }
-    assert(poly_fn_arity == 1 || poly_fn_arity == 2);
+    if (!(poly_fn_arity == 1 || poly_fn_arity == 2))
+    {
+        printf ("fuck me\n");
+        assert(poly_fn_arity == 1 || poly_fn_arity == 2);
+    }
     // else if (poly_fn_arity > 2)
     // {
     //     for (size_t i = 0; i < poly_fn_arity - 1; ++i)
@@ -2245,7 +2249,7 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_MACH_TEST_VERBOSE 0
+#define NECRO_MACH_TEST_VERBOSE 1
 void necro_mach_test_string(const char* test_name, const char* str)
 {
 

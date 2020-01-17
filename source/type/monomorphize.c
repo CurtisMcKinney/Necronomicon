@@ -250,6 +250,7 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     // TODO: Account for NOT mangling original name....how?
     // TODO: Actually, how to handle this whole renaming business???
     // Create new scope up here, insert named thing up here, percolates to bottom?
+    // TODO: More principled deep copy
     specialized_ast_symbol                        = necro_ast_symbol_create(monomorphize->arena, specialized_name, ast_symbol->name, monomorphize->ast_arena->module_name, NULL);
     specialized_ast_symbol->is_constructor        = ast_symbol->is_constructor;
     specialized_ast_symbol->is_wrapper            = ast_symbol->is_wrapper;
@@ -257,6 +258,7 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     specialized_ast_symbol->is_primitive          = ast_symbol->is_primitive;
     specialized_ast_symbol->is_recursive          = ast_symbol->is_recursive;
     specialized_ast_symbol->is_unboxed            = ast_symbol->is_unboxed;
+    specialized_ast_symbol->never_inline          = ast_symbol->never_inline;
     specialized_ast_symbol->primop_type           = ast_symbol->primop_type;
     specialized_ast_symbol->declaration_group     = new_declaration;
 

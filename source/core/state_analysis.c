@@ -976,7 +976,7 @@ void necro_state_analysis_test_string(const char* test_name, const char* str)
     NecroAstArena       ast             = necro_ast_arena_empty();
     NecroCoreAstArena   core_ast        = necro_core_ast_arena_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
-    info.verbosity                      = 0;
+    info.verbosity                      = 1;
     info.compilation_phase              = NECRO_PHASE_STATE_ANALYSIS;
 
     //--------------------

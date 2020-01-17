@@ -180,7 +180,7 @@ extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size)
     // return malloc(size);
     if (size == 0)
         return NULL;
-    size *= 2; // PADDING?!?!?! This will crash without padding, suggesting that our allocation sizes are getting off somewhere, or an errant writeArray is happening in NecroLang somewhere!?!?!?!
+    // size *= 2; // PADDING?!?!?! This will crash without padding, suggesting that our allocation sizes are getting off somewhere, or an errant writeArray is happening in NecroLang somewhere!?!?!?!
     if (necro_heap.bump + size >= necro_heap.capacity)
     {
         fprintf(stderr, "Necro memory exhausted!\n");
@@ -282,7 +282,7 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
     //--------------------
     // Init, then start RT thread
     necro_try(void, necro_runtime_audio_init());
-    necro_heap = necro_heap_create(128000000);
+    necro_heap = necro_heap_create(256000000);
     necro_runtime_init();
     necro_runtime_audio_lang_callback = necro_main;
     PaError pa_error = paNoError;

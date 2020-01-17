@@ -1063,6 +1063,11 @@ NecroCoreAst* necro_ast_inline_wrapper_proj(NecroCorePreSimplify* context, Necro
     return necro_core_ast_pre_simplify_inline_wrapper_types(context, left);
 }
 
+bool necro_core_ast_never_inlines(NecroCoreAst* ast)
+{
+    return ast->ast_type == NECRO_CORE_AST_VAR && ast->var.ast_symbol->never_inline;
+}
+
 NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, NecroCoreAst* ast)
 {
     assert(context != NULL);
@@ -1070,14 +1075,14 @@ NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, Nec
     assert(ast->necro_type != NULL);
 
     // Unwrap fully applied wrapper types
-    if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR && ast->app.expr1->var.ast_symbol->is_constructor && ast->app.expr1->var.ast_symbol->is_wrapper)
+    if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR && !necro_core_ast_never_inlines(ast->app.expr1) && ast->app.expr1->var.ast_symbol->is_constructor && ast->app.expr1->var.ast_symbol->is_wrapper)
     {
         // return ast->app.expr2;
         return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast->app.expr2);
     }
 
     // rewrite uops (id, lambda, etc...)
-    else if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->ast_type == NECRO_CORE_AST_LAM)
+    else if ((ast->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->ast_type == NECRO_CORE_AST_LAM) && !necro_core_ast_never_inlines(ast->app.expr1))
     {
         NecroCoreAst* fn      = ast->app.expr1;
         NecroCoreAst* param   = ast->app.expr2;
@@ -1092,7 +1097,7 @@ NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, Nec
     }
 
     // rewrite binops (|>, <|, >>, <<, etc...)
-    else if (ast->app.expr1->ast_type == NECRO_CORE_AST_APP && (ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_LAM))
+    else if (ast->app.expr1->ast_type == NECRO_CORE_AST_APP && (ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_LAM) && !necro_core_ast_never_inlines(ast->app.expr1->app.expr1))
     {
         NecroCoreAst* fn      = ast->app.expr1->app.expr1;
         NecroCoreAst* left    = ast->app.expr1->app.expr2;
@@ -1112,7 +1117,8 @@ NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, Nec
     // rewrite \x y z -> ...
     else if (ast->app.expr1->ast_type == NECRO_CORE_AST_APP &&
             (ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_APP) &&
-            (ast->app.expr1->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_LAM))
+            (ast->app.expr1->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_LAM) &&
+            !necro_core_ast_never_inlines(ast->app.expr1->app.expr1->app.expr1))
     {
         NecroCoreAst* fn = ast->app.expr1->app.expr1->app.expr1;
         NecroCoreAst* x  = ast->app.expr1->app.expr1->app.expr2;

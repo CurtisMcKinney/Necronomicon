@@ -1220,18 +1220,22 @@ audioSampleOffset = 0
 
 
 --------------------
--- Channel
+-- Audio
 --------------------
-data Channel = ChannelEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
+data Audio = AudioEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
 
 outAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
 outAudioBlock c a w = primUndefined
 
-outChannel :: UInt -> Channel -> *World -> *World
+silentBlock :: Array BlockSize F64
+silentBlock =
+  arrayFrom 0
+
+outChannel :: UInt -> Audio -> *World -> *World
 outChannel n c w =
   case c of
-    ChannelEnd  -> w
-    BlockRate _ -> w
+    AudioEnd    -> outAudioBlock n silentBlock w
+    BlockRate _ -> outAudioBlock n silentBlock w
     AudioRate b -> outAudioBlock n b w
 
 audioInitArray :: () -> *Array BlockSize F64
@@ -1239,10 +1243,10 @@ audioInitArray u =
   snd' <| loop (#i, a#) = (#0, unsafeEmptyArray ()#) while i < audioSampleOffset do
     (#i + 1, writeArray (Index i) 0 a#)
 
-mapChannel :: (F64 -> F64) -> Channel -> Channel
-mapChannel f c =
+mapAudio :: (F64 -> F64) -> Audio -> Audio
+mapAudio f c =
   case c of
-    ChannelEnd  -> ChannelEnd
+    AudioEnd    -> AudioEnd
     BlockRate x -> BlockRate (f x)
     AudioRate b ->
       AudioRate
@@ -1252,13 +1256,13 @@ mapChannel f c =
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
 
-mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
-mapChannel2 f cx cy =
+mapAudio2 :: (F64 -> F64 -> F64) -> Audio -> Audio -> Audio
+mapAudio2 f cx cy =
   case cx of
-    ChannelEnd  -> ChannelEnd
+    AudioEnd    -> AudioEnd
     BlockRate x ->
       case cy of
-        ChannelEnd  -> ChannelEnd
+        AudioEnd    -> AudioEnd
         BlockRate y ->
           BlockRate (f x y)
         AudioRate y ->
@@ -1268,7 +1272,7 @@ mapChannel2 f cx cy =
             writeArray i (f x (readArray i y)) a
     AudioRate x ->
       case cy of
-        ChannelEnd  -> ChannelEnd
+        AudioEnd    -> AudioEnd
         BlockRate y ->
           AudioRate
           <| freezeArray
@@ -1286,15 +1290,15 @@ mapChannel2 f cx cy =
 constTrue :: a -> Bool
 constTrue _ = True
 
-accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel
-accumulateChannel1 f isRunningFunc input1 =
+accumulateAudio1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio
+accumulateAudio1 f isRunningFunc input1 =
   case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
+    AudioEnd -> AudioEnd
+    _        ->
       case out of
         (s, a) ->
           case isRunningFunc s of
-            False -> ChannelEnd
+            False -> AudioEnd
             _     -> AudioRate a
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
@@ -1305,7 +1309,7 @@ accumulateChannel1 f isRunningFunc input1 =
           let
             (#state', o'#) =
               case input1 of
-                ChannelEnd          -> (#state, ia#)
+                AudioEnd -> (#state, ia#)
                 BlockRate input1Val ->
                   loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                     case f input1Val s of
@@ -1319,18 +1323,18 @@ accumulateChannel1 f isRunningFunc input1 =
           in
             (state', freezeArray o')
 
-accumulateChannel2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel -> Channel
-accumulateChannel2 f isRunningFunc input1 input2 =
+accumulateAudio2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio -> Audio
+accumulateAudio2 f isRunningFunc input1 input2 =
   case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
+    AudioEnd -> AudioEnd
+    _        ->
       case input2 of
-        ChannelEnd -> ChannelEnd
-        _          ->
+        AudioEnd -> AudioEnd
+        _        ->
           case out of
             (s, a) ->
               case isRunningFunc s of
-                False -> ChannelEnd
+                False -> AudioEnd
                 _     -> AudioRate a
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
@@ -1341,10 +1345,10 @@ accumulateChannel2 f isRunningFunc input1 input2 =
           let
             (#state', o'#) =
               case input1 of
-                ChannelEnd          -> (#state, ia#)
+                AudioEnd -> (#state, ia#)
                 BlockRate input1Val ->
                   case input2 of
-                    ChannelEnd          -> (#state, ia#)
+                    AudioEnd -> (#state, ia#)
                     BlockRate input2Val ->
                       loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                         case f input1Val input2Val s of
@@ -1357,7 +1361,7 @@ accumulateChannel2 f isRunningFunc input1 input2 =
                             (#s', writeArray i x o#)
                 AudioRate input1Buffer ->
                   case input2 of
-                    ChannelEnd          -> (#state, ia#)
+                    AudioEnd -> (#state, ia#)
                     BlockRate input2Val ->
                       loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                         case f (readArray i input1Buffer) input2Val s of
@@ -1371,21 +1375,21 @@ accumulateChannel2 f isRunningFunc input1 input2 =
           in
             (state', freezeArray o')
 
-accumulateChannel3 :: Default s => (F64 -> F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel -> Channel -> Channel
-accumulateChannel3 f isRunningFunc input1 input2 input3 =
+accumulateAudio3 :: Default s => (F64 -> F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio -> Audio -> Audio
+accumulateAudio3 f isRunningFunc input1 input2 input3 =
   case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
+    AudioEnd -> AudioEnd
+    _        ->
       case input2 of
-        ChannelEnd -> ChannelEnd
-        _          ->
+        AudioEnd -> AudioEnd
+        _        ->
           case input3 of
-            ChannelEnd -> ChannelEnd
-            _          ->
+            AudioEnd -> AudioEnd
+            _        ->
               case out of
                 (s, a) ->
                   case isRunningFunc s of
-                    False -> ChannelEnd
+                    False -> AudioEnd
                     _     -> AudioRate a
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
@@ -1396,13 +1400,13 @@ accumulateChannel3 f isRunningFunc input1 input2 input3 =
           let
             (#state', o'#) =
               case input1 of
-                ChannelEnd          -> (#state, ia#)
+                AudioEnd -> (#state, ia#)
                 BlockRate input1Val ->
                   case input2 of
-                    ChannelEnd          -> (#state, ia#)
+                    AudioEnd -> (#state, ia#)
                     BlockRate input2Val ->
                       case input3 of
-                        ChannelEnd          -> (#state, ia#)
+                        AudioEnd -> (#state, ia#)
                         BlockRate input3Val ->
                           loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                             case f input1Val input2Val input3Val s of
@@ -1415,7 +1419,7 @@ accumulateChannel3 f isRunningFunc input1 input2 input3 =
                                 (#s', writeArray i x o#)
                     AudioRate input2Buffer ->
                       case input3 of
-                        ChannelEnd          -> (#state, ia#)
+                        AudioEnd -> (#state, ia#)
                         BlockRate input3Val ->
                           loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                             case f input1Val (readArray i input2Buffer) input3Val s of
@@ -1428,10 +1432,10 @@ accumulateChannel3 f isRunningFunc input1 input2 input3 =
                                 (#s', writeArray i x o#)
                 AudioRate input1Buffer ->
                   case input2 of
-                    ChannelEnd          -> (#state, ia#)
+                    AudioEnd -> (#state, ia#)
                     BlockRate input2Val ->
                       case input3 of
-                        ChannelEnd          -> (#state, ia#)
+                        AudioEnd -> (#state, ia#)
                         BlockRate input3Val ->
                           loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                             case f (readArray i input1Buffer) input2Val input3Val s of
@@ -1444,7 +1448,7 @@ accumulateChannel3 f isRunningFunc input1 input2 input3 =
                                 (#s', writeArray i x o#)
                     AudioRate input2Buffer ->
                       case input3 of
-                        ChannelEnd          -> (#state, ia#)
+                        AudioEnd -> (#state, ia#)
                         BlockRate input3Val ->
                           loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                             case f (readArray i input1Buffer) (readArray i input2Buffer) input3Val s of
@@ -1458,15 +1462,15 @@ accumulateChannel3 f isRunningFunc input1 input2 input3 =
           in
             (state', freezeArray o')
 
-accumulateChannel1U :: (() -> *s) -> (F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Channel -> Channel
-accumulateChannel1U mkState f isRunningFunc input1 =
+accumulateAudio1U :: (() -> *s) -> (F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio
+accumulateAudio1U mkState f isRunningFunc input1 =
   case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
+    AudioEnd -> AudioEnd
+    _        ->
       case out of
         (#isRunning, a#) ->
           case isRunning of
-            False -> ChannelEnd
+            False -> AudioEnd
             _     -> AudioRate a
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
@@ -1477,7 +1481,7 @@ accumulateChannel1U mkState f isRunningFunc input1 =
           let
             (#state', o'#) =
               case input1 of
-                ChannelEnd          -> (#state, ia#)
+                AudioEnd -> (#state, ia#)
                 BlockRate input1Val ->
                   loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                     case f input1Val s of
@@ -1493,18 +1497,18 @@ accumulateChannel1U mkState f isRunningFunc input1 =
             case mutRefPut state'' mref of
               _ -> (#isRunning, freezeArray o'#)
 
-accumulateChannel2U :: (() -> *s) -> (F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Channel -> Channel -> Channel
-accumulateChannel2U mkState f isRunningFunc input1 input2 =
+accumulateAudio2U :: (() -> *s) -> (F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio -> Audio
+accumulateAudio2U mkState f isRunningFunc input1 input2 =
   case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
+    AudioEnd -> AudioEnd
+    _        ->
       case input2 of
-        ChannelEnd -> ChannelEnd
-        _          ->
+        AudioEnd -> AudioEnd
+        _        ->
           case out of
             (#isRunning, a#) ->
               case isRunning of
-                False -> ChannelEnd
+                False -> AudioEnd
                 _     -> AudioRate a
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
@@ -1515,10 +1519,10 @@ accumulateChannel2U mkState f isRunningFunc input1 input2 =
           let
             (#state', o'#) =
               case input1 of
-                ChannelEnd          -> (#state, ia#)
+                AudioEnd -> (#state, ia#)
                 BlockRate input1Val ->
                   case input2 of
-                    ChannelEnd          -> (#state, ia#)
+                    AudioEnd -> (#state, ia#)
                     BlockRate input2Val ->
                       loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                         case f input1Val input2Val s of
@@ -1531,7 +1535,7 @@ accumulateChannel2U mkState f isRunningFunc input1 input2 =
                             (#s', writeArray i x o#)
                 AudioRate input1Buffer ->
                   case input2 of
-                    ChannelEnd          -> (#state, ia#)
+                    AudioEnd -> (#state, ia#)
                     BlockRate input2Val ->
                       loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                         case f (readArray i input1Buffer) input2Val s of
@@ -1548,19 +1552,22 @@ accumulateChannel2U mkState f isRunningFunc input1 input2 =
               _ -> (#isRunning, freezeArray o'#)
 
 
-accumulateChannel3U :: (() -> *s) -> (F64 -> F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Channel -> Channel -> Channel -> Channel
-accumulateChannel3U mkState f isRunningFunc input1 input2 input3 =
+accumulateAudio3U :: (() -> *s) -> (F64 -> F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio -> Audio -> Audio
+accumulateAudio3U mkState f isRunningFunc input1 input2 input3 =
   case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
+    AudioEnd -> AudioEnd
+    _        ->
       case input2 of
-        ChannelEnd -> ChannelEnd
-        _          ->
-          case out of
-            (#isRunning, a#) ->
-              case isRunning of
-                False -> ChannelEnd
-                _     -> AudioRate a
+        AudioEnd -> AudioEnd
+        _        ->
+          case input3 of
+            AudioEnd -> AudioEnd
+            _        ->
+              case out of
+                (#isRunning, a#) ->
+                  case isRunning of
+                    False -> AudioEnd
+                    _     -> AudioRate a
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
@@ -1570,13 +1577,13 @@ accumulateChannel3U mkState f isRunningFunc input1 input2 input3 =
           let
             (#state', o'#) =
               case input1 of
-                ChannelEnd          -> (#state, ia#)
+                AudioEnd -> (#state, ia#)
                 BlockRate input1Val ->
                   case input2 of
-                    ChannelEnd          -> (#state, ia#)
+                    AudioEnd -> (#state, ia#)
                     BlockRate input2Val ->
                       case input3 of
-                        ChannelEnd          -> (#state, ia#)
+                        AudioEnd -> (#state, ia#)
                         BlockRate input3Val ->
                           loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                             case f input1Val input2Val input3Val s of
@@ -1589,7 +1596,7 @@ accumulateChannel3U mkState f isRunningFunc input1 input2 input3 =
                                 (#s', writeArray i x o#)
                     AudioRate input2Buffer ->
                       case input3 of
-                        ChannelEnd          -> (#state, ia#)
+                        AudioEnd -> (#state, ia#)
                         BlockRate input3Val ->
                           loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                             case f input1Val (readArray i input2Buffer) input3Val s of
@@ -1602,10 +1609,10 @@ accumulateChannel3U mkState f isRunningFunc input1 input2 input3 =
                                 (#s', writeArray i x o#)
                 AudioRate input1Buffer ->
                   case input2 of
-                    ChannelEnd          -> (#state, ia#)
+                    AudioEnd -> (#state, ia#)
                     BlockRate input2Val ->
                       case input3 of
-                        ChannelEnd          -> (#state, ia#)
+                        AudioEnd -> (#state, ia#)
                         BlockRate input3Val ->
                           loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                             case f (readArray i input1Buffer) input2Val input3Val s of
@@ -1618,7 +1625,7 @@ accumulateChannel3U mkState f isRunningFunc input1 input2 input3 =
                                 (#s', writeArray i x o#)
                     AudioRate input2Buffer ->
                       case input3 of
-                        ChannelEnd          -> (#state, ia#)
+                        AudioEnd -> (#state, ia#)
                         BlockRate input3Val ->
                           loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                             case f (readArray i input1Buffer) (readArray i input2Buffer) input3Val s of
@@ -1635,13 +1642,13 @@ accumulateChannel3U mkState f isRunningFunc input1 input2 input3 =
               _ -> (#isRunning, freezeArray o'#)
 
 
-instance Eq Channel where
+instance Eq Audio where
   eq x y =
     case x of
-      ChannelEnd ->
+      AudioEnd ->
         case y of
-          ChannelEnd -> True
-          _          -> False
+          AudioEnd -> True
+          _        -> False
 
       BlockRate xv ->
         case y of
@@ -1657,40 +1664,40 @@ instance Eq Channel where
 
   neq x y = not (eq x y)
 
-instance Semiring Channel where
+instance Semiring Audio where
   zero    = BlockRate 0
   one     = BlockRate 1
-  add x y = mapChannel2 add x y
-  mul x y = mapChannel2 mul x y
+  add x y = mapAudio2 add x y
+  mul x y = mapAudio2 mul x y
 
-instance Ring Channel where
-  sub x y   = mapChannel2 sub x y
+instance Ring Audio where
+  sub x y   = mapAudio2 sub x y
   fromInt i = BlockRate (fromInt i)
 
-instance EuclideanRing Channel where
-  div x y = mapChannel2 div x y
-  rem x y = mapChannel2 rem x y
+instance EuclideanRing Audio where
+  div x y = mapAudio2 div x y
+  rem x y = mapAudio2 rem x y
 
-instance DivisionRing Channel where
-  recip x = mapChannel recip x
+instance DivisionRing Audio where
+  recip x = mapAudio recip x
 
-instance Num Channel where
-  signum x  = mapChannel signum x
-  abs x     = mapChannel abs x
+instance Num Audio where
+  signum x  = mapAudio signum x
+  abs x     = mapAudio abs x
 
-instance Field Channel where
+instance Field Audio where
 
-instance Floating Channel where
+instance Floating Audio where
   fromFloat f = BlockRate (fromFloat f)
-  sqrt x      = mapChannel sqrt x
+  sqrt x      = mapAudio sqrt x
 
-instance Semigroup Channel where
+instance Semigroup Audio where
   append x y = x + y
 
-instance Monoid Channel where
+instance Monoid Audio where
   mempty = 0
 
-instance Default Channel where
+instance Default Audio where
   default = 0
 
 
@@ -1771,8 +1778,8 @@ tau = 2 * pi
 -- -- TODO: Finish!
 -- -- TODO: Compute log2n somehow
 -- -- TODO: Windowing function!
--- fftChannel :: Array BlockSize F64 -> FFTWindow -> Array (NatMul BlockSize (NatMax 1 1)) Complex
--- fftChannel a w =
+-- fftAudio :: Array BlockSize F64 -> FFTWindow -> Array (NatMul BlockSize (NatMax 1 1)) Complex
+-- fftAudio a w =
 --   freezeArray <| snd' <|
 --     loop (#i, a0#) = (#0, bitRevFFTArray a w#) while i < audioBlockSizeLog2 do
 --       let
@@ -1804,18 +1811,18 @@ data Mono a      = Mono a
 data Stereo a    = Stereo# a a
 data Quad a      = Quad# a a a a
 data Ambisonic a = Ambisonic# a a a a
-data Audio f     = Audio (f Channel)
+-- data Audio f     = Audio (f Channel)
 
 -- TODO: Equal power panning
 class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
-  accumulate1  :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f
-  accumulate2  :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f -> Audio f
-  accumulate3  :: Default s => (F64 -> F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f -> Audio f -> Audio f
-  accumulate1U :: (() -> *s) -> (F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio f -> Audio f
-  accumulate2U :: (() -> *s) -> (F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio f -> Audio f -> Audio f
-  accumulate3U :: (() -> *s) -> (F64 -> F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio f -> Audio f -> Audio f -> Audio f
-  pan          :: Audio Mono -> Audio f -> Audio Stereo
-  outAudio     :: UInt -> Audio f -> *World -> *World
+  accumulate1  :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> f Audio -> f Audio
+  accumulate2  :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> f Audio -> f Audio -> f Audio
+  accumulate3  :: Default s => (F64 -> F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> f Audio -> f Audio -> f Audio -> f Audio
+  accumulate1U :: (() -> *s) -> (F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio
+  accumulate2U :: (() -> *s) -> (F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio
+  accumulate3U :: (() -> *s) -> (F64 -> F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio -> f Audio
+  pan          :: Mono Audio -> f Audio -> Stereo Audio
+  outAudio     :: UInt -> f Audio -> *World -> *World
 
 instance Functor Mono where
   map f (Mono x) = Mono (f x)
@@ -1834,14 +1841,14 @@ instance Foldable Mono where
   foldl f i (Mono x) = f i x
 
 instance AudioFormat Mono where
-  outAudio  n (Audio (Mono c))  w                                                = outChannel n c w
-  accumulate1 f isRunning (Audio (Mono c))                                       = Audio (Mono (accumulateChannel1 f isRunning c))
-  accumulate2 f isRunning (Audio (Mono x)) (Audio (Mono y))                      = Audio (Mono (accumulateChannel2 f isRunning x y))
-  accumulate3 f isRunning (Audio (Mono x)) (Audio (Mono y)) (Audio (Mono z))     = Audio (Mono (accumulateChannel3 f isRunning x y z))
-  accumulate1U mk f isRunning (Audio (Mono c))                                   = Audio (Mono (accumulateChannel1U mk f isRunning c))
-  accumulate2U mk f isRunning (Audio (Mono x)) (Audio (Mono y))                  = Audio (Mono (accumulateChannel2U mk f isRunning x y))
-  accumulate3U mk f isRunning (Audio (Mono x)) (Audio (Mono y)) (Audio (Mono z)) = Audio (Mono (accumulateChannel3U mk f isRunning x y z))
-  pan (Audio (Mono amount)) (Audio (Mono input))                                 = Audio (Stereo# (input * (1 - amount)) (input * amount))
+  outAudio  n (Mono c)  w                                = outChannel n c w
+  accumulate1 f isRunning (Mono c)                       = Mono (accumulateAudio1 f isRunning c)
+  accumulate2 f isRunning (Mono x) (Mono y)              = Mono (accumulateAudio2 f isRunning x y)
+  accumulate3 f isRunning (Mono x) (Mono y) (Mono z)     = Mono (accumulateAudio3 f isRunning x y z)
+  accumulate1U mk f isRunning (Mono c)                   = Mono (accumulateAudio1U mk f isRunning c)
+  accumulate2U mk f isRunning (Mono x) (Mono y)          = Mono (accumulateAudio2U mk f isRunning x y)
+  accumulate3U mk f isRunning (Mono x) (Mono y) (Mono z) = Mono (accumulateAudio3U mk f isRunning x y z)
+  pan (Mono amount) (Mono input)                         = Stereo# (input * (1 - amount)) (input * amount)
 
 instance Functor Stereo where
   map f (Stereo# x y) = Stereo# (f x) (f y)
@@ -1860,59 +1867,145 @@ instance Foldable Stereo where
   foldl f i (Stereo# l r) = f (f i l) r
 
 instance AudioFormat Stereo where
-  outAudio  n (Audio (Stereo# l r)) w                                                                 = outChannel (n + 1) r (outChannel n l w)
-  accumulate1 f isRunning (Audio (Stereo# l r))                                                       = Audio (Stereo# (accumulateChannel1 f isRunning l) (accumulateChannel1 f isRunning r))
-  accumulate2 f isRunning (Audio (Stereo# xl xr)) (Audio (Stereo# yl yr))                             = Audio (Stereo# (accumulateChannel2 f isRunning xl yl) (accumulateChannel2 f isRunning xr yr))
-  accumulate3 f isRunning (Audio (Stereo# xl xr)) (Audio (Stereo# yl yr)) (Audio (Stereo# zl zr))     = Audio (Stereo# (accumulateChannel3 f isRunning xl yl zl) (accumulateChannel3 f isRunning xr yr zr))
-  accumulate1U mk f isRunning (Audio (Stereo# l r))                                                   = Audio (Stereo# (accumulateChannel1U mk f isRunning l) (accumulateChannel1U mk f isRunning r))
-  accumulate2U mk f isRunning (Audio (Stereo# xl xr)) (Audio (Stereo# yl yr))                         = Audio (Stereo# (accumulateChannel2U mk f isRunning xl yl) (accumulateChannel2U mk f isRunning xr yr))
-  accumulate3U mk f isRunning (Audio (Stereo# xl xr)) (Audio (Stereo# yl yr)) (Audio (Stereo# zl zr)) = Audio (Stereo# (accumulateChannel3U mk f isRunning xl yl zl) (accumulateChannel3U mk f isRunning xr yr zr))
-  pan (Audio (Mono amount)) (Audio (Stereo# l r))                                                     = Audio (Stereo# (l * (1 - amount)) (r * amount))
+  outAudio  n (Stereo# l r) w                                                 = outChannel (n + 1) r (outChannel n l w)
+  accumulate1 f isRunning (Stereo# l r)                                       = Stereo# (accumulateAudio1 f isRunning l) (accumulateAudio1 f isRunning r)
+  accumulate2 f isRunning (Stereo# xl xr) (Stereo# yl yr)                     = Stereo# (accumulateAudio2 f isRunning xl yl) (accumulateAudio2 f isRunning xr yr)
+  accumulate3 f isRunning (Stereo# xl xr) (Stereo# yl yr) (Stereo# zl zr)     = Stereo# (accumulateAudio3 f isRunning xl yl zl) (accumulateAudio3 f isRunning xr yr zr)
+  accumulate1U mk f isRunning (Stereo# l r)                                   = Stereo# (accumulateAudio1U mk f isRunning l) (accumulateAudio1U mk f isRunning r)
+  accumulate2U mk f isRunning (Stereo# xl xr) (Stereo# yl yr)                 = Stereo# (accumulateAudio2U mk f isRunning xl yl) (accumulateAudio2U mk f isRunning xr yr)
+  accumulate3U mk f isRunning (Stereo# xl xr) (Stereo# yl yr) (Stereo# zl zr) = Stereo# (accumulateAudio3U mk f isRunning xl yl zl) (accumulateAudio3U mk f isRunning xr yr zr)
+  pan (Mono amount) (Stereo# l r)                                             = Stereo# (l * (1 - amount)) (r * amount)
 
-instance AudioFormat f => Eq (Audio f) where
-  eq  (Audio x) (Audio y) = foldl (\cond x -> cond && x) True  (map2 eq x y)
-  neq (Audio x) (Audio y) = foldl (\cond x -> cond || x) False (map2 neq x y)
+-- instance AudioFormat f => Eq (Audio f) where
+--   eq  (Audio x) (Audio y) = foldl (\cond x -> cond && x) True  (map2 eq x y)
+--   neq (Audio x) (Audio y) = foldl (\cond x -> cond || x) False (map2 neq x y)
 
-instance AudioFormat f => Semiring (Audio f) where
-  zero                    = Audio (pure 0)
-  one                     = Audio (pure 1)
-  add (Audio x) (Audio y) = Audio (map2 add x y)
-  mul (Audio x) (Audio y) = Audio (map2 mul x y)
+-- instance AudioFormat f => Semiring (Audio f) where
+--   zero                    = Audio (pure 0)
+--   one                     = Audio (pure 1)
+--   add (Audio x) (Audio y) = Audio (map2 add x y)
+--   mul (Audio x) (Audio y) = Audio (map2 mul x y)
 
-instance AudioFormat f => Ring (Audio f) where
-  fromInt i               = Audio (pure (fromInt i))
-  sub (Audio x) (Audio y) = Audio (map2 sub x y)
+-- instance AudioFormat f => Ring (Audio f) where
+--   fromInt i               = Audio (pure (fromInt i))
+--   sub (Audio x) (Audio y) = Audio (map2 sub x y)
 
-instance AudioFormat f => EuclideanRing (Audio f) where
-  div (Audio x) (Audio y) = Audio (map2 div x y)
-  rem (Audio x) (Audio y) = Audio (map2 rem x y)
+-- instance AudioFormat f => EuclideanRing (Audio f) where
+--   div (Audio x) (Audio y) = Audio (map2 div x y)
+--   rem (Audio x) (Audio y) = Audio (map2 rem x y)
 
-instance AudioFormat f => DivisionRing (Audio f) where
-  recip (Audio cs) = Audio (map recip cs)
+-- instance AudioFormat f => DivisionRing (Audio f) where
+--   recip (Audio cs) = Audio (map recip cs)
 
-instance AudioFormat f => Num (Audio f) where
-  signum (Audio c) = Audio (map signum c)
-  abs    (Audio c) = Audio (map abs c)
+-- instance AudioFormat f => Num (Audio f) where
+--   signum (Audio c) = Audio (map signum c)
+--   abs    (Audio c) = Audio (map abs c)
 
-instance AudioFormat f => Field (Audio f) where
+-- instance AudioFormat f => Field (Audio f) where
 
-instance AudioFormat f => Floating (Audio f) where
-  fromFloat f = Audio (pure (fromFloat f))
-  sqrt (Audio x) = Audio (map sqrt x)
+-- instance AudioFormat f => Floating (Audio f) where
+--   fromFloat f = Audio (pure (fromFloat f))
+--   sqrt (Audio x) = Audio (map sqrt x)
 
-instance AudioFormat f => Semigroup (Audio f) where
-  append (Audio x) (Audio y) = Audio (map2 append x y)
+-- instance AudioFormat f => Semigroup (Audio f) where
+--   append (Audio x) (Audio y) = Audio (map2 append x y)
 
-instance AudioFormat f => Monoid (Audio f) where
-  mempty = Audio (pure mempty)
+-- instance AudioFormat f => Monoid (Audio f) where
+--   mempty = Audio (pure mempty)
+
+-- Mono
+instance Eq a => Eq (Mono a) where
+  eq  (Mono x) (Mono y) = eq x y
+  neq (Mono x) (Mono y) = neq x y
+
+instance Semiring a => Semiring (Mono a) where
+  zero                  = Mono zero
+  one                   = Mono one
+  add (Mono x) (Mono y) = Mono (x + y)
+  mul (Mono x) (Mono y) = Mono (x * y)
+
+instance Ring a => Ring (Mono a) where
+  fromInt i             = Mono (fromInt i)
+  sub (Mono x) (Mono y) = Mono (x - y)
+
+instance EuclideanRing a => EuclideanRing (Mono a) where
+  div (Mono x) (Mono y) = Mono (x / y)
+  rem (Mono x) (Mono y) = Mono (rem x y)
+
+instance DivisionRing a => DivisionRing (Mono a) where
+  recip (Mono c) = Mono (recip c)
+
+instance Num a => Num (Mono a) where
+  signum (Mono c) = Mono (signum c)
+  abs    (Mono c) = Mono (abs c)
+
+instance Field a => Field (Mono a) where
+
+instance Floating a => Floating (Mono a) where
+  fromFloat f   = Mono (fromFloat f)
+  sqrt (Mono c) = Mono (sqrt c)
+
+instance Semigroup a => Semigroup (Mono a) where
+  append (Mono x) (Mono y) = Mono (append x y)
+
+instance Monoid a => Monoid (Mono a) where
+  mempty = Mono mempty
+
+-- Stereo
+instance Eq a => Eq (Stereo a) where
+  eq  (Stereo# xl xr) (Stereo# yl yr) = eq xl yl && eq xr yr
+  neq (Stereo# xl xr) (Stereo# yl yr) = neq xl yl || neq xr yr
+
+instance Semiring a => Semiring (Stereo a) where
+  zero                                = Stereo# zero zero
+  one                                 = Stereo# one one
+  add (Stereo# xl xr) (Stereo# yl yr) = Stereo# (xl + yl) (xr + yr)
+  mul (Stereo# xl xr) (Stereo# yl yr) = Stereo# (xl * yl) (xr * yr)
+
+instance Ring a => Ring (Stereo a) where
+  fromInt i                           = let c = fromInt i in Stereo# c c
+  sub (Stereo# xl xr) (Stereo# yl yr) = Stereo# (xl - yl) (xr - yr)
+
+instance EuclideanRing a => EuclideanRing (Stereo a) where
+  div (Stereo# xl xr) (Stereo# yl yr) = Stereo# (xl / yl) (xr / yr)
+  rem (Stereo# xl xr) (Stereo# yl yr) = Stereo# (rem xl yl) (rem xr yr)
+
+instance DivisionRing a => DivisionRing (Stereo a) where
+  recip (Stereo# l r) = Stereo# (recip l) (recip r)
+
+instance Num a => Num (Stereo a) where
+  signum (Stereo# l r) = Stereo# (signum l) (signum r)
+  abs    (Stereo# l r) = Stereo# (abs l) (abs r)
+
+instance Field a => Field (Stereo a) where
+
+instance Floating a => Floating (Stereo a) where
+  fromFloat f        = let c = (fromFloat f) in Stereo# c c
+  sqrt (Stereo# l r) = Stereo# (sqrt l) (sqrt r)
+
+instance Semigroup a => Semigroup (Stereo a) where
+  append (Stereo# xl xr) (Stereo# yl yr)  = Stereo# (append xl yl) (append xr yr)
+
+instance Monoid a => Monoid (Stereo a) where
+  mempty = Stereo# mempty mempty
+
 
 --------------------
 -- UGens
 --------------------
 
-stereo :: Audio Mono -> Audio Mono -> Audio Stereo
-stereo (Audio (Mono l)) (Audio (Mono r)) =
-  Audio (Stereo# l r)
+stereo :: Mono a -> Mono a -> Stereo a
+stereo (Mono l) (Mono r) =
+  Stereo# l r
+
+left :: Stereo a -> Mono a
+left (Stereo# l _) = Mono l
+
+right :: Stereo a -> Mono a
+right (Stereo# _ r) = Mono r
+
+flipStereo :: Stereo a -> Stereo a
+flipStereo (Stereo# l r) = Stereo# r l
 
 -----------
 -- saw
@@ -1925,7 +2018,7 @@ accumulateSaw freq acc =
     out  = fma acc3 2.0 (-1.0)
 
 -- NOTE: Turns out floor is faster than fastFloor???
-saw :: AudioFormat f => Audio f -> Audio f
+saw :: AudioFormat f => f Audio -> f Audio
 saw freq =
   accumulate1 accumulateSaw constTrue freq
 
@@ -1940,7 +2033,7 @@ accumulateTri freq acc =
     saw  = fma acc3 2.0 (-1.0)
     out  = fma (abs saw) 2 (-1.0)
 
-tri :: AudioFormat f => Audio f -> Audio f
+tri :: AudioFormat f => f Audio -> f Audio
 tri freq =
   accumulate1 accumulateTri constTrue freq
 
@@ -1954,7 +2047,7 @@ accumulatePulse width freq acc =
     acc3 = acc2 - floor acc2
     out  = fma (fromInt (boolToInt (acc3 > width))) 2.0 (-1.0)
 
-pulse :: AudioFormat f => Audio f -> Audio f -> Audio f
+pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
 pulse width freq =
   accumulate2 accumulatePulse constTrue width freq
 
@@ -2011,7 +2104,7 @@ percIsRunning :: F64 -> *PercState -> (#*PercState, Bool#)
 percIsRunning totalTime (PercState# a2 b1 grow currTime) =
   (#PercState# a2 b1 grow currTime, currTime < totalTime#)
 
-perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
+perc :: AudioFormat f => F64 -> F64 -> F64 -> f Audio -> f Audio
 perc attackTime decayTime curve input =
   accumulate1U mk update isRunning input
   where
@@ -2049,7 +2142,7 @@ natSecondsToNatBufferSamples _ = NatVal
 mkDelayState :: Seconds s -> () -> *DelayState s
 mkDelayState _ _ = DelayState# (AudioBuffer (arrayFrom 0)) 0 1
 
-delay :: AudioFormat f => Seconds n -> Audio f -> Audio f -> Audio f -> Audio f
+delay :: AudioFormat f => Seconds n -> f Audio -> f Audio -> f Audio -> f Audio
 delay maxDelayTime delayTime mix input =
   accumulate3U (mkDelayState maxDelayTime) (accumulateDelay (natVal (natSecondsToNatBufferSamples maxDelayTime) - 1)) (\s -> (#s, True#)) delayTime mix input
 
@@ -2111,7 +2204,6 @@ mergeSeqValueTimes4 wt wc xt xc yt yc zt zc =
               case zc of
                 SeqPure -> mergeSeqValueTimes3 wt wc xt xc yt yc
                 _       -> min (min (min wt xt) yt) zt
-
 
 instance Enum SeqControl where
   toEnum n =
@@ -2587,23 +2679,23 @@ instance Print a => Print (Seq a) where
                 SeqValue# t c _ ->
                   (#True, t, printBarOnLoop c w'#)
 
-instance Print Channel where
+instance Print Audio where
   print c w =
     case c of
-      ChannelEnd  -> print "ChannelEnd" w
+      AudioEnd    -> print "AudioEnd" w
       BlockRate x -> print "BlockRate " w |> print x
       AudioRate b ->
         print '}' <| loop w' = (print '{' w) for i <- each do
           print (readArray i b) w' |> print ',' |> print ' '
 
-instance Foldable f => Print (Audio f) where
-  print (Audio f) w =
-    print "Audio [" w
-    |> printNewline
-    |> printNewline
-    |> (\w' -> foldl (\w'' c -> print c w'' |> printNewline |> printNewline) w' f)
-    |> print ']'
-    |> printNewline
+-- instance Foldable f => Print (Audio f) where
+--   print (Audio f) w =
+--     print "Audio [" w
+--     |> printNewline
+--     |> printNewline
+--     |> (\w' -> foldl (\w'' c -> print c w'' |> printNewline |> printNewline) w' f)
+--     |> print ']'
+--     |> printNewline
 
 instance Print Complex where
   print (Complex# r i) w =
@@ -2933,8 +3025,8 @@ dynArrayIteratorFree (DynArrayIterator# index array) =
 -- NOTE on Propagation:
 --    * All Type variables are propagating
 --    * In data constructors type variables are always polymorphic in uniqueness
---    * In data constructors monomorphic types are always shared in uniqueness (TODO: Allow users to put anon dots on Monomorphic types so that they share uniqueness with the declared type!)
---    * No uniqueness notation is allowed in data constructors (except for in the future anon dots on type apps and monomorphic types!)
+--    * In data constructors monomorphic types default to shared uniqueness
+--    * Uniqueness notation is allowed in data constructors only on monomorphic type cons
 --    * Higher Kinded Types do not have uniqueness types and do not propagate uniqueness, instead Type Applications have uniqueness types associated with them and are propagating!
 --    * Propagation behavior is enforced by the type of the data constructor function!
 data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
@@ -2961,11 +3053,9 @@ polyThunkInit x sampleOffset (PolyThunk# updateState copyState _ _ _)  =
     (#copyState', x'#) ->
       PolyThunk# updateState copyState' x' PolyThunkInit sampleOffset
 
+-- compiler magic prevents this from inlining, which is required for poly to function properly
 polyThunkEvalGo :: (a -> b) -> a -> b
-polyThunkEvalGo f x =
-  case f x of
-    result ->
-      result
+polyThunkEvalGo f x = f x
 
 polyThunkEval :: (a -> b) -> *PolyThunk a -> (#b, *PolyThunk a#)
 polyThunkEval f t =
@@ -2983,17 +3073,25 @@ class Finite a where
 
 class (Monoid p, Finite p) => Poly p where
 
-instance Finite Channel where
+instance Finite Audio where
   isRunning c =
     case c of
-      ChannelEnd -> False
-      _          -> True
+      AudioEnd -> False
+      _        -> True
 
-instance AudioFormat f => Finite (Audio f) where
-  isRunning (Audio cs) = foldl (\b x -> b && isRunning x) True cs
+instance Finite a => Finite (Mono a) where
+  isRunning (Mono x) = isRunning x
 
-instance Poly Channel where
-instance Poly (Audio f) where
+instance Finite a => Finite (Stereo a) where
+  isRunning (Stereo# l r) = isRunning l && isRunning r
+
+-- instance AudioFormat f => Finite (Audio f) where
+--   isRunning (Audio cs) = foldl (\b x -> b && isRunning x) True cs
+
+instance Poly Audio where
+instance Poly (Mono a) where
+instance Poly a => Poly (Stereo a) where
+-- instance Poly (Audio f) where
 
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
@@ -3002,9 +3100,9 @@ calculateAudioSampleOffset valueTime tickTime =
     Rational# n d =
       (valueTime - (tickTime - audioBlockDelta)) / audioBlockDelta
 
-seqToAudio :: (AudioFormat f) => Seq Float -> Audio f
+seqToAudio :: (AudioFormat f) => Seq Float -> f Audio
 seqToAudio s =
-  Audio (pure (AudioRate (freezeArray aout)))
+  pure (AudioRate (freezeArray aout))
   where
     (#_, aout#) =
       loop (#i0, a#) = (#audioSampleOffset, audioInitArray ()#) while i0 < audioBlockSize do
@@ -3023,6 +3121,7 @@ seqToAudio s =
         in
           (#i1, writeArray (unsafeUIntToIndex i0) (fromFloat value) a#)
 
+-- TODO: poly with 3 arguments?!?!!?
 poly :: Poly b => (a -> b) -> Seq a -> b
 poly f s =
   case mutRefTake (\_ -> dynArrayEmpty 8) of
@@ -3047,7 +3146,7 @@ poly f s =
                           (#True, 0, append acc evalResult, dynArrayIteratorNext thunks2#)
                         else
                           (#True, 0, acc, dynArrayIteratorFree thunks2#)
-                      DynArrayNothing -> (#True, 0, acc, dynArrayIteratorNext thunks2#)
+                      DynArrayNothing -> (#True,  0, acc, dynArrayIteratorNext thunks2#)
                       DynArrayEnd     -> (#False, 0, acc, thunks2#)
       in
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
@@ -3125,7 +3224,12 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --     badSynth f g p = (saw (fromFloat f) + saw (fromFloat g)) * 0.05 |> perc 0.0125 1 1 |> pan (fromFloat p)
 --     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
 
--- TODO: Range with end in range
+    -- drone ~ 0 =
+    --   let feed = right drone |> mul 4000 in
+    --   tri (150 + feed) + tri (200 + feed) + tri (600 + feed) |> perc 30 10 1 |> mul 0.1 |> pan 0.5 |> mul (abs (tri (stereo 1.33334 2)))
+      -- (drone * 1.5)
+
+-- TODO: Reworking Audio setup, look at mach_transform bug with poly!
 -- TODO: Looks like maybe the precedence between (+) and (*) and (|>) is a little wonky?
 testJit :: *World -> *World
 testJit w =

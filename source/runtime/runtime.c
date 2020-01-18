@@ -162,7 +162,7 @@ NecroHeap necro_heap = { .data = NULL, .bump = 0, .capacity = 0 };
 
 NecroHeap necro_heap_create(size_t capacity)
 {
-    return (NecroHeap) { .data = malloc(capacity), .bump = 0, .capacity = capacity };
+    return (NecroHeap) { .data = calloc(capacity, sizeof(uint8_t)), .bump = 0, .capacity = capacity };
 }
 
 void necro_heap_destroy(NecroHeap* heap)

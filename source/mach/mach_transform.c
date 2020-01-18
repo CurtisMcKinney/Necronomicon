@@ -3634,19 +3634,6 @@ void necro_mach_test()
     }
 
     {
-        const char* test_name   = "Unwrap Case 2";
-        const char* test_source = ""
-            "stereo' :: Audio Mono -> Audio Mono -> Audio Stereo\n"
-            "stereo' (Audio ml) (Audio mr) =\n"
-            "  case ml of\n"
-            "    Mono l -> case mr of\n"
-            "      Mono r -> Audio (Stereo# l r)\n"
-            "main :: *World -> *World\n"
-            "main w = w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
         const char* test_name   = "Array 1";
         const char* test_source = ""
             "nothingInThere :: *Array 4 Int\n"
@@ -3703,7 +3690,7 @@ void necro_mach_test()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
@@ -3813,7 +3800,7 @@ void necro_mach_test()
     {
         const char* test_name   = "Poly 0";
         const char* test_source = ""
-            "myCoolSynth :: Audio Mono\n"
+            "myCoolSynth :: Mono Audio\n"
             "myCoolSynth = poly saw [440 220 _ <110 55 _ 330>]\n"
             "main :: *World -> *World\n"
             "main w = w\n";

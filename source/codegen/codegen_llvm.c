@@ -2907,7 +2907,7 @@ void necro_llvm_test()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
@@ -2919,16 +2919,6 @@ void necro_llvm_test()
         const char* test_source = ""
             "main :: *World -> *World\n"
             "main w = print (1 + 2) w\n";
-        necro_llvm_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Audio 1";
-        const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
-            "coolSaw = saw 440\n"
-            "main :: *World -> *World\n"
-            "main w = outAudio 0 coolSaw w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -3358,7 +3348,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = sawOsc 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
@@ -3413,7 +3403,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "AudioOut 2";
         const char* test_source = ""
-            "sawTest :: Stereo\n"
+            "sawTest :: Stereo Audio\n"
             "sawTest = pan (fromInt mouseX / 150) (sawOsc 440)\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 sawTest w\n";
@@ -3423,7 +3413,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = saw (saw 0.05 * 3980 + 4000) * 0.25\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -3435,7 +3425,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 2";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = saw (saw 0.1 * 750 + 1000 + saw (saw 0.22 * 10 + 15) * (saw 0.15 * 60 + 240)) * 0.25\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -3790,7 +3780,7 @@ void necro_llvm_test_jit()
     /* { */
     /*     const char* test_name   = "Print Saw"; */
     /*     const char* test_source = "" */
-    /*         "coolSaw :: Audio Stereo\n" */
+    /*         "coolSaw :: Stereo Audio\n" */
     /*         "coolSaw = saw 440 * 0.25 |> perc 2 5 1\n" */
     /*         "main :: *World -> *World\n" */
     /*         "main w = outAudio 0 coolSaw w\n"; */
@@ -3820,7 +3810,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 3";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = (saw 300 + saw (saw 0.05 * 1940 + 2000)) * 0.125\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -3832,7 +3822,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 4 - Stereo Pan";
         const char* test_source = ""
-            "coolSaw :: Stereo\n"
+            "coolSaw :: Stereo Audio\n"
             "coolSaw = pan (fromInt mouseX / 150) (stereo (saw 440) (saw 880))\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
@@ -3842,7 +3832,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 4";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = saw (fromInt mouseX * 4) * 0.25\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -3921,7 +3911,7 @@ void necro_llvm_test_compile()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";

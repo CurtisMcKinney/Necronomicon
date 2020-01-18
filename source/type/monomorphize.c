@@ -892,8 +892,8 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Left Section";
         const char* test_source = ""
-            "left :: Int -> Int \n"
-            "left = (10+)\n";
+            "left' :: Int -> Int \n"
+            "left' = (10+)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
@@ -901,8 +901,8 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Right Section";
         const char* test_source = ""
-            "right :: Float -> Float \n"
-            "right = (*33.3)\n";
+            "right' :: Float -> Float \n"
+            "right' = (*33.3)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
@@ -1193,9 +1193,9 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Pattern Assignment 1";
         const char* test_source = ""
-            "(left, right) = (1, 2.0)\n"
+            "(left', right') = (1, 2.0)\n"
             "leftPlus :: Float -> Float\n"
-            "leftPlus x = left\n";
+            "leftPlus x = left'\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
@@ -1204,8 +1204,8 @@ void necro_monomorphize_test()
         const char* test_name   = "Pattern Assignment 2";
         const char* test_source = ""
             "fstP:: (a, b) -> a\n"
-            "fstP x = left where\n"
-            "  (left, _) = x\n"
+            "fstP x = left' where\n"
+            "  (left', _) = x\n"
             "unitFirst :: ()\n"
             "unitFirst = fstP ((), True)\n"
             "intFirst :: Int\n"
@@ -1217,8 +1217,8 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Pattern Assignment 2";
         const char* test_source = ""
-            "leftRight = (left, right) where\n"
-            "  (left, right) = (1, 2.0)\n"
+            "leftRight = (left', right') where\n"
+            "  (left', right') = (1, 2.0)\n"
             "intFloat :: (Int, Float)\n"
             "intFloat = leftRight\n"
             "rationalFloat :: (Float, Float)\n"

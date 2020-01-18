@@ -1983,12 +1983,12 @@ flipStereo (Stereo# l r) = Stereo# r l
 -----------
 -- saw
 accumulateSaw :: F64 -> F64 -> (#F64, F64#)
-accumulateSaw freq acc =
-  (#acc3, out#)
+accumulateSaw freq phase0 =
+  (#phase1, out#)
   where
-    acc2 = fma freq recipSampleRate acc
-    acc3 = acc2 - floor acc2
-    out  = fma acc3 2.0 (-1.0)
+    phase1 = fma freq recipSampleRate phase0
+    phase2 = phase1 - floor phase1
+    out    = fma phase2 2.0 (-1.0)
 
 -- NOTE: Turns out floor is faster than fastFloor???
 saw :: AudioFormat f => f Audio -> f Audio
@@ -1998,13 +1998,13 @@ saw freq =
 -----------
 -- tri
 accumulateTri :: F64 -> F64 -> (#F64, F64#)
-accumulateTri freq acc =
-  (#acc3, out#)
+accumulateTri freq phase0 =
+  (#phase1, out#)
   where
-    acc2 = fma freq recipSampleRate acc
-    acc3 = acc2 - floor acc2
-    saw  = fma acc3 2.0 (-1.0)
-    out  = fma (abs saw) 2 (-1.0)
+    phase1 = fma freq recipSampleRate phase0
+    phase2 = phase1 - floor phase1
+    saw    = fma phase2 2.0 (-1.0)
+    out    = fma (abs saw) 2 (-1.0)
 
 tri :: AudioFormat f => f Audio -> f Audio
 tri freq =
@@ -2013,12 +2013,12 @@ tri freq =
 -----------
 -- pulse
 accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
-accumulatePulse width freq acc =
-  (#acc3, out#)
+accumulatePulse width freq phase0 =
+  (#phase1, out#)
   where
-    acc2 = fma freq recipSampleRate acc
-    acc3 = acc2 - floor acc2
-    out  = fma (fromInt (boolToInt (acc3 > width))) 2.0 (-1.0)
+    phase1 = fma freq recipSampleRate phase0
+    phase2 = phase1 - floor phase1
+    out    = fma (fromInt (boolToInt (phase2 > width))) 2.0 (-1.0)
 
 pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
 pulse width freq =
@@ -2110,9 +2110,9 @@ mkSyncState _ = SyncState# 0 1 1
 -- NOTE: Reversing style sync (Maybe also try advance sync?)
 accumulateSyncSaw :: F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
 accumulateSyncSaw sync freq (SyncState# phase0 direction0 prevSync) =
-  (#SyncState# phase2 direction1 sync, out#)
+  (#SyncState# phase1 direction1 sync, out#)
   where
-    change     = fromInt <| boolToInt <| prevSync <= 0 && sync > 0
+    change     = fromInt <| boolToInt <| ((prevSync <= 0 && sync > 0) || (prevSync >= 0 && sync < 0))
     direction1 = change * (negate direction0) + (1 - change) * direction0
     phase1     = fma freq (recipSampleRate * direction1) phase0
     phase2     = phase1 - floor phase1
@@ -2124,9 +2124,9 @@ syncSaw sync freq =
 
 accumulateSyncTri :: F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
 accumulateSyncTri sync freq (SyncState# phase0 direction0 prevSync) =
-  (#SyncState# phase2 direction1 sync, out#)
+  (#SyncState# phase1 direction1 sync, out#)
   where
-    change     = fromInt <| boolToInt <| prevSync <= 0 && sync > 0
+    change     = fromInt <| boolToInt <| ((prevSync <= 0 && sync > 0) || (prevSync >= 0 && sync < 0))
     direction1 = change * (negate direction0) + (1 - change) * direction0
     phase1     = fma freq (recipSampleRate * direction1) phase0
     phase2     = phase1 - floor phase1
@@ -2139,9 +2139,9 @@ syncTri sync freq =
 
 accumulateSyncPulse :: F64 -> F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
 accumulateSyncPulse sync width freq (SyncState# phase0 direction0 prevSync) =
-  (#SyncState# phase2 direction1 sync, out#)
+  (#SyncState# phase1 direction1 sync, out#)
   where
-    change     = fromInt <| boolToInt <| prevSync <= 0 && sync > 0
+    change     = fromInt <| boolToInt <| ((prevSync <= 0 && sync > 0) || (prevSync >= 0 && sync < 0))
     direction1 = change * (negate direction0) + (1 - change) * direction0
     phase1     = fma freq (recipSampleRate * direction1) phase0
     phase2     = phase1 - floor phase1
@@ -2157,7 +2157,7 @@ accumulateSyncWave :: WaveTable -> F64 -> F64 -> *SyncState -> (#*SyncState, F64
 accumulateSyncWave (WaveTable buffer) sync freq (SyncState# phase0 direction0 prevSync) =
   (#SyncState# phase1 direction1 sync, out#)
   where
-    change     = fromInt <| boolToInt <| prevSync <= 0 && sync > 0
+    change     = fromInt <| boolToInt <| ((prevSync <= 0 && sync > 0) || (prevSync >= 0 && sync < 0))
     direction1 = change * (negate direction0) + (1 - change) * direction0
     phase1     = fma freq (recipSampleRate * direction1) phase0
     findex     = phase1 * 65536
@@ -3290,24 +3290,24 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --       |> mul 0.1
 --       |> mixStereo
 
-testJit :: *World -> *World
-testJit w =
-  outAudio 0 osc w
-  where
-    sync = saw (perc 5 5 1 200 + 40)
-    osc  =
-      syncTri sync 350
-      |> perc 5 5 -1
-      |> mul 0.2
-      |> mixStereo
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     sync = pulse 0.3125 (perc 5 5 -1 300 + 100)
+--     osc  =
+--       syncTri sync 400
+--       |> perc 5 5 -1
+--       |> mul 0.2
+--       |> mixStereo
 
 -- testJit :: *World -> *World
 -- testJit w =
 --   outAudio 0 osc w
 --   where
---     sync = saw (perc 5 5 1 400 + 200)
+--     sync = pulse 0.3125 (perc 5 5 -1 100 + 40)
 --     osc  =
---       syncPulse 0.25 sync 500
+--       syncPulse 0.5 sync 400
 --       |> perc 5 5 -1
 --       |> mul 0.125
 --       |> mixStereo
@@ -3316,9 +3316,20 @@ testJit w =
 -- testJit w =
 --   outAudio 0 osc w
 --   where
---     sync = saw (perc 5 5 1 225 + 60)
+--     sync = pulse (sin 0.2 * 0.125 + 0.5) (perc 5 5 -1 300 + 100)
 --     osc  =
---       syncSaw sync 500
+--       syncSaw sync 400
+--       |> perc 5 5 -1
+--       |> mul 0.125
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     sync = pulse 0.3125 (perc 5 5 -1 300 + 100)
+--     osc  =
+--       syncSin sync 400
 --       |> perc 5 5 -1
 --       |> mul 0.125
 --       |> mixStereo
@@ -3328,56 +3339,45 @@ testJit w =
 --   outAudio 0 osc w
 --   where
 --     osc =
---       let feed ~ 0 = syncTri (delay oneSec 0.333334 0.0 feed) (100 + sin 2.0 * 50 + sin 0.1 * 10 + feed * -25) in
+--       let feed ~ 0 = syncTri feed (stereo 660 500 + sin 2.0 * 50 + sin 0.1 * -50 + (delay oneSec 0.25 0.4 <| feed * -60)) in
 --       feed
---       |> perc 5 5 -1
---       |> mul 0.125
---       |> mixStereo
+--       |> delay oneSec 0.25 0.2
+--       |> perc 5 20 -1
+--       |> mul 0.5
 
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 osc w
---   where
---     sync = saw (perc 5 5 1 225 + 60)
---     osc  =
---       syncSin sync 500
---       |> perc 5 5 -1
---       |> mul 0.125
---       |> mixStereo
-
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 badAudio w
---   where
---     freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
---     freqMul2  = sin 0.14 *  0.0035 + sin 0.5 * -0.00025 + 0.5
---     freqMul3  = sin 0.23 * -0.0035 + sin 0.4 *  0.00025 + 0.5
---     beatSpeed = 3 // 2
---     badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
---     badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ _ _ 0.25 0.5 0.75 1 1.5]))
---     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
---     badSynth1 f =
---       tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (sin (fromFloat f) * 0.75)
---       |> mul 0.1
---       |> perc 0.01 3.0 -3.0
---       |> pan 0.375
---     badSynth2 f =
---       tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.3)
---       |> mul 0.08
---       |> perc 0.025 4.0 -2.25
---       |> pan 0.625
---     bassSynth f =
---       sin (fromFloat (f * 0.5)) + tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))
---       |> mul 0.09
---       |> perc 0.005 5 -1.75
---       |> mixStereo
---     synths =
---       poly badSynth1 badBeat1 +
---       poly badSynth2 badBeat2
---       |> delay oneSec 0.6666667 0.6
---     badAudio =
---       poly bassSynth badBeat3 +
---       synths
+testJit :: *World -> *World
+testJit w =
+  outAudio 0 badAudio w
+  where
+    freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
+    freqMul2  = sin 0.14 *  0.0035 + sin 0.5 * -0.00025 + 0.5
+    freqMul3  = sin 0.23 * -0.0035 + sin 0.4 *  0.00025 + 0.5
+    beatSpeed = 3 // 2
+    badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
+    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ _ _ 0.25 0.5 0.75 1 1.5]))
+    badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
+    badSynth1 f =
+      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (sin (fromFloat f) * 0.75)
+      |> mul 0.11
+      |> perc 0.01 3.0 -3.0
+      |> pan 0.375
+    badSynth2 f =
+      tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.3)
+      |> mul 0.09
+      |> perc 0.025 4.0 -2.25
+      |> pan 0.625
+    bassSynth f =
+      sin (fromFloat (f * 0.5)) + tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))
+      |> mul 0.1
+      |> perc 0.005 5 -1.75
+      |> mixStereo
+    synths =
+      poly badSynth1 badBeat1 +
+      poly badSynth2 badBeat2
+      |> delay oneSec 0.6666667 0.6
+    badAudio =
+      poly bassSynth badBeat3 +
+      synths
 
 -- testJit :: *World -> *World
 -- testJit w = print one w

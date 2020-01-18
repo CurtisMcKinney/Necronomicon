@@ -1566,22 +1566,9 @@ void necro_core_ast_pre_simplify_test()
     {
         const char* test_name   = "Unwrap Case 1";
         const char* test_source = ""
-            "x :: Channel\n"
+            "x :: Audio\n"
             "x = case Mono (BlockRate 440) of\n"
             "  Mono c -> c\n";
-        necro_core_ast_pre_simplfy_test(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Unwrap Case 2";
-        const char* test_source = ""
-            "stereo' :: Audio Mono -> Audio Mono -> Audio Stereo\n"
-            "stereo' (Audio ml) (Audio mr) =\n"
-            "  case ml of\n"
-            "    Mono l -> case mr of\n"
-            "      Mono r -> Audio (Stereo# l r)\n"
-            "main :: *World -> *World\n"
-            "main w = w\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
 
@@ -1758,7 +1745,7 @@ void necro_core_ast_pre_simplify_test()
     {
         const char* test_name   = "Panic";
         const char* test_source = ""
-            "panic666 :: Audio Stereo\n"
+            "panic666 :: Stereo Audio\n"
             "panic666 = pan 0.25 (440 * 33)\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
@@ -1793,7 +1780,7 @@ void necro_core_ast_pre_simplify_test()
     {
         const char* test_name   = "Reading Rainbow";
         const char* test_source = ""
-            "readingRainbow :: Array 4 (Audio Mono) -> Audio Mono\n"
+            "readingRainbow :: Array 4 (Mono Audio) -> Mono Audio\n"
             "readingRainbow a =\n"
             "  loop x = 0 for i <- each do\n"
             "    readArray i a + x\n";
@@ -1839,14 +1826,6 @@ void necro_core_ast_pre_simplify_test()
             "main w = w\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
-
-    // {
-    //     const char* test_name   = "Map Audio";
-    //     const char* test_source = ""
-    //         "x :: Mono\n"
-    //         "x = mapAudio id
-    //     necro_core_ast_pre_simplfy_test(test_name, test_source);
-    // }
 
     // TODO: Finish!
     // {

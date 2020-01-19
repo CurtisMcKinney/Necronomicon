@@ -219,7 +219,7 @@ static size_t             necro_runtime_audio_num_input_channels  = 0;
 static size_t             necro_runtime_audio_sample_rate         = 48000;
 static size_t             necro_runtime_audio_block_size          = 256;
 #define                   necro_runtime_audio_oversample_amt      32
-static double             necro_runtime_audio_brick_wall_cutoff   = 18500.0;
+static double             necro_runtime_audio_brick_wall_cutoff   = 20000.0;
 static double             necro_runtime_audio_start_time          = 0.0;
 static double             necro_runtime_audio_curr_time           = 0.0;
 static PaStream*          necro_runtime_audio_pa_stream           = NULL;

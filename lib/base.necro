@@ -1988,7 +1988,7 @@ accumulateSaw freq phase0 =
   where
     phase1 = fma freq recipSampleRate phase0
     phase2 = phase1 - floor phase1
-    out    = fma phase2 2.0 (-1.0)
+    out    = fma phase2 2 -1
 
 -- NOTE: Turns out floor is faster than fastFloor???
 saw :: AudioFormat f => f Audio -> f Audio
@@ -2003,8 +2003,8 @@ accumulateTri freq phase0 =
   where
     phase1 = fma freq recipSampleRate phase0
     phase2 = phase1 - floor phase1
-    saw    = fma phase2 2.0 (-1.0)
-    out    = fma (abs saw) 2 (-1.0)
+    saw    = fma phase2 2 -1
+    out    = fma (abs saw) 2 -1
 
 tri :: AudioFormat f => f Audio -> f Audio
 tri freq =
@@ -2018,7 +2018,7 @@ accumulatePulse width freq phase0 =
   where
     phase1 = fma freq recipSampleRate phase0
     phase2 = phase1 - floor phase1
-    out    = fma (fromInt (boolToInt (phase2 > width))) 2.0 (-1.0)
+    out    = fma (fromInt (boolToInt (phase2 > width))) 2 -1
 
 pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
 pulse width freq =
@@ -2183,6 +2183,114 @@ syncWave buffer sync freq =
 syncSin :: AudioFormat f => f Audio -> f Audio -> f Audio
 syncSin sync freq = syncWave sinTable sync freq
 
+
+-----------
+-- Super Osc
+-- Based on Roland JP-8000 super saw oscillator design
+data SuperSawState = SuperSawState# F64 F64 F64 F64 F64 F64 F64
+
+mkSuperSawState :: () -> *SuperSawState
+mkSuperSawState _ = SuperSawState# 0.260786585 0.087023334 0.866947809 0.392499353 0.728213602 0.122864975 0.167605335
+
+accumulateSuperSaw :: F64 -> F64 -> F64 -> *SuperSawState -> (#*SuperSawState, F64#)
+accumulateSuperSaw freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD0 phaseE0 phaseF0 phaseG0) =
+  (#SuperSawState# phaseA1 phaseB1 phaseC1 phaseD1 phaseE1 phaseF1 phaseG1, out#)
+  where
+    freqA   = freq * (fma depth -0.11002313 1)
+    freqB   = freq * (fma depth -0.06288439 1)
+    freqC   = freq * (fma depth -0.01952356 1)
+    freqD   = freq
+    freqE   = freq * (fma depth 0.01991221 1)
+    freqF   = freq * (fma depth 0.06216538 1)
+    freqG   = freq * (fma depth 0.10745242 1)
+    phaseA1 = fma freqA recipSampleRate phaseA0
+    phaseB1 = fma freqB recipSampleRate phaseB0
+    phaseC1 = fma freqC recipSampleRate phaseC0
+    phaseD1 = fma freqD recipSampleRate phaseD0
+    phaseE1 = fma freqE recipSampleRate phaseE0
+    phaseF1 = fma freqF recipSampleRate phaseF0
+    phaseG1 = fma freqG recipSampleRate phaseG0
+    sideMix = mix * 0.5
+    oscA    = fma (phaseA1 - floor phaseA1) 2 -1 * sideMix
+    oscB    = fma (phaseB1 - floor phaseB1) 2 -1 * sideMix
+    oscC    = fma (phaseC1 - floor phaseC1) 2 -1 * sideMix
+    oscD    = fma (phaseD1 - floor phaseD1) 2 -1 * (1 - mix * 0.75)
+    oscE    = fma (phaseE1 - floor phaseE1) 2 -1 * sideMix
+    oscF    = fma (phaseF1 - floor phaseF1) 2 -1 * sideMix
+    oscG    = fma (phaseG1 - floor phaseG1) 2 -1 * sideMix
+    out     = oscA + oscB + oscC + oscD + oscE + oscF + oscG
+
+-- NOTE: Turns out floor is faster than fastFloor???
+superSaw :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+superSaw freq depth mix =
+  accumulate3U mkSuperSawState accumulateSuperSaw constTrue' freq depth mix
+
+accumulateSuperPulse :: F64 -> F64 -> F64 -> *SuperSawState -> (#*SuperSawState, F64#)
+accumulateSuperPulse freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD0 phaseE0 phaseF0 phaseG0) =
+  (#SuperSawState# phaseA1 phaseB1 phaseC1 phaseD1 phaseE1 phaseF1 phaseG1, out#)
+  where
+    width   = 0.5 -- need accumulate4U to make this another parameter
+    freqA   = freq * (fma depth -0.11002313 1)
+    freqB   = freq * (fma depth -0.06288439 1)
+    freqC   = freq * (fma depth -0.01952356 1)
+    freqD   = freq
+    freqE   = freq * (fma depth 0.01991221 1)
+    freqF   = freq * (fma depth 0.06216538 1)
+    freqG   = freq * (fma depth 0.10745242 1)
+    phaseA1 = fma freqA recipSampleRate phaseA0
+    phaseB1 = fma freqB recipSampleRate phaseB0
+    phaseC1 = fma freqC recipSampleRate phaseC0
+    phaseD1 = fma freqD recipSampleRate phaseD0
+    phaseE1 = fma freqE recipSampleRate phaseE0
+    phaseF1 = fma freqF recipSampleRate phaseF0
+    phaseG1 = fma freqG recipSampleRate phaseG0
+    sideMix = mix * 0.5
+    oscA    = fma (fromInt <| boolToInt <| (phaseA1 - floor phaseA1) > width) 2 -1 * sideMix
+    oscB    = fma (fromInt <| boolToInt <| (phaseB1 - floor phaseB1) > width) 2 -1 * sideMix
+    oscC    = fma (fromInt <| boolToInt <| (phaseC1 - floor phaseC1) > width) 2 -1 * sideMix
+    oscD    = fma (fromInt <| boolToInt <| (phaseD1 - floor phaseD1) > width) 2 -1 * (1 - mix * 0.75)
+    oscE    = fma (fromInt <| boolToInt <| (phaseE1 - floor phaseE1) > width) 2 -1 * sideMix
+    oscF    = fma (fromInt <| boolToInt <| (phaseF1 - floor phaseF1) > width) 2 -1 * sideMix
+    oscG    = fma (fromInt <| boolToInt <| (phaseG1 - floor phaseG1) > width) 2 -1 * sideMix
+    out     = oscA + oscB + oscC + oscD + oscE + oscF + oscG
+
+-- NOTE: Turns out floor is faster than fastFloor???
+superPulse :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+superPulse freq depth mix =
+  accumulate3U mkSuperSawState accumulateSuperPulse constTrue' freq depth mix
+
+accumulateSuperTri :: F64 -> F64 -> F64 -> *SuperSawState -> (#*SuperSawState, F64#)
+accumulateSuperTri freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD0 phaseE0 phaseF0 phaseG0) =
+  (#SuperSawState# phaseA1 phaseB1 phaseC1 phaseD1 phaseE1 phaseF1 phaseG1, out#)
+  where
+    freqA   = freq * (fma depth -0.11002313 1)
+    freqB   = freq * (fma depth -0.06288439 1)
+    freqC   = freq * (fma depth -0.01952356 1)
+    freqD   = freq
+    freqE   = freq * (fma depth 0.01991221 1)
+    freqF   = freq * (fma depth 0.06216538 1)
+    freqG   = freq * (fma depth 0.10745242 1)
+    phaseA1 = fma freqA recipSampleRate phaseA0
+    phaseB1 = fma freqB recipSampleRate phaseB0
+    phaseC1 = fma freqC recipSampleRate phaseC0
+    phaseD1 = fma freqD recipSampleRate phaseD0
+    phaseE1 = fma freqE recipSampleRate phaseE0
+    phaseF1 = fma freqF recipSampleRate phaseF0
+    phaseG1 = fma freqG recipSampleRate phaseG0
+    sideMix = mix * 0.5
+    oscA    = fma (abs (fma (phaseA1 - floor phaseA1) 2 -1)) 2 -1 * sideMix
+    oscB    = fma (abs (fma (phaseB1 - floor phaseB1) 2 -1)) 2 -1 * sideMix
+    oscC    = fma (abs (fma (phaseC1 - floor phaseC1) 2 -1)) 2 -1 * sideMix
+    oscD    = fma (abs (fma (phaseD1 - floor phaseD1) 2 -1)) 2 -1 * (1 - mix * 0.75)
+    oscE    = fma (abs (fma (phaseE1 - floor phaseE1) 2 -1)) 2 -1 * sideMix
+    oscF    = fma (abs (fma (phaseF1 - floor phaseF1) 2 -1)) 2 -1 * sideMix
+    oscG    = fma (abs (fma (phaseG1 - floor phaseG1) 2 -1)) 2 -1 * sideMix
+    out     = oscA + oscB + oscC + oscD + oscE + oscF + oscG
+
+-- NOTE: Turns out floor is faster than fastFloor???
+superTri :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+superTri freq depth mix =
+  accumulate3U mkSuperSawState accumulateSuperPulse constTrue' freq depth mix
 
 -----------
 -- delay
@@ -3297,20 +3405,48 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --       |> perc 5 5 -1
 --       |> mul 0.1
 --       |> mixStereo
+--
 
-    -- sync = pulse 0.3125 (perc 15 15 0.1 2000 + 100)
-    -- sync = pulse 0.3125 (perc 5 5 -1 100 + 40)
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio =
+--       superSaw 440 0.125 0.6
+--       |> perc 5 5 -1
+--       |> mul 0.08
+--       |> mixStereo
 
-testJit :: *World -> *World
-testJit w =
-  outAudio 0 osc w
-  where
-    sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 200 |> seqSpeed 6 |> seqToAudio |> pulse (0.5 + sin 0.125 * 0.125)
-    osc  =
-      syncTri sync 200
-      |> perc 5 15 0.1
-      |> mul 0.2
-      |> mixStereo
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio =
+--       superPulse 440 0.125 0.6
+--       |> perc 5 5 -1
+--       |> mul 0.08
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio =
+--       superTri 440 0.125 0.6
+--       |> perc 5 5 -1
+--       |> mul 0.08
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 200 |> seqSpeed 6 |> seqToAudio |> pulse (0.5 + sin 0.125 * 0.125)
+--     osc  =
+--       syncTri sync 200
+--       |> perc 5 15 0.1
+--       |> mul 0.2
+--       |> mixStereo
 
 -- testJit :: *World -> *World
 -- testJit w =
@@ -3327,9 +3463,9 @@ testJit w =
 -- testJit w =
 --   outAudio 0 osc w
 --   where
---     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 100 |> seqSpeed 6 |> seqToAudio |> pulse (0.5 + sin 0.125 * 0.125)
+--     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 240 |> seqSpeed 6 |> seqToAudio |> pulse (0.5 + sin 0.2 * 0.35)
 --     osc  =
---       syncSaw sync 0.5 50
+--       syncSaw sync 0.495 80
 --       |> perc 5 5 -1
 --       |> mul 0.125
 --       |> mixStereo
@@ -3356,39 +3492,39 @@ testJit w =
 --       |> perc 5 20 -1
 --       |> mul 0.5
 
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 badAudio w
---   where
---     freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
---     freqMul2  = sin 0.14 *  0.0035 + sin 0.5 * -0.00025 + 0.5
---     freqMul3  = sin 0.23 * -0.0035 + sin 0.4 *  0.00025 + 0.5
---     beatSpeed = 3 // 2
---     badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
---     badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ _ _ 0.25 0.5 0.75 1 1.5]))
---     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
---     badSynth1 f =
---       tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (sin (fromFloat f) * 0.75)
---       |> mul 0.11
---       |> perc 0.01 3.0 -3.0
---       |> pan 0.375
---     badSynth2 f =
---       tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.3)
---       |> mul 0.09
---       |> perc 0.025 4.0 -2.25
---       |> pan 0.625
---     bassSynth f =
---       sin (fromFloat (f * 0.5)) + tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))
---       |> mul 0.1
---       |> perc 0.005 5 -1.75
---       |> mixStereo
---     synths =
---       poly badSynth1 badBeat1 +
---       poly badSynth2 badBeat2
---       |> delay oneSec 0.6666667 0.6
---     badAudio =
---       poly bassSynth badBeat3 +
---       synths
+testJit :: *World -> *World
+testJit w =
+  outAudio 0 badAudio w
+  where
+    freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
+    freqMul2  = sin 0.14 *  0.0035 + sin 0.5 * -0.00025 + 0.5
+    freqMul3  = sin 0.23 * -0.0035 + sin 0.4 *  0.00025 + 0.5
+    beatSpeed = 3 // 2
+    badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
+    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ _ _ 0.25 0.5 0.75 1 1.5]))
+    badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
+    badSynth1 f =
+      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (sin (fromFloat f) * 0.75)
+      |> mul 0.11
+      |> perc 0.01 3.0 -3.0
+      |> pan 0.375
+    badSynth2 f =
+      tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.3)
+      |> mul 0.09
+      |> perc 0.025 4.0 -2.25
+      |> pan 0.625
+    bassSynth f =
+      sin (fromFloat (f * 0.5)) + tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))
+      |> mul 0.075
+      |> perc 0.005 5 -1.75
+      |> mixStereo
+    synths =
+      poly badSynth1 badBeat1 +
+      poly badSynth2 badBeat2
+      |> delay oneSec 0.6666667 0.6
+    badAudio =
+      poly bassSynth badBeat3 +
+      synths
 
 -- testJit :: *World -> *World
 -- testJit w = print one w

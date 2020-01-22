@@ -210,7 +210,8 @@ typedef struct NecroMachDef
     struct NecroMachAst*  mk_fn;
     struct NecroMachAst*  init_fn;
     struct NecroMachAst*  update_fn;
-    NecroMachBlock*       update_error_block;
+    struct NecroMachAst*  update_error_tag_phi;
+    struct NecroMachAst*  update_error_tag_value;
     NECRO_STATE_TYPE      state_type;
     struct NecroMachAst*  outer;
     NecroType*            necro_value_type;
@@ -486,6 +487,7 @@ typedef struct NecroMachRuntime
     NecroMachAstSymbol* necro_init_runtime;
     NecroMachAstSymbol* necro_update_runtime;
     NecroMachAstSymbol* necro_error_exit;
+    NecroMachAstSymbol* necro_inexhaustive_case_exit;
     NecroMachAstSymbol* necro_sleep;
     NecroMachAstSymbol* necro_print;
     NecroMachAstSymbol* necro_debug_print;
@@ -502,6 +504,7 @@ typedef struct NecroMachRuntime
     // NecroMachAstSymbol* necro_runtime_print_audio_block;
     NecroMachAstSymbol* necro_runtime_test_assertion;
     NecroMachAstSymbol* necro_runtime_panic;
+    NecroMachAstSymbol* necro_runtime_print_string;
     // NOTE: Don't forget to add mappings to mach_ast.c and codegen_llvm.c when you add new runtime symbols
 } NecroMachRuntime;
 
@@ -535,6 +538,7 @@ typedef struct NecroMachProgram
     NecroMachAst*           program_main;
     size_t                  clash_suffix;
     NecroMachRuntime        runtime;
+    NecroMachAstSymbol*     current_binding;
 } NecroMachProgram;
 
 
@@ -647,5 +651,6 @@ void             necro_mach_program_add_struct(NecroMachProgram* program, NecroM
 void             necro_mach_program_add_function(NecroMachProgram* program, NecroMachAst* function);
 void             necro_mach_program_add_machine_def(NecroMachProgram* program, NecroMachAst* machine_def);
 void             necro_mach_program_add_global(NecroMachProgram* program, NecroMachAst* global);
+NecroMachAst*    necro_mach_create_string_global_constant(NecroMachProgram* program, NecroSymbol string_symbol);
 
 #endif // NECRO_MACH_H

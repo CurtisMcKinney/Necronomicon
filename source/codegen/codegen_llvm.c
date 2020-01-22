@@ -17,6 +17,7 @@
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Support.h>
 #include <llvm-c/ExecutionEngine.h>
+#include <llvm-c/DebugInfo.h>
 
 #include "alias_analysis.h"
 #include "core_ast.h"
@@ -446,7 +447,7 @@ LLVMValueRef necro_llvm_codegen_load(NecroLLVM* context, NecroMachAst* ast)
     assert(ast->type == NECRO_MACH_LOAD);
     LLVMValueRef     source_ptr = necro_llvm_codegen_value(context, ast->load.source_ptr);
     const char*      dest_name  = ast->load.dest_value->value.reg_symbol->name->str;
-    LLVMValueRef     result     =  LLVMBuildLoad(context->builder, source_ptr, dest_name);
+    LLVMValueRef     result     = LLVMBuildLoad(context->builder, source_ptr, dest_name);
     NecroLLVMSymbol* symbol     = necro_llvm_symbol_get(&context->arena, ast->load.dest_value->value.reg_symbol);
     symbol->value               = result;
     necro_llvm_codegen_delayed_phi_node(context, symbol);
@@ -480,6 +481,7 @@ LLVMValueRef necro_llvm_codegen_gep(NecroLLVM* context, NecroMachAst* ast)
     {
         NecroMachAst* index = ast->gep.indices[i];
         indices[i]          = necro_llvm_codegen_value(context, index);
+        indices[i]          = LLVMBuildTrunc(context->builder, indices[i], LLVMInt32TypeInContext(context->context), "ix");
         assert(indices[i] != NULL);
     }
     LLVMValueRef     value  = LLVMBuildGEP(context->builder, ptr, indices, (unsigned int) ast->gep.num_indices, name);
@@ -1122,11 +1124,11 @@ LLVMValueRef necro_llvm_codegen_bitcast(NecroLLVM* context, NecroMachAst* ast)
     // {
     //     to_value = LLVMBuildIntToPtr(codegen->builder, value, to_type, "int_to_ptr");
     // }
-    // // Ptr -> Int
-    // else if (necro_is_boxed_llvm_type(codegen, to_type))
-    // {
-    //     to_value = LLVMBuildPtrToInt(codegen->builder, value, to_type, "ptr_to_int");
-    // }
+    // Ptr -> Int
+    else if (ast->bit_cast.from_value->necro_machine_type->type == NECRO_MACH_TYPE_PTR && ast->bit_cast.to_value->necro_machine_type == context->program->type_cache.word_uint_type)
+    {
+        to_value = LLVMBuildPtrToInt(context->builder, value, to_type, "ptr_to_uint");
+    }
     // Everything else
     else
     {
@@ -1569,8 +1571,10 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->program->runtime.necro_init_runtime);
     necro_llvm_map_check_symbol(context->program->runtime.necro_update_runtime);
     necro_llvm_map_check_symbol(context->program->runtime.necro_error_exit);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_inexhaustive_case_exit);
     necro_llvm_map_check_symbol(context->program->runtime.necro_print);
     necro_llvm_map_check_symbol(context->program->runtime.necro_print_char);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_print_string);
     necro_llvm_map_check_symbol(context->base->print_int->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->print_i64->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->print_uint->core_ast_symbol->mach_symbol);
@@ -1628,7 +1632,7 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     struct LLVMMCJITCompilerOptions options;
     LLVMInitializeMCJITCompilerOptions(&options, sizeof(options));
     options.OptLevel       = context->opt_level;
-    options.EnableFastISel = false;
+    options.EnableFastISel = true;
     if (LLVMCreateMCJITCompilerForModule(&context->engine, context->mod, &options, sizeof(options), &error) != 0)
     {
         fprintf(stderr, "necro error: %s\n", error);
@@ -1650,8 +1654,10 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_init_runtime);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_update_runtime);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_error_exit);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_inexhaustive_case_exit);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_print);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_print_char);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_print_string);
     necro_llvm_map_runtime_symbol(context->engine, context->base->print_int->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->print_i64->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->print_uint->core_ast_symbol->mach_symbol);
@@ -1734,7 +1740,7 @@ void necro_llvm_compile(NecroCompileInfo info, NecroLLVM* context)
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_LLVM_TEST_VERBOSE 0
+#define NECRO_LLVM_TEST_VERBOSE 1
 void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHASE phase)
 {
 
@@ -1751,9 +1757,9 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     NecroMachProgram    mach_program    = necro_mach_program_empty();
     NecroLLVM           llvm            = necro_llvm_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
-    if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
-        info.opt_level = 1;
-    // info.verbosity = 2;
+    // if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
+        info.opt_level = 0;
+    info.verbosity = 0;
 
     //--------------------
     // Compile
@@ -1786,7 +1792,17 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     // Print
 #if NECRO_LLVM_TEST_VERBOSE
     if (phase == NECRO_PHASE_CODEGEN)
-        necro_llvm_print(&llvm);
+    necro_llvm_print(&llvm);
+    // if (phase == NECRO_PHASE_CODEGEN)
+    // {
+        // for (size_t i = 0; i < mach_program.machine_defs.length; ++i)
+        // {
+        //     if (strcmp("Necro.Base.mapAudio2b8f", mach_program.machine_defs.data[i]->machine_def.symbol->name->str) == 0)
+        //     {
+        //         LLVMDumpValue(mach_program.machine_defs.data[i]->machine_def.update_fn->fn_def.symbol->codegen_symbol->value);
+        //     }
+        // }
+    // }
 #endif
     printf("NecroLLVM %s test: Passed\n", test_name);
     fflush(stdout);

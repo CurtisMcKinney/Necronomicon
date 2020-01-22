@@ -123,8 +123,8 @@ data Bool = False | True
 not :: .Bool -> .Bool
 not b =
   case b of
-    True -> False
-    _    -> True
+    True  -> False
+    False -> True
 
 
 ----------------------
@@ -400,7 +400,7 @@ instance Monoid Bool where
   mempty = False
 
 instance Default Bool where
-  default = False
+  default = True
 
 
 --------------------
@@ -1012,7 +1012,7 @@ instance Alternative Maybe where
   alternative x y =
     case x of
       Nothing -> y
-      _       -> x
+      Just _  -> x
 
 -- This are wrong, wtf is going on? Is it parsing wrong? Is it inferring wrong?
 maybe :: .b -> .(.a -> .b) -> Maybe .a -> .b
@@ -1186,7 +1186,7 @@ audioBlockSize' :: UInt
 audioBlockSize' = 256
 
 audioOverSampleAmount :: UInt
-audioOverSampleAmount = 32
+audioOverSampleAmount = 2
 
 audioBlockSize :: UInt
 audioBlockSize = audioBlockSize' * audioOverSampleAmount
@@ -1263,8 +1263,7 @@ mapAudio2 f cx cy =
     BlockRate x ->
       case cy of
         AudioEnd    -> AudioEnd
-        BlockRate y ->
-          BlockRate (f x y)
+        BlockRate y -> BlockRate (f x y)
         AudioRate y ->
           AudioRate
           <| freezeArray
@@ -1299,16 +1298,16 @@ accumulateAudio1 f isRunningFunc input1 =
     AudioEnd -> AudioEnd
     _        ->
       case out of
-        (s, a) ->
+        (#s, a#) ->
           case isRunningFunc s of
             False -> AudioEnd
             _     -> AudioRate a
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
-    out ~ (default, primUndefined) =
+    out ~ (#default, primUndefined#) =
       case out of
-        (state, _) ->
+        (#state, _#) ->
           let
             (#state', o'#) =
               case input1 of
@@ -1324,7 +1323,7 @@ accumulateAudio1 f isRunningFunc input1 =
                       (#s', x#) ->
                         (#s', writeArray i x o#)
           in
-            (state', freezeArray o')
+            (#state', freezeArray o'#)
 
 accumulateAudio2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio -> Audio
 accumulateAudio2 f isRunningFunc input1 input2 =
@@ -1335,16 +1334,16 @@ accumulateAudio2 f isRunningFunc input1 input2 =
         AudioEnd -> AudioEnd
         _        ->
           case out of
-            (s, a) ->
+            (#s, a#) ->
               case isRunningFunc s of
                 False -> AudioEnd
                 _     -> AudioRate a
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
-    out ~ (default, primUndefined) =
+    out ~ (#default, primUndefined#) =
       case out of
-        (state, _) ->
+        (#state, _#) ->
           let
             (#state', o'#) =
               case input1 of
@@ -1376,7 +1375,7 @@ accumulateAudio2 f isRunningFunc input1 input2 =
                           (#s', x#) ->
                             (#s', writeArray i x o#)
           in
-            (state', freezeArray o')
+            (#state', freezeArray o'#)
 
 accumulateAudio3 :: Default s => (F64 -> F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio -> Audio -> Audio
 accumulateAudio3 f isRunningFunc input1 input2 input3 =
@@ -1390,16 +1389,16 @@ accumulateAudio3 f isRunningFunc input1 input2 input3 =
             AudioEnd -> AudioEnd
             _        ->
               case out of
-                (s, a) ->
+                (#s, a#) ->
                   case isRunningFunc s of
                     False -> AudioEnd
                     _     -> AudioRate a
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
-    out ~ (default, primUndefined) =
+    out ~ (#default, primUndefined#) =
       case out of
-        (state, _) ->
+        (#state, _#) ->
           let
             (#state', o'#) =
               case input1 of
@@ -1463,7 +1462,7 @@ accumulateAudio3 f isRunningFunc input1 input2 input3 =
                               (#s', x#) ->
                                 (#s', writeArray i x o#)
           in
-            (state', freezeArray o')
+            (#state', freezeArray o'#)
 
 accumulateAudio1U :: (() -> *s) -> (F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio
 accumulateAudio1U mkState f isRunningFunc input1 =
@@ -2073,8 +2072,10 @@ data WaveTable = WaveTable (Array 65536 F64)
 
 sinTable :: WaveTable
 sinTable =
-  WaveTable <| freezeArray <| loop a = unsafeEmptyArray () for i <- each do
-    writeArray i (sine ((fromUInt (indexToUInt i) / 65536) * tau)) a
+  WaveTable <| freezeArray <| loop a = unsafeEmptyArray () for ix <- each do
+    case ix of
+      Index i ->
+        writeArray ix (sine ((fromInt (uintToInt i) / 65536) * tau)) a
 
 -- TODO: Accumulator will grow very large, reducing precision?
 -- TODO: need ceil
@@ -2087,8 +2088,8 @@ accumulateWaveTable (WaveTable buffer) freq phase0 =
     delta   = (floor findex + 1) - findex
     index1  = bitAnd (f64ToUInt findex) 65535
     index2  = bitAnd (index1 + 1) 65535
-    sample1 = readArray (unsafeUIntToIndex index1) buffer
-    sample2 = readArray (unsafeUIntToIndex index2) buffer
+    sample1 = readArray (Index index1) buffer
+    sample2 = readArray (Index index2) buffer
     out     = sample1 * delta + sample2 * (1 - delta)
 
 wave :: AudioFormat f => WaveTable -> f Audio -> f Audio
@@ -2172,8 +2173,8 @@ accumulateSyncWave (WaveTable buffer) sync freq (SyncState# phase0 direction0 pr
     delta      = (floor findex + 1) - findex
     index1     = bitAnd (f64ToUInt findex) 65535
     index2     = bitAnd (index1 + 1) 65535
-    sample1    = readArray (unsafeUIntToIndex index1) buffer
-    sample2    = readArray (unsafeUIntToIndex index2) buffer
+    sample1    = readArray (Index index1) buffer
+    sample2    = readArray (Index index2) buffer
     out        = sample1 * delta + sample2 * (1 - delta)
 
 syncWave :: AudioFormat f => WaveTable -> f Audio -> f Audio -> f Audio
@@ -2839,10 +2840,10 @@ instance Print a => Print (Seq a) where
               (#False, 0, w'#)
             else
               case runSeq s () of
-                SeqValue# t c (Just x) ->
-                  (#True, t, print x w' |> print ' ' |> printBarOnLoop c#)
-                SeqValue# t c _ ->
-                  (#True, t, printBarOnLoop c w'#)
+                SeqValue# t c mx ->
+                  case mx of
+                    Just x -> (#True, t, print x w' |> print ' ' |> printBarOnLoop c#)
+                    _      -> (#True, t, printBarOnLoop c w'#)
 
 instance Print Audio where
   print c w =
@@ -2974,13 +2975,16 @@ traceLn x y =
 ----------------------
 -- DynArray
 ----------------------
+data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
+data PolyThunk a    = PolyThunk# (Ptr .()) (Ptr .()) a PolyThunkState Float
+-- UpdateState, CopyState, Arg, ThunkState, SampleOffset
 
-data DynTier     a = DynTier# UInt UInt UInt (Ptr a)
-data DynArray    a = DynArray# (DynTier a) (DynTier a)
-data DynTierIndex  = DynTierLow | DynTierHigh
-data DynArrayIndex = DynArrayIndex# DynTierIndex UInt
+data DynTier      a = DynTier# UInt UInt UInt (Ptr (.PolyThunk a))
+data DynArray     a = DynArray# (.DynTier a) (.DynTier a)
+data DynTierIndex   = DynTierLow | DynTierHigh
+data DynArrayIndex  = DynArrayIndex# DynTierIndex UInt
 
-dynTierTrace :: DynTier *a -> DynTier *a
+dynTierTrace :: *DynTier a -> *DynTier a
 dynTierTrace (DynTier# cap count hwm ptr) =
   DynTier# cap count hwm ptr
   |> trace "    DynTier { cap: "
@@ -2991,7 +2995,7 @@ dynTierTrace (DynTier# cap count hwm ptr) =
   |> trace hwm
   |> traceLn " }"
 
-dynArrayTrace :: Array n Char -> DynArray *a -> DynArray *a
+dynArrayTrace :: Array n Char -> *DynArray a -> *DynArray a
 dynArrayTrace opName (DynArray# low high) =
   let low'  = dynTierTrace <| traceLn "  {" <| traceLn "  DynArray " <| traceLn opName low in
   let high' = traceLn " " <| traceLn "  }" <| dynTierTrace high in
@@ -3000,27 +3004,20 @@ dynArrayTrace opName (DynArray# low high) =
 dynArrayIndexEmpty :: DynArrayIndex
 dynArrayIndexEmpty = DynArrayIndex# DynTierLow 0
 
-dynTierEmpty :: UInt -> DynTier *a
+dynTierEmpty :: UInt -> *DynTier a
 dynTierEmpty capacity =
   DynTier# capacity 0 0 (ptrMalloc capacity)
 
-dynArrayEmpty :: UInt -> DynArray *a
+dynArrayEmpty :: UInt -> *DynArray a
 dynArrayEmpty capacity =
   DynArray# (dynTierEmpty 0) (dynTierEmpty capacity)
 
-dynTierPop :: DynTier *a -> (#Maybe *a, DynTier *a#)
-dynTierPop (DynTier# capacity count highWaterMark ptr) =
-  if count > 0 && count < capacity then
-    case unsafePtrSwapElementChecked "dynTierPop" capacity (count - 1) primUndefined ptr of
-      (#element, ptr'#) ->
-        (#Just element, DynTier# capacity (count - 1) highWaterMark ptr'#)
-  else
-    (#Nothing, DynTier# capacity count highWaterMark ptr#)
-
-dynTierSwapToEndAndDelete :: UInt -> DynTier *a -> DynTier *a
-dynTierSwapToEndAndDelete index (DynTier# capacity count highWaterMark ptr)=
+dynTierSwapToEndAndDelete :: UInt -> *DynTier a -> *DynTier a
+dynTierSwapToEndAndDelete index (DynTier# capacity count highWaterMark ptr) =
   if index >= capacity then
     DynTier# capacity count highWaterMark ptr
+  else if index == (count - 1) then
+    DynTier# capacity (count - 1) highWaterMark ptr
   else
     case unsafePtrSwapElementChecked "dynTierSwapToEndAndDelete 1" capacity index primUndefined ptr of
       (#indexElement, ptr2#) ->
@@ -3029,45 +3026,70 @@ dynTierSwapToEndAndDelete index (DynTier# capacity count highWaterMark ptr)=
             DynTier# capacity (count - 1) highWaterMark (unsafePtrPokeChecked "dynTierSwapToEndAndDelete 3" capacity index endElement ptr3)
 
 -- NOTE: This assumes that the tier is correctly sized!
-dynTierAppend :: *a -> DynTier *a -> DynTier *a
+dynTierAppend :: *PolyThunk a -> *DynTier a -> *DynTier a
 dynTierAppend element (DynTier# capacity count highWaterMark ptr) =
-  DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynTierAppend" capacity count element ptr)
+  if highWaterMark > count then
+    case unsafePtrSwapElementChecked "dynTierAppend1" capacity count element ptr of
+      (#hwmElement, ptr'#) ->
+        DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynTierAppend2" capacity highWaterMark hwmElement ptr')
+  else
+    DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynTierAppend" capacity count element ptr)
 
   -- |> trace "dynTierAppend, capacity: "
   -- |> trace capacity
   -- |> trace ", count: "
   -- |> traceLn count
 
+data DynTierPromotePopResult a = DynTierPromotePopEmpty | DynTierPromotePopLive (.PolyThunk a) | DynTierPromotePopInactive (.PolyThunk a)
+dynTierPromotePop :: *DynTier a -> (#*DynTierPromotePopResult a, *DynTier a#)
+dynTierPromotePop (DynTier# capacity count highWaterMark ptr) =
+  if highWaterMark > 0 && highWaterMark > count && highWaterMark <= capacity then
+    case unsafePtrSwapElementChecked "dynTierPromotePop1" capacity (highWaterMark - 1) primUndefined ptr of
+      (#element, ptr'#) ->
+        (#DynTierPromotePopInactive element, DynTier# capacity count (highWaterMark - 1) ptr'#)
+  else if count > 0 && count <= capacity then
+    case unsafePtrSwapElementChecked "dynTierPromotePop2" capacity (count - 1) primUndefined ptr of
+      (#element, ptr'#) ->
+        (#DynTierPromotePopLive element, DynTier# capacity (count - 1) (count - 1) ptr'#)
+  else
+    (#DynTierPromotePopEmpty, DynTier# capacity count highWaterMark ptr#)
+
 -- TODO: Nested case branching seems broken!?!?!?
-dynArrayPromoteElement :: DynArray *a -> DynArray *a
-dynArrayPromoteElement (DynArray# low high) =
-  case dynTierPop low of
+dynArrayPromoteElement :: *DynArray a -> *DynArray a
+dynArrayPromoteElement (DynArray# low (DynTier# capacity count highWaterMark ptr)) =
+  case dynTierPromotePop low of
     (#m, low'#) ->
       case m of
-        Nothing      -> DynArray# low' high
-        Just element -> DynArray# low' (dynTierAppend element high)
+        DynTierPromotePopEmpty ->
+          DynArray# low' (DynTier# capacity count highWaterMark ptr)
+
+        DynTierPromotePopInactive element ->
+          dynArrayTrace "PROMOTE INACTIVE: " <| DynArray# low' (DynTier# capacity count (highWaterMark + 1) (unsafePtrPokeChecked "dynArrayPromoteElement1" capacity highWaterMark element ptr))
+
+        DynTierPromotePopLive element ->
+          case unsafePtrSwapElementChecked "dynArrayPromoteElement2" capacity count element ptr of
+            (#hwmElement, ptr'#) ->
+              dynArrayTrace "PROMOTE LIVE: " <| DynArray# low' (DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynArrayPromoteElement3" capacity highWaterMark hwmElement ptr'))
 
 -- NOTE: This assumes that the low tier has been completely moved to the high tier
-dynArrayResize :: DynArray *a -> DynArray *a
+dynArrayResize :: *DynArray a -> *DynArray a
 dynArrayResize (DynArray# (DynTier# lcap lcount lhwm lowPtr) (DynTier# highCapacity highCount hhwm highPtr)) =
-  if highCount < highCapacity then
+  if highCount < highCapacity && hhwm < highCapacity then
     DynArray# (DynTier# lcap lcount lhwm lowPtr) (DynTier# highCapacity highCount hhwm highPtr)
   else
     let
       newCap  = highCapacity * 2
-      newLow  = DynTier# highCapacity highCount 0 highPtr
+      newLow  = DynTier# highCapacity highCount hhwm highPtr
       newHigh = DynTier# newCap 0 0 (ptrRealloc newCap lowPtr)
     in
       DynArray# newLow newHigh
       |> dynArrayTrace "GROW: "
 
-dynArrayAppend :: *a -> DynArray *a -> DynArray *a
-dynArrayAppend element a =
-  case dynArrayResize (dynArrayPromoteElement a) of
-    DynArray# low high ->
-      DynArray# low (dynTierAppend element high)
+dynArrayAppend :: *PolyThunk a -> *DynArray a -> *DynArray a
+dynArrayAppend element (DynArray# low high) =
+  DynArray# low (dynTierAppend element high)
 
-dynTierModifyElement :: UInt -> (*a -> *a) -> DynTier *a -> DynTier *a
+dynTierModifyElement :: UInt -> (*PolyThunk a -> *PolyThunk a) -> *DynTier a -> *DynTier a
 dynTierModifyElement index f (DynTier# capacity count highWaterMark ptr0) =
   if index >= count then
     DynTier# capacity count highWaterMark ptr0
@@ -3078,7 +3100,7 @@ dynTierModifyElement index f (DynTier# capacity count highWaterMark ptr0) =
 
 data DynArrayResult a = DynArrayEnd | DynArrayNothing | DynArrayJust a
 
-dynTierWithElement :: UInt -> (*a -> (#b, *a#)) -> DynTier *a -> (#Maybe b, DynTier *a#)
+dynTierWithElement :: UInt -> (*PolyThunk a -> (#b, *PolyThunk a#)) -> *DynTier a -> (#Maybe b, *DynTier a#)
 dynTierWithElement index f (DynTier# capacity count highWaterMark ptr0) =
   if index >= count then
     (#Nothing, DynTier# capacity count highWaterMark ptr0#)
@@ -3089,7 +3111,7 @@ dynTierWithElement index f (DynTier# capacity count highWaterMark ptr0) =
           (#result, element1#) ->
             (#Just result, DynTier# capacity count highWaterMark (unsafePtrPokeChecked "dynTierWithElement 2" count index element1 ptr1)#)
 
-dynArrayWithElement :: DynArrayIndex -> (*a -> (#b, *a#)) -> DynArray *a -> (#DynArrayResult b, DynArray *a#)
+dynArrayWithElement :: DynArrayIndex -> (*PolyThunk a -> (#b, *PolyThunk a#)) -> *DynArray a -> (#DynArrayResult b, *DynArray a#)
 dynArrayWithElement (DynArrayIndex# tier index) f (DynArray# low high) =
   case tier of
     DynTierLow ->
@@ -3105,39 +3127,38 @@ dynArrayWithElement (DynArrayIndex# tier index) f (DynArray# low high) =
             Just result' -> (#DynArrayJust result', DynArray# low high'#)
             _            -> (#DynArrayEnd, DynArray# low high'#)
 
-dynArrayDelete :: DynArrayIndex -> DynArray *a -> DynArray *a
+dynArrayDelete :: DynArrayIndex -> *DynArray a -> *DynArray a
 dynArrayDelete (DynArrayIndex# tier index) (DynArray# low high) =
   case tier of
     DynTierLow  -> DynArray# (dynTierSwapToEndAndDelete index low) high
     DynTierHigh -> DynArray# low (dynTierSwapToEndAndDelete index high)
-  |> dynArrayTrace "DELETE: "
 
-dynArrayEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> DynArray *a -> DynArray *a
+dynArrayEmplaceOrAppend :: (*PolyThunk a -> *PolyThunk a) -> (() -> *PolyThunk a) -> *DynArray a -> *DynArray a
 dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray# low (DynTier# highCapacity highCount highWaterMark highPtr)) =
   if highCount < highWaterMark then
     dynArrayTrace "EMPLACE: " <| DynArray# low (dynTierModifyElement highCount emplaceInit <| DynTier# highCapacity (highCount + 1) highWaterMark highPtr)
   else
     dynArrayTrace "APPEND:  " <| dynArrayAppend (appendMk ()) (DynArray# low (DynTier# highCapacity highCount highWaterMark highPtr))
 
-data DynArrayIterator a = DynArrayIterator# DynArrayIndex (DynArray a)
+data DynArrayIterator a = DynArrayIterator# DynArrayIndex (.DynArray a)
 
-dynArrayIterator :: DynArray *a -> DynArrayIterator *a
+dynArrayIterator :: *DynArray a -> *DynArrayIterator a
 dynArrayIterator x = DynArrayIterator# dynArrayIndexEmpty x
 
-dynArrayIteratorEnd :: DynArrayIterator *a -> DynArray *a
+dynArrayIteratorEnd :: *DynArrayIterator a -> *DynArray a
 dynArrayIteratorEnd (DynArrayIterator# _ array) = array
 
-dynArrayIteratorEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> DynArrayIterator *a -> DynArrayIterator *a
+dynArrayIteratorEmplaceOrAppend :: (*PolyThunk a -> *PolyThunk a) -> (() -> *PolyThunk a) -> *DynArrayIterator a -> *DynArrayIterator a
 dynArrayIteratorEmplaceOrAppend emplaceInit appendMk (DynArrayIterator# _ array) =
-  DynArrayIterator# dynArrayIndexEmpty (dynArrayEmplaceOrAppend emplaceInit appendMk array)
+  DynArrayIterator# dynArrayIndexEmpty <| dynArrayEmplaceOrAppend emplaceInit appendMk <| dynArrayResize <| dynArrayPromoteElement array
 
-dynArrayIteratorWithElement :: (*a -> (#b, *a#)) -> DynArrayIterator *a -> (#DynArrayResult b, DynArrayIterator *a#)
+dynArrayIteratorWithElement :: (*PolyThunk a -> (#b, *PolyThunk a#)) -> *DynArrayIterator a -> (#DynArrayResult b, *DynArrayIterator a#)
 dynArrayIteratorWithElement f (DynArrayIterator# index array) =
   case dynArrayWithElement index f array of
     (#result, array'#) ->
       (#result, DynArrayIterator# index array'#)
 
-dynArrayIteratorNext :: DynArrayIterator *a -> DynArrayIterator *a
+dynArrayIteratorNext :: *DynArrayIterator a -> *DynArrayIterator a
 dynArrayIteratorNext (DynArrayIterator# (DynArrayIndex# tier index) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))) =
   case tier of
     DynTierLow ->
@@ -3148,7 +3169,7 @@ dynArrayIteratorNext (DynArrayIterator# (DynArrayIndex# tier index) (DynArray# (
     DynTierHigh ->
       DynArrayIterator# (DynArrayIndex# DynTierHigh (index + 1)) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
 
-dynArrayIteratorFree :: DynArrayIterator *a -> DynArrayIterator *a
+dynArrayIteratorFree :: *DynArrayIterator a -> *DynArrayIterator a
 dynArrayIteratorFree (DynArrayIterator# index array) =
   case dynArrayDelete index array of
     DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr) ->
@@ -3157,11 +3178,11 @@ dynArrayIteratorFree (DynArrayIterator# index array) =
           case tier of
             DynTierLow ->
               if lcount > 0 then
-                DynArrayIterator# index (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
+                DynArrayIterator# index (dynArrayTrace "FREE: " <| DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
               else
-                DynArrayIterator# (DynArrayIndex# DynTierHigh 0) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
+                DynArrayIterator# (DynArrayIndex# DynTierHigh 0) (dynArrayTrace "FREE: " <| DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
             DynTierHigh ->
-              DynArrayIterator# index (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
+              DynArrayIterator# index (dynArrayTrace "FREE: " <| DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
 
 
 --------------------
@@ -3174,10 +3195,6 @@ dynArrayIteratorFree (DynArrayIterator# index array) =
 --    * Uniqueness notation is allowed in data constructors only on monomorphic type cons
 --    * Higher Kinded Types do not have uniqueness types and do not propagate uniqueness, instead Type Applications have uniqueness types associated with them and are propagating!
 --    * Propagation behavior is enforced by the type of the data constructor function!
-data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
-data PolyThunk a    = PolyThunk# (Ptr .()) (Ptr .()) a PolyThunkState Float
--- UpdateState, CopyState, Arg, ThunkState, SampleOffset
-
 dynDeepCopy :: a -> (#Ptr *(), a#)
 dynDeepCopy x =
   primUndefined
@@ -3257,10 +3274,12 @@ seqToAudio s =
               in
                 if nextValueTime >= time then (#False, 0, prevValue#) else
                   case runSeq s () of
-                    SeqValue# seqDuration1 _ (Just seqValue) -> (#True, seqDuration1, seqValue#)
-                    SeqValue# seqDuration1 _ _               -> (#True, seqDuration1, prevValue#)
+                    SeqValue# seqDuration1 _ msv ->
+                      case msv of
+                        Just seqValue -> (#True, seqDuration1, seqValue#)
+                        Nothing       -> (#True, seqDuration1, prevValue#)
         in
-          (#i1, writeArray (unsafeUIntToIndex i0) (fromFloat value) a#)
+          (#i1, writeArray (Index i0) (fromFloat value) a#)
 
 poly :: Poly b => (a -> b) -> Seq a -> b
 poly f s =
@@ -3273,10 +3292,10 @@ poly f s =
             let nextValueTime ~ 0 = nextValueTime + time in
               if nextValueTime < tick then
                 case runSeq s () of
-                  SeqValue# t _ (Just x) ->
-                    (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
-                  SeqValue# t _ _ ->
-                    (#True, t, acc, thunks1#)
+                  SeqValue# t _ mx ->
+                    case mx of
+                      Just x  -> (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
+                      Nothing -> (#True, t, acc, thunks1#)
               else
                 case dynArrayIteratorWithElement (polyThunkEval f) thunks1 of
                   (#maybeEvalResult, thunks2#) ->
@@ -3492,6 +3511,29 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --       |> perc 5 20 -1
 --       |> mul 0.5
 
+-- testJit :: *World -> *World
+-- testJit w =
+--   case Just 666 of
+--     Nothing -> w
+--     Just x ->
+--       case x of
+--         0 -> w
+--         1 -> w
+
+-- -- TODO: put default Bool False back once the problem is solved!
+-- gb :: Bool
+-- gb =
+--   b
+--   where
+--     b ~ default =
+--       case b of
+--         True  -> True
+--         False -> False
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   printLn gb w
+
 testJit :: *World -> *World
 testJit w =
   outAudio 0 badAudio w
@@ -3698,6 +3740,14 @@ testJit w =
 -- class Freeze a where
 --   freeze :: (Freeze b, a ~ b) => *a -> b
 
+-- TODO: Investigate the mystery of the dying init fn!
+-- NOTE: global_Necro.Base.default<F64>Machine5i
+-- NOTE: initAccumulateAudio1<F64>bd4Machinef9g
+-- TODO: prune inits that don't actually do anything!
+-- NOTE: initPolyThunkEvalGo<Float,Stereo<Audio>>cfnMachineg1a
+-- NOTE: initNecro.Base.bassSynthMachinefln
+-- TODO: Make JIT faster
+-- TODO: Oversample oscillators only?
 -- TODO: runFor combinator
 -- TODO: Generic env
 -- TODO: Clipping detection

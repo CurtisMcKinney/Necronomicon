@@ -108,6 +108,16 @@ extern DLLEXPORT size_t necro_runtime_print_char(size_t value, size_t world)
     return world;
 }
 
+extern DLLEXPORT size_t necro_runtime_print_string(size_t* str, size_t str_length, size_t world)
+{
+    for (size_t i = 0; i < str_length; ++i)
+    {
+        putchar((int)str[i]);
+    }
+    putchar('\n');
+    return world;
+}
+
 extern DLLEXPORT void necro_runtime_sleep(uint32_t milliseconds)
 {
 #ifdef _WIN32
@@ -117,7 +127,7 @@ extern DLLEXPORT void necro_runtime_sleep(uint32_t milliseconds)
 #endif
 }
 
-extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
+extern DLLEXPORT void necro_runtime_error_exit(size_t error_code)
 {
     switch (error_code)
     {
@@ -125,10 +135,23 @@ extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
         fprintf(stderr, "****Error: Non-exhaustive patterns in case statement!\n");
         break;
     default:
-        fprintf(stderr, "****Error: Unrecognized error (%d) during runtime!\n", error_code);
+        fprintf(stderr, "****Error: Unrecognized error (%zu) during runtime!\n", error_code);
         break;
     }
-    necro_exit(error_code);
+    necro_exit((uint32_t) error_code);
+}
+
+extern DLLEXPORT void necro_runtime_inexhaustive_case_exit(size_t* str, size_t str_length)
+{
+    fprintf(stderr, "****  Error: Non-exhaustive patterns in case statement!\n");
+    fprintf(stderr, "****    found in:\n");
+    fprintf(stderr, "****      ");
+    for (size_t i = 0; i < str_length; ++i)
+    {
+        fputc((int)str[i], stderr);
+    }
+    fprintf(stderr, "\n");
+    necro_exit(1);
 }
 
 extern DLLEXPORT size_t necro_runtime_test_assertion(size_t is_true, size_t world)
@@ -180,7 +203,7 @@ extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size)
     // return malloc(size);
     if (size == 0)
         return NULL;
-    size += 512; // PADDING?!?!?! This will crash without padding, suggesting that our allocation sizes are getting off somewhere, or an errant writeArray is happening in NecroLang somewhere!?!?!?!
+    assert(size % 8 == 0);
     if (necro_heap.bump + size >= necro_heap.capacity)
     {
         fprintf(stderr, "Necro memory exhausted!\n");
@@ -218,7 +241,7 @@ static size_t             necro_runtime_audio_num_input_channels  = 0;
 #define                   necro_runtime_audio_num_output_channels 2
 static size_t             necro_runtime_audio_sample_rate         = 48000;
 static size_t             necro_runtime_audio_block_size          = 256;
-#define                   necro_runtime_audio_oversample_amt      32
+#define                   necro_runtime_audio_oversample_amt      2
 static double             necro_runtime_audio_brick_wall_cutoff   = 20000.0;
 static double             necro_runtime_audio_start_time          = 0.0;
 static double             necro_runtime_audio_curr_time           = 0.0;

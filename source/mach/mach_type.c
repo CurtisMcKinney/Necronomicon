@@ -870,11 +870,11 @@ void necro_mach_ast_type_check_gep(NecroMachProgram* program, NecroMachAst* ast)
             necro_mach_ast_type_check(program, index_ast);
             assert(index_ast->type == NECRO_MACH_VALUE);
             // if (program->word_size == NECRO_WORD_4_BYTES)
-                assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT32_LITERAL);
+                // assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT32_LITERAL);
             // else
-            //     assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT64_LITERAL);
-            const size_t index = index_ast->value.uint32_literal;
-            assert(index < (uint32_t) necro_machine_type->struct_type.num_members);
+            assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT64_LITERAL);
+            const size_t index = index_ast->value.uint64_literal;
+            assert(index < necro_machine_type->struct_type.num_members);
             necro_machine_type = necro_machine_type->struct_type.members[index];
         }
         else if (necro_machine_type->type == NECRO_MACH_TYPE_ARRAY)
@@ -884,7 +884,7 @@ void necro_mach_ast_type_check_gep(NecroMachProgram* program, NecroMachAst* ast)
             assert(index_ast->type == NECRO_MACH_VALUE);
             // Can't double check this with non-const geps!
             // assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT32_LITERAL);
-            // const size_t index = index_ast->value.uint32_literal;
+            // const size_t index = index_ast->value.uint64_literal;
             // assert(index < necro_machine_type->array_type.element_count);
             necro_machine_type = necro_machine_type->array_type.element_type;
         }

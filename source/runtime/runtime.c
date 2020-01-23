@@ -241,8 +241,8 @@ static size_t             necro_runtime_audio_num_input_channels  = 0;
 #define                   necro_runtime_audio_num_output_channels 2
 static size_t             necro_runtime_audio_sample_rate         = 48000;
 static size_t             necro_runtime_audio_block_size          = 256;
-#define                   necro_runtime_audio_oversample_amt      2
-static double             necro_runtime_audio_brick_wall_cutoff   = 20000.0;
+// #define                   necro_runtime_audio_oversample_amt      2
+// static double             necro_runtime_audio_brick_wall_cutoff   = 20000.0;
 static double             necro_runtime_audio_start_time          = 0.0;
 static double             necro_runtime_audio_curr_time           = 0.0;
 static PaStream*          necro_runtime_audio_pa_stream           = NULL;
@@ -253,9 +253,17 @@ extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double
     if (channel_num >= necro_runtime_audio_num_output_channels || necro_runtime_is_done())
         return world;
     // float*                  output_buffer = necro_runtime_audio_output_buffer[channel_num];
-    struct NecroDownsample* downsample = necro_runtime_audio_downsample[channel_num];
+    // struct NecroDownsample* downsample = necro_runtime_audio_downsample[channel_num];
     // necro_downsample(downsample, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, output_buffer);
-    necro_downsample(downsample, channel_num, necro_runtime_audio_num_output_channels, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, necro_runtime_audio_output_buffer);
+    // necro_downsample(downsample, channel_num, necro_runtime_audio_num_output_channels, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, necro_runtime_audio_output_buffer);
+
+    // output into interleaved audio buffer
+    size_t out_i = channel_num;
+    for (size_t i = 0; i < necro_runtime_audio_block_size; ++i)
+    {
+        necro_runtime_audio_output_buffer[out_i] = (float) audio_block[i];
+        out_i += necro_runtime_audio_num_output_channels;
+    }
     return world;
 }
 
@@ -286,8 +294,8 @@ NecroResult(void) necro_runtime_audio_init()
 {
     // if (necro_runtime_audio_downsample != NULL)
     //     free(necro_runtime_audio_downsample);
-    for (size_t i = 0; i < necro_runtime_audio_num_output_channels; ++i)
-        necro_runtime_audio_downsample[i] = necro_downsample_create(necro_runtime_audio_brick_wall_cutoff, (double) (necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt));
+    // for (size_t i = 0; i < necro_runtime_audio_num_output_channels; ++i)
+    //     necro_runtime_audio_downsample[i] = necro_downsample_create(necro_runtime_audio_brick_wall_cutoff, (double) (necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt));
     PaError pa_error = Pa_Initialize();
     if (pa_error != paNoError) return necro_runtime_audio_error(Pa_GetErrorText(pa_error));
     // const PaSampleFormat audio_format = paFloat32 | paNonInterleaved;
@@ -357,12 +365,14 @@ NecroResult(void) necro_runtime_audio_shutdown()
 
 extern DLLEXPORT size_t necro_runtime_get_sample_rate()
 {
-    return necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt;
+    // return necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt;
+    return necro_runtime_audio_sample_rate;
 }
 
 extern DLLEXPORT size_t necro_runtime_get_block_size()
 {
-    return necro_runtime_audio_block_size * necro_runtime_audio_oversample_amt;
+    // return necro_runtime_audio_block_size * necro_runtime_audio_oversample_amt;
+    return necro_runtime_audio_block_size;
 }
 
 

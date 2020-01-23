@@ -113,7 +113,7 @@ NecroDownsample* necro_downsample_create(const double freq_cutoff, const double 
         gain_sum += downsample->coefficients[i];
     gain_sum /= (double) NECRO_DOWNSAMPLE_FILTER_NUM_TAPS;
     for (size_t i = 0; i < NECRO_DOWNSAMPLE_FILTER_NUM_TAPS; ++i)
-        gain_sum /= gain_sum;
+        downsample->coefficients[i] *= gain_sum;
 
     // for (size_t i = NECRO_DOWNSAMPLE_FILTER_NUM_TAPS / 2; i < NECRO_DOWNSAMPLE_FILTER_NUM_TAPS; ++i)
     //     downsample->coefficients[i] *= 0.0;

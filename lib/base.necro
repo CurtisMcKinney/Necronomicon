@@ -107,12 +107,6 @@ mouseX = getMouseX ()
 mouseY :: Int
 mouseY = getMouseY ()
 
-sampleRate :: UInt
-sampleRate = primUndefined
-
-recipSampleRate :: F64
-recipSampleRate = primUndefined
-
 
 ----------------------
 -- Bool
@@ -1179,29 +1173,38 @@ bitReverseIndex (Index i) = Index (bitReverse i)
 toIndexMultiple :: Index n -> Index (NatMul n (NatMax k 1))
 toIndexMultiple (Index i) = Index i
 
-audioSampleRate' :: UInt
-audioSampleRate' = 48000
+sampleRate :: UInt
+sampleRate = primUndefined
 
-audioBlockSize' :: UInt
-audioBlockSize' = 256
-
-audioOverSampleAmount :: UInt
-audioOverSampleAmount = 2
-
-audioBlockSize :: UInt
-audioBlockSize = audioBlockSize' * audioOverSampleAmount
-
-audioBlockSizeF :: Float
-audioBlockSizeF = fromUInt audioBlockSize
+recipSampleRate :: F64
+recipSampleRate = primUndefined
 
 audioSampleRate :: UInt
-audioSampleRate = audioSampleRate' * audioOverSampleAmount
+audioSampleRate = 48000
+
+audioBlockSize :: UInt
+audioBlockSize = 256
+
+audioOverSampleAmount :: UInt
+audioOverSampleAmount = 32
+
+audioRecipOverSampleRate :: F64
+audioRecipOverSampleRate = recip <| fromUInt <| audioSampleRate * audioOverSampleAmount
+
+-- audioBlockSize :: UInt
+-- audioBlockSize = audioBlockSize' * audioOverSampleAmount
+
+audioBlockSizeF :: F64
+audioBlockSizeF = fromUInt audioBlockSize
+
+-- audioSampleRate :: UInt
+-- audioSampleRate = audioSampleRate' * audioOverSampleAmount
 
 audioSampleRateF :: F64
 audioSampleRateF = fromUInt audioSampleRate
 
 audioBlocksPerSecond :: UInt
-audioBlocksPerSecond = audioSampleRate' / audioBlockSize'
+audioBlocksPerSecond = audioSampleRate / audioBlockSize
 
 audioBlockDelta :: Rational
 audioBlockDelta = 1 // fromUInt audioBlocksPerSecond
@@ -1825,9 +1828,21 @@ class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
   accumulate2U :: (() -> *s) -> (F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio
   accumulate3U :: (() -> *s) -> (F64 -> F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio -> f Audio
   pan          :: Mono Audio -> f Audio -> Stereo Audio
-  mixDown      :: Num a => f a -> Mono a
+  mixMono      :: Num a => f a -> Mono a
   mixStereo    :: Num a => f a -> Stereo a
   outAudio     :: UInt -> f Audio -> *World -> *World
+
+stereo :: Mono a -> Mono a -> Stereo a
+stereo (Mono l) (Mono r) = Stereo# l r
+
+left :: Stereo a -> Mono a
+left (Stereo# l _) = Mono l
+
+right :: Stereo a -> Mono a
+right (Stereo# _ r) = Mono r
+
+flipStereo :: Stereo a -> Stereo a
+flipStereo (Stereo# l r) = Stereo# r l
 
 instance Functor Mono where
   map f (Mono x) = Mono (f x)
@@ -1854,7 +1869,7 @@ instance AudioFormat Mono where
   accumulate2U mk f isRunning (Mono x) (Mono y)          = Mono (accumulateAudio2U mk f isRunning x y)
   accumulate3U mk f isRunning (Mono x) (Mono y) (Mono z) = Mono (accumulateAudio3U mk f isRunning x y z)
   pan (Mono amount) (Mono input)                         = Stereo# (input * (1 - amount)) (input * amount)
-  mixDown x                                              = x
+  mixMono x                                              = x
   mixStereo (Mono x)                                     = Stereo# x x
 
 instance Functor Stereo where
@@ -1882,7 +1897,7 @@ instance AudioFormat Stereo where
   accumulate2U mk f isRunning (Stereo# xl xr) (Stereo# yl yr)                 = Stereo# (accumulateAudio2U mk f isRunning xl yl) (accumulateAudio2U mk f isRunning xr yr)
   accumulate3U mk f isRunning (Stereo# xl xr) (Stereo# yl yr) (Stereo# zl zr) = Stereo# (accumulateAudio3U mk f isRunning xl yl zl) (accumulateAudio3U mk f isRunning xr yr zr)
   pan (Mono amount) (Stereo# l r)                                             = Stereo# (l * (1 - amount)) (r * amount)
-  mixDown (Stereo# l r)                                                       = Mono (l + r)
+  mixMono (Stereo# l r)                                                       = Mono (l + r)
   mixStereo x                                                                 = x
 
 -- Mono
@@ -1966,33 +1981,215 @@ instance Monoid a => Monoid (Stereo a) where
 -- UGens
 --------------------
 
-stereo :: Mono a -> Mono a -> Stereo a
-stereo (Mono l) (Mono r) =
-  Stereo# l r
+--------------------
+-- downsample oversampled audio
+sinc :: F64 -> F64
+sinc x =
+  if x > -0.000001 && x < 0.000001 then 1.0 else
+    sine x / x
 
-left :: Stereo a -> Mono a
-left (Stereo# l _) = Mono l
+bessel :: F64 -> F64
+bessel x =
+  add 1 <| snd'<|
+    loop (#i, sum#) = (#1, 0#) while i < 10 do
+      let
+        xpow = pow (x / 2) (fromUInt i)
+        fac  =
+          fromUInt <| snd' <|
+            loop (#j, fac'#) = (#1, 1#) while j <= i do
+              (#j + 1, fac' * j#)
+      in
+        (#i + 1, sum + pow (xpow / fac) 2#)
 
-right :: Stereo a -> Mono a
-right (Stereo# _ r) = Mono r
+kaiserBesselWindowFunction :: F64 -> F64 -> F64 -> F64
+kaiserBesselWindowFunction i windowSize beta =
+  window
+  where
+    warg   = beta * sqrt (1 - pow (((2 * i + 2) - windowSize) / windowSize) 2)
+    window = bessel warg / bessel beta
 
-flipStereo :: Stereo a -> Stereo a
-flipStereo (Stereo# l r) = Stereo# r l
+hannWindowFunction :: F64 -> F64 -> F64
+hannWindowFunction i windowSize =
+  0.5 - 0.5 * cosine (tau * (i + 1) / windowSize)
+
+hammingWindowFunction :: F64 -> F64 -> F64
+hammingWindowFunction i windowSize =
+  0.54 - 0.46 * cosine (tau * (i + 1) / windowSize)
+
+downsampleCoefficients :: Array 128 F64
+downsampleCoefficients =
+  freezeArray coeff3
+  where
+    windowSize = 128
+    freqCutoff = 20000
+    omega      = freqCutoff / (audioSampleRateF * fromUInt audioOverSampleAmount)
+    coeff1     =
+      loop a = unsafeEmptyArray () for i <- each do
+        let
+          iReal       = fromUInt (indexToUInt i)
+          iOffset     = iReal - ((windowSize - 1) / 2)
+          window      = hannWindowFunction iReal windowSize
+          coefficient = omega * sinc (omega * iOffset * pi) * window
+        in
+          writeArray i coefficient a
+    (#gainSum, coeff2#) =
+      loop (#sum, a0#) = (#0, coeff1#) for i <- each do
+        case readArrayU i a0 of
+          (#x, a1#) ->
+            (#sum + x, a1#)
+    gainAdjust = 1 -- (1 / gainSum) * (1 / windowSize)
+    coeff3     =
+      loop a0 = coeff2 for i <- each do
+        case readArrayU i a0 of
+          (#x, a1#) ->
+            writeArray i (x * gainAdjust) a1
 
 -----------
 -- saw
-accumulateSaw :: F64 -> F64 -> (#F64, F64#)
-accumulateSaw freq phase0 =
+
+data OverSampleSawState = OverSampleSawState# F64 UInt (.Array 128 F64)
+
+mkOverSampleSawState :: () -> *OverSampleSawState
+mkOverSampleSawState _ = OverSampleSawState# 0 0 (arrayFrom 0)
+
+-- Oversampling saw oscillator, with FIR downsampling
+accumulateSaw :: F64 -> *OverSampleSawState -> (#*OverSampleSawState, F64#)
+accumulateSaw freq (OverSampleSawState# phaseIn downsampleIndexIn downsampleBufferIn) =
+  (#OverSampleSawState# phase downsampleIndex downsampleBuffer, firResult#)
+  where
+    freqDelta = freq * audioRecipOverSampleRate
+    (#_, phase, downsampleIndex1, downsampleBuffer1#) =
+      loop (#i, phase0, di, d0#) = (#0, phaseIn, downsampleIndexIn, downsampleBufferIn#) while i < audioOverSampleAmount do
+        let
+          phase1  = freqDelta + phase0
+          d1      = writeArray (Index (bitAnd (di + 0) 127)) (fma (phase1 - floor phase1) 2 -1) d0
+          phase2  = freqDelta + phase1
+          d2      = writeArray (Index (bitAnd (di + 1) 127)) (fma (phase2 - floor phase2) 2 -1) d1
+          phase3  = freqDelta + phase2
+          d3      = writeArray (Index (bitAnd (di + 2) 127)) (fma (phase3 - floor phase3) 2 -1) d2
+          phase4  = freqDelta + phase3
+          d4      = writeArray (Index (bitAnd (di + 3) 127)) (fma (phase4 - floor phase4) 2 -1) d3
+          phase5  = freqDelta + phase4
+          d5      = writeArray (Index (bitAnd (di + 4) 127)) (fma (phase5 - floor phase5) 2 -1) d4
+          phase6  = freqDelta + phase5
+          d6      = writeArray (Index (bitAnd (di + 5) 127)) (fma (phase6 - floor phase6) 2 -1) d5
+          phase7  = freqDelta + phase6
+          d7      = writeArray (Index (bitAnd (di + 6) 127)) (fma (phase7 - floor phase7) 2 -1) d6
+          phase8  = freqDelta + phase7
+          d8      = writeArray (Index (bitAnd (di + 7) 127)) (fma (phase8 - floor phase8) 2 -1) d7
+        in
+          (#i + 8, phase8, bitAnd (di + 8) 127, d8#)
+    (#_, downsampleIndex, downsampleBuffer, firResult#) =
+      loop (#i, di, d0, firResult0#) = (#0, downsampleIndex1, downsampleBuffer1, 0#) while i < 128 do
+        let
+          (#s1, d1#) = readArrayU (Index (bitAnd (di + 0) 127)) d0
+          firResult1 = s1 * readArray (Index i) downsampleCoefficients
+          (#s2, d2#) = readArrayU (Index (bitAnd (di + 1) 127)) d1
+          firResult2 = s2 * readArray (Index (i + 1)) downsampleCoefficients
+          (#s3, d3#) = readArrayU (Index (bitAnd (di + 2) 127)) d2
+          firResult3 = s3 * readArray (Index (i + 2)) downsampleCoefficients
+          (#s4, d4#) = readArrayU (Index (bitAnd (di + 3) 127)) d3
+          firResult4 = s4 * readArray (Index (i + 3)) downsampleCoefficients
+          (#s5, d5#) = readArrayU (Index (bitAnd (di + 4) 127)) d4
+          firResult5 = s5 * readArray (Index (i + 4)) downsampleCoefficients
+          (#s6, d6#) = readArrayU (Index (bitAnd (di + 5) 127)) d5
+          firResult6 = s6 * readArray (Index (i + 5)) downsampleCoefficients
+          (#s7, d7#) = readArrayU (Index (bitAnd (di + 6) 127)) d6
+          firResult7 = s7 * readArray (Index (i + 6)) downsampleCoefficients
+          (#s8, d8#) = readArrayU (Index (bitAnd (di + 7) 127)) d7
+          firResult8 = s8 * readArray (Index (i + 7)) downsampleCoefficients
+          firResult  = firResult0 + firResult1 + firResult2 + firResult3 + firResult4 + firResult5 + firResult6 + firResult7 + firResult8
+        in
+          (#i + 8, bitAnd (di + 8) 127, d8, firResult#)
+
+saw :: AudioFormat f => f Audio -> f Audio
+saw freq =
+  accumulate1U mkOverSampleSawState accumulateSaw constTrue' freq
+
+-----------
+-- lfSaw
+accumulateLFSaw :: F64 -> F64 -> (#F64, F64#)
+accumulateLFSaw freq phase0 =
   (#phase1, out#)
   where
     phase1 = fma freq recipSampleRate phase0
     phase2 = phase1 - floor phase1
     out    = fma phase2 2 -1
 
--- NOTE: Turns out floor is faster than fastFloor???
-saw :: AudioFormat f => f Audio -> f Audio
-saw freq =
-  accumulate1 accumulateSaw constTrue freq
+lfSaw :: AudioFormat f => f Audio -> f Audio
+lfSaw freq =
+  accumulate1 accumulateLFSaw constTrue freq
+
+-----------
+-- pulse
+
+-- Oversampling pulse oscillator, with FIR downsampling
+accumulatePulse :: F64 -> F64 -> *OverSampleSawState -> (#*OverSampleSawState, F64#)
+accumulatePulse width freq (OverSampleSawState# phaseIn downsampleIndexIn downsampleBufferIn) =
+  (#OverSampleSawState# phase downsampleIndex downsampleBuffer, firResult#)
+  where
+    freqDelta = freq * audioRecipOverSampleRate
+    (#_, phase, downsampleIndex1, downsampleBuffer1#) =
+      loop (#i, phase0, di, d0#) = (#0, phaseIn, downsampleIndexIn, downsampleBufferIn#) while i < audioOverSampleAmount do
+        let
+          phase1  = freqDelta + phase0
+          d1      = writeArray (Index (bitAnd (di + 0) 127)) (fma (fromInt <| boolToInt <| gt width <| phase1 - floor phase1) 2 -1) d0
+          phase2  = freqDelta + phase1
+          d2      = writeArray (Index (bitAnd (di + 1) 127)) (fma (fromInt <| boolToInt <| gt width <| phase2 - floor phase2) 2 -1) d1
+          phase3  = freqDelta + phase2
+          d3      = writeArray (Index (bitAnd (di + 2) 127)) (fma (fromInt <| boolToInt <| gt width <| phase3 - floor phase3) 2 -1) d2
+          phase4  = freqDelta + phase3
+          d4      = writeArray (Index (bitAnd (di + 3) 127)) (fma (fromInt <| boolToInt <| gt width <| phase4 - floor phase4) 2 -1) d3
+          phase5  = freqDelta + phase4
+          d5      = writeArray (Index (bitAnd (di + 4) 127)) (fma (fromInt <| boolToInt <| gt width <| phase5 - floor phase5) 2 -1) d4
+          phase6  = freqDelta + phase5
+          d6      = writeArray (Index (bitAnd (di + 5) 127)) (fma (fromInt <| boolToInt <| gt width <| phase6 - floor phase6) 2 -1) d5
+          phase7  = freqDelta + phase6
+          d7      = writeArray (Index (bitAnd (di + 6) 127)) (fma (fromInt <| boolToInt <| gt width <| phase7 - floor phase7) 2 -1) d6
+          phase8  = freqDelta + phase7
+          d8      = writeArray (Index (bitAnd (di + 7) 127)) (fma (fromInt <| boolToInt <| gt width <| phase8 - floor phase8) 2 -1) d7
+        in
+          (#i + 8, phase8, bitAnd (di + 8) 127, d8#)
+    (#_, downsampleIndex, downsampleBuffer, firResult#) =
+      loop (#i, di, d0, firResult0#) = (#0, downsampleIndex1, downsampleBuffer1, 0#) while i < 128 do
+        let
+          (#s1, d1#) = readArrayU (Index (bitAnd (di + 0) 127)) d0
+          firResult1 = s1 * readArray (Index i) downsampleCoefficients
+          (#s2, d2#) = readArrayU (Index (bitAnd (di + 1) 127)) d1
+          firResult2 = s2 * readArray (Index (i + 1)) downsampleCoefficients
+          (#s3, d3#) = readArrayU (Index (bitAnd (di + 2) 127)) d2
+          firResult3 = s3 * readArray (Index (i + 2)) downsampleCoefficients
+          (#s4, d4#) = readArrayU (Index (bitAnd (di + 3) 127)) d3
+          firResult4 = s4 * readArray (Index (i + 3)) downsampleCoefficients
+          (#s5, d5#) = readArrayU (Index (bitAnd (di + 4) 127)) d4
+          firResult5 = s5 * readArray (Index (i + 4)) downsampleCoefficients
+          (#s6, d6#) = readArrayU (Index (bitAnd (di + 5) 127)) d5
+          firResult6 = s6 * readArray (Index (i + 5)) downsampleCoefficients
+          (#s7, d7#) = readArrayU (Index (bitAnd (di + 6) 127)) d6
+          firResult7 = s7 * readArray (Index (i + 6)) downsampleCoefficients
+          (#s8, d8#) = readArrayU (Index (bitAnd (di + 7) 127)) d7
+          firResult8 = s8 * readArray (Index (i + 7)) downsampleCoefficients
+          firResult  = firResult0 + firResult1 + firResult2 + firResult3 + firResult4 + firResult5 + firResult6 + firResult7 + firResult8
+        in
+          (#i + 8, bitAnd (di + 8) 127, d8, firResult#)
+
+pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
+pulse width freq =
+  accumulate2U mkOverSampleSawState accumulatePulse constTrue' width freq
+
+-----------
+-- lfPulse
+accumulateLFPulse :: F64 -> F64 -> F64 -> (#F64, F64#)
+accumulateLFPulse width freq phase0 =
+  (#phase1, out#)
+  where
+    phase1 = fma freq recipSampleRate phase0
+    phase2 = phase1 - floor phase1
+    out    = fma (fromInt (boolToInt (phase2 > width))) 2 -1
+
+lfPulse :: AudioFormat f => f Audio -> f Audio -> f Audio
+lfPulse width freq =
+  accumulate2 accumulateLFPulse constTrue width freq
 
 -----------
 -- tri
@@ -2008,20 +2205,6 @@ accumulateTri freq phase0 =
 tri :: AudioFormat f => f Audio -> f Audio
 tri freq =
   accumulate1 accumulateTri constTrue freq
-
------------
--- pulse
-accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
-accumulatePulse width freq phase0 =
-  (#phase1, out#)
-  where
-    phase1 = fma freq recipSampleRate phase0
-    phase2 = phase1 - floor phase1
-    out    = fma (fromInt (boolToInt (phase2 > width))) 2 -1
-
-pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
-pulse width freq =
-  accumulate2 accumulatePulse constTrue width freq
 
 -----------
 -- perc
@@ -2103,6 +2286,7 @@ sin freq = wave sinTable freq
 -----------
 -- Sync
 
+-- TODO: default instance instead of accumulate3U
 data SyncState = SyncState# F64 F64 F64
 
 mkSyncState :: () -> *SyncState
@@ -2190,6 +2374,7 @@ syncSin sync freq = syncWave sinTable sync freq
 -- Based on Roland JP-8000 super saw oscillator design
 data SuperSawState = SuperSawState# F64 F64 F64 F64 F64 F64 F64
 
+-- TODO: Make default instance for SuperSawState instead of relying on accumulate3U, now that init weirdness has been fixed
 mkSuperSawState :: () -> *SuperSawState
 mkSuperSawState _ = SuperSawState# 0.260786585 0.087023334 0.866947809 0.392499353 0.728213602 0.122864975 0.167605335
 
@@ -3253,7 +3438,7 @@ instance Poly a => Poly (Stereo a) where
 
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
-  (fromInt n / fromInt d) * audioBlockSizeF
+  (fromInt n / fromInt d) * fromUInt audioBlockSize
   where
     Rational# n d =
       (valueTime - (tickTime - audioBlockDelta)) / audioBlockDelta
@@ -3390,7 +3575,7 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --   outAudio 0 badAudio w
 --   where
 --     badAudio =
---       sin (perc 5 5 -1 1000 + 200)
+--       sin (perc 5 5 -1 2000 + 200)
 --       |> perc 5 5 -1
 --       |> mul 0.1
 --       |> mixStereo
@@ -3400,7 +3585,7 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --   outAudio 0 badAudio w
 --   where
 --     badAudio =
---       tri (perc 5 5 -1 1000 + 200)
+--       tri (perc 5 5 -1 2000 + 200)
 --       |> perc 5 5 -1
 --       |> mul 0.1
 --       |> mixStereo
@@ -3410,7 +3595,27 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --   outAudio 0 badAudio w
 --   where
 --     badAudio =
---       pulse 0.5 (perc 5 5 -1 1000 + 200)
+--       lfPulse 0.5 (perc 5 5 -1 2000 + 200)
+--       |> perc 5 5 -1
+--       |> mul 0.2
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio =
+--       pulse 0.5 (perc 5 5 -1 2000 + 200)
+--       |> perc 5 5 -1
+--       |> mul 0.2
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio =
+--       lfSaw (perc 5 5 -1 2000 + 200)
 --       |> perc 5 5 -1
 --       |> mul 0.1
 --       |> mixStereo
@@ -3420,18 +3625,17 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --   outAudio 0 badAudio w
 --   where
 --     badAudio =
---       saw (perc 5 5 -1 1000 + 200)
+--       saw (perc 5 5 -1 2000 + 200)
 --       |> perc 5 5 -1
---       |> mul 0.1
+--       |> mul 0.2
 --       |> mixStereo
---
 
 -- testJit :: *World -> *World
 -- testJit w =
 --   outAudio 0 badAudio w
 --   where
 --     badAudio =
---       superSaw 440 0.125 0.6
+--       superSaw 440 0.1 0.7
 --       |> perc 5 5 -1
 --       |> mul 0.08
 --       |> mixStereo
@@ -3460,7 +3664,7 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 -- testJit w =
 --   outAudio 0 osc w
 --   where
---     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 200 |> seqSpeed 6 |> seqToAudio |> pulse (0.5 + sin 0.125 * 0.125)
+--     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 200 |> seqSpeed 6 |> seqToAudio |> lfPulse (0.5 + sin 0.125 * 0.125)
 --     osc  =
 --       syncTri sync 200
 --       |> perc 5 15 0.1
@@ -3471,33 +3675,33 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 -- testJit w =
 --   outAudio 0 osc w
 --   where
---     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 100 |> seqSpeed 6 |> seqToAudio |> pulse (0.5 + sin 0.25 * 0.125)
+--     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 100 |> seqSpeed 6 |> seqToAudio |> lfPulse (0.5 + sin 0.25 * 0.125)
 --     osc  =
 --       syncPulse 0.66667 sync 100
 --       |> perc 5 5 -1
---       |> mul 0.125
+--       |> mul 0.2
 --       |> mixStereo
 
 -- testJit :: *World -> *World
 -- testJit w =
 --   outAudio 0 osc w
 --   where
---     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 240 |> seqSpeed 6 |> seqToAudio |> pulse (0.5 + sin 0.2 * 0.35)
+--     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 240 |> seqSpeed 6 |> seqToAudio |> lfPulse (0.5 + sin 0.2 * 0.35)
 --     osc  =
 --       syncSaw sync 0.495 80
 --       |> perc 5 5 -1
---       |> mul 0.125
+--       |> mul 0.2
 --       |> mixStereo
 
 -- testJit :: *World -> *World
 -- testJit w =
 --   outAudio 0 osc w
 --   where
---     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 100 |> seqSpeed 6 |> seqToAudio |> pulse (0.5 + sin 0.125 * 0.125)
+--     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 100 |> seqSpeed 6 |> seqToAudio |> lfPulse (0.5 + sin 0.125 * 0.125)
 --     osc  =
 --       syncSin sync 200
 --       |> perc 5 5 -1
---       |> mul 0.125
+--       |> mul 0.2
 --       |> mixStereo
 
 -- testJit :: *World -> *World
@@ -3511,28 +3715,46 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --       |> perc 5 20 -1
 --       |> mul 0.5
 
+-- -- TODO: Perhaps upsample freq argument to saw and pulse?
 -- testJit :: *World -> *World
 -- testJit w =
---   case Just 666 of
---     Nothing -> w
---     Just x ->
---       case x of
---         0 -> w
---         1 -> w
-
--- -- TODO: put default Bool False back once the problem is solved!
--- gb :: Bool
--- gb =
---   b
+--   outAudio 0 osc w
 --   where
---     b ~ default =
---       case b of
---         True  -> True
---         False -> False
+--     osc =
+--       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 2000)
+--       |> sin
+--       |> perc 5 20 -1
+--       |> mul 0.2
 
 -- testJit :: *World -> *World
 -- testJit w =
---   printLn gb w
+--   outAudio 0 osc w
+--   where
+--     osc =
+--       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 2000)
+--       |> tri
+--       |> perc 5 20 -1
+--       |> mul 0.2
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     osc =
+--       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 2000)
+--       |> pulse 0.5
+--       |> perc 5 20 -1
+--       |> mul 0.2
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     osc =
+--       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 2000)
+--       |> saw
+--       |> perc 5 20 -1
+--       |> mul 0.2
 
 testJit :: *World -> *World
 testJit w =
@@ -3556,9 +3778,9 @@ testJit w =
       |> perc 0.025 4.0 -2.25
       |> pan 0.625
     bassSynth f =
-      sin (fromFloat (f * 0.5)) + tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))
-      |> mul 0.075
-      |> perc 0.005 5 -1.75
+      sin (fromFloat (f * 0.5)) + (0.5 * (tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))))
+      |> mul 0.1
+      |> perc 0.005 5 -1.8
       |> mixStereo
     synths =
       poly badSynth1 badBeat1 +
@@ -3634,11 +3856,11 @@ testJit w =
 -- testJit w =
 --   outAudio 0 a w
 --   where
---     s = seqToAudio <| seqSpeed 4 [(fromInt mouseX / 64.0) 1 2 <4 3>]
+--     s = seqToAudio <| seqSpeed 4 [3 1 2 <4 3>]
 --     t = seqToAudio <| seqSpeed 2 [0.5 1 2 <4 3>]
 --     a =
---       saw (440 * stereo s t)
---       |> mul 0.25
+--       pulse 0.125 (440 * stereo s t)
+--       |> mul 0.125
 --       |> pan 0.5
 
 -- testJit :: *World -> *World
@@ -3740,19 +3962,11 @@ testJit w =
 -- class Freeze a where
 --   freeze :: (Freeze b, a ~ b) => *a -> b
 
--- TODO: Investigate the mystery of the dying init fn!
--- NOTE: global_Necro.Base.default<F64>Machine5i
--- NOTE: initAccumulateAudio1<F64>bd4Machinef9g
--- TODO: prune inits that don't actually do anything!
--- NOTE: initPolyThunkEvalGo<Float,Stereo<Audio>>cfnMachineg1a
--- NOTE: initNecro.Base.bassSynthMachinefln
+-- TODO: Oversample sync oscs
 -- TODO: Make JIT faster
--- TODO: Oversample oscillators only?
--- TODO: runFor combinator
 -- TODO: Generic env
 -- TODO: Clipping detection
 -- TODO: Looks like maybe the precedence between (+) and (*) and (|>) is a little wonky?
--- TODO: Figure out what's going on with allocation sizes!
 -- TODO: https://ccrma.stanford.edu/~jos/pasp/Freeverb.html
 -- TODO: uint32 -> uint64
 -- TODO: Set audioSampleOffset to NOT be constant and insure that it is never used at a global scope!!!!! (It is magical...)

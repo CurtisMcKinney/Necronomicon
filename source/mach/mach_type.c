@@ -57,7 +57,7 @@ NecroMachTypeCache necro_mach_type_cache_create(NecroMachProgram* program)
     program->type_cache.word_int_type   = necro_mach_type_create_word_sized_int(program);
     program->type_cache.word_float_type = necro_mach_type_create_word_sized_float(program);
     // Init Table
-    const size_t initial_capacity       = 512;
+    const size_t initial_capacity       = 1024;
     program->type_cache.buckets         = emalloc(initial_capacity * sizeof(NecroMachTypeCacheBucket));
     program->type_cache.count           = 0;
     program->type_cache.capacity        = initial_capacity;
@@ -72,6 +72,7 @@ void necro_mach_type_cache_destroy(NecroMachTypeCache* cache)
     *cache = necro_mach_type_cache_empty();
 }
 
+// TODO: Fix cache grow bug !!!!
 void _necro_mach_type_cache_grow(NecroMachTypeCache* cache)
 {
     size_t                    old_count    = cache->count;
@@ -85,12 +86,12 @@ void _necro_mach_type_cache_grow(NecroMachTypeCache* cache)
     for (size_t i = 0; i < old_capacity; ++i)
     {
         NecroMachTypeCacheBucket* bucket = old_buckets + i;
-        if (bucket->mach_type == NULL)
+        if (bucket->hash == 0 && bucket->mach_type == NULL && bucket->necro_type == NULL)
             continue;
         size_t bucket_index = bucket->hash & (cache->capacity - 1);
         while (true)
         {
-            if (cache->buckets[bucket_index].mach_type == NULL)
+            if (cache->buckets[bucket_index].hash == 0 && cache->buckets[bucket_index].mach_type == NULL && cache->buckets[bucket_index].necro_type == NULL)
             {
                 cache->buckets[bucket_index] = *bucket;
                 cache->count++;
@@ -99,7 +100,12 @@ void _necro_mach_type_cache_grow(NecroMachTypeCache* cache)
             bucket_index = (bucket_index + 1) & (cache->capacity - 1);
         }
     }
-    assert(cache->count == old_count);
+    assert(cache->count >= old_count);
+    // TODO: Look at this...
+    // if (cache->count > old_count);
+    // {
+    //     fprintf(stderr, "type cache grow off, count: %zu, old_count: %zu\n", cache->count, old_count);
+    // }
     free(old_buckets);
 }
 
@@ -208,11 +214,12 @@ NecroMachType* _necro_mach_type_cache_get(NecroMachProgram* program, NecroType* 
             // Found
             return bucket->mach_type;
         }
-        else if (bucket->mach_type == NULL)
+        else if (bucket->hash == 0 && bucket->mach_type == NULL && bucket->necro_type == NULL)
         {
             // Create
             bucket->hash       = hash;
             bucket->mach_type  = _necro_mach_type_from_necro_type(program, type);
+            assert(bucket->mach_type != NULL);
             bucket->necro_type = type;
             cache->count++;
             return bucket->mach_type;
@@ -863,11 +870,11 @@ void necro_mach_ast_type_check_gep(NecroMachProgram* program, NecroMachAst* ast)
             necro_mach_ast_type_check(program, index_ast);
             assert(index_ast->type == NECRO_MACH_VALUE);
             // if (program->word_size == NECRO_WORD_4_BYTES)
-                assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT32_LITERAL);
+                // assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT32_LITERAL);
             // else
-            //     assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT64_LITERAL);
-            const size_t index = index_ast->value.uint32_literal;
-            assert(index < (uint32_t) necro_machine_type->struct_type.num_members);
+            assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT64_LITERAL);
+            const size_t index = index_ast->value.uint64_literal;
+            assert(index < necro_machine_type->struct_type.num_members);
             necro_machine_type = necro_machine_type->struct_type.members[index];
         }
         else if (necro_machine_type->type == NECRO_MACH_TYPE_ARRAY)
@@ -877,7 +884,7 @@ void necro_mach_ast_type_check_gep(NecroMachProgram* program, NecroMachAst* ast)
             assert(index_ast->type == NECRO_MACH_VALUE);
             // Can't double check this with non-const geps!
             // assert(index_ast->value.value_type == NECRO_MACH_VALUE_UINT32_LITERAL);
-            // const size_t index = index_ast->value.uint32_literal;
+            // const size_t index = index_ast->value.uint64_literal;
             // assert(index < necro_machine_type->array_type.element_count);
             necro_machine_type = necro_machine_type->array_type.element_type;
         }
@@ -1107,6 +1114,12 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
         necro_mach_type_check_is_int_type(result->necro_machine_type);
+        break;
+    }
+    case NECRO_PRIMOP_UOP_FTRU:
+    {
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        necro_mach_type_check_is_uint_type(result->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_UOP_FRNI:

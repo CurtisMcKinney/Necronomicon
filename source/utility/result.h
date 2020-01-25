@@ -109,6 +109,7 @@ typedef enum
     NECRO_TYPE_DOES_NOT_IMPLEMENT_SUPER_CLASS,
     NECRO_TYPE_MULTIPLE_CLASS_DECLARATIONS,
     NECRO_TYPE_MULTIPLE_INSTANCE_DECLARATIONS,
+    NECRO_TYPE_MALFORMED_UNIQUENESS_ATTRIBUTE,
 
     NECRO_CONSTRAINT_MALFORMED_CONSTRAINT,
 
@@ -444,6 +445,7 @@ NecroResult(NecroType)             necro_type_multiple_instance_declarations_err
 NecroResult(NecroType)             necro_type_no_explicit_implementation_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_does_not_implement_super_class_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroType)             necro_type_not_a_visible_method_error(NecroAstSymbol* type_class_ast_symbol, struct NecroType* type1, struct NecroType* type2, struct NecroType* macro_type1, struct NecroType* macro_type2, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroType)             necro_type_malformed_uniqueness_attribute_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 NecroResult(NecroConstraintList)   necro_type_not_a_class_error(NecroAstSymbol* ast_symbol, struct NecroType* type, NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroConstraintList)   necro_type_malformed_constraint(struct NecroConstraint* constraint);

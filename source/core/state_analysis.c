@@ -607,7 +607,7 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
         {
             return sa->base->uint_type->type;
         }
-        else if (type->con.con_symbol == sa->base->block_size_type || type->con.con_symbol == sa->base->nat_mul_type || type->con.con_symbol == sa->base->nat_max_type)
+        else if (necro_base_is_nat_op_type(sa->base, type))
         {
             return type;
         }
@@ -1286,7 +1286,7 @@ void necro_state_analysis_test()
     {
         const char* test_name   = "Poly 0";
         const char* test_source = ""
-            "myCoolSynth :: Audio Mono\n"
+            "myCoolSynth :: Mono Audio\n"
             "myCoolSynth = poly saw [440 220 _ <110 55 _ 330>]\n"
             "main :: *World -> *World\n"
             "main w = w\n";

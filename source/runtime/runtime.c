@@ -33,7 +33,7 @@ typedef enum
     NECRO_RUNTIME_UNINITIALIZED = 0,
     NECRO_RUNTIME_RUNNING       = 1,
     NECRO_RUNTIME_IS_DONE       = 2,
-    NECRO_RUNTIME_SHUTDOWN      = 3
+    NECRO_RUNTIME_SHUTDOWN      = 4
 } NECRO_RUNTIME_STATE;
 
 NECRO_RUNTIME_STATE necro_runtime_state = NECRO_RUNTIME_UNINITIALIZED;
@@ -108,6 +108,16 @@ extern DLLEXPORT size_t necro_runtime_print_char(size_t value, size_t world)
     return world;
 }
 
+extern DLLEXPORT size_t necro_runtime_print_string(size_t* str, size_t str_length, size_t world)
+{
+    for (size_t i = 0; i < str_length; ++i)
+    {
+        putchar((int)str[i]);
+    }
+    putchar('\n');
+    return world;
+}
+
 extern DLLEXPORT void necro_runtime_sleep(uint32_t milliseconds)
 {
 #ifdef _WIN32
@@ -117,7 +127,7 @@ extern DLLEXPORT void necro_runtime_sleep(uint32_t milliseconds)
 #endif
 }
 
-extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
+extern DLLEXPORT void necro_runtime_error_exit(size_t error_code)
 {
     switch (error_code)
     {
@@ -125,10 +135,23 @@ extern DLLEXPORT void necro_runtime_error_exit(uint32_t error_code)
         fprintf(stderr, "****Error: Non-exhaustive patterns in case statement!\n");
         break;
     default:
-        fprintf(stderr, "****Error: Unrecognized error (%d) during runtime!\n", error_code);
+        fprintf(stderr, "****Error: Unrecognized error (%zu) during runtime!\n", error_code);
         break;
     }
-    necro_exit(error_code);
+    necro_exit((uint32_t) error_code);
+}
+
+extern DLLEXPORT void necro_runtime_inexhaustive_case_exit(size_t* str, size_t str_length)
+{
+    fprintf(stderr, "****  Error: Non-exhaustive patterns in case statement!\n");
+    fprintf(stderr, "****    found in:\n");
+    fprintf(stderr, "****      ");
+    for (size_t i = 0; i < str_length; ++i)
+    {
+        fputc((int)str[i], stderr);
+    }
+    fprintf(stderr, "\n");
+    necro_exit(1);
 }
 
 extern DLLEXPORT size_t necro_runtime_test_assertion(size_t is_true, size_t world)
@@ -145,21 +168,68 @@ bool necro_runtime_was_test_successful()
     return is_test_true;
 }
 
+extern DLLEXPORT size_t necro_runtime_panic(size_t world)
+{
+    fprintf(stderr, "****panic!\n");
+    necro_exit(-1);
+    return world;
+}
+
+typedef struct NecroHeap
+{
+    uint8_t* data;
+    size_t   bump;
+    size_t   capacity;
+} NecroHeap;
+NecroHeap necro_heap = { .data = NULL, .bump = 0, .capacity = 0 };
+
+NecroHeap necro_heap_create(size_t capacity)
+{
+    return (NecroHeap) { .data = calloc(capacity, sizeof(uint8_t)), .bump = 0, .capacity = capacity };
+}
+
+void necro_heap_destroy(NecroHeap* heap)
+{
+    free(heap->data);
+    heap->data     = NULL;
+    heap->bump     = 0;
+    heap->capacity = 0;
+}
+
+// HACK / TODO: Note this is completely ridiculous, but until we have a better allocation scheme this is what we're doing for now!
 // TODO: Different Allocators based on size: Slab Allocator => Buddy => OS
 extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size)
 {
-    return malloc(size);
+    // return malloc(size);
+    if (size == 0)
+        return NULL;
+    assert(size % 8 == 0);
+    if (necro_heap.bump + size >= necro_heap.capacity)
+    {
+        fprintf(stderr, "Necro memory exhausted!\n");
+        exit(665); // The neighbor of the beast
+    }
+    uint8_t* data    = necro_heap.data + necro_heap.bump;
+    necro_heap.bump += size;
+    printf("Alloc: %zu bytes, total: %fmb\n\n", size, (((double)necro_heap.bump) / 1000000.0));
+    return data;
 }
 
 extern DLLEXPORT uint8_t* necro_runtime_realloc(uint8_t* ptr, size_t size)
 {
-    return realloc(ptr, size);
+    // printf("necro_runtime_realloc, ptr: %p, size: %zu\n\n", ptr, size);
+    // return realloc(ptr, size);
+    necro_runtime_free(ptr);
+    printf("REALLOC\n");
+    return necro_runtime_alloc(size);
 }
 
 extern DLLEXPORT void necro_runtime_free(uint8_t* data)
 {
-    free(data);
+    UNUSED(data);
+    // free(data);
 }
+
 
 ///////////////////////////////////////////////////////
 // Audio
@@ -170,9 +240,9 @@ static float*             necro_runtime_audio_output_buffer       = NULL;
 static size_t             necro_runtime_audio_num_input_channels  = 0;
 #define                   necro_runtime_audio_num_output_channels 2
 static size_t             necro_runtime_audio_sample_rate         = 48000;
-static size_t             necro_runtime_audio_block_size          = 64;
-#define                   necro_runtime_audio_oversample_amt      32
-static double             necro_runtime_audio_brick_wall_cutoff   = 19500.0;
+static size_t             necro_runtime_audio_block_size          = 256;
+// #define                   necro_runtime_audio_oversample_amt      2
+// static double             necro_runtime_audio_brick_wall_cutoff   = 20000.0;
 static double             necro_runtime_audio_start_time          = 0.0;
 static double             necro_runtime_audio_curr_time           = 0.0;
 static PaStream*          necro_runtime_audio_pa_stream           = NULL;
@@ -180,39 +250,37 @@ struct NecroDownsample*   necro_runtime_audio_downsample[necro_runtime_audio_num
 
 extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double* audio_block, size_t world)
 {
-    if (channel_num >= necro_runtime_audio_num_output_channels)
+    if (channel_num >= necro_runtime_audio_num_output_channels || necro_runtime_is_done())
         return world;
     // float*                  output_buffer = necro_runtime_audio_output_buffer[channel_num];
-    struct NecroDownsample* downsample = necro_runtime_audio_downsample[channel_num];
+    // struct NecroDownsample* downsample = necro_runtime_audio_downsample[channel_num];
     // necro_downsample(downsample, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, output_buffer);
-    necro_downsample(downsample, channel_num, necro_runtime_audio_num_output_channels, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, necro_runtime_audio_output_buffer);
+    // necro_downsample(downsample, channel_num, necro_runtime_audio_num_output_channels, necro_runtime_audio_block_size, necro_runtime_audio_oversample_amt, audio_block, necro_runtime_audio_output_buffer);
+
+    // output into interleaved audio buffer
+    size_t out_i = channel_num;
+    for (size_t i = 0; i < necro_runtime_audio_block_size; ++i)
+    {
+        necro_runtime_audio_output_buffer[out_i] = (float) audio_block[i];
+        out_i += necro_runtime_audio_num_output_channels;
+    }
     return world;
 }
 
-// extern DLLEXPORT size_t necro_runtime_print_audio_block(size_t channel_num, double* audio_block, size_t world)
-// {
-//     if (channel_num >= necro_runtime_audio_num_output_channels)
-//         return world;
-//     printf("AudioBlock { ");
-//     assert(necro_runtime_audio_block_size >= 2);
-//     size_t penultimate_sample = necro_runtime_audio_block_size - 2;
-//     for (size_t i = 0; i < penultimate_sample; ++i)
-//     {
-//         printf("%.3f, ", audio_block[i]);
-//     }
-//     printf("%.3f }\n", audio_block[penultimate_sample + 1]);
-//     return world;
-// }
-
-// Or break up and run the whole signal multiple times!?
 static int necro_runtime_audio_pa_callback(const void* input_buffer, void* output_buffer, unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo* time_info, PaStreamCallbackFlags status_flags, void* user_data)
 {
     UNUSED(input_buffer);
     UNUSED(user_data);
-    UNUSED(status_flags);
-    if (necro_runtime_audio_lang_callback == NULL)
+    if (necro_runtime_audio_lang_callback == NULL || necro_runtime_is_done())
         return 0;
     assert(necro_runtime_audio_block_size == frames_per_buffer);
+    if ((status_flags & paOutputUnderflow) == paOutputUnderflow)
+        printf("Output underflow!\n");
+    if ((status_flags & paOutputOverflow) == paOutputOverflow)
+    {
+        printf("Output overflow!\n");
+        return 0;
+    }
     // RT IO
     // necro_runtime_audio_output_buffer = (float**) output_buffer;
     necro_runtime_audio_output_buffer = output_buffer;
@@ -226,8 +294,8 @@ NecroResult(void) necro_runtime_audio_init()
 {
     // if (necro_runtime_audio_downsample != NULL)
     //     free(necro_runtime_audio_downsample);
-    for (size_t i = 0; i < necro_runtime_audio_num_output_channels; ++i)
-        necro_runtime_audio_downsample[i] = necro_downsample_create(necro_runtime_audio_brick_wall_cutoff, (double) (necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt));
+    // for (size_t i = 0; i < necro_runtime_audio_num_output_channels; ++i)
+    //     necro_runtime_audio_downsample[i] = necro_downsample_create(necro_runtime_audio_brick_wall_cutoff, (double) (necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt));
     PaError pa_error = Pa_Initialize();
     if (pa_error != paNoError) return necro_runtime_audio_error(Pa_GetErrorText(pa_error));
     // const PaSampleFormat audio_format = paFloat32 | paNonInterleaved;
@@ -244,6 +312,8 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
     assert(necro_shutdown != NULL);
     //--------------------
     // Init, then start RT thread
+    necro_try(void, necro_runtime_audio_init());
+    necro_heap = necro_heap_create(256000000);
     necro_runtime_init();
     necro_runtime_audio_lang_callback = necro_main;
     PaError pa_error = paNoError;
@@ -252,24 +322,28 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
     if (pa_error != paNoError) return necro_runtime_audio_error(Pa_GetErrorText(pa_error));
     //--------------------
     // NRT Update
-    const long check_if_done_time_ms = 100;
+    const long check_if_done_time_ms = 10;
     while (!necro_runtime_is_done())
     {
         // TODO: Need to synchronize this (lockless) with rt thread!
         necro_runtime_update();
         Pa_Sleep(check_if_done_time_ms);
+        // necro_runtime_sleep(check_if_done_time_ms);
     }
     //--------------------
     // Shutdown
-    necro_runtime_audio_stop();
+    necro_try(void, necro_runtime_audio_stop());
+    necro_try(void, necro_runtime_audio_shutdown());
     // TODO: remove, for now freeing seems broken...
     // necro_shutdown();
     necro_runtime_shutdown();
+    necro_heap_destroy(&necro_heap);
     return ok_void();
 }
 
 NecroResult(void) necro_runtime_audio_stop()
 {
+    // PaError pa_error = Pa_AbortStream(necro_runtime_audio_pa_stream);
     PaError pa_error = Pa_StopStream(necro_runtime_audio_pa_stream);
     if (pa_error != paNoError) return necro_runtime_audio_error(Pa_GetErrorText(pa_error));
     return ok_void();
@@ -291,12 +365,14 @@ NecroResult(void) necro_runtime_audio_shutdown()
 
 extern DLLEXPORT size_t necro_runtime_get_sample_rate()
 {
-    return necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt;
+    // return necro_runtime_audio_sample_rate * necro_runtime_audio_oversample_amt;
+    return necro_runtime_audio_sample_rate;
 }
 
 extern DLLEXPORT size_t necro_runtime_get_block_size()
 {
-    return necro_runtime_audio_block_size * necro_runtime_audio_oversample_amt;
+    // return necro_runtime_audio_block_size * necro_runtime_audio_oversample_amt;
+    return necro_runtime_audio_block_size;
 }
 
 
@@ -339,7 +415,9 @@ extern DLLEXPORT void necro_runtime_update()
     DWORD num_waiting = 0;
     if (GetNumberOfConsoleInputEvents(h_in, &num_waiting) == 0)
         return;
-    if (num_waiting == 0 || ReadConsoleInput(h_in, input_record, 32, &num_read) == 0)
+    if (num_waiting == 0)
+        return;
+    if (ReadConsoleInput(h_in, input_record, 32, &num_read) == 0)
         return;
     for (DWORD i = 0; i < num_read; ++i)
     {

@@ -1,4 +1,6 @@
 --------------------
+-- Necro.Base
+--------------------
 
 -- -- TODO: Move into tests!
 -- data ETest1 a     = ETest1 (Maybe a)
@@ -11,6 +13,23 @@
 
 testAssertion :: Bool -> *World -> *World
 testAssertion b w = primUndefined
+
+panic :: UInt -> UInt
+panic x = primUndefined
+
+boundsCheck :: Array n Char -> UInt -> UInt -> UInt
+boundsCheck str index capacity =
+  if index < capacity then index else
+    index
+    |> traceLn "bounds check FAILED:"
+    |> trace "| "
+    |> traceLn str
+    |> trace "| index:    "
+    |> traceLn index
+    |> trace "| capacity: "
+    |> traceLn capacity
+    |> traceLn " "
+    |> panic
 
 -- testAndPrintAssertion :: (Print a, Eq a) => a -> a -> *World -> *World
 -- testAndPrintAssertion x y w = testAssertion (x == y) <| printLn x w
@@ -42,11 +61,12 @@ snd3 (_, y, _) = y
 thd3 :: (.a, .b, .c) -> .c
 thd3 (_, _, z) = z
 
-fst3' :: (#.a, .b, .c#) -> .a
-fst3' (#x, _, _#) = x
+-- We're uh....hitting stack overflow...
+-- fst3' :: (#.a, .b, .c#) -> .a
+-- fst3' (#x, _, _#) = x
 
-snd3' :: (#.a, .b, .c#) -> .b
-snd3' (#_, y, _#) = y
+-- snd3' :: (#.a, .b, .c#) -> .b
+-- snd3' (#_, y, _#) = y
 
 thd3' :: (#.a, .b, .c#) -> .c
 thd3' (#_, _, z#) = z
@@ -88,12 +108,6 @@ mouseX = getMouseX ()
 mouseY :: Int
 mouseY = getMouseY ()
 
-sampleRate :: UInt
-sampleRate = primUndefined
-
-recipSampleRate :: F64
-recipSampleRate = primUndefined
-
 
 ----------------------
 -- Bool
@@ -104,8 +118,8 @@ data Bool = False | True
 not :: .Bool -> .Bool
 not b =
   case b of
-    True -> False
-    _    -> True
+    True  -> False
+    False -> True
 
 
 ----------------------
@@ -126,7 +140,9 @@ class UFunctor f where
 
 class FunctorN f where
   map2 :: (a -> b -> c) -> f a -> f b -> f c
-  -- TODO: map3, etc
+  map3 :: (a -> b -> c -> d) -> f a -> f b -> f c -> f d
+  map4 :: (a -> b -> c -> d -> e) -> f a -> f b -> f c -> f d -> f e
+  -- TODO: map4, etc
 
 class Functor f => Applicative f where
   pure :: a -> f a
@@ -210,7 +226,7 @@ class Floating a => Trig a where
   -- acosine  :: a -> a
   -- atan     :: a -> a
   -- atan2    :: a -> a -> a
-  -- sineh    :: a -> a
+  sinh     :: a -> a
   -- cosineh  :: a -> a
   -- tanh     :: a -> a
   -- asineh   :: a -> a
@@ -439,7 +455,7 @@ instance Monoid Bool where
   mempty = False
 
 instance Default Bool where
-  default = False
+  default = True
 
 
 --------------------
@@ -641,6 +657,7 @@ instance Floating Float where
 instance Trig Float where
   sine   x = primUndefined
   cosine x = primUndefined
+  sinh   x = primUndefined
   exp    x = primUndefined
   exp2   x = primUndefined
   log    x = primUndefined
@@ -671,6 +688,12 @@ instance Default Float where
 
 negate :: Ring a => a -> a
 negate x = 0 - x
+
+floatToUInt :: Float -> UInt
+floatToUInt x = primUndefined
+
+f64ToUInt :: F64 -> UInt
+f64ToUInt x = primUndefined
 
 --------------------
 -- F64
@@ -723,6 +746,7 @@ instance Floating F64 where
 instance Trig F64 where
   sine   x = primUndefined
   cosine x = primUndefined
+  sinh   x = primUndefined
   exp    x = primUndefined
   exp2   x = primUndefined
   log    x = primUndefined
@@ -835,7 +859,7 @@ f64Epsilon = fromBits f64EpsilonU
 -- TODO: I64 on 32-bit breaks during JIT due to not linking against ___divdi3 and the like
 -- TODO: Proper Fraction
 -- TODO: More efficient gcd algorithm
-data Rational = Rational (#Int, Int#)
+data Rational = Rational# Int Int
 
 gcd :: Int -> Int -> Int
 gcd x y =
@@ -844,7 +868,7 @@ gcd x y =
 
 reduce :: Int -> Int -> Rational
 reduce x y =
-  Rational (#x / d, y / d#)
+  Rational# (x / d) (y / d)
   where
     d = gcd x y
 
@@ -852,40 +876,40 @@ rational :: Int -> Int -> Rational
 rational x y = reduce (x * signum y) (abs y)
 
 numerator :: Rational -> Int
-numerator (Rational (#n, _#)) = n
+numerator (Rational# n _) = n
 
 denominator :: Rational -> Int
-denominator (Rational (#_, d#)) = d
+denominator (Rational# _ d) = d
 
 instance Eq Rational where
-  eq  (Rational (#xn, xd#)) (Rational (#yn, yd#)) = eq (xn * yd) (yn * xd)
-  neq (Rational (#xn, xd#)) (Rational (#yn, yd#)) = neq (xn * yd) (yn * xd)
+  eq  (Rational# xn xd) (Rational# yn yd) = eq (xn * yd) (yn * xd)
+  neq (Rational# xn xd) (Rational# yn yd) = neq (xn * yd) (yn * xd)
 
 instance Ord Rational where
-  lt  (Rational (#xn, xd#)) (Rational (#yn, yd#)) = lt  (xn * yd) (yn * xd)
-  lte (Rational (#xn, xd#)) (Rational (#yn, yd#)) = lte (xn * yd) (yn * xd)
-  gt  (Rational (#xn, xd#)) (Rational (#yn, yd#)) = gt  (xn * yd) (yn * xd)
-  gte (Rational (#xn, xd#)) (Rational (#yn, yd#)) = gte (xn * yd) (yn * xd)
+  lt  (Rational# xn xd) (Rational# yn yd) = lt  (xn * yd) (yn * xd)
+  lte (Rational# xn xd) (Rational# yn yd) = lte (xn * yd) (yn * xd)
+  gt  (Rational# xn xd) (Rational# yn yd) = gt  (xn * yd) (yn * xd)
+  gte (Rational# xn xd) (Rational# yn yd) = gte (xn * yd) (yn * xd)
 
 instance Semiring Rational where
-  zero = Rational (#0, 1#)
-  one  = Rational (#1, 1#)
-  add (Rational (#xn, xd#)) (Rational (#yn, yd#)) = reduce (xn * yd + yn * xd) (xd * yd)
-  mul (Rational (#xn, xd#)) (Rational (#yn, yd#)) = reduce (xn * yn) (xd * yd)
+  zero = Rational# 0 1
+  one  = Rational# 1 1
+  add (Rational# xn xd) (Rational# yn yd) = reduce (xn * yd + yn * xd) (xd * yd)
+  mul (Rational# xn xd) (Rational# yn yd) = reduce (xn * yn) (xd * yd)
 
 instance Ring Rational where
-  sub (Rational (#xn, xd#)) (Rational (#yn, yd#)) = reduce (xn * yd - yn * xd) (xd * yd)
-  fromInt x                                       = Rational (#fromInt x, 1#)
+  sub (Rational# xn xd) (Rational# yn yd) = reduce (xn * yd - yn * xd) (xd * yd)
+  fromInt x                               = Rational# (fromInt x) 1
 
 instance Num Rational where
-  abs    (Rational (#xn, xd#)) = Rational (#abs xn, xd#)
-  signum (Rational (#xn, _#))  = Rational (#signum xn, 1#)
-  copysign (Rational (#xn, xd#)) (Rational (# yn, _#)) = Rational (#copysign xn yn, abs xd#)
+  abs    (Rational# xn xd) = Rational# (abs xn) xd
+  signum (Rational# xn _)  = Rational# (signum xn) 1
+  copysign (Rational# xn xd) (Rational#  yn _) = Rational# (copysign xn yn) (abs xd)
 
 instance DivisionRing Rational where
-  recip (Rational (#n, d#)) =
+  recip (Rational# n d) =
     if n == 0 then
-      Rational (#0, 1#)
+      Rational# 0 1
     else
       d // n
 
@@ -911,113 +935,113 @@ rationalToFloat r = fromInt (numerator r) / fromInt (denominator r)
 --------------------
 -- Complex
 --------------------
-data Complex = Complex (#F64, F64#)
+data Complex = Complex# F64 F64
 
 realPart :: Complex -> F64
-realPart (Complex (#r, _#)) = r
+realPart (Complex# r _) = r
 
 imagPart :: Complex -> F64
-imagPart (Complex (#_, i#)) = i
+imagPart (Complex# _ i) = i
 
 mkPolar :: F64 -> F64 -> Complex
-mkPolar r theta = Complex (#r * cosine theta, r * sine theta#)
+mkPolar r theta = Complex# (r * cosine theta) (r * sine theta)
 
 cis :: F64 -> Complex
-cis theta = Complex (#cosine theta, sine theta #)
+cis theta = Complex# (cosine theta) (sine theta)
 
 polar :: Complex -> (F64, F64)
 polar c = (magnitude c, phase c)
 
 sqrMagnitude :: Complex -> F64
-sqrMagnitude (Complex (#r, i#)) = (r * r) + (i * i)
+sqrMagnitude (Complex# r i) = (r * r) + (i * i)
 
 magnitude :: Complex -> F64
-magnitude (Complex (#r, i#)) = sqrt ((r * r) + (i * i))
+magnitude (Complex# r i) = sqrt ((r * r) + (i * i))
 
 conjugate :: Complex -> Complex
-conjugate (Complex (#r, i#)) = Complex (#r, negate i#)
+conjugate (Complex# r i) = Complex# r (negate i)
 
 phase :: Complex -> F64
 phase c = primUndefined
 -- TODO: ADD ATAN2!
--- phase (Complex (#r, i#)) = atan2 r i
+-- phase (Complex# r i) = atan2 r i
 
 instance Eq Complex where
-  eq  (Complex (#rx, ix#)) (Complex (#ry, iy#)) = rx == ry && ix == iy
-  neq (Complex (#rx, ix#)) (Complex (#ry, iy#)) = rx /= ry || ix /= iy
+  eq  (Complex# rx ix) (Complex# ry iy) = rx == ry && ix == iy
+  neq (Complex# rx ix) (Complex# ry iy) = rx /= ry || ix /= iy
 
 instance Semiring Complex where
-  zero                                          = Complex (#0, 0#)
-  one                                           = Complex (#1, 0#)
-  add (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx + ry, ix + iy#)
-  mul (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx * ry - ix * iy, rx * iy + ix * ry#)
+  zero                                  = Complex# 0 0
+  one                                   = Complex# 1 0
+  add (Complex# rx ix) (Complex# ry iy) = Complex# (rx + ry) (ix + iy)
+  mul (Complex# rx ix) (Complex# ry iy) = Complex# (rx * ry - ix * iy) (rx * iy + ix * ry)
 
 instance Ring Complex where
-  sub (Complex (#rx, ix#)) (Complex (#ry, iy#)) = Complex (#rx - ry, ix - iy#)
-  fromInt z                                     = Complex (#fromInt z, 0#)
+  sub (Complex# rx ix) (Complex# ry iy) = Complex# (rx - ry) (ix - iy)
+  fromInt z                             = Complex# (fromInt z) 0
 
 instance EuclideanRing Complex where
-  div x y = Complex (#zx / yIntoConjugate, zi / yIntoConjugate#)
+  div x y = Complex# (zx / yIntoConjugate) (zi / yIntoConjugate)
     where
-      conjugateY = conjugate y
+      conjugateY     = conjugate y
       yIntoConjugate = y * conjugateY |> realPart
-      (Complex (#zx, zi#)) = x * conjugateY
+      Complex# zx zi = x * conjugateY
   rem x y = x - y * w
     where
       z = x / y
       w = case z of
-        Complex (#rz, iz#) -> Complex (#floor rz, floor iz#)
+        Complex# rz iz -> Complex# (floor rz) (floor iz)
 
 instance DivisionRing Complex where
-  recip (Complex (#r, i#)) = Complex (#r / sqrRsqrI, negate (i / sqrRsqrI)#)
+  recip (Complex# r i) = Complex# (r / sqrRsqrI) (negate (i / sqrRsqrI))
     where
       sqrRsqrI = (r * r) + (i * i)
 
 instance Num Complex where
-  abs z    = Complex (#magnitude z, 0#)
+  abs z    = Complex# (magnitude z) 0
   signum z =
     case z of
-      Complex (#r, i#) ->
+      Complex# r i ->
         if r == 0 && i == 0 then 0 else
           let m = magnitude z in
-            Complex (#r / m, i / m#)
+            Complex# (r / m) (i / m)
   copysign x sign = (abs x) * (signum sign) -- Note: unsure if this is well founded or not?
 
 instance Field Complex where
 
 instance Floating Complex where
-  fromFloat f = Complex (#fromFloat f, 0#)
+  fromFloat f = Complex# (fromFloat f) 0
   sqrt z = case z of
-    Complex (#r, i#) ->
+    Complex# r i ->
       if r == 0 then
         let
           u = sqrt ((abs i) / r)
           v = if i < 0 then negate u else u
         in
-          Complex (#u, v#)
+          Complex# u v
       else
         let
           u = sqrt (2 * (magnitude z + abs r))
           v = u / 2
         in
           if r > 0 then
-            Complex (#v, i / u#)
+            Complex# v (i / u)
           else
             let
               vByI = if i < 0 then negate v else v
             in
-              Complex (#(abs i) / u, vByI#)
-  floor     (Complex (#r, i#)) = Complex (#floor r, floor i#)
-  ceil      (Complex (#r, i#)) = Complex (#ceil r, ceil i#)
-  truncate  (Complex (#r, i#)) = Complex (#truncate r, truncate i#)
-  round     (Complex (#r, i#)) = Complex (#round r, round i#)
+              Complex# ((abs i) / u) vByI
+  floor     (Complex# r i) = Complex# (floor r) (floor i)
+  ceil      (Complex# r i) = Complex# (ceil r) (ceil i)
+  truncate  (Complex# r i) = Complex# (truncate r) (truncate i)
+  round     (Complex# r i) = Complex# (round r) (round i)
   -- fmin      x y = if (magnitude x < magnitude y) then x else y -- TODO: brancless versions?
   -- fmax      x y = if (magnitude x > magnitude y) then x else y
 
 -- TODO - ADD SINEH and COSINEH
 -- instance Trig Complex where
---   sine (Complex (#r, i#)) = Complex (#sine r * cosineh i, cosine r * sineh i)
---   cosine (Complex (#r, i#)) = Complex (#cosine r * cosineh i, (negate <| sine r) * sineh i)
+--   sine (Complex# r, i) = Complex# (sine r * cosineh i) (cosine r * sineh i)
+--   cosine (Complex# r i) = Complex# (cosine r * cosineh i) (negate (sine r) * sineh i)
 --   exp    :: a -> a
 --   exp2   :: a -> a
 --   log    :: a -> a
@@ -1093,6 +1117,31 @@ instance FunctorN Maybe where
           Nothing -> nothing
           Just y  ->
             Just (f x y)
+  map3 f mx my mz =
+    case mx of
+      Nothing -> nothing
+      Just x  ->
+        case my of
+          Nothing -> nothing
+          Just y  ->
+            case mz of
+              Nothing -> nothing
+              Just z  ->
+                Just (f x y z)
+  map4 f mw mx my mz =
+    case mw of
+      Nothing -> nothing
+      Just w  ->
+        case mx of
+          Nothing -> nothing
+          Just x  ->
+            case my of
+              Nothing -> nothing
+              Just y  ->
+                case mz of
+                  Nothing -> nothing
+                  Just z  ->
+                    Just (f w x y z)
 
 instance Applicative Maybe where
   pure x   = Just x
@@ -1109,7 +1158,7 @@ instance Alternative Maybe where
   alternative x y =
     case x of
       Nothing -> y
-      _       -> x
+      Just _  -> x
 
 -- This are wrong, wtf is going on? Is it parsing wrong? Is it inferring wrong?
 maybe :: .b -> .(.a -> .b) -> Maybe .a -> .b
@@ -1139,8 +1188,82 @@ either lf rf e =
 
 
 --------------------
+-- Ptr
+--------------------
+ptrMalloc :: UInt -> Ptr *a
+ptrMalloc capacity = primUndefined
+
+ptrRealloc :: UInt -> Ptr *a -> Ptr *a
+ptrRealloc capacity ptr = primUndefined
+
+ptrFree :: Ptr .a -> *()
+ptrFree ptr = primUndefined
+
+-- unsafePtrPeek :: UInt -> *Ptr a -> (#a, *Ptr a#)
+-- unsafePtrPeek index ptr = primUndefined
+
+unsafePtrPoke :: UInt -> *a -> Ptr *a -> Ptr *a
+unsafePtrPoke index value ptr = primUndefined
+
+unsafePtrSwapElement :: UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
+unsafePtrSwapElement index element ptr = primUndefined
+
+unsafePtrPokeChecked :: Array n Char -> UInt -> UInt -> *a -> Ptr *a -> Ptr *a
+unsafePtrPokeChecked str capacity index value ptr =
+  unsafePtrPoke (boundsCheck str index capacity) value ptr
+
+unsafePtrSwapElementChecked :: Array n Char -> UInt -> UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
+unsafePtrSwapElementChecked str capacity index element ptr =
+  unsafePtrSwapElement (boundsCheck str index capacity) element ptr
+
+-- TODO: Checked readArray and writeArray!
+
+-- unsafeCastPtr :: *Ptr a -> *Ptr b
+-- unsafeCastPtr = primUndefined
+
+
+----------------------
+-- MutRef: A hack to allow for recursively owned types...
+----------------------
+-- data MutRef a = MutRef (Ptr (Maybe a))
+
+-- HACK / NOTE: mutRef expects the first argument to be CONSTANT (Need to support this concept in the type system...)
+mutRef :: Maybe *a -> Ptr (Maybe *a)
+mutRef x =
+  primUndefined
+
+mutRefTake :: (() -> *a) -> (#*a, Ptr (Maybe *a)#)
+mutRefTake mkFn =
+  case unsafePtrSwapElement 0 Nothing (mutRef Nothing) of
+    (#mx, ptr1#) ->
+      case mx of
+        Just x  -> (#x, ptr1#)
+        Nothing -> (#mkFn (), ptr1#)
+
+mutRefPut :: *a -> Ptr (Maybe *a) -> ()
+mutRefPut x ptr =
+  case unsafePtrPoke 0 (Just x) ptr of
+    _ -> ()
+
+
+--------------------
 -- Array
 --------------------
+
+-- TODO: Make range unboxed? Proper unboxed types? End constructor name with # to create unboxed type?
+data Range  (n :: Nat) = Range# UInt UInt UInt
+data Index  (n :: Nat) = Index UInt
+data NatVal (n :: Nat) = NatVal
+
+natVal :: NatVal n -> UInt
+natVal n = primUndefined
+
+mkRange :: UInt -> UInt -> NatVal n -> Range n
+mkRange init inc end = Range# init inc (natVal end)
+
+each :: Range n
+each = mkRange 0 1 NatVal
+
 unsafeEmptyArray :: () -> *Array n a
 unsafeEmptyArray u = primUndefined
 
@@ -1155,6 +1278,14 @@ readArrayU i a = primUndefined
 
 writeArray :: Index n -> a -> *Array n a -> *Array n a
 writeArray i x a = primUndefined
+
+writeArrayChecked :: Array n Char -> UInt -> Index n -> a -> *Array n a -> *Array n a
+writeArrayChecked str capacity (Index i) x a =
+  writeArray (Index (boundsCheck str capacity i)) x a
+
+readArrayChecked :: Array n Char -> UInt -> Index n -> Array n a -> a
+readArrayChecked str capacity (Index i) a =
+  readArray (Index (boundsCheck str capacity i)) a
 
 instance Default a => Default (Array n a) where
   default = arrayFrom default
@@ -1177,7 +1308,6 @@ instance Foldable (Array n) where
         (#y, a2#) ->
           (#f x y, a2#)
 
-
 --------------------
 -- Index
 --------------------
@@ -1195,103 +1325,38 @@ bitReverseIndex (Index i) = Index (bitReverse i)
 toIndexMultiple :: Index n -> Index (NatMul n (NatMax k 1))
 toIndexMultiple (Index i) = Index i
 
+sampleRate :: UInt
+sampleRate = primUndefined
 
---------------------
--- Channel
---------------------
-data Channel = ChannelEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
+recipSampleRate :: F64
+recipSampleRate = primUndefined
 
-outAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
-outAudioBlock c a w = primUndefined
+audioSampleRate :: UInt
+audioSampleRate = 48000
 
-outChannel :: UInt -> Channel -> *World -> *World
-outChannel n c w =
-  case c of
-    ChannelEnd  -> w
-    BlockRate _ -> w
-    AudioRate b -> outAudioBlock n b w
-
-audioInitArray :: () -> *Array BlockSize F64
-audioInitArray u =
-  loop a = unsafeEmptyArray () for i <- Range audioSampleOffset 1 (audioBlockSize - audioSampleOffset) do
-    writeArray i 0.0 a
-
-mapChannel :: (F64 -> F64) -> Channel -> Channel
-mapChannel f c =
-  case c of
-    ChannelEnd  -> ChannelEnd
-    BlockRate x -> BlockRate (f x)
-    AudioRate b ->
-      AudioRate
-      <| freezeArray
-      <| loop a = audioInitArray () for i <- offsetToEndRange do
-        writeArray i (f (readArray i b)) a
-  where
-    offsetToEndRange = Range audioSampleOffset 1 0
-
--- Loop constructs capturing owned/unique free_vars should be a type error!
-mapChannel2 :: (F64 -> F64 -> F64) -> Channel -> Channel -> Channel
-mapChannel2 f cx cy =
-  case cx of
-    ChannelEnd  -> ChannelEnd
-    BlockRate x ->
-      case cy of
-        ChannelEnd  -> ChannelEnd
-        BlockRate y ->
-          BlockRate (f x y)
-        AudioRate y ->
-          AudioRate
-          <| freezeArray
-          <| loop a = ia for i <- offsetToEndRange do
-            writeArray i (f x (readArray i y)) a
-    AudioRate x ->
-      case cy of
-        ChannelEnd  -> ChannelEnd
-        BlockRate y ->
-          AudioRate
-          <| freezeArray
-          <| loop a = ia for i <- offsetToEndRange do
-            writeArray i (f (readArray i x) y) a
-        AudioRate y ->
-          AudioRate
-          <| freezeArray
-          <| loop a = ia for i <- offsetToEndRange do
-            writeArray i (f (readArray i x) (readArray i y)) a
-  where
-    offsetToEndRange = Range audioSampleOffset 1 0
-    ia               = audioInitArray ()
-
--- data ProxyNat (n :: Nat) = ProxyNat
-
--- natValue :: ProxyNat n -> UInt
--- natValue p = primUndefined
-
--- range :: UInt -> UInt -> UInt -> Proxy n -> Range n
--- range startOffset increment endOffset p = Range startOffset increment (natValue p - endOffset)
-
--- withRangeOf :: f n -> g n -> f n
--- withRangeOf x _ = x
-
-audioSampleRate' :: UInt
-audioSampleRate' = 48000
-
-audioBlockSize' :: UInt
-audioBlockSize' = 64
+audioBlockSize :: UInt
+audioBlockSize = 256
 
 audioOverSampleAmount :: UInt
 audioOverSampleAmount = 32
 
-audioBlockSize :: UInt
-audioBlockSize = audioBlockSize' * audioOverSampleAmount
+audioRecipOverSampleRate :: F64
+audioRecipOverSampleRate = recip <| fromUInt <| audioSampleRate * audioOverSampleAmount
 
-audioSampleRate :: UInt
-audioSampleRate = audioSampleRate' * audioOverSampleAmount
+-- audioBlockSize :: UInt
+-- audioBlockSize = audioBlockSize' * audioOverSampleAmount
 
-audioBlockSizeF :: Float
+audioBlockSizeF :: F64
 audioBlockSizeF = fromUInt audioBlockSize
 
+-- audioSampleRate :: UInt
+-- audioSampleRate = audioSampleRate' * audioOverSampleAmount
+
+audioSampleRateF :: F64
+audioSampleRateF = fromUInt audioSampleRate
+
 audioBlocksPerSecond :: UInt
-audioBlocksPerSecond = audioSampleRate' / audioBlockSize'
+audioBlocksPerSecond = audioSampleRate / audioBlockSize
 
 audioBlockDelta :: Rational
 audioBlockDelta = 1 // fromUInt audioBlocksPerSecond
@@ -1308,59 +1373,100 @@ audioSampleDelta = 1 // fromUInt audioSampleRate
 audioSampleOffset :: UInt
 audioSampleOffset = 0
 
--- TODO: Replace freezeArray (unsafeEmptyArray ()) with primUndefined???
--- TODO: Handle input1 Ending!
--- TODO: Finish with this and port change to maybeEnd version
-accumulateChannel1 :: Default s => (F64 -> s -> (#s, F64#)) -> Channel -> Channel
-accumulateChannel1 f input1 =
-  case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
-      case out of
-        (_, a) -> AudioRate a
-  where
-    offsetToEndRange = Range audioSampleOffset 1 0
-    ia               = audioInitArray ()
-    out ~ (default, primUndefined) =
-      case out of
-        (state, _) ->
-          let
-            (#state', o'#) =
-              case input1 of
-                ChannelEnd          -> (#state, ia#)
-                BlockRate input1Val ->
-                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
-                    case f input1Val s of
-                      (#s', x#) ->
-                        (#s', writeArray i x o#)
-                AudioRate input1Buffer ->
-                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
-                    case f (readArray i input1Buffer) s of
-                      (#s', x#) ->
-                        (#s', writeArray i x o#)
-          in
-            (state', freezeArray o')
 
-accumulateChannelAndMaybeEnd1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Channel -> Channel
-accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
+--------------------
+-- Audio
+--------------------
+data Audio = AudioEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
+
+outAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
+outAudioBlock c a w = primUndefined
+
+silentBlock :: Array BlockSize F64
+silentBlock =
+  arrayFrom 0
+
+outChannel :: UInt -> Audio -> *World -> *World
+outChannel n c w =
+  case c of
+    AudioEnd    -> outAudioBlock n silentBlock w
+    BlockRate _ -> outAudioBlock n silentBlock w
+    AudioRate b -> outAudioBlock n b w
+
+audioInitArray :: () -> *Array BlockSize F64
+audioInitArray u =
+  snd' <| loop (#i, a#) = (#0, unsafeEmptyArray ()#) while i < audioSampleOffset do
+    (#i + 1, writeArray (Index i) 0 a#)
+
+mapAudio :: (F64 -> F64) -> Audio -> Audio
+mapAudio f c =
+  case c of
+    AudioEnd    -> AudioEnd
+    BlockRate x -> BlockRate (f x)
+    AudioRate b ->
+      AudioRate
+      <| freezeArray
+      <| loop a = audioInitArray () for i <- offsetToEndRange do
+        writeArray i (f (readArray i b)) a
+  where
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
+
+mapAudio2 :: (F64 -> F64 -> F64) -> Audio -> Audio -> Audio
+mapAudio2 f cx cy =
+  case cx of
+    AudioEnd    -> AudioEnd
+    BlockRate x ->
+      case cy of
+        AudioEnd    -> AudioEnd
+        BlockRate y -> BlockRate (f x y)
+        AudioRate y ->
+          AudioRate
+          <| freezeArray
+          <| loop a = ia for i <- offsetToEndRange do
+            writeArray i (f x (readArray i y)) a
+    AudioRate x ->
+      case cy of
+        AudioEnd    -> AudioEnd
+        BlockRate y ->
+          AudioRate
+          <| freezeArray
+          <| loop a = ia for i <- offsetToEndRange do
+            writeArray i (f (readArray i x) y) a
+        AudioRate y ->
+          AudioRate
+          <| freezeArray
+          <| loop a = ia for i <- offsetToEndRange do
+            writeArray i (f (readArray i x) (readArray i y)) a
+  where
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
+    ia               = audioInitArray ()
+
+constTrue :: a -> Bool
+constTrue _ = True
+
+constTrue' :: .a -> (#.a, Bool#)
+constTrue' state = (#state, True#)
+
+accumulateAudio1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio
+accumulateAudio1 f isRunningFunc input1 =
   case input1 of
-    ChannelEnd -> ChannelEnd
-    _          ->
+    AudioEnd -> AudioEnd
+    _        ->
       case out of
-        (s, a) ->
+        (#s, a#) ->
           case isRunningFunc s of
-            False -> ChannelEnd
+            False -> AudioEnd
             _     -> AudioRate a
   where
-    offsetToEndRange = Range audioSampleOffset 1 0
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
-    out ~ (default, primUndefined) =
+    out ~ (#default, primUndefined#) =
       case out of
-        (state, _) ->
+        (#state, _#) ->
           let
             (#state', o'#) =
               case input1 of
-                ChannelEnd          -> (#state, ia#)
+                AudioEnd -> (#state, ia#)
                 BlockRate input1Val ->
                   loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
                     case f input1Val s of
@@ -1372,15 +1478,334 @@ accumulateChannelAndMaybeEnd1 f isRunningFunc input1 =
                       (#s', x#) ->
                         (#s', writeArray i x o#)
           in
-            (state', freezeArray o')
+            (#state', freezeArray o'#)
 
-instance Eq Channel where
+accumulateAudio2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio -> Audio
+accumulateAudio2 f isRunningFunc input1 input2 =
+  case input1 of
+    AudioEnd -> AudioEnd
+    _        ->
+      case input2 of
+        AudioEnd -> AudioEnd
+        _        ->
+          case out of
+            (#s, a#) ->
+              case isRunningFunc s of
+                False -> AudioEnd
+                _     -> AudioRate a
+  where
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
+    ia               = audioInitArray ()
+    out ~ (#default, primUndefined#) =
+      case out of
+        (#state, _#) ->
+          let
+            (#state', o'#) =
+              case input1 of
+                AudioEnd -> (#state, ia#)
+                BlockRate input1Val ->
+                  case input2 of
+                    AudioEnd -> (#state, ia#)
+                    BlockRate input2Val ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f input1Val input2Val s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+                    AudioRate input2Buffer ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f input1Val (readArray i input2Buffer) s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+                AudioRate input1Buffer ->
+                  case input2 of
+                    AudioEnd -> (#state, ia#)
+                    BlockRate input2Val ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f (readArray i input1Buffer) input2Val s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+                    AudioRate input2Buffer ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f (readArray i input1Buffer) (readArray i input2Buffer) s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+          in
+            (#state', freezeArray o'#)
+
+accumulateAudio3 :: Default s => (F64 -> F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio -> Audio -> Audio
+accumulateAudio3 f isRunningFunc input1 input2 input3 =
+  case input1 of
+    AudioEnd -> AudioEnd
+    _        ->
+      case input2 of
+        AudioEnd -> AudioEnd
+        _        ->
+          case input3 of
+            AudioEnd -> AudioEnd
+            _        ->
+              case out of
+                (#s, a#) ->
+                  case isRunningFunc s of
+                    False -> AudioEnd
+                    _     -> AudioRate a
+  where
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
+    ia               = audioInitArray ()
+    out ~ (#default, primUndefined#) =
+      case out of
+        (#state, _#) ->
+          let
+            (#state', o'#) =
+              case input1 of
+                AudioEnd -> (#state, ia#)
+                BlockRate input1Val ->
+                  case input2 of
+                    AudioEnd -> (#state, ia#)
+                    BlockRate input2Val ->
+                      case input3 of
+                        AudioEnd -> (#state, ia#)
+                        BlockRate input3Val ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f input1Val input2Val input3Val s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                        AudioRate input3Buffer ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f input1Val input2Val (readArray i input3Buffer) s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                    AudioRate input2Buffer ->
+                      case input3 of
+                        AudioEnd -> (#state, ia#)
+                        BlockRate input3Val ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f input1Val (readArray i input2Buffer) input3Val s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                        AudioRate input3Buffer ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f input1Val (readArray i input2Buffer) (readArray i input3Buffer) s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                AudioRate input1Buffer ->
+                  case input2 of
+                    AudioEnd -> (#state, ia#)
+                    BlockRate input2Val ->
+                      case input3 of
+                        AudioEnd -> (#state, ia#)
+                        BlockRate input3Val ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f (readArray i input1Buffer) input2Val input3Val s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                        AudioRate input3Buffer ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f (readArray i input1Buffer) input2Val (readArray i input3Buffer) s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                    AudioRate input2Buffer ->
+                      case input3 of
+                        AudioEnd -> (#state, ia#)
+                        BlockRate input3Val ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f (readArray i input1Buffer) (readArray i input2Buffer) input3Val s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                        AudioRate input3Buffer ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f (readArray i input1Buffer) (readArray i input3Buffer) (readArray i input3Buffer) s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+          in
+            (#state', freezeArray o'#)
+
+accumulateAudio1U :: (() -> *s) -> (F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio
+accumulateAudio1U mkState f isRunningFunc input1 =
+  case input1 of
+    AudioEnd -> AudioEnd
+    _        ->
+      case out of
+        (#isRunning, a#) ->
+          case isRunning of
+            False -> AudioEnd
+            _     -> AudioRate a
+  where
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
+    ia               = audioInitArray ()
+    out =
+      case mutRefTake mkState of
+        (#state, mref#) ->
+          let
+            (#state', o'#) =
+              case input1 of
+                AudioEnd -> (#state, ia#)
+                BlockRate input1Val ->
+                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                    case f input1Val s of
+                      (#s', x#) ->
+                        (#s', writeArray i x o#)
+                AudioRate input1Buffer ->
+                  loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                    case f (readArray i input1Buffer) s of
+                      (#s', x#) ->
+                        (#s', writeArray i x o#)
+            (#state'', isRunning#) = isRunningFunc state'
+          in
+            case mutRefPut state'' mref of
+              _ -> (#isRunning, freezeArray o'#)
+
+accumulateAudio2U :: (() -> *s) -> (F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio -> Audio
+accumulateAudio2U mkState f isRunningFunc input1 input2 =
+  case input1 of
+    AudioEnd -> AudioEnd
+    _        ->
+      case input2 of
+        AudioEnd -> AudioEnd
+        _        ->
+          case out of
+            (#isRunning, a#) ->
+              case isRunning of
+                False -> AudioEnd
+                _     -> AudioRate a
+  where
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
+    ia               = audioInitArray ()
+    out =
+      case mutRefTake mkState of
+        (#state, mref#) ->
+          let
+            (#state', o'#) =
+              case input1 of
+                AudioEnd -> (#state, ia#)
+                BlockRate input1Val ->
+                  case input2 of
+                    AudioEnd -> (#state, ia#)
+                    BlockRate input2Val ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f input1Val input2Val s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+                    AudioRate input2Buffer ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f input1Val (readArray i input2Buffer) s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+                AudioRate input1Buffer ->
+                  case input2 of
+                    AudioEnd -> (#state, ia#)
+                    BlockRate input2Val ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f (readArray i input1Buffer) input2Val s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+                    AudioRate input2Buffer ->
+                      loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                        case f (readArray i input1Buffer) (readArray i input2Buffer) s of
+                          (#s', x#) ->
+                            (#s', writeArray i x o#)
+            (#state'', isRunning#) = isRunningFunc state'
+          in
+            case mutRefPut state'' mref of
+              _ -> (#isRunning, freezeArray o'#)
+
+
+accumulateAudio3U :: (() -> *s) -> (F64 -> F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio -> Audio -> Audio
+accumulateAudio3U mkState f isRunningFunc input1 input2 input3 =
+  case input1 of
+    AudioEnd -> AudioEnd
+    _        ->
+      case input2 of
+        AudioEnd -> AudioEnd
+        _        ->
+          case input3 of
+            AudioEnd -> AudioEnd
+            _        ->
+              case out of
+                (#isRunning, a#) ->
+                  case isRunning of
+                    False -> AudioEnd
+                    _     -> AudioRate a
+  where
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
+    ia               = audioInitArray ()
+    out =
+      case mutRefTake mkState of
+        (#state, mref#) ->
+          let
+            (#state', o'#) =
+              case input1 of
+                AudioEnd -> (#state, ia#)
+                BlockRate input1Val ->
+                  case input2 of
+                    AudioEnd -> (#state, ia#)
+                    BlockRate input2Val ->
+                      case input3 of
+                        AudioEnd -> (#state, ia#)
+                        BlockRate input3Val ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f input1Val input2Val input3Val s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                        AudioRate input3Buffer ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f input1Val input2Val (readArray i input3Buffer) s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                    AudioRate input2Buffer ->
+                      case input3 of
+                        AudioEnd -> (#state, ia#)
+                        BlockRate input3Val ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f input1Val (readArray i input2Buffer) input3Val s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                        AudioRate input3Buffer ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f input1Val (readArray i input2Buffer) (readArray i input3Buffer) s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                AudioRate input1Buffer ->
+                  case input2 of
+                    AudioEnd -> (#state, ia#)
+                    BlockRate input2Val ->
+                      case input3 of
+                        AudioEnd -> (#state, ia#)
+                        BlockRate input3Val ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f (readArray i input1Buffer) input2Val input3Val s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                        AudioRate input3Buffer ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f (readArray i input1Buffer) input2Val (readArray i input3Buffer) s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                    AudioRate input2Buffer ->
+                      case input3 of
+                        AudioEnd -> (#state, ia#)
+                        BlockRate input3Val ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f (readArray i input1Buffer) (readArray i input2Buffer) input3Val s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+                        AudioRate input3Buffer ->
+                          loop (#s, o#) = (#state, ia#) for i <- offsetToEndRange do
+                            case f (readArray i input1Buffer) (readArray i input3Buffer) (readArray i input3Buffer) s of
+                              (#s', x#) ->
+                                (#s', writeArray i x o#)
+            (#state'', isRunning#) = isRunningFunc state'
+          in
+            case mutRefPut state'' mref of
+              _ -> (#isRunning, freezeArray o'#)
+
+
+instance Eq Audio where
   eq x y =
     case x of
-      ChannelEnd ->
+      AudioEnd ->
         case y of
-          ChannelEnd -> True
-          _          -> False
+          AudioEnd -> True
+          _        -> False
 
       BlockRate xv ->
         case y of
@@ -1396,47 +1821,47 @@ instance Eq Channel where
 
   neq x y = not (eq x y)
 
-instance Semiring Channel where
+instance Semiring Audio where
   zero    = BlockRate 0
   one     = BlockRate 1
-  add x y = mapChannel2 add x y
-  mul x y = mapChannel2 mul x y
+  add x y = mapAudio2 add x y
+  mul x y = mapAudio2 mul x y
 
-instance Ring Channel where
-  sub x y   = mapChannel2 sub x y
+instance Ring Audio where
+  sub x y   = mapAudio2 sub x y
   fromInt i = BlockRate (fromInt i)
 
-instance EuclideanRing Channel where
-  div x y = mapChannel2 div x y
-  rem x y = mapChannel2 rem x y
+instance EuclideanRing Audio where
+  div x y = mapAudio2 div x y
+  rem x y = mapAudio2 rem x y
 
-instance DivisionRing Channel where
-  recip x = mapChannel recip x
+instance DivisionRing Audio where
+  recip x = mapAudio recip x
 
-instance Num Channel where
-  signum x        = mapChannel signum x
-  abs x           = mapChannel abs x
-  copysign x sign = mapChannel2 copysign x sign
+instance Num Audio where
+  signum x  = mapAudio signum x
+  abs x     = mapAudio abs x
+  copysign x sign = mapAudio2 copysign x sign
 
-instance Field Channel where
+instance Field Audio where
 
-instance Floating Channel where
+instance Floating Audio where
   fromFloat f = BlockRate (fromFloat f)
-  sqrt x      = mapChannel sqrt x
-  floor     x = mapChannel floor x
-  ceil      x = mapChannel ceil x
-  truncate  x = mapChannel truncate x
-  round     x = mapChannel round x
-  -- fmin      x y = mapChannel2 fmin x y
-  -- fmax      x y = mapChannel2 copysign x y
+  sqrt x      = mapAudio sqrt x
+  floor     x = mapAudio floor x
+  ceil      x = mapAudio ceil x
+  truncate  x = mapAudio truncate x
+  round     x = mapAudio round x
+  -- fmin      x y = mapAudio fmin x y
+  -- fmax      x y = mapAudio copysign x y
 
-instance Semigroup Channel where
+instance Semigroup Audio where
   append x y = x + y
 
-instance Monoid Channel where
+instance Monoid Audio where
   mempty = 0
 
-instance Default Channel where
+instance Default Audio where
   default = 0
 
 
@@ -1445,7 +1870,7 @@ instance Default Channel where
 --------------------
 -- https://www.dspguide.com/ch12/1.htm
 -- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
-data FFT f k   = FFT (f (Array (NatMul BlockSize (NatMax k 1)) Complex))
+data FFT k   = FFT (Array (NatMul BlockSize (NatMax k 1)) Complex)
 data FFTWindow = FFTWindow (Array BlockSize F64)
 -- TODO: FFT windowing!
 
@@ -1491,6 +1916,15 @@ tanTwelthPi = tanF64 twelthPi
 tau :: Floating a => a
 tau = 2 * pi
 
+recipPi :: Floating a => a
+recipPi = 1 / pi
+
+recipTau :: Floating a => a
+recipTau = 1 / tau
+
+recipTwoPi :: Floating a => a
+recipTwoPi = recipTau
+
 -- hanning :: FFTWindow
 -- hanning =
 --   FFTWindow <| freezeArray <| loop a = unsafeEmptyArray () for i <- each do
@@ -1509,7 +1943,7 @@ tau = 2 * pi
 --     let
 --       sample = readArray (bitReverseIndex i) audioBuffer
 --       winval = readArray i windowBuffer
---       c      = Complex (#sample * winval, 0#)
+--       c      = Complex# (sample * winval) 0
 --     in
 --       writeArray (toIndexMultiple i) c a'
 
@@ -1517,8 +1951,8 @@ tau = 2 * pi
 -- -- TODO: Finish!
 -- -- TODO: Compute log2n somehow
 -- -- TODO: Windowing function!
--- fftChannel :: Array BlockSize F64 -> FFTWindow -> Array (NatMul BlockSize (NatMax 1 1)) Complex
--- fftChannel a w =
+-- fftAudio :: Array BlockSize F64 -> FFTWindow -> Array (NatMul BlockSize (NatMax 1 1)) Complex
+-- fftAudio a w =
 --   freezeArray <| snd' <|
 --     loop (#i, a0#) = (#0, bitRevFFTArray a w#) while i < audioBlockSizeLog2 do
 --       let
@@ -1546,24 +1980,45 @@ tau = 2 * pi
 --------------------
 -- AudioFormat
 --------------------
-data Mono a      = Mono a
-data Stereo a    = Stereo (#a, a#)
-data Quad a      = Quad (#a, a, a, a#)
-data Ambisonic a = Ambisonic (#a, a, a, a#)
-data Audio f     = Audio (f Channel)
+data Mono a             = Mono a
+data Stereo a           = Stereo# a a
+data Quad a             = Quad# a a a a
+data Ambisonic a        = Ambisonic# a a a a
+data AudioBuffer s      = AudioBuffer (.Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) F64)
+data Seconds (n :: Nat) = Seconds
 
 -- TODO: Equal power panning
 class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
-  accumulate1       :: Default s => (F64 -> s -> (#s, F64#)) -> Audio f -> Audio f
-  accumulateFinite1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio f -> Audio f
-  pan               :: Audio Mono -> Audio f -> Audio Stereo
-  outAudio          :: UInt -> Audio f -> *World -> *World
+  accumulate1  :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> f Audio -> f Audio
+  accumulate2  :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> f Audio -> f Audio -> f Audio
+  accumulate3  :: Default s => (F64 -> F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> f Audio -> f Audio -> f Audio -> f Audio
+  accumulate1U :: (() -> *s) -> (F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio
+  accumulate2U :: (() -> *s) -> (F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio
+  accumulate3U :: (() -> *s) -> (F64 -> F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio -> f Audio
+  pan          :: Mono Audio -> f Audio -> Stereo Audio
+  mixMono      :: Num a => f a -> Mono a
+  mixStereo    :: Num a => f a -> Stereo a
+  outAudio     :: UInt -> f Audio -> *World -> *World
+
+stereo :: Mono a -> Mono a -> Stereo a
+stereo (Mono l) (Mono r) = Stereo# l r
+
+left :: Stereo a -> Mono a
+left (Stereo# l _) = Mono l
+
+right :: Stereo a -> Mono a
+right (Stereo# _ r) = Mono r
+
+flipStereo :: Stereo a -> Stereo a
+flipStereo (Stereo# l r) = Stereo# r l
 
 instance Functor Mono where
   map f (Mono x) = Mono (f x)
 
 instance FunctorN Mono where
-  map2 f (Mono x) (Mono y) = Mono (f x y)
+  map2 f (Mono x) (Mono y)                   = Mono (f x y)
+  map3 f (Mono x) (Mono y) (Mono z)          = Mono (f x y z)
+  map4 f (Mono w) (Mono x) (Mono y) (Mono z) = Mono (f w x y z)
 
 instance Applicative Mono where
   pure x               = Mono x
@@ -1574,127 +2029,1007 @@ instance Foldable Mono where
   foldl f i (Mono x) = f i x
 
 instance AudioFormat Mono where
-  outAudio  n (Audio (Mono c))  w                = outChannel n c w
-  accumulate1 f (Audio (Mono c))                 = Audio (Mono (accumulateChannel1 f c))
-  accumulateFinite1 f sf (Audio (Mono c))        = Audio (Mono (accumulateChannelAndMaybeEnd1 f sf c))
-  pan (Audio (Mono amount)) (Audio (Mono input)) = Audio (Stereo (#mul input (sub 1 amount), mul input amount#))
+  outAudio  n (Mono c)  w                                = outChannel n c w
+  accumulate1 f isRunning (Mono c)                       = Mono (accumulateAudio1 f isRunning c)
+  accumulate2 f isRunning (Mono x) (Mono y)              = Mono (accumulateAudio2 f isRunning x y)
+  accumulate3 f isRunning (Mono x) (Mono y) (Mono z)     = Mono (accumulateAudio3 f isRunning x y z)
+  accumulate1U mk f isRunning (Mono c)                   = Mono (accumulateAudio1U mk f isRunning c)
+  accumulate2U mk f isRunning (Mono x) (Mono y)          = Mono (accumulateAudio2U mk f isRunning x y)
+  accumulate3U mk f isRunning (Mono x) (Mono y) (Mono z) = Mono (accumulateAudio3U mk f isRunning x y z)
+  pan (Mono amount) (Mono input)                         = Stereo# (input * (1 - amount)) (input * amount)
+  mixMono x                                              = x
+  mixStereo (Mono x)                                     = Stereo# x x
 
 instance Functor Stereo where
-  map f (Stereo (#x, y#)) = Stereo (#f x, f y#)
+  map f (Stereo# x y) = Stereo# (f x) (f y)
 
 instance FunctorN Stereo where
-  map2 f (Stereo (#x1, x2#)) (Stereo (#y1, y2#)) = Stereo (#f x1 y1, f x2 y2#)
+  map2 f (Stereo# x1 x2) (Stereo# y1 y2)                                 = Stereo# (f x1 y1) (f x2 y2)
+  map3 f (Stereo# x1 x2) (Stereo# y1 y2) (Stereo# z1 z2)                 = Stereo# (f x1 y1 z1) (f x2 y2 z2)
+  map4 f (Stereo# w1 w2) (Stereo# x1 x2) (Stereo# y1 y2) (Stereo# z1 z2) = Stereo# (f w1 x1 y1 z1) (f w2 x2 y2 z2)
 
 instance Applicative Stereo where
-  pure x                                     = Stereo (#x, x#)
-  ap (Stereo (#f1, f2#)) (Stereo (#x1, x2#)) = Stereo (#f1 x2, f2 x2#)
+  pure x                             = Stereo# x x
+  ap (Stereo# f1 f2) (Stereo# x1 x2) = Stereo# (f1 x2) (f2 x2)
 
 instance Foldable Stereo where
-  fold (Stereo (#l, r#))      = l <> r
-  foldl f i (Stereo (#l, r#)) = f (f i l) r
+  fold (Stereo# l r)      = l <> r
+  foldl f i (Stereo# l r) = f (f i l) r
 
 instance AudioFormat Stereo where
-  outAudio  n (Audio (Stereo (#l, r#))) w             = outChannel (add n 1) r (outChannel n l w)
-  accumulate1 f (Audio (Stereo (#l, r#)))             = Audio (Stereo (#accumulateChannel1 f l, accumulateChannel1 f r#))
-  accumulateFinite1 f sf (Audio (Stereo (#l, r#)))    = Audio (Stereo (#accumulateChannelAndMaybeEnd1 f sf l, accumulateChannelAndMaybeEnd1 f sf r#))
-  pan (Audio (Mono amount)) (Audio (Stereo (#l, r#))) = Audio (Stereo (#mul l (sub 1 amount), mul r amount#))
+  outAudio  n (Stereo# l r) w                                                 = outChannel (n + 1) r (outChannel n l w)
+  accumulate1 f isRunning (Stereo# l r)                                       = Stereo# (accumulateAudio1 f isRunning l) (accumulateAudio1 f isRunning r)
+  accumulate2 f isRunning (Stereo# xl xr) (Stereo# yl yr)                     = Stereo# (accumulateAudio2 f isRunning xl yl) (accumulateAudio2 f isRunning xr yr)
+  accumulate3 f isRunning (Stereo# xl xr) (Stereo# yl yr) (Stereo# zl zr)     = Stereo# (accumulateAudio3 f isRunning xl yl zl) (accumulateAudio3 f isRunning xr yr zr)
+  accumulate1U mk f isRunning (Stereo# l r)                                   = Stereo# (accumulateAudio1U mk f isRunning l) (accumulateAudio1U mk f isRunning r)
+  accumulate2U mk f isRunning (Stereo# xl xr) (Stereo# yl yr)                 = Stereo# (accumulateAudio2U mk f isRunning xl yl) (accumulateAudio2U mk f isRunning xr yr)
+  accumulate3U mk f isRunning (Stereo# xl xr) (Stereo# yl yr) (Stereo# zl zr) = Stereo# (accumulateAudio3U mk f isRunning xl yl zl) (accumulateAudio3U mk f isRunning xr yr zr)
+  pan (Mono amount) (Stereo# l r)                                             = Stereo# (l * (1 - amount)) (r * amount)
+  mixMono (Stereo# l r)                                                       = Mono (l + r)
+  mixStereo x                                                                 = x
+
+-- Mono
+instance Eq a => Eq (Mono a) where
+  eq  (Mono x) (Mono y) = eq x y
+  neq (Mono x) (Mono y) = neq x y
+
+instance Semiring a => Semiring (Mono a) where
+  zero                  = Mono zero
+  one                   = Mono one
+  add (Mono x) (Mono y) = Mono (x + y)
+  mul (Mono x) (Mono y) = Mono (x * y)
+
+instance Ring a => Ring (Mono a) where
+  fromInt i             = Mono (fromInt i)
+  sub (Mono x) (Mono y) = Mono (x - y)
+
+instance EuclideanRing a => EuclideanRing (Mono a) where
+  div (Mono x) (Mono y) = Mono (x / y)
+  rem (Mono x) (Mono y) = Mono (rem x y)
+
+instance DivisionRing a => DivisionRing (Mono a) where
+  recip (Mono c) = Mono (recip c)
+
+instance Num a => Num (Mono a) where
+  signum (Mono c) = Mono (signum c)
+  abs    (Mono c) = Mono (abs c)
+  copysign (Mono x) (Mono sign) = Mono (copysign x sign)
+
+instance Field a => Field (Mono a) where
+
+instance Floating a => Floating (Mono a) where
+  fromFloat f   = Mono (fromFloat f)
+  sqrt (Mono c) = Mono (sqrt c)
+  floor    (Mono x) = Mono (floor x)
+  ceil     (Mono x) = Mono (ceil x)
+  truncate (Mono x) = Mono (truncate x)
+  round    (Mono x) = Mono (round x)
+  -- fmin     (Mono x) (Mono y) = Mono (fmin x y)
+  -- fmax     (Mono x) (Mono y) = Mono (fmax x y)
+
+instance Semigroup a => Semigroup (Mono a) where
+  append (Mono x) (Mono y) = Mono (append x y)
+
+instance Monoid a => Monoid (Mono a) where
+  mempty = Mono mempty
+
+-- Stereo
+instance Eq a => Eq (Stereo a) where
+  eq  (Stereo# xl xr) (Stereo# yl yr) = eq xl yl && eq xr yr
+  neq (Stereo# xl xr) (Stereo# yl yr) = neq xl yl || neq xr yr
+
+instance Semiring a => Semiring (Stereo a) where
+  zero                                = Stereo# zero zero
+  one                                 = Stereo# one one
+  add (Stereo# xl xr) (Stereo# yl yr) = Stereo# (xl + yl) (xr + yr)
+  mul (Stereo# xl xr) (Stereo# yl yr) = Stereo# (xl * yl) (xr * yr)
+
+instance Ring a => Ring (Stereo a) where
+  fromInt i                           = let c = fromInt i in Stereo# c c
+  sub (Stereo# xl xr) (Stereo# yl yr) = Stereo# (xl - yl) (xr - yr)
+
+instance EuclideanRing a => EuclideanRing (Stereo a) where
+  div (Stereo# xl xr) (Stereo# yl yr) = Stereo# (xl / yl) (xr / yr)
+  rem (Stereo# xl xr) (Stereo# yl yr) = Stereo# (rem xl yl) (rem xr yr)
+
+instance DivisionRing a => DivisionRing (Stereo a) where
+  recip (Stereo# l r) = Stereo# (recip l) (recip r)
+
+instance Num a => Num (Stereo a) where
+  signum (Stereo# l r) = Stereo# (signum l) (signum r)
+  abs    (Stereo# l r) = Stereo# (abs l) (abs r)
+  copysign (Stereo# lx rx) (Stereo# ly ry) = Stereo# (copysign lx ly) (copysign rx ry)
+
+instance Field a => Field (Stereo a) where
+
+instance Floating a => Floating (Stereo a) where
+  fromFloat f        = let c = (fromFloat f) in Stereo# c c
+  sqrt (Stereo# l r) = Stereo# (sqrt l) (sqrt r)
+  floor    (Stereo# l r) = Stereo# (floor l) (floor r)
+  ceil     (Stereo# l r) = Stereo# (ceil l) (ceil r)
+  truncate (Stereo# l r) = Stereo# (truncate l) (truncate r)
+  round    (Stereo# l r) = Stereo# (round l) (round r)
+  -- fmin     (Stereo# lx ry) (Stereo# ly ry) = Stereo# (fmin lx ly) (fmin ry ry)
+  -- fmax     (Stereo# lx ry) (Stereo# ly ry) = Stereo# (fmax lx ly) (fmax ry ry)
+
+instance Semigroup a => Semigroup (Stereo a) where
+  append (Stereo# xl xr) (Stereo# yl yr)  = Stereo# (append xl yl) (append xr yr)
+
+instance Monoid a => Monoid (Stereo a) where
+  mempty = Stereo# mempty mempty
 
 
-instance AudioFormat f => Eq (Audio f) where
-  eq  (Audio x) (Audio y) = foldl (\cond x -> cond && x) True  (map2 eq x y)
-  neq (Audio x) (Audio y) = foldl (\cond x -> cond || x) False (map2 neq x y)
+--------------------
+-- UGens
+--------------------
 
-instance AudioFormat f => Semiring (Audio f) where
-  zero                    = Audio (pure 0)
-  one                     = Audio (pure 1)
-  add (Audio x) (Audio y) = Audio (map2 add x y)
-  mul (Audio x) (Audio y) = Audio (map2 mul x y)
+--------------------
+-- downsample oversampled audio
+sinc :: F64 -> F64
+sinc x =
+  if x > -0.000001 && x < 0.000001 then 1.0 else
+    sine x / x
 
-instance AudioFormat f => Ring (Audio f) where
-  fromInt i               = Audio (pure (fromInt i))
-  sub (Audio x) (Audio y) = Audio (map2 sub x y)
+bessel :: F64 -> F64
+bessel x =
+  add 1 <| snd'<|
+    loop (#i, sum#) = (#1, 0#) while i < 10 do
+      let
+        xpow = pow (x / 2) (fromUInt i)
+        fac  =
+          fromUInt <| snd' <|
+            loop (#j, fac'#) = (#1, 1#) while j <= i do
+              (#j + 1, fac' * j#)
+      in
+        (#i + 1, sum + pow (xpow / fac) 2#)
 
-instance AudioFormat f => EuclideanRing (Audio f) where
-  div (Audio x) (Audio y) = Audio (map2 div x y)
-  rem (Audio x) (Audio y) = Audio (map2 rem x y)
+kaiserBesselWindowFunction :: F64 -> F64 -> F64 -> F64
+kaiserBesselWindowFunction i windowSize beta =
+  window
+  where
+    warg   = beta * sqrt (1 - pow (((2 * i + 2) - windowSize) / windowSize) 2)
+    window = bessel warg / bessel beta
 
-instance AudioFormat f => DivisionRing (Audio f) where
-  recip (Audio cs) = Audio (map recip cs)
+hannWindowFunction :: F64 -> F64 -> F64
+hannWindowFunction i windowSize =
+  0.5 - 0.5 * cosine (tau * (i + 1) / windowSize)
 
-instance AudioFormat f => Num (Audio f) where
-  signum (Audio c) = Audio (map signum c)
-  abs    (Audio c) = Audio (map abs c)
-  copysign (Audio x) (Audio sign) = Audio (map2 copysign x sign)
+hammingWindowFunction :: F64 -> F64 -> F64
+hammingWindowFunction i windowSize =
+  0.54 - 0.46 * cosine (tau * (i + 1) / windowSize)
 
-instance AudioFormat f => Field (Audio f) where
+downsampleCoefficients :: Array 64 F64
+downsampleCoefficients =
+  freezeArray coeff3
+  where
+    windowSize = 64
+    freqCutoff = 20000
+    omega      = freqCutoff / (audioSampleRateF * fromUInt audioOverSampleAmount)
+    coeff1     =
+      loop a = unsafeEmptyArray () for i <- each do
+        let
+          iReal       = fromUInt (indexToUInt i)
+          iOffset     = iReal - ((windowSize - 1) / 2)
+          window      = kaiserBesselWindowFunction iReal windowSize 3
+          coefficient = omega * sinc (omega * iOffset * pi) * window
+        in
+          writeArray i coefficient a
+    (#gainSum, coeff2#) =
+      loop (#sum, a0#) = (#0, coeff1#) for i <- each do
+        case readArrayU i a0 of
+          (#x, a1#) ->
+            (#sum + x, a1#)
+    gainAdjust = 1.5 -- (1 / gainSum) * (1 / windowSize)
+    coeff3     =
+      loop a0 = coeff2 for i <- each do
+        case readArrayU i a0 of
+          (#x, a1#) ->
+            writeArray i (x * gainAdjust) a1
 
-instance AudioFormat f => Floating (Audio f) where
-  fromFloat f = Audio (pure (fromFloat f))
-  sqrt (Audio x) = Audio (map sqrt x)
-  floor    (Audio x) = Audio (map floor x)
-  ceil     (Audio x) = Audio (map ceil x)
-  truncate (Audio x) = Audio (map truncate x)
-  round    (Audio x) = Audio (map round x)
-  -- fmin     (Audio x) (Audio y) = Audio (map2 fmin x y)
-  -- fmax     (Audio x) (Audio y) = Audio (map2 fmax x y)
+-----------
+-- saw
 
-instance AudioFormat f => Semigroup (Audio f) where
-  append (Audio x) (Audio y) = Audio (map2 append x y)
+-- Oversampling saw wave, Some reading:
+--   * PHASESHAPING OSCILLATOR ALGORITHMS FOR MUSICAL SOUND SYNTHESIS:
+--       https://eprints.maynoothuniversity.ie/4100/1/SMC2010.pdf
+--   * Antialiasing Oscillators in Subtractive Synthesis
+--   * Audible Aliasing Distortion in Digital Audio Synthesis
+--       https://www.researchgate.net/publication/268382833_Audible_Aliasing_Distortion_in_Digital_Audio_Synthesis
 
-instance AudioFormat f => Monoid (Audio f) where
-  mempty = Audio (pure mempty)
-
-stereo :: Audio Mono -> Audio Mono -> Audio Stereo
-stereo (Audio (Mono l)) (Audio (Mono r)) =
-  Audio (Stereo (#l, r#))
-
--- accumulateSaw :: F64 -> F64 -> (#F64, F64#)
--- accumulateSaw freq acc =
---   (#acc3, out#)
+-- data OverSampleSawState = OverSampleSawState# F64 UInt (.Array 64 F64)
+--
+-- mkOverSampleSawState :: () -> *OverSampleSawState
+-- mkOverSampleSawState _ = OverSampleSawState# 0 0 (arrayFrom 0)
+--
+-- -- TODO: Replace FIR filter with IIR filter?
+-- -- Oversampling saw oscillator, with FIR downsampling
+-- accumulateSawFIR :: F64 -> *OverSampleSawState -> (#*OverSampleSawState, F64#)
+-- accumulateSawFIR freq (OverSampleSawState# phaseIn downsampleIndexIn downsampleBufferIn) =
+--   (#OverSampleSawState# phase downsampleIndex downsampleBuffer, firResult#)
 --   where
---     acc2 = fma freq recipSampleRate acc
---     acc3 = acc2 - fastFloor acc2
---     out  = fma acc3 2.0 (-1.0)
+--     freqDelta = freq * audioRecipOverSampleRate
+--     (#_, phase, downsampleIndex1, downsampleBuffer1#) =
+--       loop (#i, phase0, di, d0#) = (#0, phaseIn, downsampleIndexIn, downsampleBufferIn#) while i < audioOverSampleAmount do
+--         let
+--           phase1  = freqDelta + phase0
+--           d1      = writeArray (Index (bitAnd (di + 0) 63)) (fma (phase1 - floor phase1) 2 -1) d0
+--           phase2  = freqDelta + phase1
+--           d2      = writeArray (Index (bitAnd (di + 1) 63)) (fma (phase2 - floor phase2) 2 -1) d1
+--           phase3  = freqDelta + phase2
+--           d3      = writeArray (Index (bitAnd (di + 2) 63)) (fma (phase3 - floor phase3) 2 -1) d2
+--           phase4  = freqDelta + phase3
+--           d4      = writeArray (Index (bitAnd (di + 3) 63)) (fma (phase4 - floor phase4) 2 -1) d3
+--           phase5  = freqDelta + phase4
+--           d5      = writeArray (Index (bitAnd (di + 4) 63)) (fma (phase5 - floor phase5) 2 -1) d4
+--           phase6  = freqDelta + phase5
+--           d6      = writeArray (Index (bitAnd (di + 5) 63)) (fma (phase6 - floor phase6) 2 -1) d5
+--           phase7  = freqDelta + phase6
+--           d7      = writeArray (Index (bitAnd (di + 6) 63)) (fma (phase7 - floor phase7) 2 -1) d6
+--           phase8  = freqDelta + phase7
+--           d8      = writeArray (Index (bitAnd (di + 7) 63)) (fma (phase8 - floor phase8) 2 -1) d7
+--         in
+--           (#i + 8, phase8, bitAnd (di + 8) 63, d8#)
+--     (#_, downsampleIndex, downsampleBuffer, firResult#) =
+--       loop (#i, di, d0, firResult0#) = (#0, downsampleIndex1, downsampleBuffer1, 0#) while i < 64 do
+--         let
+--           (#s1, d1#) = readArrayU (Index (bitAnd (di + 0) 63)) d0
+--           firResult1 = s1 * readArray (Index i) downsampleCoefficients
+--           (#s2, d2#) = readArrayU (Index (bitAnd (di + 1) 63)) d1
+--           firResult2 = s2 * readArray (Index (i + 1)) downsampleCoefficients
+--           (#s3, d3#) = readArrayU (Index (bitAnd (di + 2) 63)) d2
+--           firResult3 = s3 * readArray (Index (i + 2)) downsampleCoefficients
+--           (#s4, d4#) = readArrayU (Index (bitAnd (di + 3) 63)) d3
+--           firResult4 = s4 * readArray (Index (i + 3)) downsampleCoefficients
+--           (#s5, d5#) = readArrayU (Index (bitAnd (di + 4) 63)) d4
+--           firResult5 = s5 * readArray (Index (i + 4)) downsampleCoefficients
+--           (#s6, d6#) = readArrayU (Index (bitAnd (di + 5) 63)) d5
+--           firResult6 = s6 * readArray (Index (i + 5)) downsampleCoefficients
+--           (#s7, d7#) = readArrayU (Index (bitAnd (di + 6) 63)) d6
+--           firResult7 = s7 * readArray (Index (i + 6)) downsampleCoefficients
+--           (#s8, d8#) = readArrayU (Index (bitAnd (di + 7) 63)) d7
+--           firResult8 = s8 * readArray (Index (i + 7)) downsampleCoefficients
+--           firResult  = firResult0 + firResult1 + firResult2 + firResult3 + firResult4 + firResult5 + firResult6 + firResult7 + firResult8
+--         in
+--           (#i + 8, bitAnd (di + 8) 63, d8, firResult#)
+--
+-- sawFIR :: AudioFormat f => f Audio -> f Audio
+-- sawFIR freq =
+--   accumulate1U mkOverSampleSawState accumulateSawFIR constTrue' freq
 
-accumulateSaw :: F64 -> F64 -> (#F64, F64#)
-accumulateSaw freq acc =
-  (#acc3, out#)
+data OverSampleSawStateIIR = OverSampleSawStateIIR# F64 F64 F64 F64 F64
+
+instance Default OverSampleSawStateIIR where
+  default = OverSampleSawStateIIR# 0 0 0 0 0
+
+-- TODO: Port to using highShelf
+-- TODO: fneg
+
+-- Brickwall filter constants
+ffreqBrickWall = 20000
+gainBrickWall  = -28
+slopeBrickWall = 1
+bigaBrickWall  = pow 10 (gainBrickWall / 40)
+omegaBrickWall = ffreqBrickWall * audioRecipOverSampleRate * tau
+csoBrickWall   = cosine omegaBrickWall
+alphaBrickWall = sine omegaBrickWall * 0.5 * sqrt (((bigaBrickWall + (1 / bigaBrickWall)) * ((1 / slopeBrickWall) - 1)) + 2)
+betaBrickWall  = 2 * sqrt bigaBrickWall * alphaBrickWall
+
+-- Oversampling saw wave with IIR brickwall filter
+-- TODO: Upsample frequency?!?!!?
+accumulateSaw :: F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
+accumulateSaw freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
+  (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
   where
-    acc2 = freq * recipSampleRate + acc
-    acc3 = acc2 - floor acc2
-    out  = acc3 * 2.0 + (-1.0)
+    freqDelta = freq * audioRecipOverSampleRate
+    b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
+    b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
+    b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
+    a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
+    a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
+    a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
+    ra0       = 1 / a0
+    (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
+      loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
+        let
+          phase1  = freqDelta + phase0
+          in1     = fma (phase1 - floor phase1) 2 -1
+          out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
+          phase2  = freqDelta + phase1
+          in2     = fma (phase2 - floor phase2) 2 -1
+          out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
+          phase3  = freqDelta + phase2
+          in3     = fma (phase3 - floor phase3) 2 -1
+          out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
+          phase4  = freqDelta + phase3
+          in4     = fma (phase4 - floor phase4) 2 -1
+          out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
+          phase5  = freqDelta + phase4
+          in5     = fma (phase5 - floor phase5) 2 -1
+          out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
+          phase6  = freqDelta + phase5
+          in6     = fma (phase6 - floor phase6) 2 -1
+          out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
+          phase7  = freqDelta + phase6
+          in7     = fma (phase7 - floor phase7) 2 -1
+          out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
+          phase8  = freqDelta + phase7
+          in8     = fma (phase8 - floor phase8) 2 -1
+          out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
+        in
+          (#i + 8, phase8, in8, in7, out8, out7#)
 
-saw :: AudioFormat f => Audio f -> Audio f
+saw :: AudioFormat f => f Audio -> f Audio
 saw freq =
-  accumulate1 accumulateSaw freq
+  accumulate1 accumulateSaw constTrue freq
 
--- TODO: Use curve!
-accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> F64 -> (#F64, F64#)
-accumulatePerc (#attackTime, recipAttackTime, recipDecayTime, curve#) input state =
-  (#state', out#)
+-----------
+-- lfSaw
+accumulateLFSaw :: F64 -> F64 -> (#F64, F64#)
+accumulateLFSaw freq phase0 =
+  (#phase1, out#)
   where
-    state'    = state + recipSampleRate
-    attackEnv = state' * recipAttackTime * isAttack
-    decayEnv  = 1 - ((state' - attackTime) * recipDecayTime)
-    isAttack  = fromInt (boolToInt (state' <= attackTime))
-    isDecay   = 1 - isAttack
-    env       = attackEnv * isAttack + decayEnv * isDecay
-    out       = env * input
+    phase1 = fma freq recipSampleRate phase0
+    phase2 = phase1 - floor phase1
+    out    = fma phase2 2 -1
 
-percIsRunning :: F64 -> F64 -> Bool
-percIsRunning totalTime state =
-  state < totalTime
+lfSaw :: AudioFormat f => f Audio -> f Audio
+lfSaw freq =
+  accumulate1 accumulateLFSaw constTrue freq
 
-perc :: AudioFormat f => F64 -> F64 -> F64 -> Audio f -> Audio f
+-----------
+-- pulse
+
+-- -- Oversampling pulse oscillator, with FIR downsampling
+-- accumulatePulseFIR :: F64 -> F64 -> *OverSampleSawState -> (#*OverSampleSawState, F64#)
+-- accumulatePulseFIR width freq (OverSampleSawState# phaseIn downsampleIndexIn downsampleBufferIn) =
+--   (#OverSampleSawState# phase downsampleIndex downsampleBuffer, firResult#)
+--   where
+--     freqDelta = freq * audioRecipOverSampleRate
+--     (#_, phase, downsampleIndex1, downsampleBuffer1#) =
+--       loop (#i, phase0, di, d0#) = (#0, phaseIn, downsampleIndexIn, downsampleBufferIn#) while i < audioOverSampleAmount do
+--         let
+--           phase1  = freqDelta + phase0
+--           d1      = writeArray (Index (bitAnd (di + 0) 63)) (fma (fromInt <| boolToInt <| gt width <| phase1 - floor phase1) 2 -1) d0
+--           phase2  = freqDelta + phase1
+--           d2      = writeArray (Index (bitAnd (di + 1) 63)) (fma (fromInt <| boolToInt <| gt width <| phase2 - floor phase2) 2 -1) d1
+--           phase3  = freqDelta + phase2
+--           d3      = writeArray (Index (bitAnd (di + 2) 63)) (fma (fromInt <| boolToInt <| gt width <| phase3 - floor phase3) 2 -1) d2
+--           phase4  = freqDelta + phase3
+--           d4      = writeArray (Index (bitAnd (di + 3) 63)) (fma (fromInt <| boolToInt <| gt width <| phase4 - floor phase4) 2 -1) d3
+--           phase5  = freqDelta + phase4
+--           d5      = writeArray (Index (bitAnd (di + 4) 63)) (fma (fromInt <| boolToInt <| gt width <| phase5 - floor phase5) 2 -1) d4
+--           phase6  = freqDelta + phase5
+--           d6      = writeArray (Index (bitAnd (di + 5) 63)) (fma (fromInt <| boolToInt <| gt width <| phase6 - floor phase6) 2 -1) d5
+--           phase7  = freqDelta + phase6
+--           d7      = writeArray (Index (bitAnd (di + 6) 63)) (fma (fromInt <| boolToInt <| gt width <| phase7 - floor phase7) 2 -1) d6
+--           phase8  = freqDelta + phase7
+--           d8      = writeArray (Index (bitAnd (di + 7) 63)) (fma (fromInt <| boolToInt <| gt width <| phase8 - floor phase8) 2 -1) d7
+--         in
+--           (#i + 8, phase8, bitAnd (di + 8) 63, d8#)
+--     (#_, downsampleIndex, downsampleBuffer, firResult#) =
+--       loop (#i, di, d0, firResult0#) = (#0, downsampleIndex1, downsampleBuffer1, 0#) while i < 64 do
+--         let
+--           (#s1, d1#) = readArrayU (Index (bitAnd (di + 0) 63)) d0
+--           firResult1 = s1 * readArray (Index i) downsampleCoefficients
+--           (#s2, d2#) = readArrayU (Index (bitAnd (di + 1) 63)) d1
+--           firResult2 = s2 * readArray (Index (i + 1)) downsampleCoefficients
+--           (#s3, d3#) = readArrayU (Index (bitAnd (di + 2) 63)) d2
+--           firResult3 = s3 * readArray (Index (i + 2)) downsampleCoefficients
+--           (#s4, d4#) = readArrayU (Index (bitAnd (di + 3) 63)) d3
+--           firResult4 = s4 * readArray (Index (i + 3)) downsampleCoefficients
+--           (#s5, d5#) = readArrayU (Index (bitAnd (di + 4) 63)) d4
+--           firResult5 = s5 * readArray (Index (i + 4)) downsampleCoefficients
+--           (#s6, d6#) = readArrayU (Index (bitAnd (di + 5) 63)) d5
+--           firResult6 = s6 * readArray (Index (i + 5)) downsampleCoefficients
+--           (#s7, d7#) = readArrayU (Index (bitAnd (di + 6) 63)) d6
+--           firResult7 = s7 * readArray (Index (i + 6)) downsampleCoefficients
+--           (#s8, d8#) = readArrayU (Index (bitAnd (di + 7) 63)) d7
+--           firResult8 = s8 * readArray (Index (i + 7)) downsampleCoefficients
+--           firResult  = firResult0 + firResult1 + firResult2 + firResult3 + firResult4 + firResult5 + firResult6 + firResult7 + firResult8
+--         in
+--           (#i + 8, bitAnd (di + 8) 63, d8, firResult#)
+--
+-- pulseFIR :: AudioFormat f => f Audio -> f Audio -> f Audio
+-- pulseFIR width freq =
+--   accumulate2U mkOverSampleSawState accumulatePulseFIR constTrue' width freq
+
+-----------
+-- Oversampling saw wave with IIR brickwall filter
+accumulatePulse :: F64 -> F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
+accumulatePulse width freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
+  (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
+  where
+    freqDelta = freq * audioRecipOverSampleRate
+    b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
+    b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
+    b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
+    a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
+    a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
+    a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
+    ra0       = 1 / a0
+    (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
+      loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
+        let
+          phase1  = freqDelta + phase0
+          in1     = fma (fromInt (boolToInt (gt width (phase1 - floor phase1)))) 2 -1
+          out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
+          phase2  = freqDelta + phase1
+          in2     = fma (fromInt (boolToInt (gt width (phase2 - floor phase2)))) 2 -1
+          out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
+          phase3  = freqDelta + phase2
+          in3     = fma (fromInt (boolToInt (gt width (phase3 - floor phase3)))) 2 -1
+          out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
+          phase4  = freqDelta + phase3
+          in4     = fma (fromInt (boolToInt (gt width (phase4 - floor phase4)))) 2 -1
+          out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
+          phase5  = freqDelta + phase4
+          in5     = fma (fromInt (boolToInt (gt width (phase5 - floor phase5)))) 2 -1
+          out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
+          phase6  = freqDelta + phase5
+          in6     = fma (fromInt (boolToInt (gt width (phase6 - floor phase6)))) 2 -1
+          out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
+          phase7  = freqDelta + phase6
+          in7     = fma (fromInt (boolToInt (gt width (phase7 - floor phase7)))) 2 -1
+          out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
+          phase8  = freqDelta + phase7
+          in8     = fma (fromInt (boolToInt (gt width (phase8 - floor phase8)))) 2 -1
+          out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
+        in
+          (#i + 8, phase8, in8, in7, out8, out7#)
+
+pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
+pulse width freq =
+  accumulate2 accumulatePulse constTrue width freq
+
+-----------
+-- lfPulse
+accumulateLFPulse :: F64 -> F64 -> F64 -> (#F64, F64#)
+accumulateLFPulse width freq phase0 =
+  (#phase1, out#)
+  where
+    phase1 = fma freq recipSampleRate phase0
+    phase2 = phase1 - floor phase1
+    out    = fma (fromInt (boolToInt (phase2 > width))) 2 -1
+
+lfPulse :: AudioFormat f => f Audio -> f Audio -> f Audio
+lfPulse width freq =
+  accumulate2 accumulateLFPulse constTrue width freq
+
+-----------
+-- Oversampling saw wave with IIR brickwall filter
+accumulateTri :: F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
+accumulateTri freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
+  (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
+  where
+    freqDelta = freq * audioRecipOverSampleRate
+    b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
+    b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
+    b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
+    a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
+    a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
+    a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
+    ra0       = 1 / a0
+    (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
+      loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
+        let
+          phase1  = freqDelta + phase0
+          in1     = fma (abs (fma (phase1 - floor phase1) 2 -1)) 2 -1
+          out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
+          phase2  = freqDelta + phase1
+          in2     = fma (abs (fma (phase2 - floor phase2) 2 -1)) 2 -1
+          out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
+          phase3  = freqDelta + phase2
+          in3     = fma (abs (fma (phase3 - floor phase3) 2 -1)) 2 -1
+          out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
+          phase4  = freqDelta + phase3
+          in4     = fma (abs (fma (phase4 - floor phase4) 2 -1)) 2 -1
+          out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
+          phase5  = freqDelta + phase4
+          in5     = fma (abs (fma (phase5 - floor phase5) 2 -1)) 2 -1
+          out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
+          phase6  = freqDelta + phase5
+          in6     = fma (abs (fma (phase6 - floor phase6) 2 -1)) 2 -1
+          out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
+          phase7  = freqDelta + phase6
+          in7     = fma (abs (fma (phase7 - floor phase7) 2 -1)) 2 -1
+          out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
+          phase8  = freqDelta + phase7
+          in8     = fma (abs (fma (phase8 - floor phase8) 2 -1)) 2 -1
+          out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
+        in
+          (#i + 8, phase8, in8, in7, out8, out7#)
+
+tri' :: AudioFormat f => f Audio -> f Audio
+tri' freq =
+  accumulate1 accumulateTri constTrue freq
+
+-----------
+-- lfTri
+accumulateLFTri :: F64 -> F64 -> (#F64, F64#)
+accumulateLFTri freq phase0 =
+  (#phase1, out#)
+  where
+    phase1 = fma freq recipSampleRate phase0
+    phase2 = phase1 - floor phase1
+    saw    = fma phase2 2 -1
+    out    = fma (abs saw) 2 -1
+
+tri :: AudioFormat f => f Audio -> f Audio
+tri freq =
+  accumulate1 accumulateLFTri constTrue freq
+
+-----------
+-- perc
+data PercState = PercState# F64 F64 F64 F64
+
+mkPercState :: F64 -> F64 -> F64 -> F64 -> F64 -> () -> *PercState
+mkPercState level endLevel length curve currTime _ =
+  PercState# a2 b1 grow currTime
+  where
+    length' = length * audioSampleRateF
+    b1      = (endLevel - level) / (1 - exp curve)
+    a2      = level + b1
+    grow    = exp (curve / length')
+
+accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> *PercState -> (#*PercState, F64#)
+accumulatePerc (#attackTime, decayTime, totalTime, curve#) input (PercState# a20 b10 grow0 currTime0) =
+  (#PercState# a2 b12 grow currTime, out#)
+  where
+    currTime1 = currTime0 + recipSampleRate
+    PercState# a2 b1 grow currTime =
+      if currTime1 > attackTime && currTime0 <= attackTime then
+        mkPercState (a20 - b10) 0 decayTime curve currTime1 ()
+      else if currTime1 > totalTime then
+        PercState# 0 0 0 currTime1
+      else
+        PercState# a20 b10 grow0 currTime1
+    b12   = b1 * grow
+    level = a2 - b12
+    out   = level * input
+
+percIsRunning :: F64 -> *PercState -> (#*PercState, Bool#)
+percIsRunning totalTime (PercState# a2 b1 grow currTime) =
+  (#PercState# a2 b1 grow currTime, currTime < totalTime#)
+
+perc :: AudioFormat f => F64 -> F64 -> F64 -> f Audio -> f Audio
 perc attackTime decayTime curve input =
-  accumulateFinite1 (accumulatePerc (#attackTime, recip attackTime, recip decayTime, curve#)) (percIsRunning (attackTime + decayTime)) input
+  accumulate1U mk update isRunning input
+  where
+    totalTime = attackTime + decayTime
+    mk        = mkPercState 0 1 attackTime curve 0
+    update    = accumulatePerc (#attackTime, decayTime, totalTime, curve#)
+    isRunning = percIsRunning totalTime
+
+-----------
+-- Wave tables
+
+data WaveTable = WaveTable (Array 65536 F64)
+
+sinTable :: WaveTable
+sinTable =
+  WaveTable <| freezeArray <| loop a = unsafeEmptyArray () for ix <- each do
+    case ix of
+      Index i ->
+        writeArray ix (sine ((fromInt (uintToInt i) / 65536) * tau)) a
+
+cosTable :: WaveTable
+cosTable =
+  WaveTable <| freezeArray <| loop a = unsafeEmptyArray () for ix <- each do
+    case ix of
+      Index i ->
+        writeArray ix (cosine ((fromInt (uintToInt i) / 65536) * tau)) a
+
+-- sinhTable :: WaveTable
+-- sinhTable =
+--   WaveTable <| freezeArray <| loop a = unsafeEmptyArray () for ix <- each do
+--     case ix of
+--       Index i ->
+--         writeArray ix (sinh ((fromInt (uintToInt i) / 65536) * tau)) a
+
+-- TODO: Accumulator will grow very large, reducing precision?
+-- TODO: need ceil
+accumulateWaveTable :: WaveTable -> F64 -> F64 -> (#F64, F64#)
+accumulateWaveTable (WaveTable buffer) freq phase0 =
+  (#phase1, out#)
+  where
+    phase1  = fma freq recipSampleRate phase0
+    findex  = phase1 * 65536
+    delta   = (floor findex + 1) - findex
+    index1  = bitAnd (f64ToUInt findex) 65535
+    index2  = bitAnd (index1 + 1) 65535
+    sample1 = readArray (Index index1) buffer
+    sample2 = readArray (Index index2) buffer
+    out     = sample1 * delta + sample2 * (1 - delta)
+
+wave :: AudioFormat f => WaveTable -> f Audio -> f Audio
+wave buffer freq =
+  accumulate1 (accumulateWaveTable buffer) constTrue freq
+
+sin :: AudioFormat f => f Audio -> f Audio
+sin freq = wave sinTable freq
+
+
+-----------
+-- Sync
+
+-- TODO: default instance instead of accumulate3U
+data SyncState = SyncState# F64 F64 F64
+
+mkSyncState :: () -> *SyncState
+mkSyncState _ = SyncState# 0 1 1
+
+-- Kick Sync
+accumulateSyncSaw :: F64 -> F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
+accumulateSyncSaw sync kick freq (SyncState# phase0 direction0 prevSync) =
+  (#SyncState# phase1 direction0 sync, out#)
+  where
+    posSync = fromInt <| boolToInt <| (prevSync <= 0 && sync > 0)
+    negSync = fromInt <| boolToInt <| (prevSync >= 0 && sync < 0)
+    delta   = freq * recipSampleRate
+    kicks   = posSync * kick + negSync * negate kick
+    phase1  = delta + phase0 + kicks
+    phase2  = phase1 - floor phase1
+    out     = fma phase2 2.0 -1.0
+
+syncSaw :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+syncSaw sync kickAmount freq =
+  accumulate3U mkSyncState accumulateSyncSaw constTrue' sync kickAmount freq
+
+-- Reverse sync
+accumulateSyncTri :: F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
+accumulateSyncTri sync freq (SyncState# phase0 direction0 prevSync) =
+  (#SyncState# phase1 direction1 sync, out#)
+  where
+    change     = fromInt <| boolToInt <| ((prevSync <= 0 && sync > 0) || (prevSync >= 0 && sync < 0))
+    direction1 = change * (negate direction0) + (1 - change) * direction0
+    phase1     = fma freq (recipSampleRate * direction1) phase0
+    phase2     = phase1 - floor phase1
+    saw        = fma phase2 2.0 -1.0
+    out        = fma (abs saw) 2.0 -1.0
+
+syncTri :: AudioFormat f => f Audio -> f Audio -> f Audio
+syncTri sync freq =
+  accumulate2U mkSyncState accumulateSyncTri constTrue' sync freq
+
+-- TODO: Branchless
+-- Hard Sync
+accumulateSyncPulse :: F64 -> F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
+accumulateSyncPulse sync width freq (SyncState# phase0 direction0 prevSync) =
+  (#SyncState# phase1 direction0 sync, out#)
+  where
+    phase1  =
+      if prevSync <= 0 && sync > 0 then
+        0
+      else if prevSync >= 0 && sync < 0 then
+        width
+      else
+        fma freq recipSampleRate phase0
+    phase2  = phase1 - floor phase1
+    out     = fma (fromInt (boolToInt (phase2 >= width))) 2.0 (-1.0)
+
+syncPulse :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+syncPulse sync width freq =
+  accumulate3U mkSyncState accumulateSyncPulse constTrue' sync width freq
+
+-- Reverse Sync
+accumulateSyncWave :: WaveTable -> F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
+accumulateSyncWave (WaveTable buffer) sync freq (SyncState# phase0 direction0 prevSync) =
+  (#SyncState# phase1 direction1 sync, out#)
+  where
+    change     = fromInt <| boolToInt <| ((prevSync <= 0 && sync > 0) || (prevSync >= 0 && sync < 0))
+    direction1 = change * (negate direction0) + (1 - change) * direction0
+    phase1     = fma freq (recipSampleRate * direction1) phase0
+    findex     = phase1 * 65536
+    delta      = (floor findex + 1) - findex
+    index1     = bitAnd (f64ToUInt findex) 65535
+    index2     = bitAnd (index1 + 1) 65535
+    sample1    = readArray (Index index1) buffer
+    sample2    = readArray (Index index2) buffer
+    out        = sample1 * delta + sample2 * (1 - delta)
+
+syncWave :: AudioFormat f => WaveTable -> f Audio -> f Audio -> f Audio
+syncWave buffer sync freq =
+  accumulate2U mkSyncState (accumulateSyncWave buffer) constTrue' sync freq
+
+syncSin :: AudioFormat f => f Audio -> f Audio -> f Audio
+syncSin sync freq = syncWave sinTable sync freq
+
+
+-----------
+-- Super Osc
+-- Based on Roland JP-8000 super saw oscillator design
+data SuperSawState = SuperSawState# F64 F64 F64 F64 F64 F64 F64
+
+-- TODO: Make default instance for SuperSawState instead of relying on accumulate3U, now that init weirdness has been fixed
+mkSuperSawState :: () -> *SuperSawState
+mkSuperSawState _ = SuperSawState# 0.260786585 0.087023334 0.866947809 0.392499353 0.728213602 0.122864975 0.167605335
+
+accumulateSuperSaw :: F64 -> F64 -> F64 -> *SuperSawState -> (#*SuperSawState, F64#)
+accumulateSuperSaw freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD0 phaseE0 phaseF0 phaseG0) =
+  (#SuperSawState# phaseA1 phaseB1 phaseC1 phaseD1 phaseE1 phaseF1 phaseG1, out#)
+  where
+    freqA   = freq * (fma depth -0.11002313 1)
+    freqB   = freq * (fma depth -0.06288439 1)
+    freqC   = freq * (fma depth -0.01952356 1)
+    freqD   = freq
+    freqE   = freq * (fma depth 0.01991221 1)
+    freqF   = freq * (fma depth 0.06216538 1)
+    freqG   = freq * (fma depth 0.10745242 1)
+    phaseA1 = fma freqA recipSampleRate phaseA0
+    phaseB1 = fma freqB recipSampleRate phaseB0
+    phaseC1 = fma freqC recipSampleRate phaseC0
+    phaseD1 = fma freqD recipSampleRate phaseD0
+    phaseE1 = fma freqE recipSampleRate phaseE0
+    phaseF1 = fma freqF recipSampleRate phaseF0
+    phaseG1 = fma freqG recipSampleRate phaseG0
+    sideMix = mix * 0.5
+    oscA    = fma (phaseA1 - floor phaseA1) 2 -1 * sideMix
+    oscB    = fma (phaseB1 - floor phaseB1) 2 -1 * sideMix
+    oscC    = fma (phaseC1 - floor phaseC1) 2 -1 * sideMix
+    oscD    = fma (phaseD1 - floor phaseD1) 2 -1 * (1 - mix * 0.75)
+    oscE    = fma (phaseE1 - floor phaseE1) 2 -1 * sideMix
+    oscF    = fma (phaseF1 - floor phaseF1) 2 -1 * sideMix
+    oscG    = fma (phaseG1 - floor phaseG1) 2 -1 * sideMix
+    out     = oscA + oscB + oscC + oscD + oscE + oscF + oscG
+
+-- NOTE: Turns out floor is faster than fastFloor???
+superSaw :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+superSaw freq depth mix =
+  accumulate3U mkSuperSawState accumulateSuperSaw constTrue' freq depth mix
+
+accumulateSuperPulse :: F64 -> F64 -> F64 -> *SuperSawState -> (#*SuperSawState, F64#)
+accumulateSuperPulse freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD0 phaseE0 phaseF0 phaseG0) =
+  (#SuperSawState# phaseA1 phaseB1 phaseC1 phaseD1 phaseE1 phaseF1 phaseG1, out#)
+  where
+    width   = 0.5 -- need accumulate4U to make this another parameter
+    freqA   = freq * (fma depth -0.11002313 1)
+    freqB   = freq * (fma depth -0.06288439 1)
+    freqC   = freq * (fma depth -0.01952356 1)
+    freqD   = freq
+    freqE   = freq * (fma depth 0.01991221 1)
+    freqF   = freq * (fma depth 0.06216538 1)
+    freqG   = freq * (fma depth 0.10745242 1)
+    phaseA1 = fma freqA recipSampleRate phaseA0
+    phaseB1 = fma freqB recipSampleRate phaseB0
+    phaseC1 = fma freqC recipSampleRate phaseC0
+    phaseD1 = fma freqD recipSampleRate phaseD0
+    phaseE1 = fma freqE recipSampleRate phaseE0
+    phaseF1 = fma freqF recipSampleRate phaseF0
+    phaseG1 = fma freqG recipSampleRate phaseG0
+    sideMix = mix * 0.5
+    oscA    = fma (fromInt <| boolToInt <| (phaseA1 - floor phaseA1) > width) 2 -1 * sideMix
+    oscB    = fma (fromInt <| boolToInt <| (phaseB1 - floor phaseB1) > width) 2 -1 * sideMix
+    oscC    = fma (fromInt <| boolToInt <| (phaseC1 - floor phaseC1) > width) 2 -1 * sideMix
+    oscD    = fma (fromInt <| boolToInt <| (phaseD1 - floor phaseD1) > width) 2 -1 * (1 - mix * 0.75)
+    oscE    = fma (fromInt <| boolToInt <| (phaseE1 - floor phaseE1) > width) 2 -1 * sideMix
+    oscF    = fma (fromInt <| boolToInt <| (phaseF1 - floor phaseF1) > width) 2 -1 * sideMix
+    oscG    = fma (fromInt <| boolToInt <| (phaseG1 - floor phaseG1) > width) 2 -1 * sideMix
+    out     = oscA + oscB + oscC + oscD + oscE + oscF + oscG
+
+-- NOTE: Turns out floor is faster than fastFloor???
+superPulse :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+superPulse freq depth mix =
+  accumulate3U mkSuperSawState accumulateSuperPulse constTrue' freq depth mix
+
+accumulateSuperTri :: F64 -> F64 -> F64 -> *SuperSawState -> (#*SuperSawState, F64#)
+accumulateSuperTri freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD0 phaseE0 phaseF0 phaseG0) =
+  (#SuperSawState# phaseA1 phaseB1 phaseC1 phaseD1 phaseE1 phaseF1 phaseG1, out#)
+  where
+    freqA   = freq * (fma depth -0.11002313 1)
+    freqB   = freq * (fma depth -0.06288439 1)
+    freqC   = freq * (fma depth -0.01952356 1)
+    freqD   = freq
+    freqE   = freq * (fma depth 0.01991221 1)
+    freqF   = freq * (fma depth 0.06216538 1)
+    freqG   = freq * (fma depth 0.10745242 1)
+    phaseA1 = fma freqA recipSampleRate phaseA0
+    phaseB1 = fma freqB recipSampleRate phaseB0
+    phaseC1 = fma freqC recipSampleRate phaseC0
+    phaseD1 = fma freqD recipSampleRate phaseD0
+    phaseE1 = fma freqE recipSampleRate phaseE0
+    phaseF1 = fma freqF recipSampleRate phaseF0
+    phaseG1 = fma freqG recipSampleRate phaseG0
+    sideMix = mix * 0.5
+    oscA    = fma (abs (fma (phaseA1 - floor phaseA1) 2 -1)) 2 -1 * sideMix
+    oscB    = fma (abs (fma (phaseB1 - floor phaseB1) 2 -1)) 2 -1 * sideMix
+    oscC    = fma (abs (fma (phaseC1 - floor phaseC1) 2 -1)) 2 -1 * sideMix
+    oscD    = fma (abs (fma (phaseD1 - floor phaseD1) 2 -1)) 2 -1 * (1 - mix * 0.75)
+    oscE    = fma (abs (fma (phaseE1 - floor phaseE1) 2 -1)) 2 -1 * sideMix
+    oscF    = fma (abs (fma (phaseF1 - floor phaseF1) 2 -1)) 2 -1 * sideMix
+    oscG    = fma (abs (fma (phaseG1 - floor phaseG1) 2 -1)) 2 -1 * sideMix
+    out     = oscA + oscB + oscC + oscD + oscE + oscF + oscG
+
+-- NOTE: Turns out floor is faster than fastFloor???
+superTri :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+superTri freq depth mix =
+  accumulate3U mkSuperSawState accumulateSuperPulse constTrue' freq depth mix
+
+-----------
+-- delay
+data DelayState s = DelayState# (.AudioBuffer s) UInt F64
+
+natSecondsToNatBufferSamples :: Seconds n -> NatVal (NatNextPowerOfTwo (NatMul SampleRate (NatMax n 1)))
+natSecondsToNatBufferSamples _ = NatVal
+
+-- TODO: Interpolate delayTime!
+-- TODO: delay playback speed? Reverse delay? delay bank etc?
+-- TODO: initialDelayTime, maxDelayTime, audioBufferSize, etc
+
+accumulateDelay :: UInt -> F64 -> F64 -> F64 -> *DelayState s -> (#*DelayState s, F64#)
+accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState# (AudioBuffer buffer0) index delayTime) =
+  (#DelayState# (AudioBuffer buffer2) index' delayTime', out#)
+  where
+    delayTime'       = targetDelayTime
+    delayIndex       = bitAnd (index + f64ToUInt (delayTime' * audioSampleRateF)) bufferSizeMinus1
+    (#del, buffer1#) = readArrayU (Index index) buffer0
+    out              = input * (1 - mix) + del * mix
+    buffer2          = writeArray (Index delayIndex) out buffer1
+    index'           = bitAnd (index + 1) bufferSizeMinus1
+
+mkDelayState :: Seconds s -> () -> *DelayState s
+mkDelayState _ _ = DelayState# (AudioBuffer (arrayFrom 0)) 0 1
+
+delay :: AudioFormat f => Seconds n -> f Audio -> f Audio -> f Audio -> f Audio
+delay maxDelayTime delayTime mix input =
+  accumulate3U (mkDelayState maxDelayTime) (accumulateDelay (natVal (natSecondsToNatBufferSamples maxDelayTime) - 1)) (\s -> (#s, True#)) delayTime mix input
+
+oneSec :: Seconds 1
+oneSec = Seconds
+
+twoSec :: Seconds 2
+twoSec = Seconds
+
+threeSec :: Seconds 3
+threeSec = Seconds
+
+fourSec :: Seconds 4
+fourSec = Seconds
+
+fiveSec :: Seconds 5
+fiveSec = Seconds
+
+-----------
+-- RBJ Filters, Audio EQ Cookbook
+
+data BiquadState = BiquadState# F64 F64 F64 F64
+
+instance Default BiquadState where
+  default = BiquadState# 0 0 0 0
+
+-- TODO: Optimize out transcendental functions
+
+-- fi range: 0 - 1
+waveTableFunction :: WaveTable -> F64 -> F64
+waveTableFunction (WaveTable buffer) fi =
+  sample1 * delta + sample2 * (1 - delta)
+  where
+    findex  = fi * 65536
+    delta   = (floor findex + 1) - findex
+    index1  = bitAnd (f64ToUInt findex) 65535
+    index2  = bitAnd (index1 + 1) 65535
+    sample1 = readArray (Index index1) buffer
+    sample2 = readArray (Index index2) buffer
+
+-----------
+-- lpf
+accumulateLPF :: F64 -> F64 -> F64 -> BiquadState -> (#BiquadState, F64#)
+accumulateLPF freq q x0 (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 (negate y0) y1, y0#)
+  where
+    omega = freq * recipSampleRate
+    cso   = waveTableFunction cosTable omega
+    alpha = waveTableFunction sinTable omega * q * 0.5
+    b0    = (1 - cso) * 0.5
+    b1    =  1 - cso
+    b2    = (1 - cso) * 0.5
+    a0    =  1 + alpha
+    a1    = -2 * cso
+    a2    =  1 - alpha
+    y0    =
+      fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
+
+lpf :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+lpf freq q input =
+  accumulate3 accumulateLPF constTrue freq q input
+
+-----------
+-- hpf
+accumulateHPF :: F64 -> F64 -> F64 -> BiquadState -> (#BiquadState, F64#)
+accumulateHPF freq q x0 (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 (negate y0) y1, y0#)
+  where
+    omega = freq * recipSampleRate
+    cso   = waveTableFunction cosTable omega
+    alpha = waveTableFunction sinTable omega * q * 0.5
+    b0    = (1 + cso) * 0.5
+    b1    = negate (1 + cso)
+    b2    = (1 + cso) * 0.5
+    a0    =  1 + alpha
+    a1    = -2 * cso
+    a2    =  1 - alpha
+    y0    =
+      fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
+
+hpf :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+hpf freq q input =
+  accumulate3 accumulateHPF constTrue freq q input
+
+-----------
+-- bpf
+accumulateBPF :: F64 -> F64 -> F64 -> BiquadState -> (#BiquadState, F64#)
+accumulateBPF freq q x0 (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 (negate y0) y1, y0#)
+  where
+    omega = freq * recipSampleRate
+    cso   = waveTableFunction cosTable omega
+    alpha = waveTableFunction sinTable omega * q * 0.5
+    b0    = alpha
+    b1    = 0
+    b2    = negate alpha
+    a0    =  1 + alpha
+    a1    = -2 * cso
+    a2    =  1 - alpha
+    y0    =
+      fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
+
+bpf :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
+bpf freq q input =
+  accumulate3 accumulateBPF constTrue freq q input
+
+-----------
+-- lowShelf
+accumulateLowShelf :: F64 -> F64 -> F64 -> F64 -> BiquadState -> (#BiquadState, F64#)
+accumulateLowShelf slope freq gain x0 (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 (negate y0) y1, y0#)
+  where
+    biga  = pow 10 (gain / 40)
+    omega = freq * recipSampleRate
+    cso   = waveTableFunction cosTable omega
+    alpha = waveTableFunction sinTable omega * 0.5 * sqrt (((biga + (1 / biga)) * ((1 / slope) - 1)) + 2)
+    beta  = 2 * sqrt biga * alpha
+    b0    = biga * ((biga + 1) - ((biga - 1) * cso) + beta)
+    b1    = 2 * biga * ((biga - 1) - ((biga + 1) * cso))
+    b2    = biga * ((biga + 1) - ((biga - 1) * cso) - beta)
+    a0    = (biga + 1) + ((biga - 1) * cso) + beta
+    a1    = -2 * ((biga - 1) + ((biga + 1) * cso))
+    a2    = (biga + 1) + ((biga - 1) * cso) - beta
+    y0    =
+      fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
+
+lowShelf :: AudioFormat f => f Audio -> f Audio -> F64 -> f Audio -> f Audio
+lowShelf freq gain slope input =
+  accumulate3 (accumulateLowShelf slope) constTrue freq gain input
+
+-----------
+-- highShelf
+accumulateHighShelf :: F64 -> F64 -> F64 -> F64 -> BiquadState -> (#BiquadState, F64#)
+accumulateHighShelf slope freq gain x0 (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 (negate y0) y1, y0#)
+  where
+    biga  = pow 10 (gain / 40)
+    omega = freq * recipSampleRate
+    cso   = waveTableFunction cosTable omega
+    alpha = waveTableFunction sinTable omega * 0.5 * sqrt (((biga + (1 / biga)) * ((1 / slope) - 1)) + 2)
+    beta  = 2 * sqrt biga * alpha
+    b0    = biga * ((biga + 1) + ((biga - 1) * cso) + beta)
+    b1    = -2 * biga * ((biga - 1) + ((biga + 1) * cso))
+    b2    = biga * ((biga + 1) + ((biga - 1) * cso) - beta)
+    a0    = (biga + 1) - ((biga - 1) * cso) + beta
+    a1    = 2 * ((biga - 1) - ((biga + 1) * cso))
+    a2    = (biga + 1) - ((biga - 1) * cso) - beta
+    y0    =
+      fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
+
+highShelf :: AudioFormat f => f Audio -> f Audio -> F64 -> f Audio -> f Audio
+highShelf freq gain slope input =
+  accumulate3 (accumulateHighShelf slope) constTrue freq gain input
 
 
 --------------------
 -- Seq
 --------------------
 data SeqControl = SeqEnd | SeqBlockEnd | SeqNormal | SeqLoopEnd | SeqPure
-data SeqValue a = SeqValue (#Rational, SeqControl, Maybe a#)
+data SeqValue a = SeqValue# Rational SeqControl (Maybe a)
 data Seq a      = Seq (() -> SeqValue a)
 
 mergeSeqValueTimes :: Rational -> SeqControl -> Rational -> SeqControl -> Rational
@@ -1705,6 +3040,33 @@ mergeSeqValueTimes xt xc yt yc =
       case yc of
         SeqPure -> xt
         _       -> min xt yt
+
+mergeSeqValueTimes3 :: Rational -> SeqControl -> Rational -> SeqControl -> Rational -> SeqControl -> Rational
+mergeSeqValueTimes3 xt xc yt yc zt zc =
+  case xc of
+    SeqPure -> mergeSeqValueTimes yt yc zt zc
+    _ ->
+      case yc of
+        SeqPure -> mergeSeqValueTimes xt xc zt zc
+        _       ->
+          case zc of
+            SeqPure -> mergeSeqValueTimes xt xc yt yc
+            _       -> min (min xt yt) zt
+
+mergeSeqValueTimes4 :: Rational -> SeqControl -> Rational -> SeqControl -> Rational -> SeqControl -> Rational -> SeqControl -> Rational
+mergeSeqValueTimes4 wt wc xt xc yt yc zt zc =
+  case wc of
+    SeqPure -> mergeSeqValueTimes3 xt xc yt yc zt zc
+    _       ->
+      case xc of
+        SeqPure -> mergeSeqValueTimes3 wt wc yt yc zt zc
+        _ ->
+          case yc of
+            SeqPure -> mergeSeqValueTimes3 wt wc xt xc zt zc
+            _       ->
+              case zc of
+                SeqPure -> mergeSeqValueTimes3 wt wc xt xc yt yc
+                _       -> min (min (min wt xt) yt) zt
 
 instance Enum SeqControl where
   toEnum n =
@@ -1753,46 +3115,50 @@ seqControlAlternative x y =
     y
 
 instance Functor SeqValue where
-  map f (SeqValue (#t, c, x#)) =
-    SeqValue (#t, c, map f x#)
+  map f (SeqValue# t c x) =
+    SeqValue# t c (map f x)
 
 instance FunctorN SeqValue where
-  map2 f (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
-    SeqValue (#mergeSeqValueTimes xt xc yt yc, xc <> yc, map2 f xv yv#)
+  map2 f (SeqValue# xt xc xv) (SeqValue# yt yc yv) =
+    SeqValue# (mergeSeqValueTimes xt xc yt yc) (xc <> yc) (map2 f xv yv)
+  map3 f (SeqValue# xt xc xv) (SeqValue# yt yc yv) (SeqValue# zt zc zv) =
+    SeqValue# (mergeSeqValueTimes3 xt xc yt yc zt zc) (xc <> yc <> zc) (map3 f xv yv zv)
+  map4 f (SeqValue# wt wc wv) (SeqValue# xt xc xv) (SeqValue# yt yc yv) (SeqValue# zt zc zv) =
+    SeqValue# (mergeSeqValueTimes4 wt wc xt xc yt yc zt zc) (wc <> xc <> yc <> zc) (map4 f wv xv yv zv)
 
 instance Applicative SeqValue where
-  pure x = SeqValue (#1, SeqPure, Just x#)
-  ap (SeqValue (#ft, fc, fv#)) (SeqValue (#xt, xc, xv#)) =
-    SeqValue (#mergeSeqValueTimes xt xc ft fc, fc <> xc, ap fv xv#)
+  pure x = SeqValue# 1 SeqPure (Just x)
+  ap (SeqValue# ft fc fv) (SeqValue# xt xc xv) =
+    SeqValue# (mergeSeqValueTimes xt xc ft fc) (fc <> xc) (ap fv xv)
 
 instance Semigroup a => Semigroup (SeqValue a) where
-  append (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
-    SeqValue (#mergeSeqValueTimes xt xc yt yc, append xc yc, append xv yv#)
+  append (SeqValue# xt xc xv) (SeqValue# yt yc yv) =
+    SeqValue# (mergeSeqValueTimes xt xc yt yc) (append xc yc) (append xv yv)
 
 instance Monoid (SeqValue a) where
-  mempty = SeqValue (#1, SeqPure, nothing#)
+  mempty = SeqValue# 1 SeqPure nothing
 
 instance Alternative SeqValue where
-  empty = SeqValue (#1, SeqEnd, nothing#)
-  alternative (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, yc, yv#)) =
-    SeqValue (#mergeSeqValueTimes xt xc yt yc, seqControlAlternative xc yc, alternative xv yv#)
+  empty = SeqValue# 1 SeqEnd nothing
+  alternative (SeqValue# xt xc xv) (SeqValue# yt yc yv) =
+    SeqValue# (mergeSeqValueTimes xt xc yt yc) (seqControlAlternative xc yc) (alternative xv yv)
 
 instance Default (SeqValue a) where
-  default = SeqValue (#1, SeqPure, nothing#)
+  default = SeqValue# 1 SeqPure nothing
 
 instance Eq a => Eq (SeqValue a) where
-  eq  (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, tc, yv#)) = xt == yt && xc == tc && xv == yv
-  neq (SeqValue (#xt, xc, xv#)) (SeqValue (#yt, tc, yv#)) = xt /= yt || xc /= tc || xv /= yv
+  eq  (SeqValue# xt xc xv) (SeqValue# yt tc yv) = xt == yt && xc == tc && xv == yv
+  neq (SeqValue# xt xc xv) (SeqValue# yt tc yv) = xt /= yt || xc /= tc || xv /= yv
 
 instance Semiring a => Semiring (SeqValue a) where
-  zero    = SeqValue (#1, SeqPure, Just zero#)
-  one     = SeqValue (#1, SeqPure, Just one#)
+  zero    = SeqValue# 1 SeqPure (Just zero)
+  one     = SeqValue# 1 SeqPure (Just one)
   add x y = map2 add x y
   mul x y = map2 mul x y
 
 instance Ring a => Ring (SeqValue a) where
   sub x y   = map2 sub x y
-  fromInt i = SeqValue (#1, SeqPure, Just (fromInt i)#)
+  fromInt i = SeqValue# 1 SeqPure (Just (fromInt i))
 
 instance EuclideanRing a => EuclideanRing (SeqValue a) where
   div x y = map2 div x y
@@ -1809,8 +3175,8 @@ instance Num a => Num (SeqValue a) where
 instance Field a => Field (SeqValue a) where
 
 instance Floating a => Floating (SeqValue a) where
-  fromFloat f = SeqValue (#1, SeqPure, Just (fromFloat f)#)
-  sqrt f = map sqrt f
+  fromFloat f = SeqValue# 1 SeqPure (Just (fromFloat f))
+  sqrt f      = map sqrt f
   floor     x = map floor x
   ceil      x = map ceil x
   truncate  x = map truncate x
@@ -1825,33 +3191,64 @@ runSeq2 :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
 runSeq2 sx sy =
   acc
   where
-    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+    acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
       case acc of
-        (#SeqValue (#xt, xc, xv#), SeqValue (#yt, yc, yv#)#) ->
+        (#SeqValue# xt xc xv, SeqValue# yt yc yv#) ->
           let
             t = min xt yt
-            x = if xt <= t then runSeq sx () else SeqValue (#xt - t, xc, xv#)
-            y = if yt <= t then runSeq sy () else SeqValue (#yt - t, yc, yv#)
+            x = if xt <= t then runSeq sx () else SeqValue# (xt - t) xc xv
+            y = if yt <= t then runSeq sy () else SeqValue# (yt - t) yc yv
           in
             (#x, y#)
 
+runSeq3 :: Seq a -> Seq b -> Seq c -> (#SeqValue a, SeqValue b, SeqValue c#)
+runSeq3 sx sy sz =
+  acc
+  where
+    acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
+      case acc of
+        (#SeqValue# xt xc xv, SeqValue# yt yc yv, SeqValue# zt zc zv#) ->
+          let
+            t = min (min xt yt) zt
+            x = if xt <= t then runSeq sx () else SeqValue# (xt - t) xc xv
+            y = if yt <= t then runSeq sy () else SeqValue# (yt - t) yc yv
+            z = if zt <= t then runSeq sz () else SeqValue# (zt - t) zc zv
+          in
+            (#x, y, z#)
+
+runSeq4 :: Seq a -> Seq b -> Seq c -> Seq d -> (#SeqValue a, SeqValue b, SeqValue c, SeqValue d#)
+runSeq4 sw sx sy sz =
+  acc
+  where
+    acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
+      case acc of
+        (#SeqValue# wt wc wv, SeqValue# xt xc xv, SeqValue# yt yc yv, SeqValue# zt zc zv#) ->
+          let
+            t = min (min (min wt xt) yt) zt
+            w = if wt <= t then runSeq sw () else SeqValue# (wt - t) wc wv
+            x = if xt <= t then runSeq sx () else SeqValue# (xt - t) xc xv
+            y = if yt <= t then runSeq sy () else SeqValue# (yt - t) yc yv
+            z = if zt <= t then runSeq sz () else SeqValue# (zt - t) zc zv
+          in
+            (#w, x, y, z#)
+
 seqValueDuration :: SeqValue a -> Rational
-seqValueDuration (SeqValue (#t, _, _#)) = t
+seqValueDuration (SeqValue# t _ _) = t
 
 seqValueControl :: SeqValue a -> SeqControl
-seqValueControl (SeqValue (#_, c, _#)) = c
+seqValueControl (SeqValue# _ c _) = c
 
 runSeqOnLeft :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
 runSeqOnLeft ls rs =
   acc
   where
-    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+    acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
       case acc of
-        (#SeqValue (#lt, lc, _#), SeqValue (#rt, rc, rv#)#) ->
+        (#SeqValue# lt lc _, SeqValue# rt rc rv#) ->
           let
             t = min lt rt
-            l = if lt <= t then runSeq ls () else SeqValue (#lt - t, lc, nothing#)
-            r = if rt <= t then runSeq rs () else SeqValue (#rt - t, rc, rv#)
+            l = if lt <= t then runSeq ls () else SeqValue# (lt - t) lc nothing
+            r = if rt <= t then runSeq rs () else SeqValue# (rt - t) rc rv
           in
             (#l, r#)
 
@@ -1859,13 +3256,13 @@ runSeqOnRight :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
 runSeqOnRight ls rs =
   acc
   where
-    acc ~ (#SeqValue (#0, SeqNormal, Nothing#), SeqValue (#0, SeqNormal, Nothing#)#) =
+    acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
       case acc of
-        (#SeqValue (#lt, lc, lv#), SeqValue (#rt, rc, _#)#) ->
+        (#SeqValue# lt lc lv, SeqValue# rt rc _#) ->
           let
             t = min lt rt
-            l = if lt <= t then runSeq ls () else SeqValue (#lt - t, lc, lv#)
-            r = if rt <= t then runSeq rs () else SeqValue (#rt - t, rc, nothing#)
+            l = if lt <= t then runSeq ls () else SeqValue# (lt - t) lc lv
+            r = if rt <= t then runSeq rs () else SeqValue# (rt - t) rc nothing
           in
           (#l, r#)
 
@@ -1877,7 +3274,9 @@ instance Applicative Seq where
   ap fs xs = Seq (\_ -> ap (runSeq fs ()) (runSeq xs ()))
 
 instance FunctorN Seq where
-  map2 f sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 f x y)
+  map2 f sx sy       = Seq (\_ -> let (#x, y#)       = runSeq2 sx sy       in map2 f x y)
+  map3 f sx sy sz    = Seq (\_ -> let (#x, y, z#)    = runSeq3 sx sy sz    in map3 f x y z)
+  map4 f sw sx sy sz = Seq (\_ -> let (#w, x, y, z#) = runSeq4 sw sx sy sz in map4 f w x y z)
 
 instance Eq a => Eq (Seq a) where
   eq  sx sy = let (#x, y#) = runSeq2 sx sy in x == y
@@ -1921,10 +3320,10 @@ instance Semigroup (Seq a) where
   append sx sy = [sx sy]
 
 instance Monoid (Seq a) where
-  mempty = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
+  mempty = Seq (\_ -> SeqValue# 1 SeqPure nothing)
 
 instance Alternative Seq where
-  empty             = Seq (\_ -> SeqValue (#1, SeqPure, nothing#))
+  empty             = Seq (\_ -> SeqValue# 1 SeqPure nothing)
   alternative sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in alternative x y)
 
 -- TODO: <|>
@@ -2000,34 +3399,27 @@ rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 righ
 
 restSeqValue :: SeqValue a
 restSeqValue =
-  SeqValue (#1, SeqPure, nothing#)
+  SeqValue# 1 SeqPure nothing
 
 rest :: Seq a
 rest =
   Seq (\_ -> restSeqValue)
 
 seqValueDurationMul :: Rational -> SeqValue a -> SeqValue a
-seqValueDurationMul speed (SeqValue (#t, c, v#)) =
-  SeqValue (#t * speed, c, v#)
+seqValueDurationMul speed (SeqValue# t c v) =
+  SeqValue# (t * speed) c v
 
 seqSpeed :: Rational -> Seq a -> Seq a
-seqSpeed speed seq = Seq (\_ -> seqValueDurationMul (recip speed) (runSeq seq ()))
+seqSpeed speed seq =
+  Seq (\_ -> seqValueDurationMul (recip speed) (runSeq seq ()))
 
 bpm :: Int -> Rational
-bpm tempoInBPM = tempoInBPM // 60
+bpm tempoInBPM =
+  tempoInBPM // 60
 
 toSeq :: SeqValue a -> Seq a
-toSeq sv = Seq (\_ -> sv)
-
--- altTest :: SeqValue Int
--- altTest = runSeq (alternative [0 1 _ 3] [_ <2 9> 55 _]) ()
-
--- seqLoop :: (Seq a -> Seq a) -> Seq a
--- seqLoop sf = Seq (\_ -> let x ~ default = runSeq (sf (toSeq x)) () in x)
-
--- myRecSeq :: Seq Int
--- myRecSeq = seqLoop <| \x ->
---   [1 2 <(x * 4) _ 4>]
+toSeq sv =
+  Seq (\_ -> sv)
 
 seqLoopEndIfLastSlot :: Int -> Int -> SeqControl
 seqLoopEndIfLastSlot slot maxSlot =
@@ -2040,10 +3432,10 @@ seqLoopEndIfLastSlot slot maxSlot =
 slotTick :: Int -> Int -> SeqControl -> SeqValue a -> (#Int, SeqValue a#)
 slotTick slot maxSlot controlIfNotNormal sv =
   case sv of
-    SeqValue (#t, c, v#) ->
+    SeqValue# t c v ->
       case c of
         SeqNormal -> (#slot, sv#)
-        _         -> (#(slot + 1) % maxSlot, SeqValue (#t, controlIfNotNormal, v#)#)
+        _         -> (#(slot + 1) % maxSlot, SeqValue# t controlIfNotNormal v#)
 
 seqTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 seqTick slot maxSlot sv =
@@ -2056,7 +3448,6 @@ tupleTick slot maxSlot sv =
 interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 interleaveTick slot maxSlot sv =
   slotTick slot maxSlot SeqLoopEnd sv
-
 
 
 --------------------
@@ -2116,7 +3507,7 @@ instance Print Bool where
       _    -> print "False" w
 
 instance Print Rational where
-  print (Rational (#n, d#)) w =
+  print (Rational# n d) w =
     print '(' w |> print n |> print " // " |> print d |> print ')'
 
 instance Print a => Print (Maybe a) where
@@ -2126,7 +3517,7 @@ instance Print a => Print (Maybe a) where
       Just x  -> print x w
 
 instance Print a => Print (SeqValue a) where
-  print (SeqValue (#t, _, v#)) w =
+  print (SeqValue# t _ v) w =
     print '(' w
     |> print t
     |> print ':'
@@ -2150,43 +3541,43 @@ instance Print a => Print (Seq a) where
               (#False, 0, w'#)
             else
               case runSeq s () of
-                SeqValue (#t, c, Just x#) ->
-                  (#True, t, print x w' |> print ' ' |> printBarOnLoop c#)
-                SeqValue (#t, c, _#) ->
-                  (#True, t, printBarOnLoop c w'#)
+                SeqValue# t c mx ->
+                  case mx of
+                    Just x -> (#True, t, print x w' |> print ' ' |> printBarOnLoop c#)
+                    _      -> (#True, t, printBarOnLoop c w'#)
 
-instance Print Channel where
+instance Print Audio where
   print c w =
     case c of
-      ChannelEnd  -> print "ChannelEnd" w
+      AudioEnd    -> print "AudioEnd" w
       BlockRate x -> print "BlockRate " w |> print x
       AudioRate b ->
         print '}' <| loop w' = (print '{' w) for i <- each do
           print (readArray i b) w' |> print ',' |> print ' '
 
-instance Foldable f => Print (Audio f) where
-  print (Audio f) w =
-    print "Audio [" w
-    |> printNewline
-    |> printNewline
-    |> (\w' -> foldl (\w'' c -> print c w'' |> printNewline |> printNewline) w' f)
-    |> print ']'
-    |> printNewline
+-- instance Foldable f => Print (Audio f) where
+--   print (Audio f) w =
+--     print "Audio [" w
+--     |> printNewline
+--     |> printNewline
+--     |> (\w' -> foldl (\w'' c -> print c w'' |> printNewline |> printNewline) w' f)
+--     |> print ']'
+--     |> printNewline
 
 instance Print Complex where
-  print (Complex (#r, i#)) w =
+  print (Complex# r i) w =
     print '(' w
     |> print r
     |> print " + i"
     |> print i
     |> print ')'
 
-instance Foldable f => Print (FFT f k) where
-  print (FFT f) w =
+instance Print (FFT k) where
+  print (FFT c) w =
     print "FFT [" w
     |> printNewline
     |> printNewline
-    |> (\w' -> foldl (\w'' c -> print c w'' |> printNewline |> printNewline) w' f)
+    |> print c
     |> print ']'
     |> printNewline
 
@@ -2194,12 +3585,12 @@ printLn :: Print a => a -> *World -> *World
 printLn x w =
   printNewline (print x w)
 
-trace :: Print a => a -> b -> b
+trace :: Print a => a -> .b -> .b
 trace x y =
   case print x primUndefined of
     _ -> y
 
-traceLn :: Print a => a -> b -> b
+traceLn :: Print a => a -> .b -> .b
 traceLn x y =
   case printLn x primUndefined of
     _ -> y
@@ -2237,8 +3628,8 @@ traceLn x y =
 --       (#tick' ~ 0, time' ~ 0, acc' ~ mempty#) =
 --         loop (#tick, time, acc#) = (#tick' + 1, time', acc'#) while time < tick do
 --           case runSeq s () of
---             SeqValue (#t, _, Just x#) -> (#tick, time + t, f acc x#)
---             SeqValue (#t, _, _#)      -> (#tick, time + t, acc#)
+--             SeqValue# t _ (Just x) -> (#tick, time + t, f acc x#)
+--             SeqValue# t _ _        -> (#tick, time + t, acc#)
 --
 -- Seq laws:
 -- Should expect to not be called again until the duration amount has passed
@@ -2282,227 +3673,217 @@ traceLn x y =
 -- appendGo = runSeq (appendSeq 1 2) ()
 
 
---------------------
--- Ptr
---------------------
-ptrMalloc :: UInt -> Ptr *a
-ptrMalloc capacity = primUndefined
-
-ptrRealloc :: UInt -> Ptr *a -> Ptr *a
-ptrRealloc capacity ptr = primUndefined
-
-ptrFree :: Ptr .a -> *()
-ptrFree ptr = primUndefined
-
--- unsafePtrPeek :: UInt -> *Ptr a -> (#a, *Ptr a#)
--- unsafePtrPeek index ptr = primUndefined
-
-unsafePtrPoke :: UInt -> *a -> Ptr *a -> Ptr *a
-unsafePtrPoke index value ptr = primUndefined
-
-unsafePtrSwapElement :: UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
-unsafePtrSwapElement index element ptr = primUndefined
-
--- unsafeCastPtr :: *Ptr a -> *Ptr b
--- unsafeCastPtr = primUndefined
-
-
-----------------------
--- MutRef: Something of a hack to allow for recursively owned types...
-----------------------
--- data MutRef a = MutRef (Ptr (Maybe a))
-
--- HACK / NOTE: mutRef expects the first argument to be CONSTANT (Need to support this concept in the type system...)
-mutRef :: Maybe *a -> Ptr (Maybe *a)
-mutRef x =
-  primUndefined
-
-mutRefTake :: (() -> *a) -> (#*a, Ptr (Maybe *a)#)
-mutRefTake mkFn =
-  case unsafePtrSwapElement 0 Nothing (mutRef Nothing) of
-    (#mx, ptr1#) ->
-      case mx of
-        Just x  -> (#x, ptr1#)
-        Nothing -> (#mkFn (), ptr1#)
-
-mutRefPut :: *a -> Ptr (Maybe *a) -> Ptr (Maybe *a)
-mutRefPut x ptr =
-  unsafePtrPoke 0 (Just x) ptr
-
-
 ----------------------
 -- DynArray
 ----------------------
+data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
+data PolyThunk a    = PolyThunk# (Ptr .()) (Ptr .()) a PolyThunkState Float
+-- UpdateState, CopyState, Arg, ThunkState, SampleOffset
 
-data DynTier     a = DynTier (#UInt, UInt, UInt, Ptr a#)
-data DynArray    a = DynArray (#DynTier a, DynTier a#)
-data DynTierIndex  = DynTierLow | DynTierHigh
-data DynArrayIndex = DynArrayIndex (#DynTierIndex, UInt#)
+data DynTier      a = DynTier# UInt UInt UInt (Ptr (.PolyThunk a))
+data DynArray     a = DynArray# (.DynTier a) (.DynTier a)
+data DynTierIndex   = DynTierLow | DynTierHigh
+data DynArrayIndex  = DynArrayIndex# DynTierIndex UInt
+
+dynTierTrace :: *DynTier a -> *DynTier a
+dynTierTrace (DynTier# cap count hwm ptr) =
+  DynTier# cap count hwm ptr
+  |> trace "    DynTier { cap: "
+  |> trace cap
+  |> trace ", count: "
+  |> trace count
+  |> trace ", hwm: "
+  |> trace hwm
+  |> traceLn " }"
+
+dynArrayTrace :: Array n Char -> *DynArray a -> *DynArray a
+dynArrayTrace opName (DynArray# low high) =
+  let low'  = dynTierTrace <| traceLn "  {" <| traceLn "  DynArray " <| traceLn opName low in
+  let high' = traceLn " " <| traceLn "  }" <| dynTierTrace high in
+  DynArray# low' high'
 
 dynArrayIndexEmpty :: DynArrayIndex
-dynArrayIndexEmpty = DynArrayIndex (#DynTierLow, 0#)
+dynArrayIndexEmpty = DynArrayIndex# DynTierLow 0
 
-dynTierEmpty :: UInt -> DynTier *a
+dynTierEmpty :: UInt -> *DynTier a
 dynTierEmpty capacity =
-  DynTier (#capacity, 0, 0, ptrMalloc capacity#)
+  DynTier# capacity 0 0 (ptrMalloc capacity)
 
-dynArrayEmpty :: UInt -> DynArray *a
+dynArrayEmpty :: UInt -> *DynArray a
 dynArrayEmpty capacity =
-  DynArray (#dynTierEmpty 0, dynTierEmpty capacity#)
+  DynArray# (dynTierEmpty 0) (dynTierEmpty capacity)
 
-dynTierPop :: DynTier *a -> (#Maybe *a, DynTier *a#)
-dynTierPop (DynTier (#capacity, count, highWaterMark, ptr#)) =
-  if count > 0 then
-    case unsafePtrSwapElement (count - 1) primUndefined ptr of
-      (#element, ptr'#) ->
-        (#Just element, DynTier (#capacity, count - 1, highWaterMark - 1, ptr'#)#)
-  else
-    (#Nothing, DynTier (#capacity, count, highWaterMark, ptr#)#)
-
-dynTierSwapToEndAndDelete :: UInt -> DynTier *a -> DynTier *a
-dynTierSwapToEndAndDelete index (DynTier (#capacity, count, highWaterMark, ptr#))=
+dynTierSwapToEndAndDelete :: UInt -> *DynTier a -> *DynTier a
+dynTierSwapToEndAndDelete index (DynTier# capacity count highWaterMark ptr) =
   if index >= capacity then
-    DynTier (#capacity, count, highWaterMark, ptr#)
+    DynTier# capacity count highWaterMark ptr
+  else if index == (count - 1) then
+    DynTier# capacity (count - 1) highWaterMark ptr
   else
-    case unsafePtrSwapElement index primUndefined ptr of
+    case unsafePtrSwapElementChecked "dynTierSwapToEndAndDelete 1" capacity index primUndefined ptr of
       (#indexElement, ptr2#) ->
-        case unsafePtrSwapElement (count - 1) indexElement ptr2 of
+        case unsafePtrSwapElementChecked "dynTierSwapToEndAndDelete 2" capacity (count - 1) indexElement ptr2 of
           (#endElement, ptr3#) ->
-            DynTier (#capacity, count - 1, highWaterMark, unsafePtrPoke index endElement ptr3#)
+            DynTier# capacity (count - 1) highWaterMark (unsafePtrPokeChecked "dynTierSwapToEndAndDelete 3" capacity index endElement ptr3)
 
 -- NOTE: This assumes that the tier is correctly sized!
-dynTierAppend :: *a -> DynTier *a -> DynTier *a
-dynTierAppend element (DynTier (#capacity, count, highWaterMark, ptr#)) =
-  DynTier (#capacity, count + 1, highWaterMark + 1, unsafePtrPoke count element ptr#)
+dynTierAppend :: *PolyThunk a -> *DynTier a -> *DynTier a
+dynTierAppend element (DynTier# capacity count highWaterMark ptr) =
+  if highWaterMark > count then
+    case unsafePtrSwapElementChecked "dynTierAppend1" capacity count element ptr of
+      (#hwmElement, ptr'#) ->
+        DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynTierAppend2" capacity highWaterMark hwmElement ptr')
+  else
+    DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynTierAppend" capacity count element ptr)
 
-dynArrayPromoteElement :: DynArray *a -> DynArray *a
-dynArrayPromoteElement (DynArray (#low, high#)) =
-  case dynTierPop low of
-    (#Nothing,      low'#) -> DynArray (#low', high#)
-    (#Just element, low'#) -> DynArray (#low', dynTierAppend element high#)
+  -- |> trace "dynTierAppend, capacity: "
+  -- |> trace capacity
+  -- |> trace ", count: "
+  -- |> traceLn count
+
+data DynTierPromotePopResult a = DynTierPromotePopEmpty | DynTierPromotePopLive (.PolyThunk a) | DynTierPromotePopInactive (.PolyThunk a)
+dynTierPromotePop :: *DynTier a -> (#*DynTierPromotePopResult a, *DynTier a#)
+dynTierPromotePop (DynTier# capacity count highWaterMark ptr) =
+  if highWaterMark > 0 && highWaterMark > count && highWaterMark <= capacity then
+    case unsafePtrSwapElementChecked "dynTierPromotePop1" capacity (highWaterMark - 1) primUndefined ptr of
+      (#element, ptr'#) ->
+        (#DynTierPromotePopInactive element, DynTier# capacity count (highWaterMark - 1) ptr'#)
+  else if count > 0 && count <= capacity then
+    case unsafePtrSwapElementChecked "dynTierPromotePop2" capacity (count - 1) primUndefined ptr of
+      (#element, ptr'#) ->
+        (#DynTierPromotePopLive element, DynTier# capacity (count - 1) (count - 1) ptr'#)
+  else
+    (#DynTierPromotePopEmpty, DynTier# capacity count highWaterMark ptr#)
+
+-- TODO: Nested case branching seems broken!?!?!?
+dynArrayPromoteElement :: *DynArray a -> *DynArray a
+dynArrayPromoteElement (DynArray# low (DynTier# capacity count highWaterMark ptr)) =
+  case dynTierPromotePop low of
+    (#m, low'#) ->
+      case m of
+        DynTierPromotePopEmpty ->
+          DynArray# low' (DynTier# capacity count highWaterMark ptr)
+
+        DynTierPromotePopInactive element ->
+          dynArrayTrace "PROMOTE INACTIVE: " <| DynArray# low' (DynTier# capacity count (highWaterMark + 1) (unsafePtrPokeChecked "dynArrayPromoteElement1" capacity highWaterMark element ptr))
+
+        DynTierPromotePopLive element ->
+          case unsafePtrSwapElementChecked "dynArrayPromoteElement2" capacity count element ptr of
+            (#hwmElement, ptr'#) ->
+              dynArrayTrace "PROMOTE LIVE: " <| DynArray# low' (DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynArrayPromoteElement3" capacity highWaterMark hwmElement ptr'))
 
 -- NOTE: This assumes that the low tier has been completely moved to the high tier
-dynArrayResize :: DynArray *a -> DynArray *a
-dynArrayResize (DynArray (#DynTier (#lcap, lcount, lhwm, lowPtr#), DynTier (#highCapacity, highCount, hhwm, highPtr#)#)) =
-  if highCount < highCapacity then
-    DynArray (#DynTier (#lcap, lcount, lhwm, lowPtr#), DynTier (#highCapacity, highCount, hhwm, highPtr#)#)
+dynArrayResize :: *DynArray a -> *DynArray a
+dynArrayResize (DynArray# (DynTier# lcap lcount lhwm lowPtr) (DynTier# highCapacity highCount hhwm highPtr)) =
+  if highCount < highCapacity && hhwm < highCapacity then
+    DynArray# (DynTier# lcap lcount lhwm lowPtr) (DynTier# highCapacity highCount hhwm highPtr)
   else
     let
       newCap  = highCapacity * 2
-      newLow  = DynTier (#highCapacity, highCount, hhwm, highPtr#)
-      newHigh = DynTier (#newCap, 0, 0, ptrRealloc newCap lowPtr#)
+      newLow  = DynTier# highCapacity highCount hhwm highPtr
+      newHigh = DynTier# newCap 0 0 (ptrRealloc newCap lowPtr)
     in
-      DynArray (#newLow, newHigh#)
+      DynArray# newLow newHigh
+      |> dynArrayTrace "GROW: "
 
-dynArrayAppend :: *a -> DynArray *a -> DynArray *a
-dynArrayAppend element a =
-  case dynArrayResize (dynArrayPromoteElement a) of
-    DynArray (#low, high#) ->
-      DynArray (#low, dynTierAppend element high#)
+dynArrayAppend :: *PolyThunk a -> *DynArray a -> *DynArray a
+dynArrayAppend element (DynArray# low high) =
+  DynArray# low (dynTierAppend element high)
 
-dynTierModifyElement :: UInt -> (*a -> *a) -> DynTier *a -> DynTier *a
-dynTierModifyElement index f (DynTier (#capacity, count, highWaterMark, ptr0#)) =
+dynTierModifyElement :: UInt -> (*PolyThunk a -> *PolyThunk a) -> *DynTier a -> *DynTier a
+dynTierModifyElement index f (DynTier# capacity count highWaterMark ptr0) =
   if index >= count then
-    DynTier (#capacity, count, highWaterMark, ptr0#)
+    DynTier# capacity count highWaterMark ptr0
   else
-    case unsafePtrSwapElement index primUndefined ptr0 of
+    case unsafePtrSwapElementChecked "dynTierModifyElement 1" count index primUndefined ptr0 of
       (#element, ptr1#) ->
-        DynTier (#capacity, count, highWaterMark, unsafePtrPoke index (f element) ptr1#)
+        DynTier# capacity count highWaterMark (unsafePtrPokeChecked "dynTierModifyElement 2" count index (f element) ptr1)
 
-dynArrayModifyElement :: DynArrayIndex -> (*a -> *a) -> DynArray *a -> DynArray *a
-dynArrayModifyElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
-  case tier of
-    DynTierLow  -> DynArray (#dynTierModifyElement index f low, high#)
-    DynTierHigh -> DynArray (#low, dynTierModifyElement index f high#)
+data DynArrayResult a = DynArrayEnd | DynArrayNothing | DynArrayJust a
 
-dynTierWithElement :: UInt -> (*a -> (#b, *a#)) -> DynTier *a -> (#Maybe b, DynTier *a#)
-dynTierWithElement index f (DynTier (#capacity, count, highWaterMark, ptr0#)) =
+dynTierWithElement :: UInt -> (*PolyThunk a -> (#b, *PolyThunk a#)) -> *DynTier a -> (#Maybe b, *DynTier a#)
+dynTierWithElement index f (DynTier# capacity count highWaterMark ptr0) =
   if index >= count then
-    (#Nothing, DynTier (#capacity, count, highWaterMark, ptr0#)#)
+    (#Nothing, DynTier# capacity count highWaterMark ptr0#)
   else
-    case unsafePtrSwapElement index primUndefined ptr0 of
+    case unsafePtrSwapElementChecked "dynTierWithElement 1" count index primUndefined ptr0 of
       (#element0, ptr1#) ->
         case f element0 of
           (#result, element1#) ->
-            (#Just result, DynTier (#capacity, count, highWaterMark, unsafePtrPoke index element1 ptr1#)#)
+            (#Just result, DynTier# capacity count highWaterMark (unsafePtrPokeChecked "dynTierWithElement 2" count index element1 ptr1)#)
 
-dynArrayWithElement :: DynArrayIndex -> (*a -> (#b, *a#)) -> DynArray *a -> (#Maybe b, DynArray *a#)
-dynArrayWithElement (DynArrayIndex (#tier, index#)) f (DynArray (#low, high#)) =
+dynArrayWithElement :: DynArrayIndex -> (*PolyThunk a -> (#b, *PolyThunk a#)) -> *DynArray a -> (#DynArrayResult b, *DynArray a#)
+dynArrayWithElement (DynArrayIndex# tier index) f (DynArray# low high) =
   case tier of
     DynTierLow ->
       case dynTierWithElement index f low of
         (#result, low'#) ->
-          (#result, DynArray (#low', high#)#)
+          case result of
+            Just result' -> (#DynArrayJust result', DynArray# low' high#)
+            _            -> (#DynArrayNothing, DynArray# low' high#)
     DynTierHigh ->
       case dynTierWithElement index f high of
         (#result, high'#) ->
-          (#result, DynArray (#low, high'#)#)
+          case result of
+            Just result' -> (#DynArrayJust result', DynArray# low high'#)
+            _            -> (#DynArrayEnd, DynArray# low high'#)
 
-dynArrayDelete :: DynArrayIndex -> DynArray *a -> DynArray *a
-dynArrayDelete (DynArrayIndex (#tier, index#)) (DynArray (#low, high#)) =
+dynArrayDelete :: DynArrayIndex -> *DynArray a -> *DynArray a
+dynArrayDelete (DynArrayIndex# tier index) (DynArray# low high) =
   case tier of
-    DynTierLow  -> DynArray (#dynTierSwapToEndAndDelete index low, high#)
-    DynTierHigh -> DynArray (#low, dynTierSwapToEndAndDelete index high#)
+    DynTierLow  -> DynArray# (dynTierSwapToEndAndDelete index low) high
+    DynTierHigh -> DynArray# low (dynTierSwapToEndAndDelete index high)
 
--- TODO: Nested case literals seem broken!
--- dynArrayDelete :: DynArrayIndex -> DynArray *a -> DynArray *a
--- dynArrayDelete index (DynArray (#low, high#)) =
---   case index of
---     DynArrayIndex (#DynTierLow,  index'#) -> DynArray (#dynTierSwapToEndAndDelete index' low, high#)
---     DynArrayIndex (#DynTierHigh, index'#) -> DynArray (#low, dynTierSwapToEndAndDelete index' high#)
-
-dynArrayEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> DynArray *a -> DynArray *a
-dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray (#low, DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#)) =
+dynArrayEmplaceOrAppend :: (*PolyThunk a -> *PolyThunk a) -> (() -> *PolyThunk a) -> *DynArray a -> *DynArray a
+dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray# low (DynTier# highCapacity highCount highWaterMark highPtr)) =
   if highCount < highWaterMark then
-    DynArray (#low, dynTierModifyElement (highCount + 1) emplaceInit <| DynTier (#highCapacity, highCount + 1, highWaterMark, highPtr#)#)
+    dynArrayTrace "EMPLACE: " <| DynArray# low (dynTierModifyElement highCount emplaceInit <| DynTier# highCapacity (highCount + 1) highWaterMark highPtr)
   else
-    DynArray (#low, dynTierAppend (appendMk ()) <| DynTier (#highCapacity, highCount, highWaterMark, highPtr#)#)
+    dynArrayTrace "APPEND:  " <| dynArrayAppend (appendMk ()) (DynArray# low (DynTier# highCapacity highCount highWaterMark highPtr))
 
-data DynArrayIterator a = DynArrayIterator (#DynArrayIndex, DynArray a#)
+data DynArrayIterator a = DynArrayIterator# DynArrayIndex (.DynArray a)
 
-dynArrayIterator :: DynArray *a -> DynArrayIterator *a
-dynArrayIterator a = DynArrayIterator (#dynArrayIndexEmpty, a#)
+dynArrayIterator :: *DynArray a -> *DynArrayIterator a
+dynArrayIterator x = DynArrayIterator# dynArrayIndexEmpty x
 
-dynArrayIteratorEnd :: DynArrayIterator *a -> DynArray *a
-dynArrayIteratorEnd (DynArrayIterator (#_, array#)) = array
+dynArrayIteratorEnd :: *DynArrayIterator a -> *DynArray a
+dynArrayIteratorEnd (DynArrayIterator# _ array) = array
 
-dynArrayIteratorEmplaceOrAppend :: (*a -> *a) -> (() -> *a) -> DynArrayIterator *a -> DynArrayIterator *a
-dynArrayIteratorEmplaceOrAppend emplaceInit appendMk (DynArrayIterator (#_, array#)) =
-  DynArrayIterator (#dynArrayIndexEmpty, dynArrayEmplaceOrAppend emplaceInit appendMk array#)
+dynArrayIteratorEmplaceOrAppend :: (*PolyThunk a -> *PolyThunk a) -> (() -> *PolyThunk a) -> *DynArrayIterator a -> *DynArrayIterator a
+dynArrayIteratorEmplaceOrAppend emplaceInit appendMk (DynArrayIterator# _ array) =
+  DynArrayIterator# dynArrayIndexEmpty <| dynArrayEmplaceOrAppend emplaceInit appendMk <| dynArrayResize <| dynArrayPromoteElement array
 
-dynArrayIteratorWithElement :: (*a -> (#b, *a#)) -> DynArrayIterator *a -> (#Maybe b, DynArrayIterator *a#)
-dynArrayIteratorWithElement f (DynArrayIterator (#index, array#)) =
+dynArrayIteratorWithElement :: (*PolyThunk a -> (#b, *PolyThunk a#)) -> *DynArrayIterator a -> (#DynArrayResult b, *DynArrayIterator a#)
+dynArrayIteratorWithElement f (DynArrayIterator# index array) =
   case dynArrayWithElement index f array of
     (#result, array'#) ->
-      (#result, DynArrayIterator (#index, array'#)#)
+      (#result, DynArrayIterator# index array'#)
 
-dynArrayIteratorNext :: DynArrayIterator *a -> DynArrayIterator *a
-dynArrayIteratorNext (DynArrayIterator (#DynArrayIndex (#tier, index#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)) =
+dynArrayIteratorNext :: *DynArrayIterator a -> *DynArrayIterator a
+dynArrayIteratorNext (DynArrayIterator# (DynArrayIndex# tier index) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))) =
   case tier of
     DynTierLow ->
       if index < lcount then
-        DynArrayIterator (#DynArrayIndex (#DynTierLow, index + 1#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+        DynArrayIterator# (DynArrayIndex# DynTierLow (index + 1)) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
       else
-        DynArrayIterator (#DynArrayIndex (#DynTierHigh, 0#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+        DynArrayIterator# (DynArrayIndex# DynTierHigh 0) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
     DynTierHigh ->
-      DynArrayIterator (#DynArrayIndex (#DynTierHigh, index + 1#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+      DynArrayIterator# (DynArrayIndex# DynTierHigh (index + 1)) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
 
-dynArrayIteratorFree :: DynArrayIterator *a -> DynArrayIterator *a
-dynArrayIteratorFree iter =
-  case iter of
-    DynArrayIterator (#index, array#) ->
-      case dynArrayDelete index array of
-        DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#) ->
-          case index of
-            DynArrayIndex (#tier, _#) ->
-              case tier of
-                DynTierLow ->
-                  if lcount > 0 then
-                    DynArrayIterator (#index, DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
-                  else
-                    DynArrayIterator (#DynArrayIndex (#DynTierHigh, 0#), DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
-                DynTierHigh ->
-                  DynArrayIterator (#index, DynArray (#DynTier (#lcap, lcount, lhwm, lptr#), DynTier (#hcap, hcount, hhwm, hptr#)#)#)
+dynArrayIteratorFree :: *DynArrayIterator a -> *DynArrayIterator a
+dynArrayIteratorFree (DynArrayIterator# index array) =
+  case dynArrayDelete index array of
+    DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr) ->
+      case index of
+        DynArrayIndex# tier _ ->
+          case tier of
+            DynTierLow ->
+              if lcount > 0 then
+                DynArrayIterator# index (dynArrayTrace "FREE: " <| DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
+              else
+                DynArrayIterator# (DynArrayIndex# DynTierHigh 0) (dynArrayTrace "FREE: " <| DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
+            DynTierHigh ->
+              DynArrayIterator# index (dynArrayTrace "FREE: " <| DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
 
 
 --------------------
@@ -2511,14 +3892,10 @@ dynArrayIteratorFree iter =
 -- NOTE on Propagation:
 --    * All Type variables are propagating
 --    * In data constructors type variables are always polymorphic in uniqueness
---    * In data constructors monomorphic types are always shared in uniqueness (TODO: Allow users to put anon dots on Monomorphic types so that they share uniqueness with the declared type!)
---    * No uniqueness notation is allowed in data constructors (except for in the future anon dots on type apps and monomorphic types!)
+--    * In data constructors monomorphic types default to shared uniqueness
+--    * Uniqueness notation is allowed in data constructors only on monomorphic type cons
 --    * Higher Kinded Types do not have uniqueness types and do not propagate uniqueness, instead Type Applications have uniqueness types associated with them and are propagating!
 --    * Propagation behavior is enforced by the type of the data constructor function!
-data PolyThunkState = PolyThunkAlloc | PolyThunkInit | PolyThunkEval
-data PolyThunk t a  = PolyThunk (#Ptr t, Ptr t, a, PolyThunkState, Float#)
--- UpdateState, CopyState, Arg, ThunkState, SampleOffset
-
 dynDeepCopy :: a -> (#Ptr *(), a#)
 dynDeepCopy x =
   primUndefined
@@ -2527,30 +3904,29 @@ dynDeepCopyInto :: Ptr *() -> a -> (#Ptr *(), a#)
 dynDeepCopyInto copyState x =
   primUndefined
 
-polyThunkAlloc :: a -> Float -> () -> PolyThunk *() a
+polyThunkAlloc :: a -> Float -> () -> *PolyThunk a
 polyThunkAlloc x sampleOffset u =
   case dynDeepCopy x of
     (#copyState, x'#) ->
-      PolyThunk (#primUndefined, copyState, x', PolyThunkAlloc, sampleOffset#)
+      PolyThunk# primUndefined copyState x' PolyThunkAlloc sampleOffset
 
-polyThunkInit :: a -> Float -> PolyThunk *() a -> PolyThunk *() a
-polyThunkInit x sampleOffset (PolyThunk (#updateState, copyState, _, _, _#))  =
+polyThunkInit :: a -> Float -> *PolyThunk a -> *PolyThunk a
+polyThunkInit x sampleOffset (PolyThunk# updateState copyState _ _ _)  =
   case dynDeepCopyInto copyState x of
     (#copyState', x'#) ->
-      PolyThunk (#updateState, copyState', x', PolyThunkInit, sampleOffset#)
+      PolyThunk# updateState copyState' x' PolyThunkInit sampleOffset
 
+-- compiler magic prevents this from inlining, which is required for poly to function properly
 polyThunkEvalGo :: (a -> b) -> a -> b
-polyThunkEvalGo f x =
-  case f x of
-    result ->
-      result
+polyThunkEvalGo f x = f x
 
-polyThunkEval :: (a -> b) -> PolyThunk *() a -> (#b, PolyThunk *() a#)
+polyThunkEval :: (a -> b) -> *PolyThunk a -> (#b, *PolyThunk a#)
 polyThunkEval f t =
   let
     dummy = polyThunkEvalGo f primUndefined
   in
     primUndefined
+
 
 ----------------------
 -- Poly
@@ -2560,28 +3936,32 @@ class Finite a where
 
 class (Monoid p, Finite p) => Poly p where
 
-instance Finite Channel where
+instance Finite Audio where
   isRunning c =
     case c of
-      ChannelEnd -> True
-      _          -> False
+      AudioEnd -> False
+      _        -> True
 
-instance AudioFormat f => Finite (Audio f) where
-  isRunning (Audio cs) = foldl (\b x -> b && isRunning x) True cs
+instance Finite a => Finite (Mono a) where
+  isRunning (Mono x) = isRunning x
 
-instance Poly Channel where
-instance Poly (Audio f) where
+instance Finite a => Finite (Stereo a) where
+  isRunning (Stereo# l r) = isRunning l && isRunning r
 
--- TODO: Look at this more...should be constrained to blocksize, no?
+instance Poly Audio where
+instance Poly (Mono a) where
+instance Poly a => Poly (Stereo a) where
+
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
-  (fromInt n / fromInt d) * audioBlockSizeF
+  (fromInt n / fromInt d) * fromUInt audioBlockSize
   where
-    Rational (#n, d#) = valueTime - tickTime
+    Rational# n d =
+      (valueTime - (tickTime - audioBlockDelta)) / audioBlockDelta
 
-seqToAudio :: (AudioFormat f) => Seq Float -> Audio f
+seqToAudio :: (AudioFormat f) => Seq Float -> f Audio
 seqToAudio s =
-  Audio (pure (AudioRate (freezeArray aout)))
+  pure (AudioRate (freezeArray aout))
   where
     (#_, aout#) =
       loop (#i0, a#) = (#audioSampleOffset, audioInitArray ()#) while i0 < audioBlockSize do
@@ -2593,12 +3973,14 @@ seqToAudio s =
               let
                 nextValueTime ~ 0 = nextValueTime + seqDuration0
               in
-                if nextValueTime > time then (#False, 0, prevValue#) else
+                if nextValueTime >= time then (#False, 0, prevValue#) else
                   case runSeq s () of
-                    SeqValue (#seqDuration1, _, Just seqValue#) -> (#True, seqDuration1, seqValue#)
-                    SeqValue (#seqDuration1, _, _#)             -> (#True, seqDuration1, prevValue#)
+                    SeqValue# seqDuration1 _ msv ->
+                      case msv of
+                        Just seqValue -> (#True, seqDuration1, seqValue#)
+                        Nothing       -> (#True, seqDuration1, prevValue#)
         in
-          (#i1, writeArray (unsafeUIntToIndex i0) (fromFloat value) a#)
+          (#i1, writeArray (Index i0) (fromFloat value) a#)
 
 poly :: Poly b => (a -> b) -> Seq a -> b
 poly f s =
@@ -2609,26 +3991,32 @@ poly f s =
         (#_, _, acc', thunks4#) =
           loop (#cont, time, acc, thunks1#) = (#True, 0, mempty, dynArrayIterator thunks0#) while cont do
             let nextValueTime ~ 0 = nextValueTime + time in
-              if nextValueTime <= tick then
+              if nextValueTime < tick then
                 case runSeq s () of
-                  SeqValue (#t, _, Just x#) ->
-                    (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
-                  SeqValue (#t, _, _#) ->
-                    (#True, t, acc, thunks1#)
+                  SeqValue# t _ mx ->
+                    case mx of
+                      Just x  -> (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
+                      Nothing -> (#True, t, acc, thunks1#)
               else
                 case dynArrayIteratorWithElement (polyThunkEval f) thunks1 of
                   (#maybeEvalResult, thunks2#) ->
                     case maybeEvalResult of
-                      Just evalResult ->
+                      DynArrayJust evalResult ->
                         if isRunning evalResult then
                           (#True, 0, append acc evalResult, dynArrayIteratorNext thunks2#)
                         else
                           (#True, 0, acc, dynArrayIteratorFree thunks2#)
-                      _ ->
-                        (#False, 0, acc, thunks2#)
+                      DynArrayNothing -> (#True,  0, acc, dynArrayIteratorNext thunks2#)
+                      DynArrayEnd     -> (#False, 0, acc, thunks2#)
       in
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
+
+poly2 :: Poly c => (a -> b -> c) -> Seq a -> Seq b -> c
+poly2 f x y = poly (uncurry' f) (map2 (\x' y' -> (#x', y'#)) x y)
+
+poly3 :: Poly d => (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> d
+poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 
 -- somePow :: F64
 -- somePow = pow pi 5
@@ -2718,8 +4106,342 @@ poly f s =
 --       allBitsF :: Float
 --       allBitsF = fromBits allBits
 
+-- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
+-- TODO: Test arg copying
+-- TODO: Test shared beats, etc (NOTE: Known to assert false currently)
+
 -- testJit :: *World -> *World
--- testJit w = print one w 
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio   = poly badSynth badBeat
+--     badBeat    = [400 600 [800:500] <900 <600 [700:1200]> <300 200>>]
+--     badSynth f =
+--       saw (fromFloat f)
+--       |> mul 0.0125
+--       |> perc 0.0125 3 1
+--       |> pan 0.5
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio   = poly badSynth badBeat
+--     badBeat    = [_ 600] |> seqSpeed (1 // 10)
+--     badSynth f =
+--       saw (fromFloat f)
+
+-- -- TODO: Deep copy arrays, but don't deep copy unique arrays
+-- -- TODO: id in poly causing compile assert... probably due to inlining???
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badBeat    = [100 1200 1400 1800] |> seqSpeed (1 // 2) |> map saw
+--     badSynth a = a * 0.1 |> perc 1 3 1 |> pan 0.5
+--     badAudio   = poly badSynth badBeat
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badBeat1     = seqSpeed (6 // 1) [100 600 800 900]
+--     badBeat2     = seqSpeed (3 // 1) [0.2 0.8 0.4 0.6]
+--     badSynth f p = saw (f * fromInt (mouseX / 32 + 1)) * 0.05 |> perc 0.0125 1 1 |> pan p
+--     badAudio     = poly2 badSynth badBeat1 badBeat2
+
+-- -- TODO: Look at arg copying scheme....seems off (related to array copying?0
+-- -- TODO: map3, etc
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badBeat1       = seqSpeed (6 // 1) [100 600 800 900]
+--     badBeat2       = seqSpeed (3 // 1) [900 800 600 100 1200 100 600 800 900 1200]
+--     badBeat3       = seqSpeed (3 // 1) [0.2 0.8 0.4 0.6]
+--     badSynth f g p = (saw (fromFloat f) + saw (fromFloat g)) * 0.05 |> perc 0.0125 1 1 |> pan (fromFloat p)
+--     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
+
+----------------------
+-- Oscillator tests
+----------------------
+
+oscTest :: (Mono Audio -> Mono Audio) -> Stereo Audio
+oscTest f =
+  perc 10 1 3 6000 + 50
+  |> f
+  |> perc 5 5 -1
+  |> mul 0.2
+  |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (oscTest sin) w
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (oscTest tri) w
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (oscTest <| lfPulse 0.5) w
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (oscTest <| pulse 0.5) w
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (oscTest lfSaw) w
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (oscTest saw) w
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (oscTest sawIIR) w
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     a =
+--       saw 110
+--       |> lpf (perc 10 1 4 5000 + 330) 0.1
+--       |> perc 5 5 -1
+--       |> mul 0.15
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     a =
+--       saw 110
+--       |> hpf (5330 - perc 10 1 -4 5000) 0.1
+--       |> perc 5 5 -1
+--       |> mul 0.25
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     a =
+--       saw 110
+--       |> bpf (5330 - perc 10 1 -4 5000) 0.1
+--       |> perc 5 5 -1
+--       |> mul 0.25
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     a =
+--       saw 110
+--       |> bpf 2000 (abs (sin 0.5 * 3) + 0.01)
+--       |> perc 5 5 -1
+--       |> mul 0.125
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     a =
+--       saw 110
+--       |> lowShelf (5110 - perc 10 1 -4 5000) -64 1
+--       |> perc 5 5 -1
+--       |> mul 0.125
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     a =
+--       saw 110
+--       |> highShelf (perc 10 1 -4 5000 + 220) -64 1
+--       |> perc 5 5 -1
+--       |> mul 0.125
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     a =
+--       perc 10 1 3 6000 + 50
+--       |> lfSaw
+--       |> highShelf 20000 -64 1
+--       |> perc 5 5 -1
+--       |> mul 0.125
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio =
+--       superSaw 440 0.1 0.7
+--       |> perc 5 5 -1
+--       |> mul 0.08
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio =
+--       superPulse 440 0.125 0.6
+--       |> perc 5 5 -1
+--       |> mul 0.08
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     badAudio =
+--       superTri 440 0.125 0.6
+--       |> perc 5 5 -1
+--       |> mul 0.08
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 200 |> seqSpeed 6 |> seqToAudio |> lfPulse (0.5 + sin 0.125 * 0.125)
+--     osc  =
+--       syncTri sync 200
+--       |> perc 5 15 0.1
+--       |> mul 0.2
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 100 |> seqSpeed 6 |> seqToAudio |> lfPulse (0.5 + sin 0.25 * 0.125)
+--     osc  =
+--       syncPulse 0.66667 sync 100
+--       |> perc 5 5 -1
+--       |> mul 0.2
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 240 |> seqSpeed 6 |> seqToAudio |> lfPulse (0.5 + sin 0.2 * 0.35)
+--     osc  =
+--       syncSaw sync 0.495 80
+--       |> perc 5 5 -1
+--       |> mul 0.2
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 100 |> seqSpeed 6 |> seqToAudio |> lfPulse (0.5 + sin 0.125 * 0.125)
+--     osc  =
+--       syncSin sync 200
+--       |> perc 5 5 -1
+--       |> mul 0.2
+--       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     osc =
+--       let feed ~ 0 = syncTri feed (stereo 660 500 + sin 2.0 * 50 + sin 0.1 * -50 + (delay oneSec 0.25 0.4 <| feed * -60)) in
+--       feed
+--       |> delay oneSec 0.25 0.2
+--       |> perc 5 20 -1
+--       |> mul 0.5
+
+-- -- TODO: Perhaps upsample freq argument to saw and pulse?
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     osc =
+--       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 4000)
+--       |> sin
+--       |> perc 5 20 -1
+--       |> mul 0.2
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     osc =
+--       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 2000)
+--       |> tri
+--       |> perc 5 20 -1
+--       |> mul 0.2
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     osc =
+--       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 2000)
+--       |> pulse 0.5
+--       |> perc 5 20 -1
+--       |> mul 0.2
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     osc =
+--       stereo 440 330 + (sin (1 + perc 5 20 -1 30) * perc 5 20 -1 4000)
+--       |> saw
+--       |> perc 5 20 -1
+--       |> mul 0.2
+
+testJit :: *World -> *World
+testJit w =
+  outAudio 0 badAudio w
+  where
+    freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
+    freqMul2  = sin 0.14 *  0.0035 + sin 0.5 * -0.00025 + 0.5
+    freqMul3  = sin 0.23 * -0.0035 + sin 0.4 *  0.00025 + 0.5
+    beatSpeed = 3 // 2
+    badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
+    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ _ _ 0.25 0.5 0.75 1 1.5]))
+    badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
+    badSynth1 f =
+      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (sin (fromFloat f) * 0.75)
+      |> mul 0.11
+      |> perc 0.005 2.5 -3.75
+      |> pan 0.375
+    badSynth2 f =
+      tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.3)
+      |> mul 0.09
+      |> perc 0.01 3.5 -2.75
+      |> pan 0.625
+    bassSynth f =
+      sin (fromFloat (f * 0.5)) + (0.5 * (tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))))
+      |> mul 0.1
+      |> perc 0.005 5 -1.8
+      |> mixStereo
+    synths =
+      poly badSynth1 badBeat1 +
+      poly badSynth2 badBeat2
+      |> delay oneSec 0.6666667 0.6
+    badAudio =
+      poly bassSynth badBeat3 +
+      synths
+
+-- testJit :: *World -> *World
+-- testJit w = print one w
 -- 		  |> print " -> "
 --           |> print unNegativeOne
 --           |> printLn " "
@@ -2738,7 +4460,7 @@ poly f s =
 --     -- unNegativeOne = negativeOne |> toBits |> bitAnd (bitXor allBits negativeBit) |> fromBits
 
 -- testJit :: *World -> *World
--- testJit w = print one w 
+-- testJit w = print one w
 -- 		  |> print " -> "
 --           |> print negativeBit
 --           |> print " -> "
@@ -2780,20 +4502,15 @@ poly f s =
 --     rrF64 = bitReverse rF64
 --
 
--- outAudio 0 a w
--- seqToAudio [440 <660 880> 330 <990 880 770>]
-      -- |> add (saw (660 * seqToAudio (1 // 300) [1 2 <4 3>]))
-
 -- testJit :: *World -> *World
 -- testJit w =
 --   outAudio 0 a w
 --   where
---     s = seqToAudio <| seqSpeed 4 [0.5 1 2 <4 3>]
+--     s = seqToAudio <| seqSpeed 4 [3 1 2 <4 3>]
 --     t = seqToAudio <| seqSpeed 2 [0.5 1 2 <4 3>]
 --     a =
---       saw (440 * stereo s t)
---       |> perc 4 10 1
---       |> mul 0.25
+--       pulse 0.125 (440 * stereo s t)
+--       |> mul 0.125
 --       |> pan 0.5
 
 -- testJit :: *World -> *World
@@ -2802,86 +4519,55 @@ poly f s =
 --     f64 :: F64
 --     f64 = 5
 
-testJit :: *World -> *World
-testJit w =
-	print "fmouse: " w
-    |> printLn fMouse
-    |> print "fMask 1 fMouse: "
-    |> printLn fMask
-    |> print "fSelection 1 fMouse: "
-    |> printLn fSelection
-    |> print "tan -1.8125: "
-    |> printLn (tanF64 -1.8125)
-    |> print "tanF64: "
-    |> printLn (tanF64 fMouse)
-    |> print "atanF64: "
-    |> printLn (atanF64 fMouse)
-    |> print "slowAtanF64: "
-    |> printLn (slowAtanF64 fMouse)
-    |> print "atanF64 -1.8125: "
-    |> printLn (atanF64 -1.8125)
-    |> print "slowAtanF64 -1.8125 "
-    |> printLn (slowAtanF64 -1.8125)
-    |> print "tan -17000: "
-    |> printLn (tanF64 -17000)
-  where
-    fMouseRaw :: F64
-    fMouseRaw = fromInt mouseX
-    fMouse = ((fMouseRaw / 1920) - 0.5) * (4 * pi)
-    fSelection = scalarIfGreaterThan fMouse 1
-    fMask = maskIfGreaterThan fMouse 1
+-- Chad Test!
+-- testJit :: *World -> *World
+-- testJit w =
+-- 	print "fmouse: " w
+--     |> printLn fMouse
+--     |> print "fMask 1 fMouse: "
+--     |> printLn fMask
+--     |> print "fSelection 1 fMouse: "
+--     |> printLn fSelection
+--     |> print "tan -1.8125: "
+--     |> printLn (tanF64 -1.8125)
+--     |> print "tanF64: "
+--     |> printLn (tanF64 fMouse)
+--     |> print "atanF64: "
+--     |> printLn (atanF64 fMouse)
+--     |> print "slowAtanF64: "
+--     |> printLn (slowAtanF64 fMouse)
+--     |> print "atanF64 -1.8125: "
+--     |> printLn (atanF64 -1.8125)
+--     |> print "slowAtanF64 -1.8125 "
+--     |> printLn (slowAtanF64 -1.8125)
+--     |> print "tan -17000: "
+--     |> printLn (tanF64 -17000)
+--   where
+--     fMouseRaw :: F64
+--     fMouseRaw = fromInt mouseX
+--     fMouse = ((fMouseRaw / 1920) - 0.5) * (4 * pi)
+--     fSelection = scalarIfGreaterThan fMouse 1
+--     fMask = maskIfGreaterThan fMouse 1
 
 --
 -- testJit :: *World -> *World
 -- testJit w = printLn a w |> printLn b |> printLn c
 --   where
---     a = Complex (#8, 2#)
---     b = Complex (#2, 1#)
---     c = sqrt (Complex (#negate 3.4, pi#))
+--     a = Complex# 8 2
+--     b = Complex# 2 1
+--     c = sqrt (Complex# (negate 3.4) pi)
 --
 -- testJit :: *World -> *World
 -- testJit w = printLn a w |> printLn b |> printLn c
 --   where
---     a = Complex (#(negate pi), 3#)
---     b = Complex (#3, 4#)
+--     a = Complex# (negate pi) 3
+--     b = Complex# 3 4
 --     c = a / b
 
 
 -- <> => Sequence
 -- [] => Tuple
 -- {} => Interleave
-
--- sawTest :: Audio Mono
--- sawTest = saw 440
-
--- coolSynth :: Audio Mono
--- coolSynth =
---   saw 440 |> perc 0.1 10 (-3)
-
--- -- TODO: Test new poly scheme
--- percSynth :: Audio Mono
--- percSynth = poly (saw .> perc 0.1 3 1 .> mul 0.1) [440 220 _ <110 55 _ 330>]
--- -- percSynth = poly percSaw [440 220 _ <110 55 _ 330>]
--- -- percSynth = poly (\f -> saw f |> perc 0.1 3 1) [440 220 _ <110 55 _ 330>]
-
--- panTest :: Audio Stereo
--- panTest = saw 440 |> pan 0.25
-
--- myCoolSynth2 :: Audio Mono
--- myCoolSynth2 =
---   poly (\f -> saw (offset + offset2 + f)) [440 220 _ <110 55 _ 330>]
---   where
---     offset  = myLocalSawThing 220
---     offset2 = 40
-
-
--- + poly (fromInt .> saw) [1 2 3]
-
--- poly2 :: Poly c => (a -> b -> c) -> Seq a -> Seq b -> c
--- poly2 f x y = poly (uncurry' f) <| map2 (\x' y' -> (#x', y'#)) x y
-
--- coolMultiSaw :: Audio Mono
--- coolMultiSaw = poly2 multiSaw freq filterFreq
 
 -- tupleTest :: Seq Float
 -- tupleTest =
@@ -2924,7 +4610,7 @@ testJit w =
 --     tick ~ 0 = tick + 1
 --     value    = tick * 100 + fromInt mouseY * fromInt mouseX
 --   in
---     SeqValue (#2, SeqNormal, Just value#)
+--     SeqValue# 2 SeqNormal (Just value)
 
 -- -- Simplification is getting out of hand, current setup is n^2 which is....bad.
 -- seqTest :: Seq Float
@@ -2945,38 +4631,25 @@ testJit w =
 --     y = 3
 --     z = fromInt mouseX * 100
 
--- properFraction :: (Fractional a, Integral b) -> a -> (b, b)
-
--- TODO:
--- accumulatePulse :: F64 -> F64 -> F64 -> (#F64, F64#)
--- accumulatePulse width freq acc =
---   (#acc3, out#)
---   where
---     acc2 = fma freq recipSampleRate acc
---     acc3 = acc2 - fastFloor acc2
---     out  = fma (fromInt (boolToInt (acc3 > width))) 2.0 (-1.0)
---
--- pulse :: AudioFormat f => Audio f -> Audio f
--- pulse freq = accumulateAudio2 accumulatePulse freq
-
--- TODO / One Day... We need ~ constraints for this to work...
--- class Freeze a where
---   freeze :: (Freeze b, a ~ b) => *a -> b
-
----------------------------
--- TODO: Chad Bot
----------------------------
--- TODO: Complex numbers
--- TODO: 64-bit issue Chad was having
-
+-- TODO: Multiplication precedence is WRONG!!!!
+-- TODO: Oversample sync oscs
+-- TODO: Make JIT faster
+-- TODO: Generic env
+-- TODO: Clipping detection
+-- TODO: Looks like maybe the precedence between (+) and (*) and (|>) is a little wonky?
+-- TODO: https://ccrma.stanford.edu/~jos/pasp/Freeverb.html
+-- TODO: uint32 -> uint64
+-- TODO: Set audioSampleOffset to NOT be constant and insure that it is never used at a global scope!!!!! (It is magical...)
+-- TODO: repeat combinator
+-- TODO: FFT stuff
+-- TODO: Nested case literals seem broken!
 -- TODO: Out of order monomorphic instances (i.e. 'instance Ring Complex' textually appearing before 'instance Ring F64') can cause erroneous 'Not An Instance' errors. Maybe need a better dep analysis story to make this work since we don't figure this out until inference which is at that point too late to fix.
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
 -- TODO: Look at all the .i.i.i weirdness in llvm names???
+-- TODO: Strange Attractor / MandelBrot oscillators
 
--- TODO: Set blocksPerSecond correctly?
+-- TODO: Optimize const expr globals
 -- TODO: Memory access test audio stuff!
--- TODO: JIT test function, testAssertion :: Bool -> *World -> *World
--- TODO: Put Uniqueness unify AFTER type unify for better error messages?
 -- TODO: type sig coerce constraint!
 -- TODO: Put constant check on initializers, not in type signatures. It doesn't need to be in the type system to be checked! Then we can nix Default for Monoid?
 -- TODO: FFT generated signals, pure FFT
@@ -2984,7 +4657,6 @@ testJit w =
 -- TODO: endAfterTick IO combinator: endAfterTick :: *World -> *World
 -- TODO: Immutable and Mutable (Unique) FFT API
 -- TODO: Writing audio files
--- TODO: Nested case literals seem broken!
 
 -- TODO: Concept of Constant Values somehow being worked into the type system for things like default and mutRef
 -- TODO: Inline compose operators! .> and <.

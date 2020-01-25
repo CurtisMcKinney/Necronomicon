@@ -4034,6 +4034,15 @@ NecroParseAstLocalPtr necro_parse_tycon(NecroParser* parser, NECRO_CON_TYPE con_
         return null_local_ptr;
     }
 
+    // Type names can't end with #
+    if (con_type != NECRO_CON_DATA_DECLARATION && look_ahead_token->symbol->str[look_ahead_token->symbol->length - 1] == '#')
+    {
+        // TODO: Some kind of parsing error!
+        assert(false && "TODO: '#' Cannot be used in type names, only in constructor names!");
+        necro_parse_restore(parser, snapshot);
+        return null_local_ptr;
+    }
+
     NecroParseAstLocalPtr type_con_local_ptr = necro_parse_ast_create_conid(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, look_ahead_token->symbol, con_type);
     necro_parse_consume_token(parser);
     return type_con_local_ptr;

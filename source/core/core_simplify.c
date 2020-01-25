@@ -321,7 +321,7 @@ NecroCoreAst* necro_core_ast_duplicate_with_subs(NecroPagedArena* arena, NecroIn
 ///////////////////////////////////////////////////////
 // Pre-Simplify
 //--------------------
-// Very simple pre-simplification phase using hardcoded rewrite rules
+// Very simple pre-simplification phase using hardcoded rewrite rules (i.e. Peephole optimization)
 // Performs these simplifications:
 //     * Unwraps "wrapped" types (i.e. types of shape data Wrapper a = Wrapper a (polymorphism isn't important, it's the fact that it's a single constructor with a single member))
 //     * Inlines id
@@ -338,6 +338,7 @@ NecroCoreAst* necro_core_ast_duplicate_with_subs(NecroPagedArena* arena, NecroIn
     TODO:
         * necro_core_ast_post_simplify
         * Inline forwardN, i.e. forward2 x y = f x y ==> f x y, forward3 x y z = f x y z ==> f x y z
+        * Simplify .> and <.
 */
 
 NecroType*    necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* base, NecroIntern* intern, NecroType* type);
@@ -633,6 +634,8 @@ NecroCoreAst* necro_core_ast_pre_simplify_bind(NecroCorePreSimplify* context, Ne
     ast->bind.ast_symbol->type = necro_type_inline_wrapper_types(context->arena, context->base, context->intern, ast->bind.ast_symbol->type);
     NecroCoreAst* expr         = necro_core_ast_pre_simplify_go(context, ast->bind.expr);
     NecroCoreAst* initializer  = necro_core_ast_pre_simplify_go(context, ast->bind.initializer);
+    if (ast->necro_type == NULL && ast->bind.ast_symbol->type != NULL)
+        ast->necro_type = necro_type_find(ast->bind.ast_symbol->type);
     if (expr == ast->bind.expr && initializer == ast->bind.initializer)
         return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
     NecroCoreAst* new_ast         = necro_core_ast_create_bind(context->arena, ast->bind.ast_symbol, expr, initializer);
@@ -871,6 +874,26 @@ NecroCoreAst* necro_ast_inline_app_lambda(NecroCorePreSimplify* context, NecroCo
     return new_let;
 }
 
+NecroCoreAst* necro_ast_instantiate_nat_val(NecroCorePreSimplify* context, NecroCoreAst* ast, NecroCoreAst* fn, NecroCoreAst* param)
+{
+    assert(ast->ast_type == NECRO_CORE_AST_APP);
+    if (fn->ast_type != NECRO_CORE_AST_VAR)
+        return ast;
+    if (fn->var.ast_symbol->primop_type != NECRO_PRIMOP_NAT_VAL)
+        return ast;
+    NecroType* param_type = necro_type_find(param->necro_type);
+    assert(param_type->type == NECRO_TYPE_CON);
+    assert(param_type->con.args != NULL);
+    assert(param_type->con.args->list.item != NULL);
+    NecroType* nat_type   = necro_type_find(param_type->con.args->list.item);
+    NecroAstConstant uint_constant;
+    uint_constant.uint_literal    = necro_nat_to_size_t(context->base, nat_type);
+    uint_constant.type            = NECRO_AST_CONSTANT_UNSIGNED_INTEGER;
+    NecroCoreAst*    uint_literal = necro_core_ast_create_lit(context->arena, uint_constant);
+    uint_literal->necro_type      = context->base->uint_type->type;
+    return uint_literal;
+}
+
 // Rewrite: \_ -> expr ==> expr
 NecroCoreAst* necro_ast_inline_app_const_1(NecroCorePreSimplify* context, NecroCoreAst* ast, NecroCoreAst* fn, NecroCoreAst* param)
 {
@@ -1040,20 +1063,26 @@ NecroCoreAst* necro_ast_inline_wrapper_proj(NecroCorePreSimplify* context, Necro
     return necro_core_ast_pre_simplify_inline_wrapper_types(context, left);
 }
 
+bool necro_core_ast_never_inlines(NecroCoreAst* ast)
+{
+    return ast->ast_type == NECRO_CORE_AST_VAR && ast->var.ast_symbol->never_inline;
+}
+
 NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, NecroCoreAst* ast)
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
+    assert(ast->necro_type != NULL);
 
     // Unwrap fully applied wrapper types
-    if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR && ast->app.expr1->var.ast_symbol->is_constructor && ast->app.expr1->var.ast_symbol->is_wrapper)
+    if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR && !necro_core_ast_never_inlines(ast->app.expr1) && ast->app.expr1->var.ast_symbol->is_constructor && ast->app.expr1->var.ast_symbol->is_wrapper)
     {
         // return ast->app.expr2;
         return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast->app.expr2);
     }
 
     // rewrite uops (id, lambda, etc...)
-    else if (ast->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->ast_type == NECRO_CORE_AST_LAM)
+    else if ((ast->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->ast_type == NECRO_CORE_AST_LAM) && !necro_core_ast_never_inlines(ast->app.expr1))
     {
         NecroCoreAst* fn      = ast->app.expr1;
         NecroCoreAst* param   = ast->app.expr2;
@@ -1063,10 +1092,12 @@ NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, Nec
         if (inlined != ast) return inlined;
         inlined               = necro_ast_inline_app_const_1(context, ast, fn, param);
         if (inlined != ast) return inlined;
+        inlined               = necro_ast_instantiate_nat_val(context, ast, fn, param);
+        if (inlined != ast) return inlined;
     }
 
     // rewrite binops (|>, <|, >>, <<, etc...)
-    else if (ast->app.expr1->ast_type == NECRO_CORE_AST_APP && (ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_LAM))
+    else if (ast->app.expr1->ast_type == NECRO_CORE_AST_APP && (ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_LAM) && !necro_core_ast_never_inlines(ast->app.expr1->app.expr1))
     {
         NecroCoreAst* fn      = ast->app.expr1->app.expr1;
         NecroCoreAst* left    = ast->app.expr1->app.expr2;
@@ -1086,7 +1117,8 @@ NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, Nec
     // rewrite \x y z -> ...
     else if (ast->app.expr1->ast_type == NECRO_CORE_AST_APP &&
             (ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_APP) &&
-            (ast->app.expr1->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_LAM))
+            (ast->app.expr1->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_VAR || ast->app.expr1->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_LAM) &&
+            !necro_core_ast_never_inlines(ast->app.expr1->app.expr1->app.expr1))
     {
         NecroCoreAst* fn = ast->app.expr1->app.expr1->app.expr1;
         NecroCoreAst* x  = ast->app.expr1->app.expr1->app.expr2;
@@ -1534,22 +1566,9 @@ void necro_core_ast_pre_simplify_test()
     {
         const char* test_name   = "Unwrap Case 1";
         const char* test_source = ""
-            "x :: Channel\n"
+            "x :: Audio\n"
             "x = case Mono (BlockRate 440) of\n"
             "  Mono c -> c\n";
-        necro_core_ast_pre_simplfy_test(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Unwrap Case 2";
-        const char* test_source = ""
-            "stereo' :: Audio Mono -> Audio Mono -> Audio Stereo\n"
-            "stereo' (Audio ml) (Audio mr) =\n"
-            "  case ml of\n"
-            "    Mono l -> case mr of\n"
-            "      Mono r -> Audio (Stereo (#l, r#))\n"
-            "main :: *World -> *World\n"
-            "main w = w\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
 
@@ -1726,8 +1745,8 @@ void necro_core_ast_pre_simplify_test()
     {
         const char* test_name   = "Panic";
         const char* test_source = ""
-            "panic :: Audio Stereo\n"
-            "panic = pan 0.25 (440 * 33)\n";
+            "panic666 :: Stereo Audio\n"
+            "panic666 = pan 0.25 (440 * 33)\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
 
@@ -1761,7 +1780,7 @@ void necro_core_ast_pre_simplify_test()
     {
         const char* test_name   = "Reading Rainbow";
         const char* test_source = ""
-            "readingRainbow :: Array 4 (Audio Mono) -> Audio Mono\n"
+            "readingRainbow :: Array 4 (Mono Audio) -> Mono Audio\n"
             "readingRainbow a =\n"
             "  loop x = 0 for i <- each do\n"
             "    readArray i a + x\n";
@@ -1807,14 +1826,6 @@ void necro_core_ast_pre_simplify_test()
             "main w = w\n";
         necro_core_ast_pre_simplfy_test(test_name, test_source);
     }
-
-    // {
-    //     const char* test_name   = "Map Audio";
-    //     const char* test_source = ""
-    //         "x :: Mono\n"
-    //         "x = mapAudio id
-    //     necro_core_ast_pre_simplfy_test(test_name, test_source);
-    // }
 
     // TODO: Finish!
     // {

@@ -250,6 +250,7 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     // TODO: Account for NOT mangling original name....how?
     // TODO: Actually, how to handle this whole renaming business???
     // Create new scope up here, insert named thing up here, percolates to bottom?
+    // TODO: More principled deep copy
     specialized_ast_symbol                        = necro_ast_symbol_create(monomorphize->arena, specialized_name, ast_symbol->name, monomorphize->ast_arena->module_name, NULL);
     specialized_ast_symbol->is_constructor        = ast_symbol->is_constructor;
     specialized_ast_symbol->is_wrapper            = ast_symbol->is_wrapper;
@@ -257,6 +258,7 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     specialized_ast_symbol->is_primitive          = ast_symbol->is_primitive;
     specialized_ast_symbol->is_recursive          = ast_symbol->is_recursive;
     specialized_ast_symbol->is_unboxed            = ast_symbol->is_unboxed;
+    specialized_ast_symbol->never_inline          = ast_symbol->never_inline;
     specialized_ast_symbol->primop_type           = ast_symbol->primop_type;
     specialized_ast_symbol->declaration_group     = new_declaration;
 
@@ -890,8 +892,8 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Left Section";
         const char* test_source = ""
-            "left :: Int -> Int \n"
-            "left = (10+)\n";
+            "left' :: Int -> Int \n"
+            "left' = (10+)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
@@ -899,8 +901,8 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Right Section";
         const char* test_source = ""
-            "right :: Float -> Float \n"
-            "right = (*33.3)\n";
+            "right' :: Float -> Float \n"
+            "right' = (*33.3)\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
@@ -1191,9 +1193,9 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Pattern Assignment 1";
         const char* test_source = ""
-            "(left, right) = (1, 2.0)\n"
+            "(left', right') = (1, 2.0)\n"
             "leftPlus :: Float -> Float\n"
-            "leftPlus x = left\n";
+            "leftPlus x = left'\n";
         const NECRO_RESULT_TYPE expect_error_result = NECRO_RESULT_OK;
         necro_monomorphize_test_result(test_name, test_source, expect_error_result, NULL);
     }
@@ -1202,8 +1204,8 @@ void necro_monomorphize_test()
         const char* test_name   = "Pattern Assignment 2";
         const char* test_source = ""
             "fstP:: (a, b) -> a\n"
-            "fstP x = left where\n"
-            "  (left, _) = x\n"
+            "fstP x = left' where\n"
+            "  (left', _) = x\n"
             "unitFirst :: ()\n"
             "unitFirst = fstP ((), True)\n"
             "intFirst :: Int\n"
@@ -1215,8 +1217,8 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Pattern Assignment 2";
         const char* test_source = ""
-            "leftRight = (left, right) where\n"
-            "  (left, right) = (1, 2.0)\n"
+            "leftRight = (left', right') where\n"
+            "  (left', right') = (1, 2.0)\n"
             "intFloat :: (Int, Float)\n"
             "intFloat = leftRight\n"
             "rationalFloat :: (Float, Float)\n"

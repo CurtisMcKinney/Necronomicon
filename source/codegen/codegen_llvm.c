@@ -17,6 +17,7 @@
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Support.h>
 #include <llvm-c/ExecutionEngine.h>
+#include <llvm-c/DebugInfo.h>
 
 #include "alias_analysis.h"
 #include "core_ast.h"
@@ -35,100 +36,6 @@
     Performance / Optimizations Reference:
         * https://www.agner.org/optimize/
 
-*/
-
-/*
-LLVMValueRef necro_codegen_memcpy(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
-{
-    assert(codegen != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_MACHINE_MEMCPY);
-    LLVMTypeRef word_int = (necro_word_size == NECRO_WORD_4_BYTES) ? LLVMInt32TypeInContext(codegen->context) : LLVMInt64TypeInContext(codegen->context);
-    if (codegen->memcpy_fn == NULL)
-    {
-        if (necro_word_size == NECRO_WORD_4_BYTES)
-        {
-            LLVMTypeRef memcpy_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(word_int, 0), LLVMPointerType(word_int, 0),  word_int, LLVMInt1TypeInContext(codegen->context) }, 4, false);
-            codegen->memcpy_fn      = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i32.p0i32.i32", memcpy_type);
-        }
-        else
-        {
-            LLVMTypeRef memcpy_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(word_int, 0), LLVMPointerType(word_int, 0),  word_int, LLVMInt1TypeInContext(codegen->context) }, 4, false);
-            codegen->memcpy_fn      = LLVMAddFunction(codegen->mod, "llvm.memcpy.p0i64.p0i64.i64", memcpy_type);
-        }
-        LLVMSetFunctionCallConv(codegen->memcpy_fn, LLVMFastCallConv);
-    }
-    LLVMValueRef dst         = necro_codegen_value(codegen, ast->memcpy.dest);
-    dst                      = LLVMBuildBitCast(codegen->builder, dst, LLVMPointerType(word_int, 0), "dst");
-    LLVMValueRef src         = necro_codegen_value(codegen, ast->memcpy.source);
-    src                      = LLVMBuildBitCast(codegen->builder, src, LLVMPointerType(word_int, 0), "src");
-    size_t       data_size   = (size_t) LLVMStoreSizeOfType(codegen->target, necro_machine_type_to_llvm_type(codegen, ast->memcpy.dest->necro_machine_type->ptr_type.element_type));
-    LLVMValueRef size_val    = LLVMConstInt(word_int, data_size, false);
-    LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 0, false);
-    LLVMValueRef memcpy_val  =  LLVMBuildCall(codegen->builder, codegen->memcpy_fn, (LLVMValueRef[]) { dst, src, size_val, is_volatile }, 4, "");
-    LLVMSetInstructionCallConv(memcpy_val, LLVMGetFunctionCallConv(codegen->memcpy_fn));
-    return memcpy_val;
-}
-
-LLVMValueRef necro_codegen_memset(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
-{
-    assert(codegen != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_MACHINE_MEMSET);
-    LLVMTypeRef word_int = (necro_word_size == NECRO_WORD_4_BYTES) ? LLVMInt32TypeInContext(codegen->context) : LLVMInt64TypeInContext(codegen->context);
-    if (codegen->memset_fn == NULL)
-    {
-        if (necro_word_size == NECRO_WORD_4_BYTES)
-        {
-            LLVMTypeRef memset_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(word_int, 0), LLVMInt8TypeInContext(codegen->context), word_int, LLVMInt1TypeInContext(codegen->context) }, 4, false);
-            codegen->memset_fn      = LLVMAddFunction(codegen->mod, "llvm.memset.p0i32.i32", memset_type);
-        }
-        else
-        {
-            LLVMTypeRef memset_type = LLVMFunctionType(LLVMVoidTypeInContext(codegen->context), (LLVMTypeRef[]) { LLVMPointerType(word_int, 0), LLVMInt8TypeInContext(codegen->context), word_int, LLVMInt1TypeInContext(codegen->context) }, 4, false);
-            codegen->memset_fn      = LLVMAddFunction(codegen->mod, "llvm.memset.p0i64.i64", memset_type);
-        }
-
-        LLVMSetFunctionCallConv(codegen->memset_fn, LLVMFastCallConv);
-        // LLVMSetInstructionCallConv(memset_val, LLVMGetFunctionCallConv(codegen->memset_fn));
-    }
-    LLVMValueRef ptr         = necro_codegen_value(codegen, ast->memset.ptr);
-    ptr                      = LLVMBuildBitCast(codegen->builder, ptr, LLVMPointerType(word_int, 0), "ptr");
-    LLVMValueRef value       = necro_codegen_value(codegen, ast->memset.value);
-    LLVMValueRef num_bytes   = necro_codegen_value(codegen, ast->memset.num_bytes);
-    LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 1, false);
-    // src                      = LLVMBuildBitCast(codegen->builder, src, LLVMPointerType(word_int, 0), "src");
-    // size_t       data_size   = (size_t) LLVMStoreSizeOfType(codegen->target, necro_machine_type_to_llvm_type(codegen, ast->memcpy.dest->necro_machine_type->ptr_type.element_type));
-    // LLVMValueRef size_val    = LLVMConstInt(word_int, data_size, false);
-    // LLVMValueRef is_volatile = LLVMConstInt(LLVMInt1TypeInContext(codegen->context), 0, false);
-    const char* type_of_val_string   = LLVMPrintTypeToString(LLVMTypeOf(codegen->memset_fn));
-    UNUSED(type_of_val_string);
-    LLVMValueRef memset_val  =  LLVMBuildCall(codegen->builder, codegen->memset_fn, (LLVMValueRef[]) { ptr, value, num_bytes, is_volatile }, 4, "");
-    LLVMSetInstructionCallConv(memset_val, LLVMGetFunctionCallConv(codegen->memset_fn));
-    return memset_val;
-}
-
-LLVMValueRef necro_codegen_alloca(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
-{
-    assert(codegen != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_MACHINE_ALLOCA);
-    LLVMValueRef result = LLVMBuildArrayAlloca(codegen->builder, codegen->poly_ptr_type, LLVMConstInt(LLVMInt32TypeInContext(codegen->context), ast->alloca.num_slots, false), "alloca");
-    necro_codegen_symtable_get(codegen, ast->alloca.result->value.reg_name)->type  = LLVMTypeOf(result);
-    necro_codegen_symtable_get(codegen, ast->alloca.result->value.reg_name)->value = result;
-    return result;
-}
-
-LLVMValueRef necro_codegen_select(NecroCodeGenLLVM* codegen, NecroMachineAST* ast)
-{
-    assert(codegen != NULL);
-    assert(ast != NULL);
-    assert(ast->type == NECRO_MACHINE_SELECT);
-    LLVMValueRef result = LLVMBuildSelect(codegen->builder, necro_codegen_value(codegen, ast->select.cmp_value), necro_codegen_value(codegen, ast->select.left), necro_codegen_value(codegen, ast->select.right), "sel_result");
-    necro_codegen_symtable_get(codegen, ast->select.result->value.reg_name)->type  = LLVMTypeOf(result);
-    necro_codegen_symtable_get(codegen, ast->select.result->value.reg_name)->value = result;
-    return result;
-}
 */
 
 ///////////////////////////////////////////////////////
@@ -537,7 +444,7 @@ LLVMValueRef necro_llvm_codegen_load(NecroLLVM* context, NecroMachAst* ast)
     assert(ast->type == NECRO_MACH_LOAD);
     LLVMValueRef     source_ptr = necro_llvm_codegen_value(context, ast->load.source_ptr);
     const char*      dest_name  = ast->load.dest_value->value.reg_symbol->name->str;
-    LLVMValueRef     result     =  LLVMBuildLoad(context->builder, source_ptr, dest_name);
+    LLVMValueRef     result     = LLVMBuildLoad(context->builder, source_ptr, dest_name);
     NecroLLVMSymbol* symbol     = necro_llvm_symbol_get(&context->arena, ast->load.dest_value->value.reg_symbol);
     symbol->value               = result;
     necro_llvm_codegen_delayed_phi_node(context, symbol);
@@ -571,6 +478,7 @@ LLVMValueRef necro_llvm_codegen_gep(NecroLLVM* context, NecroMachAst* ast)
     {
         NecroMachAst* index = ast->gep.indices[i];
         indices[i]          = necro_llvm_codegen_value(context, index);
+        indices[i]          = LLVMBuildTrunc(context->builder, indices[i], LLVMInt32TypeInContext(context->context), "ix");
         assert(indices[i] != NULL);
     }
     LLVMValueRef     value  = LLVMBuildGEP(context->builder, ptr, indices, (unsigned int) ast->gep.num_indices, name);
@@ -857,7 +765,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         else if (arg_type == f64_type)
         {
             NecroAstSymbol* bit_reverse_float = context->base->bit_reverse_float;
-            if (bit_reverse_float == NULL || 
+            if (bit_reverse_float == NULL ||
                 bit_reverse_float->core_ast_symbol == NULL ||
                 bit_reverse_float->core_ast_symbol->mach_symbol == NULL)
             {
@@ -1014,6 +922,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
     case NECRO_PRIMOP_UOP_UTOI: value = param; break; // TODO: Different bit sizes?
 
     case NECRO_PRIMOP_UOP_FTRI: value = LLVMBuildFPToSI(context->builder, param, result_type, name); break; // TODO: Finish
+    case NECRO_PRIMOP_UOP_FTRU: value = LLVMBuildFPToUI(context->builder, param, result_type, name); break; // TODO: Finish
     case NECRO_PRIMOP_UOP_FRNI: value = LLVMBuildFPToSI(context->builder, param, result_type, name); break;
     case NECRO_PRIMOP_UOP_FTOF:
     {
@@ -1289,11 +1198,11 @@ LLVMValueRef necro_llvm_codegen_bitcast(NecroLLVM* context, NecroMachAst* ast)
     // {
     //     to_value = LLVMBuildIntToPtr(codegen->builder, value, to_type, "int_to_ptr");
     // }
-    // // Ptr -> Int
-    // else if (necro_is_boxed_llvm_type(codegen, to_type))
-    // {
-    //     to_value = LLVMBuildPtrToInt(codegen->builder, value, to_type, "ptr_to_int");
-    // }
+    // Ptr -> Int
+    else if (ast->bit_cast.from_value->necro_machine_type->type == NECRO_MACH_TYPE_PTR && ast->bit_cast.to_value->necro_machine_type == context->program->type_cache.word_uint_type)
+    {
+        to_value = LLVMBuildPtrToInt(context->builder, value, to_type, "ptr_to_uint");
+    }
     // Everything else
     else
     {
@@ -1627,7 +1536,6 @@ void necro_codegen_global(NecroLLVM* context, NecroMachAst* ast)
     }
     else
     {
-        // TODO: Check out memory error on shutdown, likely related to global strings
         // TODO / NOTE: Strings are represented incorrectly in literals. They should be const size_t* to match their representation in necro lang, NOT const char*!!!!
         const size_t  str_length   = global_symbol->mach_symbol->global_string_symbol->length;
         LLVMValueRef  string_value = NULL;
@@ -1752,8 +1660,10 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->program->runtime.necro_init_runtime);
     necro_llvm_map_check_symbol(context->program->runtime.necro_update_runtime);
     necro_llvm_map_check_symbol(context->program->runtime.necro_error_exit);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_inexhaustive_case_exit);
     necro_llvm_map_check_symbol(context->program->runtime.necro_print);
     necro_llvm_map_check_symbol(context->program->runtime.necro_print_char);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_print_string);
     necro_llvm_map_check_symbol(context->base->print_int->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->print_i64->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->print_uint->core_ast_symbol->mach_symbol);
@@ -1765,8 +1675,9 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_alloc);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_realloc);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_free);
+    necro_llvm_map_check_symbol(context->base->panic->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_out_audio_block);
-    // necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_print_audio_block);
+    necro_llvm_map_check_symbol(context->base->sinh_f64->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->test_assertion->core_ast_symbol->mach_symbol);
 
     // assert(context->delayed_phi_node_values.length == 0);
@@ -1810,7 +1721,7 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     struct LLVMMCJITCompilerOptions options;
     LLVMInitializeMCJITCompilerOptions(&options, sizeof(options));
     options.OptLevel       = context->opt_level;
-    options.EnableFastISel = false;
+    options.EnableFastISel = true;
     if (LLVMCreateMCJITCompilerForModule(&context->engine, context->mod, &options, sizeof(options), &error) != 0)
     {
         fprintf(stderr, "necro error: %s\n", error);
@@ -1832,8 +1743,10 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_init_runtime);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_update_runtime);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_error_exit);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_inexhaustive_case_exit);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_print);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_print_char);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_print_string);
     necro_llvm_map_runtime_symbol(context->engine, context->base->print_int->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->print_i64->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->print_uint->core_ast_symbol->mach_symbol);
@@ -1845,8 +1758,9 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_alloc);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_realloc);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_free);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->panic->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_out_audio_block);
-    // necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_print_audio_block);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->sinh_f64->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->test_assertion->core_ast_symbol->mach_symbol);
 
 #ifdef _WIN32
@@ -1872,9 +1786,9 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     NecroLangCallback* necro_shutdown = necro_llvm_get_lang_call(context, context->program->necro_shutdown->fn_def.symbol);
 
     // TODO: When to call necro_runtime_audio_init? Putting it here for now..
-    unwrap(void, necro_runtime_audio_init());
+    // unwrap(void, necro_runtime_audio_init());
     unwrap(void, necro_runtime_audio_start(necro_init, necro_main, necro_shutdown));
-    unwrap(void, necro_runtime_audio_shutdown());
+    // unwrap(void, necro_runtime_audio_shutdown());
     if (!necro_runtime_was_test_successful())
     {
         printf("\n!!!!!!!!!!!!!!Test Failed!!!!!!!!!!!!!!\n\n%s\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n", jit_string);
@@ -1934,7 +1848,7 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     NecroCompileInfo    info            = necro_test_compile_info();
     if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
         info.opt_level = 1;
-    info.verbosity = 2;
+    info.verbosity = 0;
 
     //--------------------
     // Compile
@@ -1967,7 +1881,17 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     // Print
 #if NECRO_LLVM_TEST_VERBOSE
     if (phase == NECRO_PHASE_CODEGEN)
-        necro_llvm_print(&llvm);
+    necro_llvm_print(&llvm);
+    // if (phase == NECRO_PHASE_CODEGEN)
+    // {
+        // for (size_t i = 0; i < mach_program.machine_defs.length; ++i)
+        // {
+        //     if (strcmp("Necro.Base.mapAudio2b8f", mach_program.machine_defs.data[i]->machine_def.symbol->name->str) == 0)
+        //     {
+        //         LLVMDumpValue(mach_program.machine_defs.data[i]->machine_def.update_fn->fn_def.symbol->codegen_symbol->value);
+        //     }
+        // }
+    // }
 #endif
     printf("NecroLLVM %s test: Passed\n", test_name);
     fflush(stdout);
@@ -3088,7 +3012,7 @@ void necro_llvm_test()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = saw 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
@@ -3100,16 +3024,6 @@ void necro_llvm_test()
         const char* test_source = ""
             "main :: *World -> *World\n"
             "main w = print (1 + 2) w\n";
-        necro_llvm_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Audio 1";
-        const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
-            "coolSaw = saw 440\n"
-            "main :: *World -> *World\n"
-            "main w = outAudio 0 coolSaw w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -3137,7 +3051,7 @@ void necro_llvm_test()
         const char* test_name   = "Print Rational";
         const char* test_source = ""
             "main :: *World -> *World\n"
-            "main w = printLn (Rational (#1, 4#)) w\n";
+            "main w = printLn (1 // 4) w\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -3539,7 +3453,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = sawOsc 440\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
@@ -3594,7 +3508,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "AudioOut 2";
         const char* test_source = ""
-            "sawTest :: Stereo\n"
+            "sawTest :: Stereo Audio\n"
             "sawTest = pan (fromInt mouseX / 150) (sawOsc 440)\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 sawTest w\n";
@@ -3604,7 +3518,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 1";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = saw (saw 0.05 * 3980 + 4000) * 0.25\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -3616,7 +3530,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 2";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = saw (saw 0.1 * 750 + 1000 + saw (saw 0.22 * 10 + 15) * (saw 0.15 * 60 + 240)) * 0.25\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -3971,7 +3885,7 @@ void necro_llvm_test_jit()
     /* { */
     /*     const char* test_name   = "Print Saw"; */
     /*     const char* test_source = "" */
-    /*         "coolSaw :: Audio Stereo\n" */
+    /*         "coolSaw :: Stereo Audio\n" */
     /*         "coolSaw = saw 440 * 0.25 |> perc 2 5 1\n" */
     /*         "main :: *World -> *World\n" */
     /*         "main w = outAudio 0 coolSaw w\n"; */
@@ -4001,7 +3915,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 3";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = (saw 300 + saw (saw 0.05 * 1940 + 2000)) * 0.125\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"
@@ -4013,7 +3927,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 4 - Stereo Pan";
         const char* test_source = ""
-            "coolSaw :: Stereo\n"
+            "coolSaw :: Stereo Audio\n"
             "coolSaw = pan (fromInt mouseX / 150) (stereo (saw 440) (saw 880))\n"
             "main :: *World -> *World\n"
             "main w = outAudio 0 coolSaw w\n";
@@ -4023,7 +3937,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Audio 4";
         const char* test_source = ""
-            "coolSaw :: Audio Mono\n"
+            "coolSaw :: Mono Audio\n"
             "coolSaw = saw (fromInt mouseX * 4) * 0.25\n"
             "stereoSaw :: Stereo\n"
             "stereoSaw = stereo coolSaw coolSaw\n"

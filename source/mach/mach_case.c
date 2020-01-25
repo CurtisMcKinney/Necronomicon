@@ -1130,8 +1130,18 @@ NecroMachAst* necro_core_transform_to_mach_3_case(NecroMachProgram* program, Nec
             NecroMachAst* next_error_block = term_case_block->block.next_block;
             err_block = (next_error_block == NULL) ? necro_mach_block_append(program, outer->machine_def.update_fn, "error") : necro_mach_block_insert_before(program, outer->machine_def.update_fn, "error", next_error_block);
             necro_mach_block_move_to(program, outer->machine_def.update_fn, err_block);
-            necro_mach_build_call(program, outer->machine_def.update_fn, program->runtime.necro_error_exit->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 1) }, 1, NECRO_MACH_CALL_C, "");
-            necro_mach_build_unreachable(program, outer->machine_def.update_fn);
+            if (program->current_binding != NULL)
+            {
+                NecroMachAst* binding_name = necro_mach_create_string_global_constant(program, program->current_binding->name);
+                binding_name               = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, binding_name, necro_mach_type_create_ptr(&program->arena, program->type_cache.word_uint_type));
+                NecroMachAst* name_length  = necro_mach_value_create_word_uint(program, program->current_binding->name->length);
+                necro_mach_build_call(program, outer->machine_def.update_fn, program->runtime.necro_inexhaustive_case_exit->ast->fn_def.fn_value, (NecroMachAst * []) { binding_name, name_length }, 2, NECRO_MACH_CALL_C, "");
+            }
+            else
+            {
+                necro_mach_build_call(program, outer->machine_def.update_fn, program->runtime.necro_error_exit->ast->fn_def.fn_value, (NecroMachAst * []) { necro_mach_value_create_uint32(program, 1) }, 1, NECRO_MACH_CALL_C, "");
+            }
+            necro_mach_build_return(program, outer->machine_def.update_fn, necro_mach_value_create_undefined(program, outer->machine_def.update_fn->fn_def.fn_value->necro_machine_type->fn_type.return_type));
             outer->machine_def.update_fn->fn_def._err_block = err_block;
         }
 

@@ -474,11 +474,13 @@ NecroStaticValue* necro_defunctionalize_lit(NecroDefunctionalizeContext* context
     switch (ast->lit.type)
     {
     case NECRO_AST_CONSTANT_FLOAT:
-    case NECRO_AST_CONSTANT_FLOAT_PATTERN:   return necro_static_value_create_dyn(context->arena, context->base->float_type->type);
+    case NECRO_AST_CONSTANT_FLOAT_PATTERN:            return necro_static_value_create_dyn(context->arena, context->base->float_type->type);
     case NECRO_AST_CONSTANT_INTEGER:
-    case NECRO_AST_CONSTANT_INTEGER_PATTERN: return necro_static_value_create_dyn(context->arena, context->base->int_type->type);
+    case NECRO_AST_CONSTANT_INTEGER_PATTERN:          return necro_static_value_create_dyn(context->arena, context->base->int_type->type);
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER:
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER_PATTERN: return necro_static_value_create_dyn(context->arena, context->base->uint_type->type);
     case NECRO_AST_CONSTANT_CHAR:
-    case NECRO_AST_CONSTANT_CHAR_PATTERN:    return necro_static_value_create_dyn(context->arena, context->base->char_type->type);
+    case NECRO_AST_CONSTANT_CHAR_PATTERN:             return necro_static_value_create_dyn(context->arena, context->base->char_type->type);
     case NECRO_AST_CONSTANT_STRING:
     {
         // TODO: Better string type handling
@@ -2085,7 +2087,7 @@ void necro_core_defunctionalize_test()
     {
         const char* test_name   = "Poly 0";
         const char* test_source = ""
-            "myCoolSynth :: Audio Mono\n"
+            "myCoolSynth :: Mono Audio\n"
             "myCoolSynth = poly saw [440 220 _ <110 55 _ 330>]\n"
             "main :: *World -> *World\n"
             "main w = w\n";

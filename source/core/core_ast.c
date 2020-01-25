@@ -399,8 +399,6 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_app(NecroCoreAstTransform*
     assert(ast->type == NECRO_AST_FUNCTION_EXPRESSION);
     NecroCoreAst* expr1    = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->fexpression.aexp));
     NecroCoreAst* expr2    = necro_try_result(NecroCoreAst, necro_ast_transform_to_core_go(context, ast->fexpression.next_fexpression));
-    // assert(expr1->necro_type != NULL);
-    // assert(expr2->necro_type != NULL);
     NecroCoreAst* core_ast = necro_core_ast_create_app(context->arena,expr1, expr2);
     core_ast->necro_type   = necro_type_deep_copy(context->arena, ast->necro_type);
     return ok(NecroCoreAst, core_ast);
@@ -841,28 +839,40 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_array(NecroCoreAstTransfor
 }
 
 // Simple interpreter for Natural Numbers and operations on Natural Numbers
-size_t necro_nat_to_size_t(NecroBase* base, NecroType* n)
+size_t necro_nat_to_size_t(const NecroBase* base, const NecroType* n)
 {
-    n = necro_type_find(n);
+    n = necro_type_find_const(n);
     if (n->type == NECRO_TYPE_NAT)
         return n->nat.value;
     else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->block_size_type)
         return necro_runtime_get_block_size();
+    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->sample_rate_type)
+        return necro_runtime_get_sample_rate();
     else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->nat_mul_type)
     {
         assert(n->con.args != NULL);
         assert(n->con.args->list.next != NULL);
-        NecroType* arg1 = n->con.args->list.item;
-        NecroType* arg2 = n->con.args->list.next->list.item;
-        return necro_nat_to_size_t(base, arg1) * necro_nat_to_size_t(base, arg2);
+        NecroType*   arg1   = n->con.args->list.item;
+        NecroType*   arg2   = n->con.args->list.next->list.item;
+        const size_t result = necro_nat_to_size_t(base, arg1) * necro_nat_to_size_t(base, arg2);
+        return result;
     }
     else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->nat_max_type)
     {
         assert(n->con.args != NULL);
         assert(n->con.args->list.next != NULL);
-        NecroType* arg1 = n->con.args->list.item;
-        NecroType* arg2 = n->con.args->list.next->list.item;
-        return MAX(necro_nat_to_size_t(base, arg1), necro_nat_to_size_t(base, arg2));
+        NecroType*   arg1   = n->con.args->list.item;
+        NecroType*   arg2   = n->con.args->list.next->list.item;
+        const size_t result = MAX(necro_nat_to_size_t(base, arg1), necro_nat_to_size_t(base, arg2));
+        return result;
+    }
+    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->nat_next_power_of_2)
+    {
+        assert(n->con.args != NULL);
+        assert(n->con.args->list.next == NULL);
+        NecroType*   arg    = n->con.args->list.item;
+        const size_t result = next_highest_pow_of_2((uint32_t)necro_nat_to_size_t(base, arg));
+        return result;
     }
     assert(false);
     return 0;
@@ -1678,7 +1688,7 @@ void necro_core_ast_test()
     {
         const char* test_name   = "Poly 0";
         const char* test_source = ""
-            "myCoolSynth :: Audio Mono\n"
+            "myCoolSynth :: Mono Audio\n"
             "myCoolSynth = poly (fromInt .> saw) [440 220 _ <110 55 _ 330>]\n"
             "main :: *World -> *World\n"
             "main w = w\n";

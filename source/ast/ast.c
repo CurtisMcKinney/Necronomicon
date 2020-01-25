@@ -2436,8 +2436,9 @@ NecroAst* necro_ast_deep_copy_with_new_names_go(NecroPagedArena* arena, NecroInt
                 ast->variable.var_type, necro_type_deep_copy_subs(arena, ast->variable.inst_subs),
                 necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->variable.initializer), ast->variable.order));
         }
-        case NECRO_VAR_TYPE_VAR_DECLARATION:
         case NECRO_VAR_SIG:
+            return NULL;
+        case NECRO_VAR_TYPE_VAR_DECLARATION:
         case NECRO_VAR_CLASS_SIG:
         case NECRO_VAR_TYPE_FREE_VAR:
         default:

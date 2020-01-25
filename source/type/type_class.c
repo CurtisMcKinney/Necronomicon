@@ -670,7 +670,13 @@ bool necro_ambig_occurs(NecroAstSymbol* name, NecroType* type)
             return true;
         else
             return necro_ambig_occurs(name, type->for_all.type);
-    default:              assert(false); break;
+    case NECRO_TYPE_NAT:
+        return false;
+    case NECRO_TYPE_SYM:
+        return false;
+    default:
+        assert(false);
+        break;
     }
     return false;
 }

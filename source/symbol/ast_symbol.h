@@ -68,6 +68,7 @@ typedef enum
     NECRO_PRIMOP_UOP_UTOI,
     NECRO_PRIMOP_UOP_FTRI,
     NECRO_PRIMOP_UOP_FRNI,
+    NECRO_PRIMOP_UOP_FTRU,
     NECRO_PRIMOP_UOP_FTOF,
     NECRO_PRIMOP_UOP_FFLR,
     NECRO_PRIMOP_UOP_FFLR_TO_INT,
@@ -128,6 +129,7 @@ typedef enum
     NECRO_PRIMOP_PTR_SWAP,
 
     NECRO_PRIMOP_MREF,
+    NECRO_PRIMOP_NAT_VAL,
 
     NECRO_PRIMOP_PTHUNK_EVAL,
     NECRO_PRIMOP_DYN_DCOPY,
@@ -193,6 +195,7 @@ typedef struct NecroAstSymbol
     bool                           is_primitive;            // Whether or not a symbol is primitive.
     bool                           is_unboxed;
     bool                           is_wrapper;              // Equivalant to newtype
+    bool                           never_inline;
 } NecroAstSymbol;
 
 NecroAstSymbol* necro_ast_symbol_create(NecroPagedArena* arena, NecroSymbol name, NecroSymbol source_name, NecroSymbol module_name, struct NecroAst* ast);
@@ -225,6 +228,7 @@ typedef struct NecroCoreAstSymbol
     bool                       is_wrapper;
     bool                       is_deep_copy_fn;
     bool                       is_wildcard;
+    bool                       never_inline;
 } NecroCoreAstSymbol;
 
 NecroCoreAstSymbol* necro_core_ast_symbol_create(NecroPagedArena* core_ast_arena, NecroSymbol name, struct NecroType* type);

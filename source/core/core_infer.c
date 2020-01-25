@@ -36,6 +36,7 @@ NecroCoreInfer necro_core_infer_create(NecroIntern* intern, NecroBase* base, Nec
 ///////////////////////////////////////////////////////
 NecroResult(NecroType) necro_core_infer_go(NecroCoreInfer* infer, NecroCoreAst* ast);
 
+// TODO: With uvars in numbers, isn't this wrong now?
 NecroResult(NecroType) necro_core_infer_lit(NecroCoreInfer* infer, NecroCoreAst* ast)
 {
     assert(ast->ast_type == NECRO_CORE_AST_LIT);
@@ -48,6 +49,10 @@ NecroResult(NecroType) necro_core_infer_lit(NecroCoreInfer* infer, NecroCoreAst*
     case NECRO_AST_CONSTANT_INTEGER:
     case NECRO_AST_CONSTANT_INTEGER_PATTERN:
         ast->necro_type = infer->base->int_type->type;
+        return ok(NecroType, ast->necro_type);
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER:
+    case NECRO_AST_CONSTANT_UNSIGNED_INTEGER_PATTERN:
+        ast->necro_type = infer->base->uint_type->type;
         return ok(NecroType, ast->necro_type);
     case NECRO_AST_CONSTANT_CHAR:
     case NECRO_AST_CONSTANT_CHAR_PATTERN:
@@ -264,12 +269,13 @@ NecroResult(NecroType) necro_core_infer_case(NecroCoreInfer* infer, NecroCoreAst
         necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, expression_type, pat_type, NULL, zero_loc, zero_loc));
         if (alt->case_alt.expr == NULL)
             break;
-        if (alt->case_alt.expr->ast_type == NECRO_CORE_AST_LET && alt->case_alt.expr->necro_type == NULL)
+        if (alt->case_alt.expr->ast_type == NECRO_CORE_AST_LET && alt->case_alt.expr->let.expr == NULL)
             break;
         NecroType*    body_type = necro_try_result(NecroType, necro_core_infer_go(infer, alt->case_alt.expr));
         necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, body_type, zero_loc, zero_loc));
         necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, result_type, body_type, NULL, zero_loc, zero_loc));
         alt->case_alt.expr->necro_type = body_type;
+        assert(alt->case_alt.expr->necro_type != NULL);
         // assert(alt->case_alt.expr->necro_type != NULL);
         // necro_try(NecroType, necro_type_unify_with_info(infer->arena, NULL, infer->base, result_type, body_type, NULL, zero_loc, zero_loc));
         alts = alts->next;

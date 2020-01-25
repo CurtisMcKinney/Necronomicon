@@ -115,8 +115,10 @@ typedef struct NecroBase
     NecroAstSymbol* prim_undefined;
     NecroAstSymbol* proj_fn;
     NecroAstSymbol* block_size_type;
+    NecroAstSymbol* sample_rate_type;
     NecroAstSymbol* nat_mul_type;
     NecroAstSymbol* nat_max_type;
+    NecroAstSymbol* nat_next_power_of_2;
     NecroAstSymbol* sample_rate;
     NecroAstSymbol* recip_sample_rate;
 
@@ -132,6 +134,7 @@ typedef struct NecroBase
 
     // Runtime functions
     NecroAstSymbol* test_assertion;
+    NecroAstSymbol* panic;
     NecroAstSymbol* mouse_x_fn;
     NecroAstSymbol* mouse_y_fn;
     NecroAstSymbol* ptr_malloc;
@@ -191,6 +194,7 @@ typedef struct NecroBase
     NecroAstSymbol* abs_float;
     NecroAstSymbol* sine_float;
     NecroAstSymbol* cosine_float;
+    NecroAstSymbol* sinh_float;
     NecroAstSymbol* exp_float;
     NecroAstSymbol* exp2_float;
     NecroAstSymbol* log_float;
@@ -201,6 +205,7 @@ typedef struct NecroBase
     NecroAstSymbol* abs_f64;
     NecroAstSymbol* sine_f64;
     NecroAstSymbol* cosine_f64;
+    NecroAstSymbol* sinh_f64;
     NecroAstSymbol* exp_f64;
     NecroAstSymbol* exp2_f64;
     NecroAstSymbol* log_f64;
@@ -227,4 +232,5 @@ NecroAstSymbol*     necro_base_get_env_con(NecroBase* base, size_t num);
 NecroAstSymbol*     necro_base_get_branch_type(NecroBase* base, size_t branch_size);
 NecroAstSymbol*     necro_base_get_branch_con(NecroBase* base, size_t branch_size, size_t alternative);
 NecroCoreAstSymbol* necro_base_get_proj_symbol(NecroPagedArena* arena, NecroBase* base);
+bool                necro_base_is_nat_op_type(const NecroBase* base, const NecroType* type);
 #endif // NECRO_BASE_H

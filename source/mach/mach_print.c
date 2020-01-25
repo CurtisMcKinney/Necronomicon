@@ -506,6 +506,7 @@ void necro_mach_print_uop(NecroMachAst* ast, size_t depth)
     case NECRO_PRIMOP_UOP_ITOF:         printf("itof ");      break;
     case NECRO_PRIMOP_UOP_UTOI:         printf("utoi ");      break;
     case NECRO_PRIMOP_UOP_FTRI:         printf("ftri ");      break;
+    case NECRO_PRIMOP_UOP_FTRU:         printf("ftru ");      break;
     case NECRO_PRIMOP_UOP_FRNI:         printf("frni ");      break;
     case NECRO_PRIMOP_UOP_FTOF:         printf("ftof ");      break;
     case NECRO_PRIMOP_UOP_FFLR:         printf("fflr ");      break;

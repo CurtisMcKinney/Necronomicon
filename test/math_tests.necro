@@ -1,19 +1,23 @@
+
 main :: *World -> *World
-main w = print one w 
-		  |> print " -> "
-          |> print unNegativeOne
-          |> printLn " "
-  where
-    one :: Float
-    one = fromInt mouseX
-    negativeBit :: UInt
-    negativeBit = bitShiftLeft 1 63
-    negativeOne :: Float
-    negativeOne = bitOr (toBits one) negativeBit |> fromBits
-    allBits :: UInt
-    allBits = -1
-    unNegativeOne :: Float
-    unNegativeOne = negativeOne |> toBits |> bitAnd (bitXor allBits negativeBit) |> fromBits
+main w = w
+
+-- main :: *World -> *World
+-- main w = print one w 
+-- 		  |> print " -> "
+--           |> print unNegativeOne
+--           |> printLn " "
+--   where
+--     one :: Float
+--     one = fromInt mouseX
+--     negativeBit :: UInt
+--     negativeBit = bitShiftLeft 1 63
+--     negativeOne :: Float
+--     negativeOne = bitOr (toBits one) negativeBit |> fromBits
+--     allBits :: UInt
+--     allBits = -1
+--     unNegativeOne :: Float
+--     unNegativeOne = negativeOne |> toBits |> bitAnd (bitXor allBits negativeBit) |> fromBits
 
 --
 -- main :: *World -> *World

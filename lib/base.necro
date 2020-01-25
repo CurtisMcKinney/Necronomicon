@@ -185,8 +185,9 @@ class Ring a => EuclideanRing a where
 class (EuclideanRing a, DivisionRing a) => Field a where
 
 class (Eq a, Ring a) => Num a where
-  abs    :: a -> a
-  signum :: a -> a
+  abs      :: a -> a
+  signum   :: a -> a
+  copysign :: a -> a -> a
 
 class (Num a, EuclideanRing a) => Integral a where
   -- quotient :: a -> a -> a
@@ -194,6 +195,12 @@ class (Num a, EuclideanRing a) => Integral a where
 class (Num a, Field a) => Floating a where
   fromFloat :: Float -> a
   sqrt :: a -> a
+  floor :: a -> a
+  ceil :: a -> a
+  truncate :: a -> a
+  round :: a -> a
+  -- fmin :: a -> a -> a -- TODO: Remove these for Ord instances once min/max is in Ord
+  -- fmax :: a -> a -> a
 
 class Floating a => Trig a where
   sine     :: a -> a
@@ -267,25 +274,14 @@ tanF32 n = tanResult
 tanF64 :: F64 -> F64
 tanF64 n = tanResult
   where
-    wrappedN = if n < 0 then twoPi - n else n
-    -- THIS DOESN'T WORK hrmph!!
-    -- wrappedN = rem n twoPi
+    wrappedN = rem n twoPi
+    twoPiN = twoPi + wrappedN
+    x = if wrappedN < 0 then twoPiN else wrappedN
+    -- TODO: investigate alternatives like masking etc..
     -- signMask = bitShiftRightA wrappedN 63
     -- x = wrappedN + (bitAnd (twoPi - wrappedN - wrappedN) signMask)
-    x = rem wrappedN twoPi
-    -- TO DO --> This needs to be truncate not floor!!!!
-    octant = floor <| (x * fourOverPi)
-    -- HACK -> Need to be able to convert from Float to
-    octantInt = if octant2 < 1 then 0
-      else if octant < 2 then 1
-      else if octant < 3 then 2
-      else if octant < 4 then 3
-      else if octant < 5 then 4
-      else if octant < 6 then 5
-      else if octant < 7 then 6
-      else 7
-    octant2 = traceLn octant octant
-    octantInt2 = traceLn octantInt octantInt
+    -- x = rem wrappedN twoPi
+    octant = truncateToInt <| (x * fourOverPi)
     -- Accurate to about 14 decimal digits over the range (0, pi/4)
     -- This computes tan (pi * x/4), range reduction must be used before input
     tan14s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
@@ -297,7 +293,7 @@ tanF64 n = tanResult
         c5 = 12244.4839556747426927793
         c6 = -336.611376245464339493
         x2 = (x * x)
-    tanResult = case octantInt2 of
+    tanResult = case octant of
       0 -> tan14s (x * fourOverPi)
       1 -> 1 / (tan14s ((halfPi - x) * fourOverPi))
       2 -> -1 / (tan14s ((x - halfPi) * fourOverPi))
@@ -326,9 +322,8 @@ maskIfGreaterThan x y = bitShiftRightA subtractionSign 63
 
 -- branchless 64 bit atan
 atanF64 :: F64 -> F64
-atanF64 n = bitOr sign z
+atanF64 n = copysign z n
   where
-    sign = bitAnd iEEESignMaskF n
     absN = bitAnd n (bitNot iEEESignMaskF)
     -- absN = abs n
     -- complement = absN > 1
@@ -362,7 +357,7 @@ atanF64 n = bitOr sign z
         c4 = 48.70107004404996166
         c5 = 65.7663163908956299
         c6 = 21.587934067020262
-        x2 = x' * 2
+        x2 = x' * x'
 
 slowAtanF64 :: F64 -> F64
 slowAtanF64 n = if sign then negate z else z
@@ -385,7 +380,7 @@ slowAtanF64 n = if sign then negate z else z
         c4 = 48.70107004404996166
         c5 = 65.7663163908956299
         c6 = 21.587934067020262
-        x2 = x * 2
+        x2 = x * x
 ----------------------------------------
 
 class Bits a where
@@ -478,6 +473,7 @@ instance EuclideanRing Int where
 instance Num Int where
   abs    x = primUndefined
   signum x = primUndefined
+  copysign x sign = (abs x) * (signum sign)
 
 instance Integral Int where
 
@@ -522,6 +518,7 @@ instance EuclideanRing I64 where
 instance Num I64 where
   abs    x = primUndefined
   signum x = primUndefined
+  copysign x sign = (abs x) * (signum sign)
 
 instance Integral I64 where
 
@@ -567,6 +564,7 @@ instance EuclideanRing UInt where
 instance Num UInt where
   abs    x = primUndefined
   signum x = primUndefined
+  copysign x _ = x
 
 instance Integral UInt where
 
@@ -618,7 +616,8 @@ instance Ring Float where
 
 instance Num Float where
   abs    x = primUndefined
-  signum x = primUndefined
+  copysign x sign = primUndefined
+  signum x = copysign 1 x
 
 instance EuclideanRing Float where
   div x y = primUndefined
@@ -632,6 +631,12 @@ instance Field Float where
 instance Floating Float where
   fromFloat x = x
   sqrt      x = primUndefined
+  floor     x = primUndefined
+  ceil      x = primUndefined
+  truncate  x = primUndefined
+  round     x = primUndefined
+  -- fmin      x y = primUndefined
+  -- fmax      x y = primUndefined
 
 instance Trig Float where
   sine   x = primUndefined
@@ -693,7 +698,8 @@ instance Ring F64 where
 
 instance Num F64 where
   abs    x = primUndefined
-  signum x = primUndefined
+  copysign x sign = primUndefined
+  signum x = copysign 1 x
 
 instance EuclideanRing F64 where
   div x y = primUndefined
@@ -707,6 +713,12 @@ instance Field F64 where
 instance Floating F64 where
   fromFloat x = primUndefined
   sqrt      x = primUndefined
+  floor     x = primUndefined
+  ceil      x = primUndefined
+  truncate  x = primUndefined
+  round     x = primUndefined
+  -- fmin      x y = primUndefined
+  -- fmax      x y = primUndefined
 
 instance Trig F64 where
   sine   x = primUndefined
@@ -742,16 +754,44 @@ instance Default F64 where
 fastFloor :: F64 -> F64
 fastFloor x = primUndefined
 
-floor :: F64 -> F64
-floor x = primUndefined
+-- floor :: F64 -> F64
+-- floor x = primUndefined
+--
+-- ceil :: F64 -> F64
+-- ceil x = primUndefined
+--
+-- truncate :: F64 -> F64
+-- truncate x = primUndefined
+--
+-- round :: F64 -> F64
+-- round x = primUndefined
+--
+-- copysign :: F64 -> F64 -> F64
+-- copysign x sign = primUndefined
+--
+-- fmin :: F64 -> F64 -> F64
+-- fmin x y = primUndefined
+--
+-- fmax :: F64 -> F64 -> F64
+-- fmax x y = primUndefined
+
+floorToInt :: F64 -> Int
+floorToInt x = primUndefined
+
+ceilToInt :: F64 -> Int
+ceilToInt x = primUndefined
+
+truncateToInt :: F64 -> Int
+truncateToInt x = primUndefined
+
+roundToInt :: F64 -> Int
+roundToInt x = primUndefined
 
 fma :: F64 -> F64 -> F64 -> F64
 fma x y z = primUndefined
 
-
-
 ------------------------------------------------------------
--- iEEE 754 Double Precisions Float Format constants
+-- iEEE 754 Double Precision Float Format constants
 ------------------------------------------------------------
 iEEESignMask :: UInt
 iEEESignMask = bitShiftLeft 1 63
@@ -840,6 +880,7 @@ instance Ring Rational where
 instance Num Rational where
   abs    (Rational (#xn, xd#)) = Rational (#abs xn, xd#)
   signum (Rational (#xn, _#))  = Rational (#signum xn, 1#)
+  copysign (Rational (#xn, xd#)) (Rational (# yn, _#)) = Rational (#copysign xn yn, abs xd#)
 
 instance DivisionRing Rational where
   recip (Rational (#n, d#)) =
@@ -940,6 +981,7 @@ instance Num Complex where
         if r == 0 && i == 0 then 0 else
           let m = magnitude z in
             Complex (#r / m, i / m#)
+  copysign x sign = (abs x) * (signum sign) -- Note: unsure if this is well founded or not?
 
 instance Field Complex where
 
@@ -965,6 +1007,12 @@ instance Floating Complex where
               vByI = if i < 0 then negate v else v
             in
               Complex (#(abs i) / u, vByI#)
+  floor     (Complex (#r, i#)) = Complex (#floor r, floor i#)
+  ceil      (Complex (#r, i#)) = Complex (#ceil r, ceil i#)
+  truncate  (Complex (#r, i#)) = Complex (#truncate r, truncate i#)
+  round     (Complex (#r, i#)) = Complex (#round r, round i#)
+  -- fmin      x y = if (magnitude x < magnitude y) then x else y -- TODO: brancless versions?
+  -- fmax      x y = if (magnitude x > magnitude y) then x else y
 
 -- TODO - ADD SINEH and COSINEH
 -- instance Trig Complex where
@@ -1366,14 +1414,21 @@ instance DivisionRing Channel where
   recip x = mapChannel recip x
 
 instance Num Channel where
-  signum x  = mapChannel signum x
-  abs x     = mapChannel abs x
+  signum x        = mapChannel signum x
+  abs x           = mapChannel abs x
+  copysign x sign = mapChannel2 copysign x sign
 
 instance Field Channel where
 
 instance Floating Channel where
   fromFloat f = BlockRate (fromFloat f)
   sqrt x      = mapChannel sqrt x
+  floor     x = mapChannel floor x
+  ceil      x = mapChannel ceil x
+  truncate  x = mapChannel truncate x
+  round     x = mapChannel round x
+  -- fmin      x y = mapChannel2 fmin x y
+  -- fmax      x y = mapChannel2 copysign x y
 
 instance Semigroup Channel where
   append x y = x + y
@@ -1569,12 +1624,19 @@ instance AudioFormat f => DivisionRing (Audio f) where
 instance AudioFormat f => Num (Audio f) where
   signum (Audio c) = Audio (map signum c)
   abs    (Audio c) = Audio (map abs c)
+  copysign (Audio x) (Audio sign) = Audio (map2 copysign x sign)
 
 instance AudioFormat f => Field (Audio f) where
 
 instance AudioFormat f => Floating (Audio f) where
   fromFloat f = Audio (pure (fromFloat f))
   sqrt (Audio x) = Audio (map sqrt x)
+  floor    (Audio x) = Audio (map floor x)
+  ceil     (Audio x) = Audio (map ceil x)
+  truncate (Audio x) = Audio (map truncate x)
+  round    (Audio x) = Audio (map round x)
+  -- fmin     (Audio x) (Audio y) = Audio (map2 fmin x y)
+  -- fmax     (Audio x) (Audio y) = Audio (map2 fmax x y)
 
 instance AudioFormat f => Semigroup (Audio f) where
   append (Audio x) (Audio y) = Audio (map2 append x y)
@@ -1742,12 +1804,19 @@ instance DivisionRing a => DivisionRing (SeqValue a) where
 instance Num a => Num (SeqValue a) where
   signum x  = map signum x
   abs x     = map abs x
+  copysign x sign = map2 copysign x sign
 
 instance Field a => Field (SeqValue a) where
 
 instance Floating a => Floating (SeqValue a) where
   fromFloat f = SeqValue (#1, SeqPure, Just (fromFloat f)#)
   sqrt f = map sqrt f
+  floor     x = map floor x
+  ceil      x = map ceil x
+  truncate  x = map truncate x
+  round     x = map round x
+  -- fmin      x y = map2 fmin x y
+  -- fmax      x y = map2 fmax x y
 
 runSeq :: Seq a -> () -> SeqValue a
 runSeq (Seq stepFunc) _ = stepFunc ()
@@ -1834,12 +1903,19 @@ instance DivisionRing a => DivisionRing (Seq a) where
 instance Num a => Num (Seq a) where
   signum x  = map signum x
   abs x     = map abs x
+  copysign x sign = map2 copysign x sign
 
 instance Field a => Field (Seq a) where
 
 instance Floating a => Floating (Seq a) where
   fromFloat f = Seq (\_ -> pure (fromFloat f))
   sqrt f = map sqrt f
+  floor     x = map floor x
+  ceil      x = map ceil x
+  truncate  x = map truncate x
+  round     x = map round x
+  -- fmin      x y = map2 fmin x y
+  -- fmax      x y = map2 fmax x y
 
 instance Semigroup (Seq a) where
   append sx sy = [sx sy]
@@ -2554,6 +2630,61 @@ poly f s =
         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
           _ -> acc'
 
+-- somePow :: F64
+-- somePow = pow pi 5
+
+-- testJit :: *World -> *World
+-- testJit w =
+--     print "halfPi: " w
+--     |> printLn halfPi
+--     |> print "floor halfPi: "
+--     |> printLn (floor halfPi)
+--     |> print "floor -halfPi: "
+--     |> printLn (floor <| negate halfPi)
+--     |> print "ceil halfPi: "
+--     |> printLn (ceil halfPi)
+--     |> print "ceil -halfPi: "
+--     |> printLn (ceil <| negate halfPi)
+--     |> print "truncate halfPi: "
+--     |> printLn (truncate halfPi)
+--     |> print "truncate -halfPi: "
+--     |> printLn (truncate <| negate halfPi)
+--     |> print "round halfPi: "
+--     |> printLn (round halfPi)
+--     |> print "round -halfPi: "
+--     |> printLn (round <| negate halfPi)
+--     |> print "copysign 666 halfPi: "
+--     |> printLn (copysign 666 halfPi)
+--     |> print "copysign 666 -halfPi: "
+--     |> printLn (copysign 666 <| negate halfPi)
+--     |> print "signum halfPi: "
+--     |> printLn (signum halfPi)
+--     |> print "signum -halfPi: "
+--     |> printLn (signum <| negate halfPi)
+--     |> print "floorToInt halfPi: "
+--     |> printLn (floorToInt halfPi) 
+--     |> print "floorToInt -halfPi: "
+--     |> printLn (floorToInt <| negate halfPi)
+--     |> print "ceilToInt halfPi: "
+--     |> printLn (ceilToInt halfPi) 
+--     |> print "ceilToInt -halfPi: "
+--     |> printLn (ceilToInt <| negate halfPi)
+--     |> print "truncateToInt halfPi: "
+--     |> printLn (truncateToInt halfPi) 
+--     |> print "truncateToInt -halfPi: "
+--     |> printLn (truncateToInt <| negate halfPi)
+--     |> print "roundToInt halfPi: "
+--     |> printLn (roundToInt halfPi) 
+--     |> print "roundToInt -halfPi: "
+--     |> printLn (roundToInt <| negate halfPi)
+
+-- copysign :: F64 -> F64 -> F64
+-- fmin :: F64 -> F64 -> F64
+-- fmax :: F64 -> F64 -> F64
+-- floorToInt :: F64 -> Int
+-- ceilToInt :: F64 -> Int
+-- truncateToInt :: F64 -> Int
+-- roundToInt :: F64 -> Int
 
 -- testJit :: *World -> *World
 -- testJit w = printLn "IEEE format=========================================" w 
@@ -2673,21 +2804,33 @@ poly f s =
 
 testJit :: *World -> *World
 testJit w =
-    printLn fMouse w
+	print "fmouse: " w
+    |> printLn fMouse
     |> print "fMask 1 fMouse: "
     |> printLn fMask
     |> print "fSelection 1 fMouse: "
     |> printLn fSelection
     |> print "tan -1.8125: "
     |> printLn (tanF64 -1.8125)
+    |> print "tanF64: "
+    |> printLn (tanF64 fMouse)
+    |> print "atanF64: "
+    |> printLn (atanF64 fMouse)
     |> print "slowAtanF64: "
     |> printLn (slowAtanF64 fMouse)
+    |> print "atanF64 -1.8125: "
+    |> printLn (atanF64 -1.8125)
+    |> print "slowAtanF64 -1.8125 "
+    |> printLn (slowAtanF64 -1.8125)
+    |> print "tan -17000: "
+    |> printLn (tanF64 -17000)
   where
     fMouseRaw :: F64
     fMouseRaw = fromInt mouseX
-    fMouse = ((fMouseRaw / 1920) - 0.5) * 4
+    fMouse = ((fMouseRaw / 1920) - 0.5) * (4 * pi)
     fSelection = scalarIfGreaterThan fMouse 1
     fMask = maskIfGreaterThan fMouse 1
+
 --
 -- testJit :: *World -> *World
 -- testJit w = printLn a w |> printLn b |> printLn c

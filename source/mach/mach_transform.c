@@ -1338,7 +1338,6 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_UOP_UABS:
     case NECRO_PRIMOP_UOP_ISGN:
     case NECRO_PRIMOP_UOP_USGN:
-    case NECRO_PRIMOP_UOP_FSGN:
     case NECRO_PRIMOP_UOP_ITOI:
     case NECRO_PRIMOP_UOP_ITOU:
     case NECRO_PRIMOP_UOP_ITOF:
@@ -1347,6 +1346,10 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_UOP_FRNI:
     case NECRO_PRIMOP_UOP_FTOF:
     case NECRO_PRIMOP_UOP_FFLR:
+    case NECRO_PRIMOP_UOP_FFLR_TO_INT:
+    case NECRO_PRIMOP_UOP_FCEIL_TO_INT:
+    case NECRO_PRIMOP_UOP_FTRNC_TO_INT:
+    case NECRO_PRIMOP_UOP_FRND_TO_INT:
     case NECRO_PRIMOP_UOP_FBREV:
     case NECRO_PRIMOP_UOP_FTOB:
     case NECRO_PRIMOP_UOP_FFRB:
@@ -1510,6 +1513,10 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_INTR_LOG2:
     case NECRO_PRIMOP_INTR_BREV:
     case NECRO_PRIMOP_INTR_SQRT:
+    case NECRO_PRIMOP_INTR_FFLR:
+    case NECRO_PRIMOP_INTR_FCEIL:
+    case NECRO_PRIMOP_INTR_FTRNC:
+    case NECRO_PRIMOP_INTR_FRND:
     {
         assert(arg_count == 1);
         NecroMachAst*  arg       = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
@@ -1519,6 +1526,9 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     }
 
     case NECRO_PRIMOP_INTR_POW:
+    case NECRO_PRIMOP_INTR_FCPYSGN:
+    case NECRO_PRIMOP_INTR_FMIN:
+    case NECRO_PRIMOP_INTR_FMAX:
     {
         assert(arg_count == 2);
         assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);

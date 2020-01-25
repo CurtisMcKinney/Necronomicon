@@ -1007,14 +1007,14 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
         necro_mach_type_check_is_float_type(ast->necro_machine_type);
         break;
     }
-    case NECRO_PRIMOP_BINOP_FADD: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FSUB: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FMUL: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FDIV: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FREM: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FAND: /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FOR:  /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FXOR:
+    case NECRO_PRIMOP_BINOP_FADD:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FSUB:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FMUL:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FDIV:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FREM:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FAND:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FOR:     /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FXOR:    /* FALL THROUGH */
     {
         necro_mach_type_check_is_float_type(left->necro_machine_type);
         necro_mach_type_check_is_float_type(right->necro_machine_type);
@@ -1057,12 +1057,20 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
         necro_mach_type_check_is_uint_type(result->necro_machine_type);
         break;
     }
-    case NECRO_PRIMOP_UOP_FSGN: /* FALL THROUGH */
-    case NECRO_PRIMOP_UOP_FNOT: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_FNOT:  /* FALL THROUGH */
     case NECRO_PRIMOP_UOP_FBREV:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
         necro_mach_type_check_is_float_type(result->necro_machine_type);
+        break;
+    }
+    case NECRO_PRIMOP_UOP_FFLR_TO_INT:  /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_FCEIL_TO_INT: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_FTRNC_TO_INT: /* FALL THROUGH */
+    case NECRO_PRIMOP_UOP_FRND_TO_INT:
+    {
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        necro_mach_type_check_is_int_type(result->necro_machine_type);
         break;
     }
     case NECRO_PRIMOP_UOP_FTOB:

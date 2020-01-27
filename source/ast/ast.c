@@ -77,11 +77,11 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_TOP_DECL:
-        puts("(Top Declaration)");
-        necro_ast_print_go(ast->top_declaration.declaration, depth + 1);
-        if (ast->top_declaration.next_top_decl != NULL)
+        while (ast != NULL)
         {
-            necro_ast_print_go(ast->top_declaration.next_top_decl, depth);
+            puts("(Top Declaration)");
+            necro_ast_print_go(ast->top_declaration.declaration, depth + 1);
+            ast = ast->top_declaration.next_top_decl;
         }
         break;
 
@@ -471,6 +471,33 @@ NecroAstArena necro_reify(NecroCompileInfo info, NecroIntern* intern, NecroParse
     return ast_arena;
 }
 
+NecroAst* necro_reify_top(NecroParseAstArena* parse_ast_arena, NecroParseAstLocalPtr parse_ast_ptr, NecroPagedArena* arena, NecroIntern* intern)
+{
+    NecroAst* top_head_ast = NULL;
+    NecroAst* prev_top_ast = NULL;
+    while (parse_ast_ptr != null_local_ptr)
+    {
+        NecroParseAst* ast                         = necro_parse_ast_get_node(parse_ast_arena, parse_ast_ptr);
+        NecroAst*      reified_ast                 = necro_ast_alloc(arena, ast->type);
+        reified_ast->type                          = ast->type;
+        reified_ast->source_loc                    = ast->source_loc;
+        reified_ast->end_loc                       = ast->end_loc;
+        reified_ast->top_declaration.declaration   = necro_reify_go(parse_ast_arena, ast->top_declaration.declaration, arena, intern);
+        reified_ast->top_declaration.next_top_decl = NULL;
+        parse_ast_ptr                              = ast->top_declaration.next_top_decl;
+        if (prev_top_ast != NULL)
+        {
+            assert(prev_top_ast->type == NECRO_AST_TOP_DECL);
+            prev_top_ast->top_declaration.next_top_decl = reified_ast;
+        }
+        prev_top_ast = reified_ast;
+        if (top_head_ast == NULL)
+            top_head_ast = reified_ast;
+        // reified_ast->top_declaration.next_top_decl = necro_reify_go(parse_ast_arena, ast->top_declaration.next_top_decl, arena, intern);
+    }
+    return top_head_ast;
+}
+
 // TODO (Curtis, 2-14-19): Refactor to use ast creation functions
 NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocalPtr parse_ast_ptr, NecroPagedArena* arena, NecroIntern* intern)
 {
@@ -479,12 +506,18 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
     NecroParseAst* ast = necro_parse_ast_get_node(parse_ast_arena, parse_ast_ptr);
     if (ast == NULL)
         return NULL;
+    if (ast->type == NECRO_AST_TOP_DECL)
+        return necro_reify_top(parse_ast_arena, parse_ast_ptr, arena, intern);
     NecroAst* reified_ast   = necro_ast_alloc(arena, ast->type);
     reified_ast->type       = ast->type;
     reified_ast->source_loc = ast->source_loc;
     reified_ast->end_loc    = ast->end_loc;
     switch (ast->type)
     {
+    case NECRO_AST_TOP_DECL:
+        assert(false);
+        break;
+
     case NECRO_AST_UNDEFINED:
         reified_ast->undefined._pad = ast->undefined._pad;
         break;
@@ -492,7 +525,6 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
     case NECRO_AST_CONSTANT:
         switch (ast->constant.type)
         {
-
         case NECRO_AST_CONSTANT_FLOAT:
         {
             NecroAst* from_ast               = necro_ast_create_var(arena, intern, "fromFloat", NECRO_VAR_VAR);
@@ -579,11 +611,6 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->if_then_else.if_expr   = necro_reify_go(parse_ast_arena, ast->if_then_else.if_expr, arena, intern);
         reified_ast->if_then_else.then_expr = necro_reify_go(parse_ast_arena, ast->if_then_else.then_expr, arena, intern);
         reified_ast->if_then_else.else_expr = necro_reify_go(parse_ast_arena, ast->if_then_else.else_expr, arena, intern);
-        break;
-    case NECRO_AST_TOP_DECL:
-        reified_ast->top_declaration.declaration   = necro_reify_go(parse_ast_arena, ast->top_declaration.declaration, arena, intern);
-        reified_ast->top_declaration.next_top_decl = necro_reify_go(parse_ast_arena, ast->top_declaration.next_top_decl, arena, intern);
-        // reified_ast->top_declaration.group_list    = NULL;
         break;
     case NECRO_AST_DECL:
         reified_ast->declaration.declaration_impl       = necro_reify_go(parse_ast_arena, ast->declaration.declaration_impl, arena, intern);

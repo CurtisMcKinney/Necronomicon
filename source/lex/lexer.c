@@ -1593,22 +1593,22 @@ void necro_lex_test()
         necro_intern_destroy(&intern);
     }
 
-    {
-        puts("Lex {{{ child process test_lex1:  starting...");
-        assert(NECRO_COMPILE_IN_CHILD_PROCESS("test_lex1.txt", "lex") == 0);
-        puts("Lex }}} child process test_lex1:  passed");
-    }
+    // {
+    //     puts("Lex {{{ child process test_lex1:  starting...");
+    //     assert(NECRO_COMPILE_IN_CHILD_PROCESS("test_lex1.txt", "lex") == 0);
+    //     puts("Lex }}} child process test_lex1:  passed");
+    // }
 
-    {
-        puts("Lex {{{ child process test_lex2:  starting...");
-        assert(NECRO_COMPILE_IN_CHILD_PROCESS("test_lex2.txt", "lex") == 0);
-        puts("Lex }}} child process test_lex2:  passed");
-    }
+    // {
+    //     puts("Lex {{{ child process test_lex2:  starting...");
+    //     assert(NECRO_COMPILE_IN_CHILD_PROCESS("test_lex2.txt", "lex") == 0);
+    //     puts("Lex }}} child process test_lex2:  passed");
+    // }
 
-    {
-        puts("Lex {{{ child process unicodeTest.necro:  starting...");
-        assert(NECRO_COMPILE_IN_CHILD_PROCESS("unicodeTest.necro", "lex") == 0);
-        puts("Lex }}} child process unicodeTest.necro:  passed");
-    }
+    // {
+    //     puts("Lex {{{ child process unicodeTest.necro:  starting...");
+    //     assert(NECRO_COMPILE_IN_CHILD_PROCESS("unicodeTest.necro", "lex") == 0);
+    //     puts("Lex }}} child process unicodeTest.necro:  passed");
+    // }
 
 }

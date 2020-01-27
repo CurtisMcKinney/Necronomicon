@@ -382,7 +382,7 @@ NecroStaticValue* necro_defunctionalize_let(NecroDefunctionalizeContext* context
             *ast = *ast->let.expr; // Prune from ast
         }
         // Rewrite let f _ = ... in expr ==> expr
-        else if (ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.bind->bind.expr->ast_type == NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.expr->ast_type != NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.arg->var.ast_symbol->is_wildcard)
+        else if (ast->let.expr != NULL && ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.bind->bind.expr->ast_type == NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.expr->ast_type != NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.arg->var.ast_symbol->is_wildcard)
         {
             necro_defunctionalize_go(context, ast->let.bind);
             *ast = *ast->let.expr;

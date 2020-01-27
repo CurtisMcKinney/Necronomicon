@@ -4631,6 +4631,10 @@ testJit w =
 --     y = 3
 --     z = fromInt mouseX * 100
 
+-- TODO: Waveterrain oscillators + mandelbulb + strange attractors + delauney triangulation
+-- TODO: phase distortion synthesis
+-- TODO: Fix stack overflow problem
+-- TODO: 64-bit refactor apocalypse
 -- TODO: Multiplication precedence is WRONG!!!!
 -- TODO: Oversample sync oscs
 -- TODO: Make JIT faster

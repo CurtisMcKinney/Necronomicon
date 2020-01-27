@@ -181,13 +181,15 @@ NECRO_STATE_TYPE necro_state_analysis_let(NecroStateAnalysis* sa, NecroCoreAst* 
     assert(sa != NULL);
     assert(ast != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_LET);
-    ast->necro_type = necro_core_ast_type_specialize(sa, ast->necro_type);
-    // TODO: We're going to blow the stack like this, transform from recursive to iterative!
-    necro_state_analysis_go(sa, ast->let.bind, outer);
-    if (ast->let.expr == NULL)
-        return NECRO_STATE_CONSTANT;
-    else
-        return necro_state_analysis_go(sa, ast->let.expr, outer);
+    while (ast != NULL)
+    {
+        if (ast->ast_type != NECRO_CORE_AST_LET)
+            return necro_state_analysis_go(sa, ast, outer);
+        ast->necro_type = necro_core_ast_type_specialize(sa, ast->necro_type);
+        necro_state_analysis_go(sa, ast->let.bind, outer);
+        ast = ast->let.expr;
+    }
+    return NECRO_STATE_CONSTANT;
 }
 
 NECRO_STATE_TYPE necro_state_analysis_case(NecroStateAnalysis* sa, NecroCoreAst* ast, NecroCoreAstSymbol* outer)

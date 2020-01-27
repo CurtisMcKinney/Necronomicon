@@ -695,54 +695,6 @@ NecroCoreAst* necro_core_ast_pre_simplify_loop(NecroCorePreSimplify* context, Ne
     }
 }
 
-// TODO / NOTE: Need global let crawling function
-NecroCoreAst* necro_core_ast_pre_simplify_let(NecroCorePreSimplify* context, NecroCoreAst* ast)
-{
-    assert(context != NULL);
-    assert(ast->ast_type == NECRO_CORE_AST_LET);
-    if (ast->let.bind->ast_type == NECRO_CORE_AST_DATA_DECL && ast->let.bind->data_decl.ast_symbol->is_wrapper)
-    {
-        // return necro_core_ast_pre_simplify_go(context, ast->let.expr);
-        *ast = *necro_core_ast_pre_simplify_go(context, ast->let.expr);
-        return necro_core_ast_pre_simplify_inline_wrapper_types_maybe_null(context, ast);
-    }
-
-    // Rewrite let x = expr in x ==> exp
-    if (ast->let.expr != NULL && ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.expr->ast_type == NECRO_CORE_AST_VAR && ast->let.expr->var.ast_symbol == ast->let.bind->bind.ast_symbol && ast->let.bind->bind.initializer == NULL)
-    {
-        return necro_core_ast_pre_simplify_inline_wrapper_types_maybe_null(context, ast->let.bind->bind.expr);
-    }
-
-    // Rewrite let x = y in expr (using x) ==> expr (using y)
-    if (ast->let.expr != NULL && ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.bind->bind.expr->ast_type == NECRO_CORE_AST_VAR && !ast->let.bind->bind.expr->var.ast_symbol->is_constructor && ast->let.bind->bind.initializer == NULL &&
-        ast->let.bind->bind.expr->var.ast_symbol != context->base->prim_undefined->core_ast_symbol)
-    {
-        ast->let.bind->bind.ast_symbol->inline_ast = ast->let.bind->bind.expr;
-        return necro_core_ast_pre_simplify_inline_wrapper_types_maybe_null(context, ast->let.expr);
-    }
-
-    // Only remove AFTER lambda lift?
-    // Rewrite let f _ = ... in expr ==> expr
-    // if (ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.bind->bind.expr->ast_type == NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.expr->ast_type != NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.arg->var.ast_symbol->is_wildcard)
-    // {
-    //     return ast->let.expr;
-    // }
-
-    NecroCoreAst* bind = necro_core_ast_pre_simplify_go(context, ast->let.bind);
-    NecroCoreAst* expr = necro_core_ast_pre_simplify_go(context, ast->let.expr);
-    // if (bind == ast->let.bind && expr == ast->let.expr)
-    //     return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
-    ast->let.bind      = bind;
-    ast->let.expr      = expr;
-    // NOTE: Playing with mutating lets. Naively returning a new let is O(n!) scaling, whereas mutating it brings it closer to O(n)
-    // NecroCoreAst* new_ast = necro_core_ast_create_let(context->arena, bind, expr);
-    // new_ast->necro_type   = expr == NULL ? NULL : expr->necro_type;
-    // return necro_core_ast_pre_simplify_inline_wrapper_types(context, new_ast);
-    if (ast->necro_type == NULL && ast->let.expr != NULL)
-        ast->necro_type = ast->let.expr->necro_type;
-    return necro_core_ast_pre_simplify_inline_wrapper_types_maybe_null(context, ast);
-}
-
 void necro_core_ast_pre_simplify_data_con(NecroCorePreSimplify* context, NecroCoreAst* ast)
 {
     assert(context != NULL);
@@ -1141,6 +1093,101 @@ NecroCoreAst* necro_core_ast_pre_simplify_app(NecroCorePreSimplify* context, Nec
     return necro_core_ast_pre_simplify_inline_wrapper_types(context, new_ast);
 }
 
+// TODO / NOTE: Need global let crawling function
+NecroCoreAst* necro_core_ast_pre_simplify_let(NecroCorePreSimplify* context, NecroCoreAst* ast)
+{
+    assert(context != NULL);
+    assert(ast->ast_type == NECRO_CORE_AST_LET);
+
+    if (ast->let.bind->ast_type == NECRO_CORE_AST_DATA_DECL && ast->let.bind->data_decl.ast_symbol->is_wrapper)
+    {
+        // return necro_core_ast_pre_simplify_go(context, ast->let.expr);
+        *ast = *necro_core_ast_pre_simplify_go(context, ast->let.expr);
+        return necro_core_ast_pre_simplify_inline_wrapper_types_maybe_null(context, ast);
+    }
+
+    // Rewrite let x = expr in x ==> exp
+    if (ast->let.expr != NULL && ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.expr->ast_type == NECRO_CORE_AST_VAR && ast->let.expr->var.ast_symbol == ast->let.bind->bind.ast_symbol && ast->let.bind->bind.initializer == NULL)
+    {
+        return necro_core_ast_pre_simplify_inline_wrapper_types_maybe_null(context, ast->let.bind->bind.expr);
+    }
+
+    // Rewrite let x = y in expr (using x) ==> expr (using y)
+    if (ast->let.expr != NULL && ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.bind->bind.expr->ast_type == NECRO_CORE_AST_VAR && !ast->let.bind->bind.expr->var.ast_symbol->is_constructor && ast->let.bind->bind.initializer == NULL &&
+        ast->let.bind->bind.expr->var.ast_symbol != context->base->prim_undefined->core_ast_symbol)
+    {
+        ast->let.bind->bind.ast_symbol->inline_ast = ast->let.bind->bind.expr;
+        return necro_core_ast_pre_simplify_inline_wrapper_types_maybe_null(context, ast->let.expr);
+    }
+
+    // Only remove AFTER lambda lift?
+    // Rewrite let f _ = ... in expr ==> expr
+    // if (ast->let.bind->ast_type == NECRO_CORE_AST_BIND && ast->let.bind->bind.expr->ast_type == NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.expr->ast_type != NECRO_CORE_AST_LAM && ast->let.bind->bind.expr->lambda.arg->var.ast_symbol->is_wildcard)
+    // {
+    //     return ast->let.expr;
+    // }
+
+    NecroCoreAst* bind = necro_core_ast_pre_simplify_go(context, ast->let.bind);
+    NecroCoreAst* expr = necro_core_ast_pre_simplify_go(context, ast->let.expr);
+    // if (bind == ast->let.bind && expr == ast->let.expr)
+    //     return necro_core_ast_pre_simplify_inline_wrapper_types(context, ast);
+    ast->let.bind      = bind;
+    ast->let.expr      = expr;
+    // NOTE: Playing with mutating lets. Naively returning a new let is O(n!) scaling, whereas mutating it brings it closer to O(n)
+    // NecroCoreAst* new_ast = necro_core_ast_create_let(context->arena, bind, expr);
+    // new_ast->necro_type   = expr == NULL ? NULL : expr->necro_type;
+    // return necro_core_ast_pre_simplify_inline_wrapper_types(context, new_ast);
+    if (ast->necro_type == NULL && ast->let.expr != NULL)
+        ast->necro_type = ast->let.expr->necro_type;
+    return necro_core_ast_pre_simplify_inline_wrapper_types_maybe_null(context, ast);
+}
+
+NecroCoreAst* necro_core_ast_pre_simplify_let_top(NecroCorePreSimplify* context, NecroCoreAst* ast)
+{
+    assert(context != NULL);
+    assert(ast->ast_type == NECRO_CORE_AST_LET);
+    NecroType*    top_type = necro_type_fresh_var(context->arena, NULL);
+    NecroCoreAst* top_let  = NULL;
+    NecroCoreAst* prev_let = NULL;
+    while (ast != NULL)
+    {
+        assert(ast->ast_type == NECRO_CORE_AST_LET);
+
+        // Non-let
+        if (ast->ast_type != NECRO_CORE_AST_LET)
+        {
+            assert(top_let != NULL);
+            assert(prev_let != NULL);
+            assert(prev_let->ast_type == NECRO_CORE_AST_LET);
+            prev_let->let.expr  = necro_core_ast_pre_simplify_go(context, ast);
+            top_type->var.bound = prev_let->let.expr->necro_type;
+            return top_let;
+        }
+
+        // Remove wrapper data types
+        if (ast->let.bind->ast_type == NECRO_CORE_AST_DATA_DECL && ast->let.bind->data_decl.ast_symbol->is_wrapper)
+        {
+            *ast = *necro_core_ast_pre_simplify_go(context, ast->let.expr);
+            continue;
+        }
+
+        // Go Deeper
+        ast->let.bind = necro_core_ast_pre_simplify_go(context, ast->let.bind);
+        ast->necro_type = top_type;
+        if (prev_let != NULL)
+        {
+            assert(prev_let->ast_type == NECRO_CORE_AST_LET);
+            prev_let->let.expr = ast;
+        }
+        prev_let = ast;
+        if (top_let == NULL)
+            top_let = ast;
+        ast = ast->let.expr;
+    }
+    assert(top_let != NULL);
+    return top_let;
+}
+
 NecroCoreAst* necro_core_ast_pre_simplify_go(NecroCorePreSimplify* context, NecroCoreAst* ast)
 {
     if (ast == NULL)
@@ -1272,7 +1319,8 @@ NecroType* necro_type_inline_wrapper_types(NecroPagedArena* arena, NecroBase* ba
 void necro_core_ast_pre_simplify(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena)
 {
     NecroCorePreSimplify context = (NecroCorePreSimplify) { .arena = &core_ast_arena->arena, .intern = intern, .base = base };
-    core_ast_arena->root = necro_core_ast_pre_simplify_go(&context, core_ast_arena->root);
+    // core_ast_arena->root = necro_core_ast_pre_simplify_go(&context, core_ast_arena->root);
+    core_ast_arena->root = necro_core_ast_pre_simplify_let_top(&context, core_ast_arena->root);
     unwrap(void, necro_core_infer(intern, base, core_ast_arena));
     if (info.compilation_phase == NECRO_PHASE_TRANSFORM_TO_MACHINE && info.verbosity > 0)
     {

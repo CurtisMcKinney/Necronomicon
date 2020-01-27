@@ -365,24 +365,24 @@ void necro_parse_test()
                             necro_parse_ast_create_decl(&ast.arena, zero_loc, zero_loc,
                                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "x"),
                                     necro_parse_ast_create_rhs(
-                                        &ast.arena, 
-                                        zero_loc, 
-                                        zero_loc, 
+                                        &ast.arena,
+                                        zero_loc,
+                                        zero_loc,
                                         necro_parse_ast_create_let(&ast.arena, zero_loc, zero_loc,
                                             necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "y"), NECRO_VAR_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
                                             necro_parse_ast_create_decl(&ast.arena, zero_loc, zero_loc,
                                                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "y"),
                                                     necro_parse_ast_create_rhs(
-                                                        &ast.arena, 
-                                                        zero_loc, 
-                                                        zero_loc, 
+                                                        &ast.arena,
+                                                        zero_loc,
+                                                        zero_loc,
                                                         necro_parse_ast_create_conid(
-                                                            &ast.arena, 
-                                                            zero_loc, 
-                                                            zero_loc, 
-                                                            necro_intern_string(&intern, "Nothing"), 
+                                                            &ast.arena,
+                                                            zero_loc,
+                                                            zero_loc,
+                                                            necro_intern_string(&intern, "Nothing"),
                                                             NECRO_CON_VAR
-                                                        ), 
+                                                        ),
                                                         null_local_ptr
                                                     ),
                                                     null_local_ptr
@@ -420,24 +420,24 @@ void necro_parse_test()
                             necro_parse_ast_create_decl(&ast.arena, zero_loc, zero_loc,
                                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "x"),
                                     necro_parse_ast_create_rhs(
-                                        &ast.arena, 
-                                        zero_loc, 
-                                        zero_loc, 
+                                        &ast.arena,
+                                        zero_loc,
+                                        zero_loc,
                                         necro_parse_ast_create_let(&ast.arena, zero_loc, zero_loc,
                                             necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "y"), NECRO_VAR_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
                                             necro_parse_ast_create_decl(&ast.arena, zero_loc, zero_loc,
                                                 necro_parse_ast_create_simple_assignment(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "y"),
                                                     necro_parse_ast_create_rhs(
-                                                        &ast.arena, 
-                                                        zero_loc, 
-                                                        zero_loc, 
+                                                        &ast.arena,
+                                                        zero_loc,
+                                                        zero_loc,
                                                         necro_parse_ast_create_conid(
-                                                            &ast.arena, 
-                                                            zero_loc, 
-                                                            zero_loc, 
-                                                            necro_intern_string(&intern, "Nothing"), 
+                                                            &ast.arena,
+                                                            zero_loc,
+                                                            zero_loc,
+                                                            necro_intern_string(&intern, "Nothing"),
                                                             NECRO_CON_VAR
-                                                        ), 
+                                                        ),
                                                         null_local_ptr
                                                     ),
                                                     null_local_ptr
@@ -1273,10 +1273,10 @@ void necro_parse_test()
     /* } */
     /*  */
 
-    {
-        puts("Parse {{{ child process parse_test:  starting...");
-        assert(NECRO_COMPILE_IN_CHILD_PROCESS("parse_test_lets.necro", "parse") == 0);
-        puts("Parse }}} child process parse_test:  passed\n");
-    }
+    // {
+    //     puts("Parse {{{ child process parse_test:  starting...");
+    //     assert(NECRO_COMPILE_IN_CHILD_PROCESS("parse_test_lets.necro", "parse") == 0);
+    //     puts("Parse }}} child process parse_test:  passed\n");
+    // }
 
 }

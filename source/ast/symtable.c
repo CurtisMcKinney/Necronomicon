@@ -183,6 +183,15 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
     input_node->scope = scoped_symtable->current_scope;
     switch (input_node->type)
     {
+    case NECRO_AST_TOP_DECL:
+        while (input_node != NULL)
+        {
+            input_node->scope = scoped_symtable->current_scope;
+            necro_build_scopes_go(scoped_symtable, input_node->top_declaration.declaration);
+            // necro_build_scopes_go(scoped_symtable, input_node->top_declaration.next_top_decl);
+            input_node        = input_node->top_declaration.next_top_decl;
+        }
+        break;
     case NECRO_AST_UNDEFINED:
         break;
     case NECRO_AST_CONSTANT:
@@ -197,10 +206,6 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->if_then_else.if_expr);
         necro_build_scopes_go(scoped_symtable, input_node->if_then_else.then_expr);
         necro_build_scopes_go(scoped_symtable, input_node->if_then_else.else_expr);
-        break;
-    case NECRO_AST_TOP_DECL:
-        necro_build_scopes_go(scoped_symtable, input_node->top_declaration.declaration);
-        necro_build_scopes_go(scoped_symtable, input_node->top_declaration.next_top_decl);
         break;
     case NECRO_AST_DECL:
         necro_build_scopes_go(scoped_symtable, input_node->declaration.declaration_impl);

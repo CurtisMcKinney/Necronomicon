@@ -17,19 +17,19 @@ testAssertion b w = primUndefined
 panic :: UInt -> UInt
 panic x = primUndefined
 
-boundsCheck :: Array n Char -> UInt -> UInt -> UInt
-boundsCheck str index capacity =
-  if index < capacity then index else
-    index
-    |> traceLn "bounds check FAILED:"
-    |> trace "| "
-    |> traceLn str
-    |> trace "| index:    "
-    |> traceLn index
-    |> trace "| capacity: "
-    |> traceLn capacity
-    |> traceLn " "
-    |> panic
+-- boundsCheck :: Array n Char -> UInt -> UInt -> UInt
+-- boundsCheck str index capacity =
+--   if index < capacity then index else
+--     index
+--     |> traceLn "bounds check FAILED:"
+--     |> trace "| "
+--     |> traceLn str
+--     |> trace "| index:    "
+--     |> traceLn index
+--     |> trace "| capacity: "
+--     |> traceLn capacity
+--     |> traceLn " "
+--     |> panic
 
 -- testAndPrintAssertion :: (Print a, Eq a) => a -> a -> *World -> *World
 -- testAndPrintAssertion x y w = testAssertion (x == y) <| printLn x w
@@ -830,7 +830,7 @@ iEEENumSignificandBits :: UInt
 iEEENumSignificandBits = 52
 
 iEEEExponentMask :: UInt
-iEEEExponentMask = bitShiftLeft (-1) iEEENumSignificandBits |> bitAnd (bitNot iEEESignMask) 
+iEEEExponentMask = bitShiftLeft (-1) iEEENumSignificandBits |> bitAnd (bitNot iEEESignMask)
 
 iEEEExponentMaskF :: F64
 iEEEExponentMaskF = fromBits iEEEExponentMask
@@ -839,7 +839,7 @@ iEEESignificandMask :: UInt
 iEEESignificandMask = bitAnd (-1) (bitNot (bitOr iEEEExponentMask iEEESignMask))
 
 iEEESignificandMaskF :: F64
-iEEESignificandMaskF = fromBits iEEESignificandMask 
+iEEESignificandMaskF = fromBits iEEESignificandMask
 
 allBits :: UInt
 allBits = -1
@@ -1208,13 +1208,13 @@ unsafePtrPoke index value ptr = primUndefined
 unsafePtrSwapElement :: UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
 unsafePtrSwapElement index element ptr = primUndefined
 
-unsafePtrPokeChecked :: Array n Char -> UInt -> UInt -> *a -> Ptr *a -> Ptr *a
-unsafePtrPokeChecked str capacity index value ptr =
-  unsafePtrPoke (boundsCheck str index capacity) value ptr
+-- unsafePtrPokeChecked :: Array n Char -> UInt -> UInt -> *a -> Ptr *a -> Ptr *a
+-- unsafePtrPokeChecked str capacity index value ptr =
+--   unsafePtrPoke (boundsCheck str index capacity) value ptr
 
-unsafePtrSwapElementChecked :: Array n Char -> UInt -> UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
-unsafePtrSwapElementChecked str capacity index element ptr =
-  unsafePtrSwapElement (boundsCheck str index capacity) element ptr
+-- unsafePtrSwapElementChecked :: Array n Char -> UInt -> UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
+-- unsafePtrSwapElementChecked str capacity index element ptr =
+--   unsafePtrSwapElement (boundsCheck str index capacity) element ptr
 
 -- TODO: Checked readArray and writeArray!
 
@@ -1279,13 +1279,13 @@ readArrayU i a = primUndefined
 writeArray :: Index n -> a -> *Array n a -> *Array n a
 writeArray i x a = primUndefined
 
-writeArrayChecked :: Array n Char -> UInt -> Index n -> a -> *Array n a -> *Array n a
-writeArrayChecked str capacity (Index i) x a =
-  writeArray (Index (boundsCheck str capacity i)) x a
+-- writeArrayChecked :: Array n Char -> UInt -> Index n -> a -> *Array n a -> *Array n a
+-- writeArrayChecked str capacity (Index i) x a =
+--   writeArray (Index (boundsCheck str capacity i)) x a
 
-readArrayChecked :: Array n Char -> UInt -> Index n -> Array n a -> a
-readArrayChecked str capacity (Index i) a =
-  readArray (Index (boundsCheck str capacity i)) a
+-- readArrayChecked :: Array n Char -> UInt -> Index n -> Array n a -> a
+-- readArrayChecked str capacity (Index i) a =
+--   readArray (Index (boundsCheck str capacity i)) a
 
 instance Default a => Default (Array n a) where
   default = arrayFrom default
@@ -1398,6 +1398,7 @@ audioInitArray u =
   snd' <| loop (#i, a#) = (#0, unsafeEmptyArray ()#) while i < audioSampleOffset do
     (#i + 1, writeArray (Index i) 0 a#)
 
+-- TODO: unroll loop?
 mapAudio :: (F64 -> F64) -> Audio -> Audio
 mapAudio f c =
   case c of
@@ -1411,6 +1412,7 @@ mapAudio f c =
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
 
+-- TODO: unroll loop?
 mapAudio2 :: (F64 -> F64 -> F64) -> Audio -> Audio -> Audio
 mapAudio2 f cx cy =
   case cx of
@@ -2236,11 +2238,11 @@ downsampleCoefficients =
 --   * Audible Aliasing Distortion in Digital Audio Synthesis
 --       https://www.researchgate.net/publication/268382833_Audible_Aliasing_Distortion_in_Digital_Audio_Synthesis
 
--- data OverSampleSawState = OverSampleSawState# F64 UInt (.Array 64 F64)
---
--- mkOverSampleSawState :: () -> *OverSampleSawState
--- mkOverSampleSawState _ = OverSampleSawState# 0 0 (arrayFrom 0)
---
+data OverSampleSawState = OverSampleSawState# F64 UInt (.Array 64 F64)
+
+mkOverSampleSawState :: () -> *OverSampleSawState
+mkOverSampleSawState _ = OverSampleSawState# 0 0 (arrayFrom 0)
+
 -- -- TODO: Replace FIR filter with IIR filter?
 -- -- Oversampling saw oscillator, with FIR downsampling
 -- accumulateSawFIR :: F64 -> *OverSampleSawState -> (#*OverSampleSawState, F64#)
@@ -2304,63 +2306,86 @@ instance Default OverSampleSawStateIIR where
 -- TODO: Port to using highShelf
 -- TODO: fneg
 
--- Brickwall filter constants
-ffreqBrickWall = 20000
-gainBrickWall  = -28
-slopeBrickWall = 1
-bigaBrickWall  = pow 10 (gainBrickWall / 40)
-omegaBrickWall = ffreqBrickWall * audioRecipOverSampleRate * tau
-csoBrickWall   = cosine omegaBrickWall
-alphaBrickWall = sine omegaBrickWall * 0.5 * sqrt (((bigaBrickWall + (1 / bigaBrickWall)) * ((1 / slopeBrickWall) - 1)) + 2)
-betaBrickWall  = 2 * sqrt bigaBrickWall * alphaBrickWall
+-- -- Brickwall filter constants
+-- ffreqBrickWall = 20000
+-- gainBrickWall  = -28
+-- slopeBrickWall = 1
+-- bigaBrickWall  = pow 10 (gainBrickWall / 40)
+-- omegaBrickWall = ffreqBrickWall * audioRecipOverSampleRate * tau
+-- csoBrickWall   = cosine omegaBrickWall
+-- alphaBrickWall = sine omegaBrickWall * 0.5 * sqrt (((bigaBrickWall + (1 / bigaBrickWall)) * ((1 / slopeBrickWall) - 1)) + 2)
+-- betaBrickWall  = 2 * sqrt bigaBrickWall * alphaBrickWall
 
--- Oversampling saw wave with IIR brickwall filter
--- TODO: Upsample frequency?!?!!?
-accumulateSaw :: F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
-accumulateSaw freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
-  (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
+-- -- Oversampling saw wave with IIR brickwall filter
+-- -- TODO: Upsample frequency?!?!!?
+-- accumulateSaw :: F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
+-- accumulateSaw freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
+--   (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
+--   where
+--     freqDelta = freq * audioRecipOverSampleRate
+--     b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
+--     b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
+--     b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
+--     a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
+--     a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
+--     a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
+--     ra0       = 1 / a0
+--     (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
+--       loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
+--         let
+--           phase1  = freqDelta + phase0
+--           in1     = fma (phase1 - floor phase1) 2 -1
+--           out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
+--           phase2  = freqDelta + phase1
+--           in2     = fma (phase2 - floor phase2) 2 -1
+--           out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
+--           phase3  = freqDelta + phase2
+--           in3     = fma (phase3 - floor phase3) 2 -1
+--           out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
+--           phase4  = freqDelta + phase3
+--           in4     = fma (phase4 - floor phase4) 2 -1
+--           out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
+--           phase5  = freqDelta + phase4
+--           in5     = fma (phase5 - floor phase5) 2 -1
+--           out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
+--           phase6  = freqDelta + phase5
+--           in6     = fma (phase6 - floor phase6) 2 -1
+--           out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
+--           phase7  = freqDelta + phase6
+--           in7     = fma (phase7 - floor phase7) 2 -1
+--           out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
+--           phase8  = freqDelta + phase7
+--           in8     = fma (phase8 - floor phase8) 2 -1
+--           out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
+--         in
+--           (#i + 8, phase8, in8, in7, out8, out7#)
+
+-- saw :: AudioFormat f => f Audio -> f Audio
+-- saw freq =
+--   accumulate1 accumulateSaw constTrue freq
+
+-----------
+-- eptr saw
+-- IMPROVED POLYNOMIAL TRANSITION REGIONS ALGORITHM FORALIAS-SUPPRESSED SIGNAL SYNTHESIS:
+--   http://home.mit.bme.hu/~bank/publist/smc13.pdf
+
+-- NOTE: Fix up the negative frequency case!
+accumulateSawEPTR :: F64 -> F64 -> (#F64, F64#)
+accumulateSawEPTR freq phase0 =
+  if phase1 > 1 - t then
+    let
+      out = phase1 - (phase1 / t) + (1 / t) - 1
+    in
+      (#phase1 - 2, out#)
+  else
+    (#phase1, phase1#)
   where
-    freqDelta = freq * audioRecipOverSampleRate
-    b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
-    b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
-    b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
-    a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
-    a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
-    a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
-    ra0       = 1 / a0
-    (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
-      loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
-        let
-          phase1  = freqDelta + phase0
-          in1     = fma (phase1 - floor phase1) 2 -1
-          out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
-          phase2  = freqDelta + phase1
-          in2     = fma (phase2 - floor phase2) 2 -1
-          out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
-          phase3  = freqDelta + phase2
-          in3     = fma (phase3 - floor phase3) 2 -1
-          out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
-          phase4  = freqDelta + phase3
-          in4     = fma (phase4 - floor phase4) 2 -1
-          out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
-          phase5  = freqDelta + phase4
-          in5     = fma (phase5 - floor phase5) 2 -1
-          out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
-          phase6  = freqDelta + phase5
-          in6     = fma (phase6 - floor phase6) 2 -1
-          out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
-          phase7  = freqDelta + phase6
-          in7     = fma (phase7 - floor phase7) 2 -1
-          out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
-          phase8  = freqDelta + phase7
-          in8     = fma (phase8 - floor phase8) 2 -1
-          out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
-        in
-          (#i + 8, phase8, in8, in7, out8, out7#)
+    t      = freq * recipSampleRate
+    phase1 = fma 2 t phase0
 
 saw :: AudioFormat f => f Audio -> f Audio
 saw freq =
-  accumulate1 accumulateSaw constTrue freq
+  accumulate1 accumulateSawEPTR constTrue freq
 
 -----------
 -- lfSaw
@@ -2428,58 +2453,96 @@ lfSaw freq =
 --           firResult  = firResult0 + firResult1 + firResult2 + firResult3 + firResult4 + firResult5 + firResult6 + firResult7 + firResult8
 --         in
 --           (#i + 8, bitAnd (di + 8) 63, d8, firResult#)
---
--- pulseFIR :: AudioFormat f => f Audio -> f Audio -> f Audio
--- pulseFIR width freq =
+
+-- pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
+-- pulse width freq =
 --   accumulate2U mkOverSampleSawState accumulatePulseFIR constTrue' width freq
 
 -----------
 -- Oversampling saw wave with IIR brickwall filter
-accumulatePulse :: F64 -> F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
-accumulatePulse width freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
-  (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
+
+-- accumulatePulse :: F64 -> F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
+-- accumulatePulse width freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
+--   (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
+--   where
+--     freqDelta = freq * audioRecipOverSampleRate
+--     b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
+--     b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
+--     b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
+--     a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
+--     a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
+--     a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
+--     ra0       = 1 / a0
+--     (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
+--       loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
+--         let
+--           phase1  = freqDelta + phase0
+--           in1     = fma (fromInt (boolToInt (gt width (phase1 - floor phase1)))) 2 -1
+--           out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
+--           phase2  = freqDelta + phase1
+--           in2     = fma (fromInt (boolToInt (gt width (phase2 - floor phase2)))) 2 -1
+--           out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
+--           phase3  = freqDelta + phase2
+--           in3     = fma (fromInt (boolToInt (gt width (phase3 - floor phase3)))) 2 -1
+--           out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
+--           phase4  = freqDelta + phase3
+--           in4     = fma (fromInt (boolToInt (gt width (phase4 - floor phase4)))) 2 -1
+--           out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
+--           phase5  = freqDelta + phase4
+--           in5     = fma (fromInt (boolToInt (gt width (phase5 - floor phase5)))) 2 -1
+--           out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
+--           phase6  = freqDelta + phase5
+--           in6     = fma (fromInt (boolToInt (gt width (phase6 - floor phase6)))) 2 -1
+--           out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
+--           phase7  = freqDelta + phase6
+--           in7     = fma (fromInt (boolToInt (gt width (phase7 - floor phase7)))) 2 -1
+--           out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
+--           phase8  = freqDelta + phase7
+--           in8     = fma (fromInt (boolToInt (gt width (phase8 - floor phase8)))) 2 -1
+--           out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
+--         in
+--           (#i + 8, phase8, in8, in7, out8, out7#)
+--
+-- pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
+-- pulse width freq =
+--   accumulate2 accumulatePulse constTrue width freq
+
+-----------
+-- eptr pulse
+-- IMPROVED POLYNOMIAL TRANSITION REGIONS ALGORITHM FORALIAS-SUPPRESSED SIGNAL SYNTHESIS:
+--   http://home.mit.bme.hu/~bank/publist/smc13.pdf
+
+data PulseState = PulseState# F64 UInt
+
+instance Default PulseState where
+  default = PulseState# -1 0
+
+generalizedCorrectEPT :: F64 -> F64 -> F64 -> F64
+generalizedCorrectEPT p t a =
+  p + ((-2 / (2 * a * t)) * p) + -1 + (4 / (4 * a * t))
+
+-- TODO / NOTE: variable width!
+-- TODO / NOTE: fixup negative frequency case
+accumulatePulseEPTR :: F64 -> F64 -> PulseState -> (#PulseState, F64#)
+accumulatePulseEPTR width freq (PulseState# phase0 dir) =
+  if dir == 0 then
+    if phase1 > 1 - t then
+      (#PulseState# (phase1 - 2) 1, generalizedCorrectEPT phase1 t 1#)
+    else
+      (#PulseState# phase1 0, 1#)
+  else
+    if phase1 > 1 - t then
+      (#PulseState# (phase1 - 2) 0, 0 - generalizedCorrectEPT phase1 t 1#)
+    else
+      (#PulseState# phase1 1, -1#)
   where
-    freqDelta = freq * audioRecipOverSampleRate
-    b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
-    b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
-    b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
-    a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
-    a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
-    a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
-    ra0       = 1 / a0
-    (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
-      loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
-        let
-          phase1  = freqDelta + phase0
-          in1     = fma (fromInt (boolToInt (gt width (phase1 - floor phase1)))) 2 -1
-          out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
-          phase2  = freqDelta + phase1
-          in2     = fma (fromInt (boolToInt (gt width (phase2 - floor phase2)))) 2 -1
-          out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
-          phase3  = freqDelta + phase2
-          in3     = fma (fromInt (boolToInt (gt width (phase3 - floor phase3)))) 2 -1
-          out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
-          phase4  = freqDelta + phase3
-          in4     = fma (fromInt (boolToInt (gt width (phase4 - floor phase4)))) 2 -1
-          out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
-          phase5  = freqDelta + phase4
-          in5     = fma (fromInt (boolToInt (gt width (phase5 - floor phase5)))) 2 -1
-          out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
-          phase6  = freqDelta + phase5
-          in6     = fma (fromInt (boolToInt (gt width (phase6 - floor phase6)))) 2 -1
-          out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
-          phase7  = freqDelta + phase6
-          in7     = fma (fromInt (boolToInt (gt width (phase7 - floor phase7)))) 2 -1
-          out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
-          phase8  = freqDelta + phase7
-          in8     = fma (fromInt (boolToInt (gt width (phase8 - floor phase8)))) 2 -1
-          out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
-        in
-          (#i + 8, phase8, in8, in7, out8, out7#)
+    t      = 2 * freq * recipSampleRate
+    phase1 = fma 2 t phase0
 
 pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
 pulse width freq =
-  accumulate2 accumulatePulse constTrue width freq
+  accumulate2 accumulatePulseEPTR constTrue width freq
+
 
 -----------
 -- lfPulse
@@ -2495,53 +2558,53 @@ lfPulse :: AudioFormat f => f Audio -> f Audio -> f Audio
 lfPulse width freq =
   accumulate2 accumulateLFPulse constTrue width freq
 
------------
--- Oversampling saw wave with IIR brickwall filter
-accumulateTri :: F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
-accumulateTri freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
-  (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
-  where
-    freqDelta = freq * audioRecipOverSampleRate
-    b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
-    b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
-    b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
-    a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
-    a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
-    a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
-    ra0       = 1 / a0
-    (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
-      loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
-        let
-          phase1  = freqDelta + phase0
-          in1     = fma (abs (fma (phase1 - floor phase1) 2 -1)) 2 -1
-          out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
-          phase2  = freqDelta + phase1
-          in2     = fma (abs (fma (phase2 - floor phase2) 2 -1)) 2 -1
-          out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
-          phase3  = freqDelta + phase2
-          in3     = fma (abs (fma (phase3 - floor phase3) 2 -1)) 2 -1
-          out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
-          phase4  = freqDelta + phase3
-          in4     = fma (abs (fma (phase4 - floor phase4) 2 -1)) 2 -1
-          out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
-          phase5  = freqDelta + phase4
-          in5     = fma (abs (fma (phase5 - floor phase5) 2 -1)) 2 -1
-          out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
-          phase6  = freqDelta + phase5
-          in6     = fma (abs (fma (phase6 - floor phase6) 2 -1)) 2 -1
-          out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
-          phase7  = freqDelta + phase6
-          in7     = fma (abs (fma (phase7 - floor phase7) 2 -1)) 2 -1
-          out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
-          phase8  = freqDelta + phase7
-          in8     = fma (abs (fma (phase8 - floor phase8) 2 -1)) 2 -1
-          out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
-        in
-          (#i + 8, phase8, in8, in7, out8, out7#)
-
-tri' :: AudioFormat f => f Audio -> f Audio
-tri' freq =
-  accumulate1 accumulateTri constTrue freq
+-- -----------
+-- -- Oversampling saw wave with IIR brickwall filter
+-- accumulateTri :: F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
+-- accumulateTri freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
+--   (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
+--   where
+--     freqDelta = freq * audioRecipOverSampleRate
+--     b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
+--     b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
+--     b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
+--     a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
+--     a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
+--     a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
+--     ra0       = 1 / a0
+--     (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
+--       loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
+--         let
+--           phase1  = freqDelta + phase0
+--           in1     = fma (abs (fma (phase1 - floor phase1) 2 -1)) 2 -1
+--           out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
+--           phase2  = freqDelta + phase1
+--           in2     = fma (abs (fma (phase2 - floor phase2) 2 -1)) 2 -1
+--           out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
+--           phase3  = freqDelta + phase2
+--           in3     = fma (abs (fma (phase3 - floor phase3) 2 -1)) 2 -1
+--           out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
+--           phase4  = freqDelta + phase3
+--           in4     = fma (abs (fma (phase4 - floor phase4) 2 -1)) 2 -1
+--           out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
+--           phase5  = freqDelta + phase4
+--           in5     = fma (abs (fma (phase5 - floor phase5) 2 -1)) 2 -1
+--           out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
+--           phase6  = freqDelta + phase5
+--           in6     = fma (abs (fma (phase6 - floor phase6) 2 -1)) 2 -1
+--           out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
+--           phase7  = freqDelta + phase6
+--           in7     = fma (abs (fma (phase7 - floor phase7) 2 -1)) 2 -1
+--           out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
+--           phase8  = freqDelta + phase7
+--           in8     = fma (abs (fma (phase8 - floor phase8) 2 -1)) 2 -1
+--           out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
+--         in
+--           (#i + 8, phase8, in8, in7, out8, out7#)
+--
+-- tri' :: AudioFormat f => f Audio -> f Audio
+-- tri' freq =
+--   accumulate1 accumulateTri constTrue freq
 
 -----------
 -- lfTri
@@ -3685,22 +3748,22 @@ data DynArray     a = DynArray# (.DynTier a) (.DynTier a)
 data DynTierIndex   = DynTierLow | DynTierHigh
 data DynArrayIndex  = DynArrayIndex# DynTierIndex UInt
 
-dynTierTrace :: *DynTier a -> *DynTier a
-dynTierTrace (DynTier# cap count hwm ptr) =
-  DynTier# cap count hwm ptr
-  |> trace "    DynTier { cap: "
-  |> trace cap
-  |> trace ", count: "
-  |> trace count
-  |> trace ", hwm: "
-  |> trace hwm
-  |> traceLn " }"
+-- dynTierTrace :: *DynTier a -> *DynTier a
+-- dynTierTrace (DynTier# cap count hwm ptr) =
+--   DynTier# cap count hwm ptr
+--   |> trace "    DynTier { cap: "
+--   |> trace cap
+--   |> trace ", count: "
+--   |> trace count
+--   |> trace ", hwm: "
+--   |> trace hwm
+--   |> traceLn " }"
 
-dynArrayTrace :: Array n Char -> *DynArray a -> *DynArray a
-dynArrayTrace opName (DynArray# low high) =
-  let low'  = dynTierTrace <| traceLn "  {" <| traceLn "  DynArray " <| traceLn opName low in
-  let high' = traceLn " " <| traceLn "  }" <| dynTierTrace high in
-  DynArray# low' high'
+-- dynArrayTrace :: Array n Char -> *DynArray a -> *DynArray a
+-- dynArrayTrace opName (DynArray# low high) =
+--   let low'  = dynTierTrace <| traceLn "  {" <| traceLn "  DynArray " <| traceLn opName low in
+--   let high' = traceLn " " <| traceLn "  }" <| dynTierTrace high in
+--   DynArray# low' high'
 
 dynArrayIndexEmpty :: DynArrayIndex
 dynArrayIndexEmpty = DynArrayIndex# DynTierLow 0
@@ -3720,21 +3783,21 @@ dynTierSwapToEndAndDelete index (DynTier# capacity count highWaterMark ptr) =
   else if index == (count - 1) then
     DynTier# capacity (count - 1) highWaterMark ptr
   else
-    case unsafePtrSwapElementChecked "dynTierSwapToEndAndDelete 1" capacity index primUndefined ptr of
+    case unsafePtrSwapElement index primUndefined ptr of
       (#indexElement, ptr2#) ->
-        case unsafePtrSwapElementChecked "dynTierSwapToEndAndDelete 2" capacity (count - 1) indexElement ptr2 of
+        case unsafePtrSwapElement (count - 1) indexElement ptr2 of
           (#endElement, ptr3#) ->
-            DynTier# capacity (count - 1) highWaterMark (unsafePtrPokeChecked "dynTierSwapToEndAndDelete 3" capacity index endElement ptr3)
+            DynTier# capacity (count - 1) highWaterMark (unsafePtrPoke index endElement ptr3)
 
 -- NOTE: This assumes that the tier is correctly sized!
 dynTierAppend :: *PolyThunk a -> *DynTier a -> *DynTier a
 dynTierAppend element (DynTier# capacity count highWaterMark ptr) =
   if highWaterMark > count then
-    case unsafePtrSwapElementChecked "dynTierAppend1" capacity count element ptr of
+    case unsafePtrSwapElement count element ptr of
       (#hwmElement, ptr'#) ->
-        DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynTierAppend2" capacity highWaterMark hwmElement ptr')
+        DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPoke highWaterMark hwmElement ptr')
   else
-    DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynTierAppend" capacity count element ptr)
+    DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPoke count element ptr)
 
   -- |> trace "dynTierAppend, capacity: "
   -- |> trace capacity
@@ -3745,11 +3808,11 @@ data DynTierPromotePopResult a = DynTierPromotePopEmpty | DynTierPromotePopLive 
 dynTierPromotePop :: *DynTier a -> (#*DynTierPromotePopResult a, *DynTier a#)
 dynTierPromotePop (DynTier# capacity count highWaterMark ptr) =
   if highWaterMark > 0 && highWaterMark > count && highWaterMark <= capacity then
-    case unsafePtrSwapElementChecked "dynTierPromotePop1" capacity (highWaterMark - 1) primUndefined ptr of
+    case unsafePtrSwapElement (highWaterMark - 1) primUndefined ptr of
       (#element, ptr'#) ->
         (#DynTierPromotePopInactive element, DynTier# capacity count (highWaterMark - 1) ptr'#)
   else if count > 0 && count <= capacity then
-    case unsafePtrSwapElementChecked "dynTierPromotePop2" capacity (count - 1) primUndefined ptr of
+    case unsafePtrSwapElement (count - 1) primUndefined ptr of
       (#element, ptr'#) ->
         (#DynTierPromotePopLive element, DynTier# capacity (count - 1) (count - 1) ptr'#)
   else
@@ -3765,12 +3828,12 @@ dynArrayPromoteElement (DynArray# low (DynTier# capacity count highWaterMark ptr
           DynArray# low' (DynTier# capacity count highWaterMark ptr)
 
         DynTierPromotePopInactive element ->
-          dynArrayTrace "PROMOTE INACTIVE: " <| DynArray# low' (DynTier# capacity count (highWaterMark + 1) (unsafePtrPokeChecked "dynArrayPromoteElement1" capacity highWaterMark element ptr))
+          DynArray# low' (DynTier# capacity count (highWaterMark + 1) (unsafePtrPoke highWaterMark element ptr))
 
         DynTierPromotePopLive element ->
-          case unsafePtrSwapElementChecked "dynArrayPromoteElement2" capacity count element ptr of
+          case unsafePtrSwapElement count element ptr of
             (#hwmElement, ptr'#) ->
-              dynArrayTrace "PROMOTE LIVE: " <| DynArray# low' (DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPokeChecked "dynArrayPromoteElement3" capacity highWaterMark hwmElement ptr'))
+              DynArray# low' (DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPoke highWaterMark hwmElement ptr'))
 
 -- NOTE: This assumes that the low tier has been completely moved to the high tier
 dynArrayResize :: *DynArray a -> *DynArray a
@@ -3784,7 +3847,6 @@ dynArrayResize (DynArray# (DynTier# lcap lcount lhwm lowPtr) (DynTier# highCapac
       newHigh = DynTier# newCap 0 0 (ptrRealloc newCap lowPtr)
     in
       DynArray# newLow newHigh
-      |> dynArrayTrace "GROW: "
 
 dynArrayAppend :: *PolyThunk a -> *DynArray a -> *DynArray a
 dynArrayAppend element (DynArray# low high) =
@@ -3795,9 +3857,9 @@ dynTierModifyElement index f (DynTier# capacity count highWaterMark ptr0) =
   if index >= count then
     DynTier# capacity count highWaterMark ptr0
   else
-    case unsafePtrSwapElementChecked "dynTierModifyElement 1" count index primUndefined ptr0 of
+    case unsafePtrSwapElement index primUndefined ptr0 of
       (#element, ptr1#) ->
-        DynTier# capacity count highWaterMark (unsafePtrPokeChecked "dynTierModifyElement 2" count index (f element) ptr1)
+        DynTier# capacity count highWaterMark (unsafePtrPoke index (f element) ptr1)
 
 data DynArrayResult a = DynArrayEnd | DynArrayNothing | DynArrayJust a
 
@@ -3806,11 +3868,11 @@ dynTierWithElement index f (DynTier# capacity count highWaterMark ptr0) =
   if index >= count then
     (#Nothing, DynTier# capacity count highWaterMark ptr0#)
   else
-    case unsafePtrSwapElementChecked "dynTierWithElement 1" count index primUndefined ptr0 of
+    case unsafePtrSwapElement index primUndefined ptr0 of
       (#element0, ptr1#) ->
         case f element0 of
           (#result, element1#) ->
-            (#Just result, DynTier# capacity count highWaterMark (unsafePtrPokeChecked "dynTierWithElement 2" count index element1 ptr1)#)
+            (#Just result, DynTier# capacity count highWaterMark (unsafePtrPoke index element1 ptr1)#)
 
 dynArrayWithElement :: DynArrayIndex -> (*PolyThunk a -> (#b, *PolyThunk a#)) -> *DynArray a -> (#DynArrayResult b, *DynArray a#)
 dynArrayWithElement (DynArrayIndex# tier index) f (DynArray# low high) =
@@ -3837,9 +3899,9 @@ dynArrayDelete (DynArrayIndex# tier index) (DynArray# low high) =
 dynArrayEmplaceOrAppend :: (*PolyThunk a -> *PolyThunk a) -> (() -> *PolyThunk a) -> *DynArray a -> *DynArray a
 dynArrayEmplaceOrAppend emplaceInit appendMk (DynArray# low (DynTier# highCapacity highCount highWaterMark highPtr)) =
   if highCount < highWaterMark then
-    dynArrayTrace "EMPLACE: " <| DynArray# low (dynTierModifyElement highCount emplaceInit <| DynTier# highCapacity (highCount + 1) highWaterMark highPtr)
+    DynArray# low (dynTierModifyElement highCount emplaceInit <| DynTier# highCapacity (highCount + 1) highWaterMark highPtr)
   else
-    dynArrayTrace "APPEND:  " <| dynArrayAppend (appendMk ()) (DynArray# low (DynTier# highCapacity highCount highWaterMark highPtr))
+    dynArrayAppend (appendMk ()) (DynArray# low (DynTier# highCapacity highCount highWaterMark highPtr))
 
 data DynArrayIterator a = DynArrayIterator# DynArrayIndex (.DynArray a)
 
@@ -3879,11 +3941,11 @@ dynArrayIteratorFree (DynArrayIterator# index array) =
           case tier of
             DynTierLow ->
               if lcount > 0 then
-                DynArrayIterator# index (dynArrayTrace "FREE: " <| DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
+                DynArrayIterator# index (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
               else
-                DynArrayIterator# (DynArrayIndex# DynTierHigh 0) (dynArrayTrace "FREE: " <| DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
+                DynArrayIterator# (DynArrayIndex# DynTierHigh 0) (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
             DynTierHigh ->
-              DynArrayIterator# index (dynArrayTrace "FREE: " <| DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
+              DynArrayIterator# index (DynArray# (DynTier# lcap lcount lhwm lptr) (DynTier# hcap hcount hhwm hptr))
 
 
 --------------------
@@ -4050,19 +4112,19 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --     |> print "signum -halfPi: "
 --     |> printLn (signum <| negate halfPi)
 --     |> print "floorToInt halfPi: "
---     |> printLn (floorToInt halfPi) 
+--     |> printLn (floorToInt halfPi)
 --     |> print "floorToInt -halfPi: "
 --     |> printLn (floorToInt <| negate halfPi)
 --     |> print "ceilToInt halfPi: "
---     |> printLn (ceilToInt halfPi) 
+--     |> printLn (ceilToInt halfPi)
 --     |> print "ceilToInt -halfPi: "
 --     |> printLn (ceilToInt <| negate halfPi)
 --     |> print "truncateToInt halfPi: "
---     |> printLn (truncateToInt halfPi) 
+--     |> printLn (truncateToInt halfPi)
 --     |> print "truncateToInt -halfPi: "
 --     |> printLn (truncateToInt <| negate halfPi)
 --     |> print "roundToInt halfPi: "
---     |> printLn (roundToInt halfPi) 
+--     |> printLn (roundToInt halfPi)
 --     |> print "roundToInt -halfPi: "
 --     |> printLn (roundToInt <| negate halfPi)
 
@@ -4075,7 +4137,7 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 -- roundToInt :: F64 -> Int
 
 -- testJit :: *World -> *World
--- testJit w = printLn "IEEE format=========================================" w 
+-- testJit w = printLn "IEEE format=========================================" w
 --           |> print "iEEESignMask"
 -- 		  |> print " -> "
 --           |> printLn iEEESignMask
@@ -4184,11 +4246,11 @@ oscTest f =
 
 -- testJit :: *World -> *World
 -- testJit w =
---   outAudio 0 (oscTest <| lfPulse 0.5) w
+--   outAudio 0 (lfPulse 0.5 |> oscTest) w
 
 -- testJit :: *World -> *World
 -- testJit w =
---   outAudio 0 (oscTest <| pulse 0.5) w
+--   outAudio 0 (pulse 0.5 |> oscTest) w
 
 -- testJit :: *World -> *World
 -- testJit w =
@@ -4208,9 +4270,9 @@ oscTest f =
 --   where
 --     a =
 --       saw 110
---       |> lpf (perc 10 1 4 5000 + 330) 0.1
+--       |> lpf (perc 10 1 4 5000 + 330) 0.075
 --       |> perc 5 5 -1
---       |> mul 0.15
+--       |> mul 0.2
 --       |> mixStereo
 
 -- testJit :: *World -> *World
@@ -4391,7 +4453,7 @@ oscTest f =
 --   outAudio 0 osc w
 --   where
 --     osc =
---       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 2000)
+--       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 300)
 --       |> pulse 0.5
 --       |> perc 5 20 -1
 --       |> mul 0.2

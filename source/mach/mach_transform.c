@@ -1211,16 +1211,16 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
         // Alloc Block
         necro_mach_block_move_to(program, outer->machine_def.update_fn, alloc_block);
         NecroMachAst* alloc_update_state = necro_mach_build_call(program, outer->machine_def.update_fn, poly_fn_machine->machine_def.mk_fn->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_LANG, "mk_fn_call");
-        necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) 'a'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
-        necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_build_bit_cast(program, outer->machine_def.update_fn, alloc_update_state, program->type_cache.word_uint_type), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
-        necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) '\n'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) 'a'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_build_bit_cast(program, outer->machine_def.update_fn, alloc_update_state, program->type_cache.word_uint_type), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) '\n'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
         necro_mach_build_break(program, outer->machine_def.update_fn, eval_block);
         //--------------------
         // Init Block
         necro_mach_block_move_to(program, outer->machine_def.update_fn, init_block);
-        necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) 'i'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
-        necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_build_bit_cast(program, outer->machine_def.update_fn, update_state, program->type_cache.word_uint_type), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
-        necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) '\n'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) 'i'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_build_bit_cast(program, outer->machine_def.update_fn, update_state, program->type_cache.word_uint_type), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) '\n'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
         necro_mach_build_call(program, outer->machine_def.update_fn, poly_fn_machine->machine_def.init_fn->fn_def.fn_value, (NecroMachAst*[1]) { update_state }, 1, NECRO_MACH_CALL_LANG, "init_fn_call");
         necro_mach_build_break(program, outer->machine_def.update_fn, eval_block);
         //--------------------
@@ -1246,7 +1246,6 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
     }
     if (!(poly_fn_arity == 1 || poly_fn_arity == 2))
     {
-        printf ("fuck me\n");
         assert(poly_fn_arity == 1 || poly_fn_arity == 2);
     }
     // else if (poly_fn_arity > 2)

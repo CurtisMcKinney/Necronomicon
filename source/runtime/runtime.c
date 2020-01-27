@@ -211,7 +211,7 @@ extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size)
     }
     uint8_t* data    = necro_heap.data + necro_heap.bump;
     necro_heap.bump += size;
-    printf("Alloc: %zu bytes, total: %fmb\n\n", size, (((double)necro_heap.bump) / 1000000.0));
+    // printf("Alloc: %zu bytes, total: %fmb\n\n", size, (((double)necro_heap.bump) / 1000000.0));
     return data;
 }
 
@@ -220,7 +220,7 @@ extern DLLEXPORT uint8_t* necro_runtime_realloc(uint8_t* ptr, size_t size)
     // printf("necro_runtime_realloc, ptr: %p, size: %zu\n\n", ptr, size);
     // return realloc(ptr, size);
     necro_runtime_free(ptr);
-    printf("REALLOC\n");
+    // printf("REALLOC\n");
     return necro_runtime_alloc(size);
 }
 
@@ -322,11 +322,19 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
     if (pa_error != paNoError) return necro_runtime_audio_error(Pa_GetErrorText(pa_error));
     //--------------------
     // NRT Update
-    const long check_if_done_time_ms = 10;
+    size_t     cpu_check             = 0;
+    const long check_if_done_time_ms = 20;
     while (!necro_runtime_is_done())
     {
         // TODO: Need to synchronize this (lockless) with rt thread!
         necro_runtime_update();
+        double cpu_load = Pa_GetStreamCpuLoad(necro_runtime_audio_pa_stream);
+        if (cpu_check > 9)
+        {
+            printf("  cpu: %.2f%%  mem: %.2fmb\r", cpu_load * 100.0, (((double)necro_heap.bump) / 1000000.0));
+            cpu_check = 0;
+        }
+        cpu_check++;
         Pa_Sleep(check_if_done_time_ms);
         // necro_runtime_sleep(check_if_done_time_ms);
     }

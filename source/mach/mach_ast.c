@@ -827,10 +827,7 @@ struct NecroMachSwitchTerminator* necro_mach_build_switch(NecroMachProgram* prog
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACH_FN_DEF);
     assert(choice_val != NULL);
-    if (program->word_size == NECRO_WORD_4_BYTES)
-        assert(choice_val->necro_machine_type->type == NECRO_MACH_TYPE_UINT32);
-    else
-        assert(choice_val->necro_machine_type->type == NECRO_MACH_TYPE_UINT64);
+    assert(choice_val->necro_machine_type->type == NECRO_MACH_TYPE_UINT64);
     fn_def->fn_def._curr_block->block.terminator                               = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachTerminator));
     fn_def->fn_def._curr_block->block.terminator->type                         = NECRO_MACH_TERM_SWITCH;
     fn_def->fn_def._curr_block->block.terminator->switch_terminator.choice_val = choice_val;
@@ -1103,21 +1100,21 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
 	case NECRO_PRIMOP_UOP_FTOB:
 	{
         necro_mach_type_check_is_float_type(param->necro_machine_type);
-        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_F64 ? program->type_cache.uint64_type : program->type_cache.word_uint_type;
+        ast->necro_machine_type = program->type_cache.uint64_type;
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
 		break;
 	}
 	case NECRO_PRIMOP_UOP_FFRB:
 	{
         necro_mach_type_check_is_uint_type(param->necro_machine_type);
-        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_UINT64 ? program->type_cache.f64_type : program->type_cache.word_float_type;
+        ast->necro_machine_type = program->type_cache.f64_type;
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
 		break;
 	}
     case NECRO_PRIMOP_UOP_ITOU:
     {
         necro_mach_type_check_is_int_type(param->necro_machine_type);
-        ast->necro_machine_type = program->type_cache.word_uint_type;
+        ast->necro_machine_type = program->type_cache.uint64_type;
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
@@ -1131,28 +1128,28 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
     case NECRO_PRIMOP_UOP_UTOI:
     {
         necro_mach_type_check_is_uint_type(param->necro_machine_type);
-        ast->necro_machine_type = program->type_cache.word_int_type;
+        ast->necro_machine_type = program->type_cache.int64_type;
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
     case NECRO_PRIMOP_UOP_FTRI:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
-        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_F64 ? program->type_cache.int64_type : program->type_cache.word_int_type;
+        ast->necro_machine_type = program->type_cache.int64_type;
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
     case NECRO_PRIMOP_UOP_FTRU:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
-        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_F64 ? program->type_cache.uint64_type : program->type_cache.word_uint_type;
+        ast->necro_machine_type = program->type_cache.uint64_type;
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
     case NECRO_PRIMOP_UOP_FRNI:
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
-        ast->necro_machine_type = param->necro_machine_type->type == NECRO_MACH_TYPE_F64 ? program->type_cache.int64_type : program->type_cache.word_int_type;
+        ast->necro_machine_type = program->type_cache.int64_type;
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
@@ -1421,15 +1418,6 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroAstSymbol*     int_type_ast_symbol  = program->base->int_type;
         int_type_ast_symbol->is_primitive        = true;
         NecroMachAstSymbol* int_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, int_type_ast_symbol->core_ast_symbol);
-        int_type_mach_symbol->mach_type          = necro_mach_type_create_word_sized_int(program);
-        int_type_mach_symbol->is_primitive       = true;
-    }
-
-    // I64
-    {
-        NecroAstSymbol*     int_type_ast_symbol  = program->base->int64_type;
-        int_type_ast_symbol->is_primitive        = true;
-        NecroMachAstSymbol* int_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, int_type_ast_symbol->core_ast_symbol);
         int_type_mach_symbol->mach_type          = necro_mach_type_create_int64(program);
         int_type_mach_symbol->is_primitive       = true;
     }
@@ -1440,22 +1428,13 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroAstSymbol*     uint_type_ast_symbol  = program->base->uint_type;
         uint_type_ast_symbol->is_primitive        = true;
         NecroMachAstSymbol* uint_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, uint_type_ast_symbol->core_ast_symbol);
-        uint_type_mach_symbol->mach_type          = necro_mach_type_create_word_sized_uint(program);
+        uint_type_mach_symbol->mach_type          = necro_mach_type_create_uint64(program);
         uint_type_mach_symbol->is_primitive       = true;
     }
 
     // Float
     {
         NecroAstSymbol*     float_type_ast_symbol  = program->base->float_type;
-        float_type_ast_symbol->is_primitive        = true;
-        NecroMachAstSymbol* float_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, float_type_ast_symbol->core_ast_symbol);
-        float_type_mach_symbol->mach_type          = necro_mach_type_create_word_sized_float(program);
-        float_type_mach_symbol->is_primitive       = true;
-    }
-
-    // F64
-    {
-        NecroAstSymbol*     float_type_ast_symbol  = program->base->float64_type;
         float_type_ast_symbol->is_primitive        = true;
         NecroMachAstSymbol* float_type_mach_symbol = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, float_type_ast_symbol->core_ast_symbol);
         float_type_mach_symbol->mach_type          = necro_mach_type_create_f64(program);
@@ -1519,7 +1498,7 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         ast_symbol->core_ast_symbol->is_primitive  = true;
         NecroMachAstSymbol* mach_symbol            = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
         mach_symbol->is_primitive                  = true;
-        NecroMachType*      fn_type                = necro_mach_type_create_fn(&program->arena, program->type_cache.word_int_type, (NecroMachType*[]){program->type_cache.word_uint_type}, 1);
+        NecroMachType*      fn_type                = necro_mach_type_create_fn(&program->arena, program->type_cache.int64_type, (NecroMachType*[]){program->type_cache.word_uint_type}, 1);
         program->runtime.necro_runtime_get_mouse_x = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_get_mouse_x, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
@@ -1530,7 +1509,7 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         ast_symbol->core_ast_symbol->is_primitive  = true;
         NecroMachAstSymbol* mach_symbol            = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
         mach_symbol->is_primitive                  = true;
-        NecroMachType*      fn_type                = necro_mach_type_create_fn(&program->arena, program->type_cache.word_int_type, (NecroMachType*[]){program->type_cache.word_uint_type}, 1);
+        NecroMachType*      fn_type                = necro_mach_type_create_fn(&program->arena, program->type_cache.int64_type, (NecroMachType*[]){program->type_cache.word_uint_type}, 1);
         program->runtime.necro_runtime_get_mouse_y = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_get_mouse_y, NECRO_STATE_POINTWISE)->fn_def.symbol;
     }
 
@@ -1580,21 +1559,7 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
         mach_symbol->is_primitive                 = true;
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_int_type, program->type_cache.word_uint_type }, 2);
-        if (program->word_size == NECRO_WORD_4_BYTES)
-            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_i32, NECRO_STATE_POINTWISE);
-        else
-            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_i64, NECRO_STATE_POINTWISE);
-    }
-
-    // necro_runtime_print_i64
-    {
-        NecroAstSymbol*     ast_symbol            = program->base->print_i64;
-        ast_symbol->is_primitive                  = true;
-        ast_symbol->core_ast_symbol->is_primitive = true;
-        NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
-        mach_symbol->is_primitive                 = true;
-        NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.int64_type, program->type_cache.word_uint_type }, 2);
-        program->runtime.necro_print_i64          = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_print_i64, NECRO_STATE_POINTWISE)->fn_def.symbol;
+        necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_i64, NECRO_STATE_POINTWISE);
     }
 
     // necro_runtime_print_uint
@@ -1605,29 +1570,12 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
         mach_symbol->is_primitive                 = true;
         NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_uint_type, program->type_cache.word_uint_type }, 2);
-        if (program->word_size == NECRO_WORD_4_BYTES)
-            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_u32, NECRO_STATE_POINTWISE);
-        else
-            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_u64, NECRO_STATE_POINTWISE);
+        necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_u64, NECRO_STATE_POINTWISE);
     }
 
     // necro_runtime_print_float
     {
         NecroAstSymbol*     ast_symbol            = program->base->print_float;
-        ast_symbol->is_primitive                  = true;
-        ast_symbol->core_ast_symbol->is_primitive = true;
-        NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
-        mach_symbol->is_primitive                 = true;
-        NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_float_type, program->type_cache.word_uint_type }, 2);
-        if (program->word_size == NECRO_WORD_4_BYTES)
-            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_f32, NECRO_STATE_POINTWISE);
-        else
-            necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr)necro_runtime_print_f64, NECRO_STATE_POINTWISE);
-    }
-
-    // necro_runtime_print_f64
-    {
-        NecroAstSymbol*     ast_symbol            = program->base->print_f64;
         ast_symbol->is_primitive                  = true;
         ast_symbol->core_ast_symbol->is_primitive = true;
         NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
@@ -1745,9 +1693,9 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         mach_symbol->is_primitive                 = true;
     }
 
-    // sinh_f64
+    // sinh_float
     {
-        NecroAstSymbol*     ast_symbol            = program->base->sinh_f64;
+        NecroAstSymbol*     ast_symbol            = program->base->sinh_float;
         ast_symbol->is_primitive                  = true;
         ast_symbol->core_ast_symbol->is_primitive = true;
         NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);

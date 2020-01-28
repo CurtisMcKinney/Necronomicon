@@ -102,7 +102,6 @@ typedef struct NecroMachTypeCache
     NecroMachType*            void_type;
     NecroMachType*            word_uint_type;
     NecroMachType*            word_int_type;
-    NecroMachType*            word_float_type;
     NecroMachTypeCacheBucket* buckets;
     size_t                    count;
     size_t                    capacity;
@@ -113,7 +112,6 @@ typedef struct NecroMachTypeCache
 //--------------------
 NecroMachType*     necro_mach_type_create_word_sized_uint(struct NecroMachProgram* program);
 NecroMachType*     necro_mach_type_create_word_sized_int(struct NecroMachProgram* program);
-NecroMachType*     necro_mach_type_create_word_sized_float(struct NecroMachProgram* program);
 NecroMachType*     necro_mach_type_create_uint1(struct NecroMachProgram* program);
 NecroMachType*     necro_mach_type_create_uint8(struct NecroMachProgram* program);
 NecroMachType*     necro_mach_type_create_uint16(struct NecroMachProgram* program);

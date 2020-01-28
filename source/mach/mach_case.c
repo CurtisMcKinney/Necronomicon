@@ -1009,7 +1009,7 @@ NecroMachAst* necro_decision_tree_to_mach(NecroMachProgram* program, NecroDecisi
                     Bit casting uint, int, and float into uint to do a straight up bit comparison.
                     This is fine for uint and int, doing this with float can lead to "fun".
             */
-            NecroMachAst*              value        = necro_mach_build_maybe_bit_cast(program, outer->machine_def.update_fn, tree->tree_lit_switch.pattern->value_ast, program->type_cache.word_uint_type);
+            NecroMachAst*              value        = necro_mach_build_maybe_bit_cast(program, outer->machine_def.update_fn, tree->tree_lit_switch.pattern->value_ast, program->type_cache.uint64_type);
             NecroMachSwitchTerminator* switch_value = necro_mach_build_switch(program, outer->machine_def.update_fn, value, NULL, error_block);
             for (size_t i = 0; i < tree->tree_lit_switch.num_cases; ++i)
             {

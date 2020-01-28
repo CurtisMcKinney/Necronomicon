@@ -31,7 +31,6 @@ NecroMachTypeCache necro_mach_type_cache_empty()
         .void_type       = NULL,
         .word_uint_type  = NULL,
         .word_int_type   = NULL,
-        .word_float_type = NULL,
         .buckets         = NULL,
         .count           = 0,
         .capacity        = 0,
@@ -55,7 +54,6 @@ NecroMachTypeCache necro_mach_type_cache_create(NecroMachProgram* program)
     program->type_cache.void_type       = necro_mach_type_create_void(program),
     program->type_cache.word_uint_type  = necro_mach_type_create_word_sized_uint(program);
     program->type_cache.word_int_type   = necro_mach_type_create_word_sized_int(program);
-    program->type_cache.word_float_type = necro_mach_type_create_word_sized_float(program);
     // Init Table
     const size_t initial_capacity       = 1024;
     program->type_cache.buckets         = emalloc(initial_capacity * sizeof(NecroMachTypeCacheBucket));
@@ -258,16 +256,6 @@ NecroMachType* necro_mach_type_create_word_sized_int(NecroMachProgram* program)
     return type;
 }
 
-NecroMachType* necro_mach_type_create_word_sized_float(NecroMachProgram* program)
-{
-    if (program->type_cache.word_float_type != NULL)
-       return program->type_cache.word_float_type;
-    NecroMachType* type                 = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachType));
-    type->type                          = (program->word_size == NECRO_WORD_4_BYTES) ? NECRO_MACH_TYPE_F32 : NECRO_MACH_TYPE_F64;
-    program->type_cache.word_float_type = type;
-    return type;
-}
-
 NecroMachType* necro_mach_type_create_uint1(NecroMachProgram* program)
 {
     if (program->type_cache.uint1_type != NULL)
@@ -434,7 +422,6 @@ NecroMachType* necro_mach_type_create_array(NecroPagedArena* arena, NecroMachTyp
 bool necro_mach_type_is_unboxed(struct NecroMachProgram* program, NecroMachType* type)
 {
     return type->type == program->type_cache.word_int_type->type
-        || type->type == program->type_cache.word_float_type->type
         || type->type == program->type_cache.word_uint_type->type
         || type->type == program->type_cache.int32_type->type
         || type->type == program->type_cache.f32_type->type

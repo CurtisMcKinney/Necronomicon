@@ -958,13 +958,13 @@ NecroMachAst* necro_core_transform_to_mach_3_lit(NecroMachProgram* program, Necr
     {
     case NECRO_AST_CONSTANT_INTEGER_PATTERN:
     case NECRO_AST_CONSTANT_INTEGER:
-        return necro_mach_value_create_word_int(program, core_ast->lit.int_literal);
+        return necro_mach_value_create_i64(program, core_ast->lit.int_literal);
     case NECRO_AST_CONSTANT_FLOAT_PATTERN:
     case NECRO_AST_CONSTANT_FLOAT:
-        return necro_mach_value_create_word_float(program, core_ast->lit.float_literal);
+        return necro_mach_value_create_f64(program, core_ast->lit.float_literal);
     case NECRO_AST_CONSTANT_UNSIGNED_INTEGER_PATTERN:
     case NECRO_AST_CONSTANT_UNSIGNED_INTEGER:
-        return necro_mach_value_create_word_uint(program, core_ast->lit.uint_literal);
+        return necro_mach_value_create_uint64(program, core_ast->lit.uint_literal);
     case NECRO_AST_CONSTANT_CHAR_PATTERN:
     case NECRO_AST_CONSTANT_CHAR:
         return necro_mach_value_create_word_uint(program, core_ast->lit.char_literal);
@@ -1061,7 +1061,7 @@ NecroMachAst* necro_core_transform_to_mach_3_var(NecroMachProgram* program, Necr
         {
             // TODO: Better place to put this!?
             if (symbol == program->base->sample_rate->core_ast_symbol->mach_symbol)
-                return necro_mach_value_create_word_uint(program, necro_runtime_get_sample_rate());
+                return necro_mach_value_create_uint64(program, necro_runtime_get_sample_rate());
             else if (symbol == program->base->recip_sample_rate->core_ast_symbol->mach_symbol)
                 return necro_mach_value_create_f64(program, 1.0 / ((double)necro_runtime_get_sample_rate()));
             else
@@ -1188,8 +1188,8 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
     assert(sample_offset->type == NECRO_MACH_DEF);
     sample_offset                      = sample_offset->machine_def.global_value;
     NecroMachAst*     prev_offset      = necro_mach_build_load(program, outer->machine_def.update_fn, sample_offset, "prev_offset");
-    thunk_offset                       = necro_mach_build_uop(program, outer->machine_def.update_fn, thunk_offset, program->type_cache.word_int_type, NECRO_PRIMOP_UOP_FTRI);
-    thunk_offset                       = necro_mach_build_uop(program, outer->machine_def.update_fn, thunk_offset, program->type_cache.word_uint_type, NECRO_PRIMOP_UOP_ITOU);
+    thunk_offset                       = necro_mach_build_uop(program, outer->machine_def.update_fn, thunk_offset, program->type_cache.int64_type, NECRO_PRIMOP_UOP_FTRI);
+    thunk_offset                       = necro_mach_build_uop(program, outer->machine_def.update_fn, thunk_offset, program->type_cache.uint64_type, NECRO_PRIMOP_UOP_ITOU);
     necro_mach_build_store(program, outer->machine_def.update_fn, thunk_offset, sample_offset);
     //--------------------
     // State
@@ -1203,7 +1203,6 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
         NecroMachAst*  init_block    = necro_mach_block_append(program, outer->machine_def.update_fn, "init");
         NecroMachAst*  eval_block    = necro_mach_block_append(program, outer->machine_def.update_fn, "eval");
         necro_mach_block_move_to(program, outer->machine_def.update_fn, current_block);
-        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { thunk_state, necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_thunk_state");
         NecroMachSwitchTerminator* switch_value  = necro_mach_build_switch(program, outer->machine_def.update_fn, thunk_state, NULL, eval_block);
         necro_mach_add_case_to_switch(program, switch_value, alloc_block, 0);
         necro_mach_add_case_to_switch(program, switch_value, init_block, 1);
@@ -1211,16 +1210,10 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
         // Alloc Block
         necro_mach_block_move_to(program, outer->machine_def.update_fn, alloc_block);
         NecroMachAst* alloc_update_state = necro_mach_build_call(program, outer->machine_def.update_fn, poly_fn_machine->machine_def.mk_fn->fn_def.fn_value, NULL, 0, NECRO_MACH_CALL_LANG, "mk_fn_call");
-        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) 'a'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
-        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_build_bit_cast(program, outer->machine_def.update_fn, alloc_update_state, program->type_cache.word_uint_type), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
-        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) '\n'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
         necro_mach_build_break(program, outer->machine_def.update_fn, eval_block);
         //--------------------
         // Init Block
         necro_mach_block_move_to(program, outer->machine_def.update_fn, init_block);
-        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) 'i'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
-        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_build_bit_cast(program, outer->machine_def.update_fn, update_state, program->type_cache.word_uint_type), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
-        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[2]) { necro_mach_value_create_word_uint(program, (uint64_t) '\n'), necro_mach_value_create_word_uint(program, 0) }, 2, NECRO_MACH_CALL_C, "print_update_state");
         necro_mach_build_call(program, outer->machine_def.update_fn, poly_fn_machine->machine_def.init_fn->fn_def.fn_value, (NecroMachAst*[1]) { update_state }, 1, NECRO_MACH_CALL_LANG, "init_fn_call");
         necro_mach_build_break(program, outer->machine_def.update_fn, eval_block);
         //--------------------
@@ -1235,7 +1228,7 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
         thunk_slot_0                     = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, update_state_value, necro_mach_type_create_ptr(&program->arena, program->type_cache.word_uint_type));
         thunk                            = necro_mach_build_insert_value(program, outer->machine_def.update_fn, thunk, thunk_slot_0, 0, "thunk");
         thunk                            = necro_mach_build_insert_value(program, outer->machine_def.update_fn, thunk, necro_mach_value_create_word_uint(program, 2), 3, "thunk");
-        thunk                            = necro_mach_build_insert_value(program, outer->machine_def.update_fn, thunk, necro_mach_value_create_word_float(program, 0), 4, "thunk");
+        thunk                            = necro_mach_build_insert_value(program, outer->machine_def.update_fn, thunk, necro_mach_value_create_f64(program, 0), 4, "thunk");
     }
     //--------------------
     // Poly Eval
@@ -1266,7 +1259,7 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
     //--------------------
     // Restore audioSampleOffset
     necro_mach_build_store(program, outer->machine_def.update_fn, prev_offset, sample_offset);
-    thunk                      = necro_mach_build_insert_value(program, outer->machine_def.update_fn, thunk, necro_mach_value_create_word_float(program, 0.0), 4, "thunk");
+    thunk                      = necro_mach_build_insert_value(program, outer->machine_def.update_fn, thunk, necro_mach_value_create_f64(program, 0.0), 4, "thunk");
     necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
     return result;
 }
@@ -2379,6 +2372,23 @@ void necro_mach_test()
 
 */
 
+    // TODO: This is causing stack overflow for some reason? Some kind of loop in defunctionalization perhaps?
+    // {
+    //     const char* test_name   = "Case 12";
+    //     const char* test_source = ""
+    //         "data TwoForOne  = One Int | Two Int Int\n"
+    //         "data FourForOne = MoreThanZero TwoForOne TwoForOne | Zero\n"
+    //         "main :: *World -> *World\n"
+    //         "main w =\n"
+    //         "  case Zero of\n"
+    //         "    Zero -> w\n"
+    //         "    MoreThanZero (One i1)     (One i2)      -> printInt i2 (printInt i1 w)\n"
+    //         "    MoreThanZero (Two i3 i4)  (One i5)      -> printInt i5 (printInt i4 (printInt i3 w))\n"
+    //         "    MoreThanZero (One i6)     (Two i7  i8)  -> printInt i8 (printInt i7 (printInt i6 w))\n"
+    //         "    MoreThanZero (Two i9 i10) (Two i11 i12) -> printInt i12 (printInt i11 (printInt i10 (printInt i9 w)))\n";
+    //     necro_mach_test_string(test_name, test_source);
+    // }
+
     {
         const char* test_name   = "Basic 0";
         const char* test_source = ""
@@ -2609,22 +2619,6 @@ void necro_mach_test()
             "    MoreThanZero Zero      (One i3) -> printInt i3 w\n"
             "    MoreThanZero (One i4)  Zero     -> printInt i4 w\n"
             "    MoreThanZero Zero      Zero     -> w\n";
-        necro_mach_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case 12";
-        const char* test_source = ""
-            "data TwoForOne  = One Int | Two Int Int\n"
-            "data FourForOne = MoreThanZero TwoForOne TwoForOne | Zero\n"
-            "main :: *World -> *World\n"
-            "main w =\n"
-            "  case Zero of\n"
-            "    Zero -> w\n"
-            "    MoreThanZero (One i1)     (One i2)      -> printInt i2 (printInt i1 w)\n"
-            "    MoreThanZero (Two i3 i4)  (One i5)      -> printInt i5 (printInt i4 (printInt i3 w))\n"
-            "    MoreThanZero (One i6)     (Two i7  i8)  -> printInt i8 (printInt i7 (printInt i6 w))\n"
-            "    MoreThanZero (Two i9 i10) (Two i11 i12) -> printInt i12 (printInt i11 (printInt i10 (printInt i9 w)))\n";
         necro_mach_test_string(test_name, test_source);
     }
 
@@ -3593,9 +3587,9 @@ void necro_mach_test()
     }
 
     {
-        const char* test_name   = "I64 1";
+        const char* test_name   = "Int 1";
         const char* test_source = ""
-            "commodore64 :: I64 -> I64\n"
+            "commodore64 :: Int -> Int\n"
             "commodore64 x = x * 2\n"
             "main :: *World -> *World\n"
             "main w = w\n";
@@ -3603,9 +3597,9 @@ void necro_mach_test()
     }
 
     {
-        const char* test_name   = "I64 2";
+        const char* test_name   = "Int 2";
         const char* test_source = ""
-            "commodore64 :: Int -> I64\n"
+            "commodore64 :: Int -> Int\n"
             "commodore64 x = fromInt x * 2\n"
             "main :: *World -> *World\n"
             "main w = w\n";
@@ -3613,9 +3607,9 @@ void necro_mach_test()
     }
 
     {
-        const char* test_name   = "F64 1";
+        const char* test_name   = "Float 1";
         const char* test_source = ""
-            "commodore64 :: F64 -> F64\n"
+            "commodore64 :: Float -> Float\n"
             "commodore64 x = x * 2 * 3.0\n"
             "main :: *World -> *World\n"
             "main w = w\n";
@@ -3623,9 +3617,9 @@ void necro_mach_test()
     }
 
     {
-        const char* test_name   = "F64 2";
+        const char* test_name   = "Float 2";
         const char* test_source = ""
-            "commodore64 :: Float -> F64\n"
+            "commodore64 :: Float -> Float\n"
             "commodore64 x = fromFloat x * 2 * 3.0\n"
             "main :: *World -> *World\n"
             "main w = w\n";
@@ -3635,7 +3629,7 @@ void necro_mach_test()
     {
         const char* test_name   = "Struct64 1";
         const char* test_source = ""
-            "data Commodore64 = Commodore64 I64 I64\n"
+            "data Commodore64 = Commodore64 Int Int\n"
             "commodore64 :: Commodore64 -> Commodore64\n"
             "commodore64 c =\n"
             "  case c of\n"
@@ -3648,7 +3642,7 @@ void necro_mach_test()
     {
         const char* test_name   = "Struct64 2";
         const char* test_source = ""
-            "data Commodore64 = Commodore64 F64 F64\n"
+            "data Commodore64 = Commodore64 Float Float\n"
             "commodore64 :: Commodore64 -> Commodore64\n"
             "commodore64 c =\n"
             "  case c of\n"

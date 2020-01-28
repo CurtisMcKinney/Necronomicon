@@ -1848,7 +1848,7 @@ void necro_core_ast_pre_simplify_test()
     {
         const char* test_name   = "Bifurcated";
         const char* test_source = ""
-            "bifurcated :: Array 16 F64\n"
+            "bifurcated :: Array 16 Float\n"
             "bifurcated = freezeArray a\n"
             "  where\n"
             "    emptyA = unsafeEmptyArray ()\n"

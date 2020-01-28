@@ -252,42 +252,42 @@ class Floating a => Trig a where
 -- Trig Approximation Functions
 ----------------------------------------
 
--- How to deal with Float maybe 64 vs 32 bit?
-tanF32 :: F64 -> F64
-tanF32 n = tanResult
-  where
-    x = rem n twoPi
-    octant = floor <| (x * fourOverPi)
-    -- HACK -> Need to be able to convert from Float to
-    octantInt = if octant < 1 then 0
-      else if octant < 2 then 1
-      else if octant < 3 then 2
-      else if octant < 4 then 3
-      else if octant < 5 then 4
-      else if octant < 6 then 5
-      else if octant < 7 then 6
-      else 7
-    -- Accurate to about 8.2 decimal digits over the range (0, pi/4)
-    -- This computes tan (pi * x/4), range reduction must be used before input
-    tan82 x = (x * (c1 + c2 * x2) / (c3 + x2 * (c4 + x2)))
-      where
-        c1 = 211.849369664121
-        c2 = -12.5288887278448
-        c3 = 269.7350131214121
-        c4 = -71.4145309347748
-        x2 = (x * x)
-    tanResult = case octantInt of
-      0 -> tan82 (x * fourOverPi)
-      1 -> 1 / (tan82 ((halfPi - x) * fourOverPi))
-      2 -> -1 / (tan82 ((x - halfPi) * fourOverPi))
-      3 -> negate <| tan82 ((pi - x) * fourOverPi)
-      4 -> tan82 ((x - pi) * fourOverPi)
-      5 -> 1 / (tan82 ((threeHalfPi - x) * fourOverPi))
-      6 -> -1 / (tan82 ((x - threeHalfPi) * fourOverPi))
-      7 -> negate <| tan82 ((twoPi - x) * fourOverPi)
-      _ -> 0 -- ?!?
+-- -- How to deal with Float maybe 64 vs 32 bit?
+-- tanF32 :: Float -> Float
+-- tanF32 n = tanResult
+--   where
+--     x = rem n twoPi
+--     octant = floor <| (x * fourOverPi)
+--     -- HACK -> Need to be able to convert from Float to
+--     octantInt = if octant < 1 then 0
+--       else if octant < 2 then 1
+--       else if octant < 3 then 2
+--       else if octant < 4 then 3
+--       else if octant < 5 then 4
+--       else if octant < 6 then 5
+--       else if octant < 7 then 6
+--       else 7
+--     -- Accurate to about 8.2 decimal digits over the range (0, pi/4)
+--     -- This computes tan (pi * x/4), range reduction must be used before input
+--     tan82 x = (x * (c1 + c2 * x2) / (c3 + x2 * (c4 + x2)))
+--       where
+--         c1 = 211.849369664121
+--         c2 = -12.5288887278448
+--         c3 = 269.7350131214121
+--         c4 = -71.4145309347748
+--         x2 = (x * x)
+--     tanResult = case octantInt of
+--       0 -> tan82 (x * fourOverPi)
+--       1 -> 1 / (tan82 ((halfPi - x) * fourOverPi))
+--       2 -> -1 / (tan82 ((x - halfPi) * fourOverPi))
+--       3 -> negate <| tan82 ((pi - x) * fourOverPi)
+--       4 -> tan82 ((x - pi) * fourOverPi)
+--       5 -> 1 / (tan82 ((threeHalfPi - x) * fourOverPi))
+--       6 -> -1 / (tan82 ((x - threeHalfPi) * fourOverPi))
+--       7 -> negate <| tan82 ((twoPi - x) * fourOverPi)
+--       _ -> 0 -- ?!?
 
-tanF64 :: F64 -> F64
+tanF64 :: Float -> Float
 tanF64 n = tanResult
   where
     wrappedN = rem n twoPi
@@ -322,7 +322,7 @@ tanF64 n = tanResult
 
 
 -- create a scalar for branchless selection if x > y
-scalarIfGreaterThan :: F64 -> F64 -> F64
+scalarIfGreaterThan :: Float -> Float -> Float
 scalarIfGreaterThan x y = bitAnd subtractionMask 1
   where
     subtraction = y - (x + f64Epsilon)
@@ -330,14 +330,14 @@ scalarIfGreaterThan x y = bitAnd subtractionMask 1
     subtractionMask = bitShiftRightA subtractionSign 63
 
 -- create a mask (0xFFFFFFFFFFFFFFFF or 0x0000000000000000) for branchless masking if x > y
-maskIfGreaterThan :: F64 -> F64 -> F64
+maskIfGreaterThan :: Float -> Float -> Float
 maskIfGreaterThan x y = bitShiftRightA subtractionSign 63
   where
     subtraction = y - (x + f64Epsilon)
     subtractionSign = bitAnd subtraction iEEESignMaskF
 
 -- branchless 64 bit atan
-atanF64 :: F64 -> F64
+atanF64 :: Float -> Float
 atanF64 n = copysign z n
   where
     absN = bitAnd n (bitNot iEEESignMaskF)
@@ -375,7 +375,7 @@ atanF64 n = copysign z n
         c6 = 21.587934067020262
         x2 = x' * x'
 
-slowAtanF64 :: F64 -> F64
+slowAtanF64 :: Float -> Float
 slowAtanF64 n = if sign then negate z else z
   where
     sign = n < 0
@@ -500,51 +500,6 @@ instance Monoid Int where
   mempty = 0
 
 instance Default Int where
-  default = 0
-
-
---------------------
--- I64
---------------------
-instance Eq I64 where
-  eq  x y = primUndefined
-  neq x y = primUndefined
-
-instance Ord I64 where
-  lt  x y = primUndefined
-  gt  x y = primUndefined
-  lte x y = primUndefined
-  gte x y = primUndefined
-
--- TODO: prim zero / one instances
-instance Semiring I64 where
-  zero    = primUndefined
-  one     = primUndefined
-  add x y = primUndefined
-  mul x y = primUndefined
-
-instance Ring I64 where
-  sub   x y = primUndefined
-  fromInt x = primUndefined
-
-instance EuclideanRing I64 where
-  div x y = primUndefined
-  rem x y = primUndefined
-
-instance Num I64 where
-  abs    x = primUndefined
-  signum x = primUndefined
-  copysign x sign = (abs x) * (signum sign)
-
-instance Integral I64 where
-
-instance Semigroup I64 where
-  append x y = x + y
-
-instance Monoid I64 where
-  mempty = 0
-
-instance Default I64 where
   default = 0
 
 
@@ -691,90 +646,90 @@ negate x = 0 - x
 floatToUInt :: Float -> UInt
 floatToUInt x = primUndefined
 
-f64ToUInt :: F64 -> UInt
-f64ToUInt x = primUndefined
+-- f64ToUInt :: F64 -> UInt
+-- f64ToUInt x = primUndefined
 
---------------------
--- F64
---------------------
-instance Eq F64 where
-  eq  x y = primUndefined
-  neq x y = primUndefined
+-- --------------------
+-- -- F64
+-- --------------------
+-- instance Eq F64 where
+--   eq  x y = primUndefined
+--   neq x y = primUndefined
+--
+-- instance Ord F64 where
+--   lt  x y = primUndefined
+--   gt  x y = primUndefined
+--   lte x y = primUndefined
+--   gte x y = primUndefined
+--
+-- -- TODO: prim zero / one instances
+-- instance Semiring F64 where
+--   zero    = primUndefined
+--   one     = primUndefined
+--   add x y = primUndefined
+--   mul x y = primUndefined
+--
+-- instance Ring F64 where
+--   sub   x y = primUndefined
+--   fromInt x = primUndefined
+--
+-- instance Num F64 where
+--   abs    x = primUndefined
+--   copysign x sign = primUndefined
+--   signum x = copysign 1 x
+--
+-- instance EuclideanRing F64 where
+--   div x y = primUndefined
+--   rem x y = primUndefined
+--
+-- instance DivisionRing F64 where
+--   recip x = 1 / x
+--
+-- instance Field F64 where
+--
+-- instance Floating F64 where
+--   fromFloat x = primUndefined
+--   sqrt      x = primUndefined
+--   floor     x = primUndefined
+--   ceil      x = primUndefined
+--   truncate  x = primUndefined
+--   round     x = primUndefined
+--   -- fmin      x y = primUndefined
+--   -- fmax      x y = primUndefined
+--
+-- instance Trig F64 where
+--   sine   x = primUndefined
+--   cosine x = primUndefined
+--   sinh   x = primUndefined
+--   exp    x = primUndefined
+--   exp2   x = primUndefined
+--   log    x = primUndefined
+--   log10  x = primUndefined
+--   log2   x = primUndefined
+--   pow  x y = primUndefined
+--
+-- instance Bits F64 where
+--   bitAnd         x y = primUndefined
+--   bitNot         x   = primUndefined
+--   bitOr          x y = primUndefined
+--   bitXor         x y = primUndefined
+--   bitShiftLeft   x y = primUndefined
+--   bitShiftRight  x y = primUndefined
+--   bitShiftRightA x y = primUndefined
+--   bitReverse     x   = primUndefined
+--   toBits         x   = primUndefined
+--   fromBits       x   = primUndefined
+--
+-- instance Semigroup F64 where
+--   append x y = x + y
+--
+-- instance Monoid F64 where
+--   mempty = 0
+--
+-- instance Default F64 where
+--   default = 0
 
-instance Ord F64 where
-  lt  x y = primUndefined
-  gt  x y = primUndefined
-  lte x y = primUndefined
-  gte x y = primUndefined
-
--- TODO: prim zero / one instances
-instance Semiring F64 where
-  zero    = primUndefined
-  one     = primUndefined
-  add x y = primUndefined
-  mul x y = primUndefined
-
-instance Ring F64 where
-  sub   x y = primUndefined
-  fromInt x = primUndefined
-
-instance Num F64 where
-  abs    x = primUndefined
-  copysign x sign = primUndefined
-  signum x = copysign 1 x
-
-instance EuclideanRing F64 where
-  div x y = primUndefined
-  rem x y = primUndefined
-
-instance DivisionRing F64 where
-  recip x = 1 / x
-
-instance Field F64 where
-
-instance Floating F64 where
-  fromFloat x = primUndefined
-  sqrt      x = primUndefined
-  floor     x = primUndefined
-  ceil      x = primUndefined
-  truncate  x = primUndefined
-  round     x = primUndefined
-  -- fmin      x y = primUndefined
-  -- fmax      x y = primUndefined
-
-instance Trig F64 where
-  sine   x = primUndefined
-  cosine x = primUndefined
-  sinh   x = primUndefined
-  exp    x = primUndefined
-  exp2   x = primUndefined
-  log    x = primUndefined
-  log10  x = primUndefined
-  log2   x = primUndefined
-  pow  x y = primUndefined
-
-instance Bits F64 where
-  bitAnd         x y = primUndefined
-  bitNot         x   = primUndefined
-  bitOr          x y = primUndefined
-  bitXor         x y = primUndefined
-  bitShiftLeft   x y = primUndefined
-  bitShiftRight  x y = primUndefined
-  bitShiftRightA x y = primUndefined
-  bitReverse     x   = primUndefined
-  toBits         x   = primUndefined
-  fromBits       x   = primUndefined
-
-instance Semigroup F64 where
-  append x y = x + y
-
-instance Monoid F64 where
-  mempty = 0
-
-instance Default F64 where
-  default = 0
-
-fastFloor :: F64 -> F64
+fastFloor :: Float -> Float
 fastFloor x = primUndefined
 
 -- floor :: F64 -> F64
@@ -798,19 +753,19 @@ fastFloor x = primUndefined
 -- fmax :: F64 -> F64 -> F64
 -- fmax x y = primUndefined
 
-floorToInt :: F64 -> Int
+floorToInt :: Float -> Int
 floorToInt x = primUndefined
 
-ceilToInt :: F64 -> Int
+ceilToInt :: Float -> Int
 ceilToInt x = primUndefined
 
-truncateToInt :: F64 -> Int
+truncateToInt :: Float -> Int
 truncateToInt x = primUndefined
 
-roundToInt :: F64 -> Int
+roundToInt :: Float -> Int
 roundToInt x = primUndefined
 
-fma :: F64 -> F64 -> F64 -> F64
+fma :: Float -> Float -> Float -> Float
 fma x y z = primUndefined
 
 ------------------------------------------------------------
@@ -819,7 +774,7 @@ fma x y z = primUndefined
 iEEESignMask :: UInt
 iEEESignMask = bitShiftLeft 1 63
 
-iEEESignMaskF :: F64
+iEEESignMaskF :: Float
 iEEESignMaskF = fromBits iEEESignMask
 
 iEEENumExponentBits :: UInt
@@ -831,25 +786,25 @@ iEEENumSignificandBits = 52
 iEEEExponentMask :: UInt
 iEEEExponentMask = bitShiftLeft (-1) iEEENumSignificandBits |> bitAnd (bitNot iEEESignMask)
 
-iEEEExponentMaskF :: F64
+iEEEExponentMaskF :: Float
 iEEEExponentMaskF = fromBits iEEEExponentMask
 
 iEEESignificandMask :: UInt
 iEEESignificandMask = bitAnd (-1) (bitNot (bitOr iEEEExponentMask iEEESignMask))
 
-iEEESignificandMaskF :: F64
+iEEESignificandMaskF :: Float
 iEEESignificandMaskF = fromBits iEEESignificandMask
 
 allBits :: UInt
 allBits = -1
 
-allBitsF :: F64
+allBitsF :: Float
 allBitsF = fromBits allBits
 
 f64EpsilonU :: UInt
 f64EpsilonU = 4372995238176751616
 
-f64Epsilon :: F64
+f64Epsilon :: Float
 f64Epsilon = fromBits f64EpsilonU
 
 --------------------
@@ -934,33 +889,33 @@ rationalToFloat r = fromInt (numerator r) / fromInt (denominator r)
 --------------------
 -- Complex
 --------------------
-data Complex = Complex# F64 F64
+data Complex = Complex# Float Float
 
-realPart :: Complex -> F64
+realPart :: Complex -> Float
 realPart (Complex# r _) = r
 
-imagPart :: Complex -> F64
+imagPart :: Complex -> Float
 imagPart (Complex# _ i) = i
 
-mkPolar :: F64 -> F64 -> Complex
+mkPolar :: Float -> Float -> Complex
 mkPolar r theta = Complex# (r * cosine theta) (r * sine theta)
 
-cis :: F64 -> Complex
+cis :: Float -> Complex
 cis theta = Complex# (cosine theta) (sine theta)
 
-polar :: Complex -> (F64, F64)
+polar :: Complex -> (Float, Float)
 polar c = (magnitude c, phase c)
 
-sqrMagnitude :: Complex -> F64
+sqrMagnitude :: Complex -> Float
 sqrMagnitude (Complex# r i) = (r * r) + (i * i)
 
-magnitude :: Complex -> F64
+magnitude :: Complex -> Float
 magnitude (Complex# r i) = sqrt ((r * r) + (i * i))
 
 conjugate :: Complex -> Complex
 conjugate (Complex# r i) = Complex# r (negate i)
 
-phase :: Complex -> F64
+phase :: Complex -> Float
 phase c = primUndefined
 -- TODO: ADD ATAN2!
 -- phase (Complex# r i) = atan2 r i
@@ -1327,7 +1282,7 @@ toIndexMultiple (Index i) = Index i
 sampleRate :: UInt
 sampleRate = primUndefined
 
-recipSampleRate :: F64
+recipSampleRate :: Float
 recipSampleRate = primUndefined
 
 audioSampleRate :: UInt
@@ -1339,19 +1294,19 @@ audioBlockSize = 256
 audioOverSampleAmount :: UInt
 audioOverSampleAmount = 32
 
-audioRecipOverSampleRate :: F64
+audioRecipOverSampleRate :: Float
 audioRecipOverSampleRate = recip <| fromUInt <| audioSampleRate * audioOverSampleAmount
 
 -- audioBlockSize :: UInt
 -- audioBlockSize = audioBlockSize' * audioOverSampleAmount
 
-audioBlockSizeF :: F64
+audioBlockSizeF :: Float
 audioBlockSizeF = fromUInt audioBlockSize
 
 -- audioSampleRate :: UInt
 -- audioSampleRate = audioSampleRate' * audioOverSampleAmount
 
-audioSampleRateF :: F64
+audioSampleRateF :: Float
 audioSampleRateF = fromUInt audioSampleRate
 
 audioBlocksPerSecond :: UInt
@@ -1376,12 +1331,12 @@ audioSampleOffset = 0
 --------------------
 -- Audio
 --------------------
-data Audio = AudioEnd | BlockRate F64 | AudioRate (Array BlockSize F64)
+data Audio = AudioEnd | BlockRate Float | AudioRate (Array BlockSize Float)
 
-outAudioBlock :: UInt -> Array BlockSize F64 -> *World -> *World
+outAudioBlock :: UInt -> Array BlockSize Float -> *World -> *World
 outAudioBlock c a w = primUndefined
 
-silentBlock :: Array BlockSize F64
+silentBlock :: Array BlockSize Float
 silentBlock =
   arrayFrom 0
 
@@ -1392,13 +1347,14 @@ outChannel n c w =
     BlockRate _ -> outAudioBlock n silentBlock w
     AudioRate b -> outAudioBlock n b w
 
-audioInitArray :: () -> *Array BlockSize F64
+audioInitArray :: () -> *Array BlockSize Float
 audioInitArray u =
   snd' <| loop (#i, a#) = (#0, unsafeEmptyArray ()#) while i < audioSampleOffset do
     (#i + 1, writeArray (Index i) 0 a#)
 
+-- TODO: Floatx32
 -- TODO: unroll loop?
-mapAudio :: (F64 -> F64) -> Audio -> Audio
+mapAudio :: (Float -> Float) -> Audio -> Audio
 mapAudio f c =
   case c of
     AudioEnd    -> AudioEnd
@@ -1411,8 +1367,9 @@ mapAudio f c =
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
 
+-- TODO: Floatx32
 -- TODO: unroll loop?
-mapAudio2 :: (F64 -> F64 -> F64) -> Audio -> Audio -> Audio
+mapAudio2 :: (Float -> Float -> Float) -> Audio -> Audio -> Audio
 mapAudio2 f cx cy =
   case cx of
     AudioEnd    -> AudioEnd
@@ -1448,7 +1405,7 @@ constTrue _ = True
 constTrue' :: .a -> (#.a, Bool#)
 constTrue' state = (#state, True#)
 
-accumulateAudio1 :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio
+accumulateAudio1 :: Default s => (Float -> s -> (#s, Float#)) -> (s -> Bool) -> Audio -> Audio
 accumulateAudio1 f isRunningFunc input1 =
   case input1 of
     AudioEnd -> AudioEnd
@@ -1481,7 +1438,7 @@ accumulateAudio1 f isRunningFunc input1 =
           in
             (#state', freezeArray o'#)
 
-accumulateAudio2 :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio -> Audio
+accumulateAudio2 :: Default s => (Float -> Float -> s -> (#s, Float#)) -> (s -> Bool) -> Audio -> Audio -> Audio
 accumulateAudio2 f isRunningFunc input1 input2 =
   case input1 of
     AudioEnd -> AudioEnd
@@ -1533,7 +1490,7 @@ accumulateAudio2 f isRunningFunc input1 input2 =
           in
             (#state', freezeArray o'#)
 
-accumulateAudio3 :: Default s => (F64 -> F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> Audio -> Audio -> Audio -> Audio
+accumulateAudio3 :: Default s => (Float -> Float -> Float -> s -> (#s, Float#)) -> (s -> Bool) -> Audio -> Audio -> Audio -> Audio
 accumulateAudio3 f isRunningFunc input1 input2 input3 =
   case input1 of
     AudioEnd -> AudioEnd
@@ -1620,7 +1577,7 @@ accumulateAudio3 f isRunningFunc input1 input2 input3 =
           in
             (#state', freezeArray o'#)
 
-accumulateAudio1U :: (() -> *s) -> (F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio
+accumulateAudio1U :: (() -> *s) -> (Float -> *s -> (#*s, Float#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio
 accumulateAudio1U mkState f isRunningFunc input1 =
   case input1 of
     AudioEnd -> AudioEnd
@@ -1655,7 +1612,7 @@ accumulateAudio1U mkState f isRunningFunc input1 =
             case mutRefPut state'' mref of
               _ -> (#isRunning, freezeArray o'#)
 
-accumulateAudio2U :: (() -> *s) -> (F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio -> Audio
+accumulateAudio2U :: (() -> *s) -> (Float -> Float -> *s -> (#*s, Float#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio -> Audio
 accumulateAudio2U mkState f isRunningFunc input1 input2 =
   case input1 of
     AudioEnd -> AudioEnd
@@ -1710,7 +1667,7 @@ accumulateAudio2U mkState f isRunningFunc input1 input2 =
               _ -> (#isRunning, freezeArray o'#)
 
 
-accumulateAudio3U :: (() -> *s) -> (F64 -> F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio -> Audio -> Audio
+accumulateAudio3U :: (() -> *s) -> (Float -> Float -> Float -> *s -> (#*s, Float#)) -> (*s -> (#*s, Bool#)) -> Audio -> Audio -> Audio -> Audio
 accumulateAudio3U mkState f isRunningFunc input1 input2 input3 =
   case input1 of
     AudioEnd -> AudioEnd
@@ -1872,7 +1829,7 @@ instance Default Audio where
 -- https://www.dspguide.com/ch12/1.htm
 -- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
 data FFT k   = FFT (Array (NatMul BlockSize (NatMax k 1)) Complex)
-data FFTWindow = FFTWindow (Array BlockSize F64)
+data FFTWindow = FFTWindow (Array BlockSize Float)
 -- TODO: FFT windowing!
 
 uintToInt :: UInt -> Int
@@ -1908,10 +1865,10 @@ sixthPi = pi / 6
 twelthPi :: Floating a => a
 twelthPi = pi / 12
 
-tanSixthPi :: F64
+tanSixthPi :: Float
 tanSixthPi = tanF64 sixthPi
 
-tanTwelthPi :: F64
+tanTwelthPi :: Float
 tanTwelthPi = tanF64 twelthPi
 
 tau :: Floating a => a
@@ -1985,17 +1942,17 @@ data Mono a             = Mono a
 data Stereo a           = Stereo# a a
 data Quad a             = Quad# a a a a
 data Ambisonic a        = Ambisonic# a a a a
-data AudioBuffer s      = AudioBuffer (.Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) F64)
+data AudioBuffer s      = AudioBuffer (.Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) Float)
 data Seconds (n :: Nat) = Seconds
 
 -- TODO: Equal power panning
 class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
-  accumulate1  :: Default s => (F64 -> s -> (#s, F64#)) -> (s -> Bool) -> f Audio -> f Audio
-  accumulate2  :: Default s => (F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> f Audio -> f Audio -> f Audio
-  accumulate3  :: Default s => (F64 -> F64 -> F64 -> s -> (#s, F64#)) -> (s -> Bool) -> f Audio -> f Audio -> f Audio -> f Audio
-  accumulate1U :: (() -> *s) -> (F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio
-  accumulate2U :: (() -> *s) -> (F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio
-  accumulate3U :: (() -> *s) -> (F64 -> F64 -> F64 -> *s -> (#*s, F64#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio -> f Audio
+  accumulate1  :: Default s => (Float -> s -> (#s, Float#)) -> (s -> Bool) -> f Audio -> f Audio
+  accumulate2  :: Default s => (Float -> Float -> s -> (#s, Float#)) -> (s -> Bool) -> f Audio -> f Audio -> f Audio
+  accumulate3  :: Default s => (Float -> Float -> Float -> s -> (#s, Float#)) -> (s -> Bool) -> f Audio -> f Audio -> f Audio -> f Audio
+  accumulate1U :: (() -> *s) -> (Float -> *s -> (#*s, Float#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio
+  accumulate2U :: (() -> *s) -> (Float -> Float -> *s -> (#*s, Float#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio
+  accumulate3U :: (() -> *s) -> (Float -> Float -> Float -> *s -> (#*s, Float#)) -> (*s -> (#*s, Bool#)) -> f Audio -> f Audio -> f Audio -> f Audio
   pan          :: Mono Audio -> f Audio -> Stereo Audio
   mixMono      :: Num a => f a -> Mono a
   mixStereo    :: Num a => f a -> Stereo a
@@ -2166,12 +2123,12 @@ instance Monoid a => Monoid (Stereo a) where
 
 --------------------
 -- downsample oversampled audio
-sinc :: F64 -> F64
+sinc :: Float -> Float
 sinc x =
   if x > -0.000001 && x < 0.000001 then 1.0 else
     sine x / x
 
-bessel :: F64 -> F64
+bessel :: Float -> Float
 bessel x =
   add 1 <| snd'<|
     loop (#i, sum#) = (#1, 0#) while i < 10 do
@@ -2184,22 +2141,22 @@ bessel x =
       in
         (#i + 1, sum + pow (xpow / fac) 2#)
 
-kaiserBesselWindowFunction :: F64 -> F64 -> F64 -> F64
+kaiserBesselWindowFunction :: Float -> Float -> Float -> Float
 kaiserBesselWindowFunction i windowSize beta =
   window
   where
     warg   = beta * sqrt (1 - pow (((2 * i + 2) - windowSize) / windowSize) 2)
     window = bessel warg / bessel beta
 
-hannWindowFunction :: F64 -> F64 -> F64
+hannWindowFunction :: Float -> Float -> Float
 hannWindowFunction i windowSize =
   0.5 - 0.5 * cosine (tau * (i + 1) / windowSize)
 
-hammingWindowFunction :: F64 -> F64 -> F64
+hammingWindowFunction :: Float -> Float -> Float
 hammingWindowFunction i windowSize =
   0.54 - 0.46 * cosine (tau * (i + 1) / windowSize)
 
-downsampleCoefficients :: Array 64 F64
+downsampleCoefficients :: Array 64 Float
 downsampleCoefficients =
   freezeArray coeff3
   where
@@ -2237,14 +2194,14 @@ downsampleCoefficients =
 --   * Audible Aliasing Distortion in Digital Audio Synthesis
 --       https://www.researchgate.net/publication/268382833_Audible_Aliasing_Distortion_in_Digital_Audio_Synthesis
 
-data OverSampleSawState = OverSampleSawState# F64 UInt (.Array 64 F64)
+data OverSampleSawState = OverSampleSawState# Float UInt (.Array 64 Float)
 
 mkOverSampleSawState :: () -> *OverSampleSawState
 mkOverSampleSawState _ = OverSampleSawState# 0 0 (arrayFrom 0)
 
 -- -- TODO: Replace FIR filter with IIR filter?
 -- -- Oversampling saw oscillator, with FIR downsampling
--- accumulateSawFIR :: F64 -> *OverSampleSawState -> (#*OverSampleSawState, F64#)
+-- accumulateSawFIR :: Float -> *OverSampleSawState -> (#*OverSampleSawState, Float#)
 -- accumulateSawFIR freq (OverSampleSawState# phaseIn downsampleIndexIn downsampleBufferIn) =
 --   (#OverSampleSawState# phase downsampleIndex downsampleBuffer, firResult#)
 --   where
@@ -2297,7 +2254,7 @@ mkOverSampleSawState _ = OverSampleSawState# 0 0 (arrayFrom 0)
 -- sawFIR freq =
 --   accumulate1U mkOverSampleSawState accumulateSawFIR constTrue' freq
 
-data OverSampleSawStateIIR = OverSampleSawStateIIR# F64 F64 F64 F64 F64
+data OverSampleSawStateIIR = OverSampleSawStateIIR# Float Float Float Float Float
 
 instance Default OverSampleSawStateIIR where
   default = OverSampleSawStateIIR# 0 0 0 0 0
@@ -2317,7 +2274,7 @@ instance Default OverSampleSawStateIIR where
 
 -- -- Oversampling saw wave with IIR brickwall filter
 -- -- TODO: Upsample frequency?!?!!?
--- accumulateSaw :: F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
+-- accumulateSaw :: Float -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, Float#)
 -- accumulateSaw freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
 --   (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
 --   where
@@ -2369,7 +2326,7 @@ instance Default OverSampleSawStateIIR where
 --   http://home.mit.bme.hu/~bank/publist/smc13.pdf
 
 -- NOTE: Fix up the negative frequency case!
-accumulateSawEPTR :: F64 -> F64 -> (#F64, F64#)
+accumulateSawEPTR :: Float -> Float -> (#Float, Float#)
 accumulateSawEPTR freq phase0 =
   if freq > 0 && phase1 > 1 - t then
     let
@@ -2397,7 +2354,7 @@ saw freq =
 
 -----------
 -- lfSaw
-accumulateLFSaw :: F64 -> F64 -> (#F64, F64#)
+accumulateLFSaw :: Float -> Float -> (#Float, Float#)
 accumulateLFSaw freq phase0 =
   (#phase1, out#)
   where
@@ -2413,7 +2370,7 @@ lfSaw freq =
 -- pulse
 
 -- -- Oversampling pulse oscillator, with FIR downsampling
--- accumulatePulseFIR :: F64 -> F64 -> *OverSampleSawState -> (#*OverSampleSawState, F64#)
+-- accumulatePulseFIR :: Float -> Float -> *OverSampleSawState -> (#*OverSampleSawState, Float#)
 -- accumulatePulseFIR width freq (OverSampleSawState# phaseIn downsampleIndexIn downsampleBufferIn) =
 --   (#OverSampleSawState# phase downsampleIndex downsampleBuffer, firResult#)
 --   where
@@ -2469,7 +2426,7 @@ lfSaw freq =
 -----------
 -- Oversampling saw wave with IIR brickwall filter
 
--- accumulatePulse :: F64 -> F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
+-- accumulatePulse :: Float -> Float -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, Float#)
 -- accumulatePulse width freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
 --   (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
 --   where
@@ -2520,21 +2477,21 @@ lfSaw freq =
 -- IMPROVED POLYNOMIAL TRANSITION REGIONS ALGORITHM FOR ALIAS-SUPPRESSED SIGNAL SYNTHESIS:
 --   http://home.mit.bme.hu/~bank/publist/smc13.pdf
 
-data PulseState = PulseState# F64 UInt
+data PulseState = PulseState# Float UInt
 
 instance Default PulseState where
   default = PulseState# -1 0
 
-generalizedCorrectEPT :: F64 -> F64 -> F64 -> F64
+generalizedCorrectEPT :: Float -> Float -> Float -> Float
 generalizedCorrectEPT p t a =
   p + ((-2 / (2 * a * t)) * p) + -1 + (4 / (4 * a * t))
 
-pulseCorrectEPT :: F64 -> F64 -> F64
+pulseCorrectEPT :: Float -> Float -> Float
 pulseCorrectEPT p t =
   p + ((-2 / (2 * t)) * p) + -1 + (4 / (4 * t))
 
 -- TODO: Negative freq arg support!
-accumulatePulseEPTR :: F64 -> F64 -> PulseState -> (#PulseState, F64#)
+accumulatePulseEPTR :: Float -> Float -> PulseState -> (#PulseState, Float#)
 accumulatePulseEPTR width freq (PulseState# phase0 dir) =
   if dir == 0 then
     let
@@ -2564,7 +2521,7 @@ pulse width freq =
 
 -----------
 -- lfPulse
-accumulateLFPulse :: F64 -> F64 -> F64 -> (#F64, F64#)
+accumulateLFPulse :: Float -> Float -> Float -> (#Float, Float#)
 accumulateLFPulse width freq phase0 =
   (#phase1, out#)
   where
@@ -2578,7 +2535,7 @@ lfPulse width freq =
 
 -- -----------
 -- -- Oversampling saw wave with IIR brickwall filter
--- accumulateTri :: F64 -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, F64#)
+-- accumulateTri :: Float -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, Float#)
 -- accumulateTri freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
 --   (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
 --   where
@@ -2626,7 +2583,7 @@ lfPulse width freq =
 
 -----------
 -- lfTri
-accumulateLFTri :: F64 -> F64 -> (#F64, F64#)
+accumulateLFTri :: Float -> Float -> (#Float, Float#)
 accumulateLFTri freq phase0 =
   (#phase1, out#)
   where
@@ -2641,9 +2598,9 @@ tri freq =
 
 -----------
 -- perc
-data PercState = PercState# F64 F64 F64 F64
+data PercState = PercState# Float Float Float Float
 
-mkPercState :: F64 -> F64 -> F64 -> F64 -> F64 -> () -> *PercState
+mkPercState :: Float -> Float -> Float -> Float -> Float -> () -> *PercState
 mkPercState level endLevel length curve currTime _ =
   PercState# a2 b1 grow currTime
   where
@@ -2652,7 +2609,7 @@ mkPercState level endLevel length curve currTime _ =
     a2      = level + b1
     grow    = exp (curve / length')
 
-accumulatePerc :: (#F64, F64, F64, F64#) -> F64 -> *PercState -> (#*PercState, F64#)
+accumulatePerc :: (#Float, Float, Float, Float#) -> Float -> *PercState -> (#*PercState, Float#)
 accumulatePerc (#attackTime, decayTime, totalTime, curve#) input (PercState# a20 b10 grow0 currTime0) =
   (#PercState# a2 b12 grow currTime, out#)
   where
@@ -2668,11 +2625,11 @@ accumulatePerc (#attackTime, decayTime, totalTime, curve#) input (PercState# a20
     level = a2 - b12
     out   = level * input
 
-percIsRunning :: F64 -> *PercState -> (#*PercState, Bool#)
+percIsRunning :: Float -> *PercState -> (#*PercState, Bool#)
 percIsRunning totalTime (PercState# a2 b1 grow currTime) =
   (#PercState# a2 b1 grow currTime, currTime < totalTime#)
 
-perc :: AudioFormat f => F64 -> F64 -> F64 -> f Audio -> f Audio
+perc :: AudioFormat f => Float -> Float -> Float -> f Audio -> f Audio
 perc attackTime decayTime curve input =
   accumulate1U mk update isRunning input
   where
@@ -2684,7 +2641,7 @@ perc attackTime decayTime curve input =
 -----------
 -- Wave tables
 
-data WaveTable = WaveTable (Array 65536 F64)
+data WaveTable = WaveTable (Array 65536 Float)
 
 sinTable :: WaveTable
 sinTable =
@@ -2709,14 +2666,14 @@ cosTable =
 
 -- TODO: Accumulator will grow very large, reducing precision?
 -- TODO: need ceil
-accumulateWaveTable :: WaveTable -> F64 -> F64 -> (#F64, F64#)
+accumulateWaveTable :: WaveTable -> Float -> Float -> (#Float, Float#)
 accumulateWaveTable (WaveTable buffer) freq phase0 =
   (#phase1, out#)
   where
     phase1  = fma freq recipSampleRate phase0
     findex  = phase1 * 65536
     delta   = (floor findex + 1) - findex
-    index1  = bitAnd (f64ToUInt findex) 65535
+    index1  = bitAnd (floatToUInt findex) 65535
     index2  = bitAnd (index1 + 1) 65535
     sample1 = readArray (Index index1) buffer
     sample2 = readArray (Index index2) buffer
@@ -2734,13 +2691,13 @@ sin freq = wave sinTable freq
 -- Sync
 
 -- TODO: default instance instead of accumulate3U
-data SyncState = SyncState# F64 F64 F64
+data SyncState = SyncState# Float Float Float
 
 mkSyncState :: () -> *SyncState
 mkSyncState _ = SyncState# 0 1 1
 
 -- Kick Sync
-accumulateSyncSaw :: F64 -> F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
+accumulateSyncSaw :: Float -> Float -> Float -> *SyncState -> (#*SyncState, Float#)
 accumulateSyncSaw sync kick freq (SyncState# phase0 direction0 prevSync) =
   (#SyncState# phase1 direction0 sync, out#)
   where
@@ -2757,7 +2714,7 @@ syncSaw sync kickAmount freq =
   accumulate3U mkSyncState accumulateSyncSaw constTrue' sync kickAmount freq
 
 -- Reverse sync
-accumulateSyncTri :: F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
+accumulateSyncTri :: Float -> Float -> *SyncState -> (#*SyncState, Float#)
 accumulateSyncTri sync freq (SyncState# phase0 direction0 prevSync) =
   (#SyncState# phase1 direction1 sync, out#)
   where
@@ -2774,7 +2731,7 @@ syncTri sync freq =
 
 -- TODO: Branchless
 -- Hard Sync
-accumulateSyncPulse :: F64 -> F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
+accumulateSyncPulse :: Float -> Float -> Float -> *SyncState -> (#*SyncState, Float#)
 accumulateSyncPulse sync width freq (SyncState# phase0 direction0 prevSync) =
   (#SyncState# phase1 direction0 sync, out#)
   where
@@ -2793,7 +2750,7 @@ syncPulse sync width freq =
   accumulate3U mkSyncState accumulateSyncPulse constTrue' sync width freq
 
 -- Reverse Sync
-accumulateSyncWave :: WaveTable -> F64 -> F64 -> *SyncState -> (#*SyncState, F64#)
+accumulateSyncWave :: WaveTable -> Float -> Float -> *SyncState -> (#*SyncState, Float#)
 accumulateSyncWave (WaveTable buffer) sync freq (SyncState# phase0 direction0 prevSync) =
   (#SyncState# phase1 direction1 sync, out#)
   where
@@ -2802,7 +2759,7 @@ accumulateSyncWave (WaveTable buffer) sync freq (SyncState# phase0 direction0 pr
     phase1     = fma freq (recipSampleRate * direction1) phase0
     findex     = phase1 * 65536
     delta      = (floor findex + 1) - findex
-    index1     = bitAnd (f64ToUInt findex) 65535
+    index1     = bitAnd (floatToUInt findex) 65535
     index2     = bitAnd (index1 + 1) 65535
     sample1    = readArray (Index index1) buffer
     sample2    = readArray (Index index2) buffer
@@ -2819,13 +2776,13 @@ syncSin sync freq = syncWave sinTable sync freq
 -----------
 -- Super Osc
 -- Based on Roland JP-8000 super saw oscillator design
-data SuperSawState = SuperSawState# F64 F64 F64 F64 F64 F64 F64
+data SuperSawState = SuperSawState# Float Float Float Float Float Float Float
 
 -- TODO: Make default instance for SuperSawState instead of relying on accumulate3U, now that init weirdness has been fixed
 mkSuperSawState :: () -> *SuperSawState
 mkSuperSawState _ = SuperSawState# 0.260786585 0.087023334 0.866947809 0.392499353 0.728213602 0.122864975 0.167605335
 
-accumulateSuperSaw :: F64 -> F64 -> F64 -> *SuperSawState -> (#*SuperSawState, F64#)
+accumulateSuperSaw :: Float -> Float -> Float -> *SuperSawState -> (#*SuperSawState, Float#)
 accumulateSuperSaw freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD0 phaseE0 phaseF0 phaseG0) =
   (#SuperSawState# phaseA1 phaseB1 phaseC1 phaseD1 phaseE1 phaseF1 phaseG1, out#)
   where
@@ -2858,7 +2815,7 @@ superSaw :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 superSaw freq depth mix =
   accumulate3U mkSuperSawState accumulateSuperSaw constTrue' freq depth mix
 
-accumulateSuperPulse :: F64 -> F64 -> F64 -> *SuperSawState -> (#*SuperSawState, F64#)
+accumulateSuperPulse :: Float -> Float -> Float -> *SuperSawState -> (#*SuperSawState, Float#)
 accumulateSuperPulse freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD0 phaseE0 phaseF0 phaseG0) =
   (#SuperSawState# phaseA1 phaseB1 phaseC1 phaseD1 phaseE1 phaseF1 phaseG1, out#)
   where
@@ -2892,7 +2849,7 @@ superPulse :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 superPulse freq depth mix =
   accumulate3U mkSuperSawState accumulateSuperPulse constTrue' freq depth mix
 
-accumulateSuperTri :: F64 -> F64 -> F64 -> *SuperSawState -> (#*SuperSawState, F64#)
+accumulateSuperTri :: Float -> Float -> Float -> *SuperSawState -> (#*SuperSawState, Float#)
 accumulateSuperTri freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD0 phaseE0 phaseF0 phaseG0) =
   (#SuperSawState# phaseA1 phaseB1 phaseC1 phaseD1 phaseE1 phaseF1 phaseG1, out#)
   where
@@ -2927,7 +2884,7 @@ superTri freq depth mix =
 
 -----------
 -- delay
-data DelayState s = DelayState# (.AudioBuffer s) UInt F64
+data DelayState s = DelayState# (.AudioBuffer s) UInt Float
 
 natSecondsToNatBufferSamples :: Seconds n -> NatVal (NatNextPowerOfTwo (NatMul SampleRate (NatMax n 1)))
 natSecondsToNatBufferSamples _ = NatVal
@@ -2936,12 +2893,12 @@ natSecondsToNatBufferSamples _ = NatVal
 -- TODO: delay playback speed? Reverse delay? delay bank etc?
 -- TODO: initialDelayTime, maxDelayTime, audioBufferSize, etc
 
-accumulateDelay :: UInt -> F64 -> F64 -> F64 -> *DelayState s -> (#*DelayState s, F64#)
+accumulateDelay :: UInt -> Float -> Float -> Float -> *DelayState s -> (#*DelayState s, Float#)
 accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState# (AudioBuffer buffer0) index delayTime) =
   (#DelayState# (AudioBuffer buffer2) index' delayTime', out#)
   where
     delayTime'       = targetDelayTime
-    delayIndex       = bitAnd (index + f64ToUInt (delayTime' * audioSampleRateF)) bufferSizeMinus1
+    delayIndex       = bitAnd (index + floatToUInt (delayTime' * audioSampleRateF)) bufferSizeMinus1
     (#del, buffer1#) = readArrayU (Index index) buffer0
     out              = input * (1 - mix) + del * mix
     buffer2          = writeArray (Index delayIndex) out buffer1
@@ -2972,7 +2929,7 @@ fiveSec = Seconds
 -----------
 -- RBJ Filters, Audio EQ Cookbook
 
-data BiquadState = BiquadState# F64 F64 F64 F64
+data BiquadState = BiquadState# Float Float Float Float
 
 instance Default BiquadState where
   default = BiquadState# 0 0 0 0
@@ -2980,20 +2937,20 @@ instance Default BiquadState where
 -- TODO: Optimize out transcendental functions
 
 -- fi range: 0 - 1
-waveTableFunction :: WaveTable -> F64 -> F64
+waveTableFunction :: WaveTable -> Float -> Float
 waveTableFunction (WaveTable buffer) fi =
   sample1 * delta + sample2 * (1 - delta)
   where
     findex  = fi * 65536
     delta   = (floor findex + 1) - findex
-    index1  = bitAnd (f64ToUInt findex) 65535
+    index1  = bitAnd (floatToUInt findex) 65535
     index2  = bitAnd (index1 + 1) 65535
     sample1 = readArray (Index index1) buffer
     sample2 = readArray (Index index2) buffer
 
 -----------
 -- lpf
-accumulateLPF :: F64 -> F64 -> F64 -> BiquadState -> (#BiquadState, F64#)
+accumulateLPF :: Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
 accumulateLPF freq q x0 (BiquadState# x1 x2 y1 y2) =
   (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
@@ -3015,7 +2972,7 @@ lpf freq q input =
 
 -----------
 -- hpf
-accumulateHPF :: F64 -> F64 -> F64 -> BiquadState -> (#BiquadState, F64#)
+accumulateHPF :: Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
 accumulateHPF freq q x0 (BiquadState# x1 x2 y1 y2) =
   (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
@@ -3037,7 +2994,7 @@ hpf freq q input =
 
 -----------
 -- bpf
-accumulateBPF :: F64 -> F64 -> F64 -> BiquadState -> (#BiquadState, F64#)
+accumulateBPF :: Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
 accumulateBPF freq q x0 (BiquadState# x1 x2 y1 y2) =
   (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
@@ -3059,7 +3016,7 @@ bpf freq q input =
 
 -----------
 -- lowShelf
-accumulateLowShelf :: F64 -> F64 -> F64 -> F64 -> BiquadState -> (#BiquadState, F64#)
+accumulateLowShelf :: Float -> Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
 accumulateLowShelf slope freq gain x0 (BiquadState# x1 x2 y1 y2) =
   (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
@@ -3077,13 +3034,13 @@ accumulateLowShelf slope freq gain x0 (BiquadState# x1 x2 y1 y2) =
     y0    =
       fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
-lowShelf :: AudioFormat f => f Audio -> f Audio -> F64 -> f Audio -> f Audio
+lowShelf :: AudioFormat f => f Audio -> f Audio -> Float -> f Audio -> f Audio
 lowShelf freq gain slope input =
   accumulate3 (accumulateLowShelf slope) constTrue freq gain input
 
 -----------
 -- highShelf
-accumulateHighShelf :: F64 -> F64 -> F64 -> F64 -> BiquadState -> (#BiquadState, F64#)
+accumulateHighShelf :: Float -> Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
 accumulateHighShelf slope freq gain x0 (BiquadState# x1 x2 y1 y2) =
   (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
@@ -3101,7 +3058,7 @@ accumulateHighShelf slope freq gain x0 (BiquadState# x1 x2 y1 y2) =
     y0    =
       fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
-highShelf :: AudioFormat f => f Audio -> f Audio -> F64 -> f Audio -> f Audio
+highShelf :: AudioFormat f => f Audio -> f Audio -> Float -> f Audio -> f Audio
 highShelf freq gain slope input =
   accumulate3 (accumulateHighShelf slope) constTrue freq gain input
 
@@ -3543,14 +3500,8 @@ printUInt u w = w
 printInt :: Int -> *World -> *World
 printInt i w = w
 
-printI64 :: I64 -> *World -> *World
-printI64 i w = w
-
 printFloat :: Float -> *World -> *World
 printFloat i w = w
-
-printF64 :: F64 -> *World -> *World
-printF64 f w = w
 
 printChar :: Char -> *World -> *World
 printChar c w = w
@@ -3564,14 +3515,8 @@ instance Print UInt where
 instance Print Int where
   print x w = printInt x w
 
-instance Print I64 where
-  print x w = printI64 x w
-
 instance Print Float where
   print x w = printFloat x w
-
-instance Print F64 where
-  print x w = printF64 x w
 
 instance Print Char where
   print x w = printChar x w

@@ -788,6 +788,7 @@ NecroStaticValue* necro_defunctionalize_app_env(NecroDefunctionalizeContext* con
         NecroCoreAst*       ast3        = necro_core_ast_create_let(context->arena, new_bind, NULL);
         necro_core_ast_swap(app_ast, ast3);
         app_ast->let.expr               = ast3;
+        assert(app_ast->ast_type == NECRO_CORE_AST_LET);
         return necro_defunctionalize_let(context, app_ast);
     }
 }

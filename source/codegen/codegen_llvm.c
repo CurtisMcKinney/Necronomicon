@@ -350,12 +350,12 @@ LLVMTypeRef necro_llvm_type_from_mach_type(NecroLLVM* context, NecroMachType* ma
     }
 }
 
-bool necro_llvm_type_is_unboxed(NecroLLVM* context, LLVMTypeRef type)
-{
-    return type == necro_llvm_type_from_mach_type(context, context->program->type_cache.word_int_type)
-        || type == necro_llvm_type_from_mach_type(context, context->program->type_cache.word_uint_type)
-        || type == necro_llvm_type_from_mach_type(context, context->program->type_cache.word_float_type);
-}
+// bool necro_llvm_type_is_unboxed(NecroLLVM* context, LLVMTypeRef type)
+// {
+//     return type == necro_llvm_type_from_mach_type(context, context->program->type_cache.word_int_type)
+//         || type == necro_llvm_type_from_mach_type(context, context->program->type_cache.word_uint_type)
+//         || type == necro_llvm_type_from_mach_type(context, context->program->type_cache.word_float_type);
+// }
 
 ///////////////////////////////////////////////////////
 // Forward Declarations
@@ -525,28 +525,16 @@ LLVMValueRef necro_llvm_codegen_extract_value(NecroLLVM* context, NecroMachAst* 
 #define NECRO_CODEGEN_FLOAT_X_FLOAT_BIT_BINOP(BIT_BINOP)\
 {\
     LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->binop.left->necro_machine_type);\
-    assert(arg_type != NULL);\
-    const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);\
-    assert(f32_type != NULL);\
     const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);\
     assert(f64_type != NULL);\
-    if (arg_type == f32_type)\
-    {\
-        const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);\
-        assert(uint32_type != NULL);\
-        LLVMValueRef lhs = LLVMBuildBitCast(context->builder, left, uint32_type, "lhs_float_to_uint");\
-        LLVMValueRef rhs = LLVMBuildBitCast(context->builder, right, uint32_type, "rhs_float_to_uint");\
-        value = BIT_BINOP(context->builder, lhs, rhs, name);\
-        value = LLVMBuildBitCast(context->builder, value, f32_type, "uint_to_float");\
-    }\
-    else if (arg_type == f64_type)\
+    if (arg_type == f64_type)\
     {\
         const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);\
         assert(uint64_type != NULL);\
-        LLVMValueRef lhs = LLVMBuildBitCast(context->builder, left, uint64_type, "lhs_float64_to_uint64");\
-        LLVMValueRef rhs = LLVMBuildBitCast(context->builder, right, uint64_type, "rhs_float64_to_uint64");\
+        LLVMValueRef lhs = LLVMBuildBitCast(context->builder, left, uint64_type, "lhs_float_to_uint");\
+        LLVMValueRef rhs = LLVMBuildBitCast(context->builder, right, uint64_type, "rhs_float_to_uint");\
         value = BIT_BINOP(context->builder, lhs, rhs, name);\
-        value = LLVMBuildBitCast(context->builder, value, f64_type, "uint64_to_float64");\
+        value = LLVMBuildBitCast(context->builder, value, f64_type, "uint_to_float");\
     }\
     else\
     {\
@@ -557,26 +545,15 @@ LLVMValueRef necro_llvm_codegen_extract_value(NecroLLVM* context, NecroMachAst* 
 #define NECRO_CODEGEN_FLOAT_X_UINT_BIT_BINOP(BIT_BINOP)\
 {\
     LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->binop.left->necro_machine_type);\
-    assert(arg_type != NULL);\
-    const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);\
-    assert(f32_type != NULL);\
     const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);\
     assert(f64_type != NULL);\
-    if (arg_type == f32_type)\
-    {\
-        const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);\
-        assert(uint32_type != NULL);\
-        value = LLVMBuildBitCast(context->builder, left, uint32_type, "float_to_uint");\
-        value = BIT_BINOP(context->builder, value, right, name);\
-        value = LLVMBuildBitCast(context->builder, value, f32_type, "uint_to_float");\
-    }\
-    else if (arg_type == f64_type)\
+    if (arg_type == f64_type)\
     {\
         const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);\
         assert(uint64_type != NULL);\
-        value = LLVMBuildBitCast(context->builder, left, uint64_type, "float64_to_uint64");\
+        value = LLVMBuildBitCast(context->builder, left, uint64_type, "float_to_uint");\
         value = BIT_BINOP(context->builder, value, right, name);\
-        value = LLVMBuildBitCast(context->builder, value, f64_type, "uint64_to_float64");\
+        value = LLVMBuildBitCast(context->builder, value, f64_type, "uint_to_float");\
     }\
     else\
     {\
@@ -740,40 +717,41 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         LLVMTypeRef bitrev_type = NULL;
         LLVMValueRef fn_value   = NULL;
 
-        if (arg_type == f32_type)
-        {
-            assert(context->base->bit_reverse_float != NULL);
-            value = LLVMBuildBitCast(context->builder, param, uint32_type, "float_to_uint");
-            necro_llvm_set_intrinsic_uop_type_and_value(
-                context,
-                context->program->type_cache.uint32_type,
-                context->base->bit_reverse_float,
-                context->base->bit_reverse_float,
-                "llvm.bitreverse.i32",
-                "llvm.bitreverse.i64",
-                uint32_type,
-                &bitrev_type,
-                &fn_value);
+        // if (arg_type == f32_type)
+        // {
+        //     assert(context->base->bit_reverse_float != NULL);
+        //     value = LLVMBuildBitCast(context->builder, param, uint32_type, "float_to_uint");
+        //     necro_llvm_set_intrinsic_uop_type_and_value(
+        //         context,
+        //         context->program->type_cache.uint32_type,
+        //         context->base->bit_reverse_float,
+        //         context->base->bit_reverse_float,
+        //         "llvm.bitreverse.i32",
+        //         "llvm.bitreverse.i64",
+        //         uint32_type,
+        //         &bitrev_type,
+        //         &fn_value);
 
-            LLVMValueRef* params = necro_paged_arena_alloc(&context->arena, sizeof(LLVMValueRef));
-            *params = value;
+        //     LLVMValueRef* params = necro_paged_arena_alloc(&context->arena, sizeof(LLVMValueRef));
+        //     *params = value;
 
-            value = LLVMBuildCall(context->builder, fn_value, params, (unsigned int) 1, "call_bitreverse");
-            LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(fn_value));
-            value = LLVMBuildBitCast(context->builder, value, f32_type, "uint_to_float");
-        }
-        else if (arg_type == f64_type)
-        {
+        //     value = LLVMBuildCall(context->builder, fn_value, params, (unsigned int) 1, "call_bitreverse");
+        //     LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(fn_value));
+        //     value = LLVMBuildBitCast(context->builder, value, f32_type, "uint_to_float");
+        // }
+        // else if (arg_type == f64_type)
+        // {
+            assert(arg_type == f64_type);
             NecroAstSymbol* bit_reverse_float = context->base->bit_reverse_float;
             if (bit_reverse_float == NULL ||
                 bit_reverse_float->core_ast_symbol == NULL ||
                 bit_reverse_float->core_ast_symbol->mach_symbol == NULL)
             {
-                bit_reverse_float = context->base->bit_reverse_float64;
+                bit_reverse_float = context->base->bit_reverse_float;
             }
             assert(bit_reverse_float != NULL);
             assert(bit_reverse_float->core_ast_symbol->mach_symbol != NULL);
-            value = LLVMBuildBitCast(context->builder, param, uint64_type, "float64_to_uint64");
+            value = LLVMBuildBitCast(context->builder, param, uint64_type, "float_to_uint64");
             necro_llvm_set_intrinsic_uop_type_and_value(
                 context,
                 context->program->type_cache.uint64_type,
@@ -790,12 +768,12 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
 
             value = LLVMBuildCall(context->builder, fn_value, params, (unsigned int) 1, "call_bitreverse");
             LLVMSetInstructionCallConv(value, LLVMGetFunctionCallConv(fn_value));
-            value = LLVMBuildBitCast(context->builder, value, f64_type, "uint64_to_float64");
-        }
-        else
-        {
-            assert(false && "Only 32-bit and 64-bit Floats supported");
-        }
+            value = LLVMBuildBitCast(context->builder, value, f64_type, "uint_to_float");
+        // }
+        // else
+        // {
+        //     assert(false && "Only 32-bit and 64-bit Floats supported");
+        // }
         break;
     }
 
@@ -815,26 +793,27 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
 		assert(f32_type != NULL);
 		const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);
 		assert(f64_type != NULL);
-		if (arg_type == f32_type)
-		{
-			const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
-			assert(uint32_type != NULL);
-			value = LLVMBuildBitCast(context->builder, param, uint32_type, "float_to_uint");
-			value = LLVMBuildNot(context->builder, value, name);
-			value = LLVMBuildBitCast(context->builder, value, f32_type, "uint_to_float");
-		}
-		else if (arg_type == f64_type)
-		{
+		// if (arg_type == f32_type)
+		// {
+		// 	const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
+		// 	assert(uint32_type != NULL);
+		// 	value = LLVMBuildBitCast(context->builder, param, uint32_type, "float_to_uint");
+		// 	value = LLVMBuildNot(context->builder, value, name);
+		// 	value = LLVMBuildBitCast(context->builder, value, f32_type, "uint_to_float");
+		// }
+		// else if (arg_type == f64_type)
+		// {
+            assert(arg_type == f64_type);
 			const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);
 			assert(uint64_type != NULL);
-			value = LLVMBuildBitCast(context->builder, param, uint64_type, "float64_to_uint64");
+			value = LLVMBuildBitCast(context->builder, param, uint64_type, "float_to_uint");
 			value = LLVMBuildNot(context->builder, value, name);
-			value = LLVMBuildBitCast(context->builder, value, f64_type, "uint64_to_float64");
-		}
-        else
-        {
-            assert(false && "Only 32-bit and 64-bit Floats supported");
-        }
+			value = LLVMBuildBitCast(context->builder, value, f64_type, "uint_to_float");
+		// }
+        // else
+        // {
+        //     assert(false && "Only 32-bit and 64-bit Floats supported");
+        // }
 		break;
 	}
 
@@ -852,22 +831,23 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);
         assert(f64_type != NULL);
 
-        if (arg_type == f32_type)
-        {
-			const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
-			assert(uint32_type != NULL);
-            value = LLVMBuildBitCast(context->builder, param, uint32_type, "float_to_uint");
-        }
-        else if (arg_type == f64_type)
-        {
+        // if (arg_type == f32_type)
+        // {
+		// 	const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
+		// 	assert(uint32_type != NULL);
+        //     value = LLVMBuildBitCast(context->builder, param, uint32_type, "float_to_uint");
+        // }
+        // else if (arg_type == f64_type)
+        // {
+            assert(arg_type == f64_type);
 			const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);
 			assert(uint64_type != NULL);
-            value = LLVMBuildBitCast(context->builder, param, uint64_type, "float64_to_uint64");
-        }
-        else
-        {
-            assert(false && "Only 32-bit and 64-bit Floats supported");
-        }
+            value = LLVMBuildBitCast(context->builder, param, uint64_type, "float_to_uint");
+        // }
+        // else
+        // {
+        //     assert(false && "Only 32-bit and 64-bit Floats supported");
+        // }
         break;
     }
 
@@ -885,22 +865,23 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
 		const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);
 		assert(uint64_type != NULL);
 
-        if (arg_type == uint32_type)
-        {
-			const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);
-			assert(f32_type != NULL);
-            value = LLVMBuildBitCast(context->builder, param, f32_type, "uint_to_float");
-        }
-        else if (arg_type == uint64_type)
-        {
+        // if (arg_type == uint32_type)
+        // {
+		// 	const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);
+		// 	assert(f32_type != NULL);
+        //     value = LLVMBuildBitCast(context->builder, param, f32_type, "uint_to_float");
+        // }
+        // else if (arg_type == uint64_type)
+        // {
+            assert(arg_type == uint64_type);
 			const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);
 			assert(f64_type != NULL);
-        	value = LLVMBuildBitCast(context->builder, param, f64_type, "uint64_to_float64");
-        }
-        else
-        {
-            assert(false && "Only 32-bit and 64-bit Floats supported");
-        }
+        	value = LLVMBuildBitCast(context->builder, param, f64_type, "uint_to_float");
+        // }
+        // else
+        // {
+        //     assert(false && "Only 32-bit and 64-bit Floats supported");
+        // }
         break;
     }
 
@@ -967,7 +948,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
 			context,
 			context->program->type_cache.f64_type,
 			context->base->floor_float,
-			context->base->floor_float64,
+			context->base->floor_float,
 			"llvm.floor.f32",
 			"llvm.floor.f64",
 			f32_type,
@@ -999,7 +980,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
 			context,
 			context->program->type_cache.f64_type,
 			context->base->ceil_float,
-			context->base->ceil_float64,
+			context->base->ceil_float,
 			"llvm.ceil.f32",
 			"llvm.ceil.f64",
 			f32_type,
@@ -1037,7 +1018,7 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
 			context,
 			context->program->type_cache.f64_type,
 			context->base->round_float,
-			context->base->round_float64,
+			context->base->round_float,
 			"llvm.round.f32",
 			"llvm.round.f64",
 			f32_type,
@@ -1177,29 +1158,17 @@ LLVMValueRef necro_llvm_codegen_bitcast(NecroLLVM* context, NecroMachAst* ast)
     {
         to_value = value;
     }
-    else if (ast->bit_cast.from_value->necro_machine_type == context->program->type_cache.word_uint_type && ast->bit_cast.to_value->necro_machine_type->type == NECRO_MACH_TYPE_PTR)
+    else if (ast->bit_cast.from_value->necro_machine_type == context->program->type_cache.uint64_type && ast->bit_cast.to_value->necro_machine_type->type == NECRO_MACH_TYPE_PTR)
     {
         to_value = LLVMBuildIntToPtr(context->builder, value, to_type, "uint_to_ptr");
     }
-    // // Float -> Ptr
-    // else if (value_type == codegen->word_float_type)
-    // {
-    //     LLVMValueRef float_to_int = LLVMBuildBitCast(codegen->builder, value, codegen->word_uint_type, "float_to_int");
-    //     to_value = LLVMBuildIntToPtr(codegen->builder, float_to_int, to_type, "int_to_ptr");
-    // }
-    // // Ptr -> Float
-    // else if (to_type == codegen->word_float_type)
-    // {
-    //     LLVMValueRef ptr_to_int = LLVMBuildPtrToInt(codegen->builder, value, codegen->word_uint_type, "ptr_to_int");
-    //     to_value = LLVMBuildBitCast(codegen->builder, ptr_to_int, codegen->word_float_type, "int_to_float");
-    // }
     // // Int -> Ptr
     // else if (necro_is_boxed_llvm_type(codegen, value_type))
     // {
     //     to_value = LLVMBuildIntToPtr(codegen->builder, value, to_type, "int_to_ptr");
     // }
     // Ptr -> Int
-    else if (ast->bit_cast.from_value->necro_machine_type->type == NECRO_MACH_TYPE_PTR && ast->bit_cast.to_value->necro_machine_type == context->program->type_cache.word_uint_type)
+    else if (ast->bit_cast.from_value->necro_machine_type->type == NECRO_MACH_TYPE_PTR && ast->bit_cast.to_value->necro_machine_type == context->program->type_cache.uint64_type)
     {
         to_value = LLVMBuildPtrToInt(context->builder, value, to_type, "ptr_to_uint");
     }
@@ -1442,55 +1411,55 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
         necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->bit_reverse_uint, context->base->bit_reverse_uint, "llvm.bitreverse.i32", "llvm.bitreverse.i64", int32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_FABS:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->abs_float, context->base->abs_f64, "llvm.fabs.f32", "llvm.fabs.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->abs_float, context->base->abs_float, "llvm.fabs.f32", "llvm.fabs.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_SIN:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->sine_float, context->base->sine_f64, "llvm.sin.f32", "llvm.sin.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->sine_float, context->base->sine_float, "llvm.sin.f32", "llvm.sin.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_COS:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->cosine_float, context->base->cosine_f64, "llvm.cos.f32", "llvm.cos.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->cosine_float, context->base->cosine_float, "llvm.cos.f32", "llvm.cos.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_EXP:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->exp_float, context->base->exp_f64, "llvm.exp.f32", "llvm.exp.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->exp_float, context->base->exp_float, "llvm.exp.f32", "llvm.exp.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_EXP2:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->exp2_float, context->base->exp2_f64, "llvm.exp2.f32", "llvm.exp2.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->exp2_float, context->base->exp2_float, "llvm.exp2.f32", "llvm.exp2.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_LOG:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->log_float, context->base->log_f64, "llvm.log.f32", "llvm.log.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->log_float, context->base->log_float, "llvm.log.f32", "llvm.log.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_LOG10:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->log10_float, context->base->log10_f64, "llvm.log10.f32", "llvm.log10.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->log10_float, context->base->log10_float, "llvm.log10.f32", "llvm.log10.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_LOG2:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->log2_float, context->base->log2_f64, "llvm.log2.f32", "llvm.log2.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->log2_float, context->base->log2_float, "llvm.log2.f32", "llvm.log2.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_POW:
-        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->pow_float, context->base->pow_f64, "llvm.pow.f32", "llvm.pow.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->pow_float, context->base->pow_float, "llvm.pow.f32", "llvm.pow.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_SQRT:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->sqrt_float, context->base->sqrt_f64, "llvm.sqrt.f32", "llvm.sqrt.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->sqrt_float, context->base->sqrt_float, "llvm.sqrt.f32", "llvm.sqrt.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_FFLR:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->floor_float, context->base->floor_float64, "llvm.floor.f32", "llvm.floor.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->floor_float, context->base->floor_float, "llvm.floor.f32", "llvm.floor.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_FCEIL:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->ceil_float, context->base->ceil_float64, "llvm.ceil.f32", "llvm.ceil.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->ceil_float, context->base->ceil_float, "llvm.ceil.f32", "llvm.ceil.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_FTRNC:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->truncate_float, context->base->truncate_float64, "llvm.trunc.f32", "llvm.trunc.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->truncate_float, context->base->truncate_float, "llvm.trunc.f32", "llvm.trunc.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_FRND:
-        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->round_float, context->base->round_float64, "llvm.round.f32", "llvm.round.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_uop_type_and_value(context, ast->necro_machine_type, context->base->round_float, context->base->round_float, "llvm.round.f32", "llvm.round.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_FCPYSGN:
-        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->copy_sign_float, context->base->copy_sign_float64, "llvm.copysign.f32", "llvm.copysign.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->copy_sign_float, context->base->copy_sign_float, "llvm.copysign.f32", "llvm.copysign.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_FMIN:
-        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->min_float, context->base->min_float64, "llvm.minimum.f32", "llvm.minimum.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->min_float, context->base->min_float, "llvm.minimum.f32", "llvm.minimum.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_FMAX:
-        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->max_float, context->base->max_float64, "llvm.maximum.f32", "llvm.maximum.f64", f32_type, &fn_type, &fn_value);
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->max_float, context->base->max_float, "llvm.maximum.f32", "llvm.maximum.f64", f32_type, &fn_type, &fn_value);
         break;
     default:
         assert(false);
@@ -1665,10 +1634,8 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->program->runtime.necro_print_char);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_print_string);
     necro_llvm_map_check_symbol(context->base->print_int->core_ast_symbol->mach_symbol);
-    necro_llvm_map_check_symbol(context->base->print_i64->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->print_uint->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->print_float->core_ast_symbol->mach_symbol);
-    necro_llvm_map_check_symbol(context->base->print_f64->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_get_mouse_x);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_get_mouse_y);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_is_done);
@@ -1677,7 +1644,7 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_free);
     necro_llvm_map_check_symbol(context->base->panic->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_out_audio_block);
-    necro_llvm_map_check_symbol(context->base->sinh_f64->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->sinh_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->test_assertion->core_ast_symbol->mach_symbol);
 
     // assert(context->delayed_phi_node_values.length == 0);
@@ -1748,10 +1715,8 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_print_char);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_print_string);
     necro_llvm_map_runtime_symbol(context->engine, context->base->print_int->core_ast_symbol->mach_symbol);
-    necro_llvm_map_runtime_symbol(context->engine, context->base->print_i64->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->print_uint->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->print_float->core_ast_symbol->mach_symbol);
-    necro_llvm_map_runtime_symbol(context->engine, context->base->print_f64->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_get_mouse_x);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_get_mouse_y);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_is_done);
@@ -1760,7 +1725,7 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_free);
     necro_llvm_map_runtime_symbol(context->engine, context->base->panic->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_out_audio_block);
-    necro_llvm_map_runtime_symbol(context->engine, context->base->sinh_f64->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->sinh_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->test_assertion->core_ast_symbol->mach_symbol);
 
 #ifdef _WIN32
@@ -1931,6 +1896,23 @@ void necro_llvm_test()
 /*
 
 */
+
+    // TODO: This is causing stack overflow for some reason? Some kind of loop in defunctionalization perhaps?
+    // {
+    //     const char* test_name   = "Case 12";
+    //     const char* test_source = ""
+    //         "data TwoForOne  = One Int | Two Int Int\n"
+    //         "data FourForOne = MoreThanZero TwoForOne TwoForOne | Zero\n"
+    //         "main :: *World -> *World\n"
+    //         "main w =\n"
+    //         "  case Zero of\n"
+    //         "    Zero -> w\n"
+    //         "    MoreThanZero (One i1)     (One i2)      -> print i2 (print i1 w)\n"
+    //         "    MoreThanZero (Two i3 i4)  (One i5)      -> print i5 (print i4 (print i3 w))\n"
+    //         "    MoreThanZero (One i6)     (Two i7  i8)  -> print i8 (print i7 (print i6 w))\n"
+    //         "    MoreThanZero (Two i9 i10) (Two i11 i12) -> print i12 (print i11 (print i10 (print i9 w)))\n";
+    //     necro_llvm_test_string(test_name, test_source);
+    // }
 
     {
         const char* test_name   = "Data 1";
@@ -2135,22 +2117,6 @@ void necro_llvm_test()
             "    MoreThanZero Zero      (One i3) -> print i3 w\n"
             "    MoreThanZero (One i4)  Zero     -> print i4 w\n"
             "    MoreThanZero Zero      Zero     -> w\n";
-        necro_llvm_test_string(test_name, test_source);
-    }
-
-    {
-        const char* test_name   = "Case 12";
-        const char* test_source = ""
-            "data TwoForOne  = One Int | Two Int Int\n"
-            "data FourForOne = MoreThanZero TwoForOne TwoForOne | Zero\n"
-            "main :: *World -> *World\n"
-            "main w =\n"
-            "  case Zero of\n"
-            "    Zero -> w\n"
-            "    MoreThanZero (One i1)     (One i2)      -> print i2 (print i1 w)\n"
-            "    MoreThanZero (Two i3 i4)  (One i5)      -> print i5 (print i4 (print i3 w))\n"
-            "    MoreThanZero (One i6)     (Two i7  i8)  -> print i8 (print i7 (print i6 w))\n"
-            "    MoreThanZero (Two i9 i10) (Two i11 i12) -> print i12 (print i11 (print i10 (print i9 w)))\n";
         necro_llvm_test_string(test_name, test_source);
     }
 
@@ -2932,9 +2898,9 @@ void necro_llvm_test()
     }
 
     {
-        const char* test_name   = "I64 1";
+        const char* test_name   = "Int 1";
         const char* test_source = ""
-            "commodore64 :: I64 -> I64\n"
+            "commodore64 :: Int -> Int\n"
             "commodore64 x = x * 2\n"
             "main :: *World -> *World\n"
             "main w = w\n";
@@ -2942,9 +2908,9 @@ void necro_llvm_test()
     }
 
     {
-        const char* test_name   = "I64 2";
+        const char* test_name   = "Int 2";
         const char* test_source = ""
-            "commodore64 :: Int -> I64\n"
+            "commodore64 :: Int -> Int\n"
             "commodore64 x = fromInt x * 2\n"
             "main :: *World -> *World\n"
             "main w = w\n";
@@ -2952,9 +2918,9 @@ void necro_llvm_test()
     }
 
     {
-        const char* test_name   = "F64 1";
+        const char* test_name   = "Float 1";
         const char* test_source = ""
-            "commodore64 :: F64 -> F64\n"
+            "commodore64 :: Float -> Float\n"
             "commodore64 x = x * 2 * 3.0\n"
             "main :: *World -> *World\n"
             "main w = w\n";
@@ -2962,9 +2928,9 @@ void necro_llvm_test()
     }
 
     {
-        const char* test_name   = "F64 2";
+        const char* test_name   = "Float 2";
         const char* test_source = ""
-            "commodore64 :: Float -> F64\n"
+            "commodore64 :: Float -> Float\n"
             "commodore64 x = fromFloat x * 2 * 3.0\n"
             "main :: *World -> *World\n"
             "main w = w\n";
@@ -2974,7 +2940,7 @@ void necro_llvm_test()
     {
         const char* test_name   = "Struct64 1";
         const char* test_source = ""
-            "data Commodore64 = Commodore64 I64 I64\n"
+            "data Commodore64 = Commodore64 Int Int\n"
             "commodore64 :: Commodore64 -> Commodore64\n"
             "commodore64 c =\n"
             "  case c of\n"
@@ -2987,7 +2953,7 @@ void necro_llvm_test()
     {
         const char* test_name   = "Struct64 2";
         const char* test_source = ""
-            "data Commodore64 = Commodore64 F64 F64\n"
+            "data Commodore64 = Commodore64 Float Float\n"
             "commodore64 :: Commodore64 -> Commodore64\n"
             "commodore64 c =\n"
             "  case c of\n"
@@ -3471,7 +3437,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Floored 1";
         const char* test_source = ""
-            "floored :: F64\n"
+            "floored :: Float\n"
             "floored ~ 0 = floored + 0.05\n"
             "main :: *World -> *World\n"
             "main w = print (fastFloor floored) w\n";
@@ -3481,7 +3447,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Floored 2";
         const char* test_source = ""
-            "fcounter :: F64\n"
+            "fcounter :: Float\n"
             "fcounter ~ 0 = x\n"
             "  where\n"
             "    acc = fcounter + 0.00514123123\n"
@@ -3494,7 +3460,7 @@ void necro_llvm_test_jit()
     {
         const char* test_name   = "Floored 3";
         const char* test_source = ""
-            "sawAccTest :: F64\n"
+            "sawAccTest :: Float\n"
             "sawAccTest ~ 0 =\n"
             "  case sawOut of\n"
             "    (#acc, _#) -> acc\n"
@@ -3990,7 +3956,7 @@ void necro_llvm_test_compile()
     {
         const char* test_name   = "Floored 1";
         const char* test_source = ""
-            "floored :: F64\n"
+            "floored :: Float\n"
             "floored ~ 0 = floored + 0.01\n"
             "main :: *World -> *World\n"
             "main w = print (fastFloor floored) w\n";
@@ -4001,7 +3967,7 @@ void necro_llvm_test_compile()
     {
         const char* test_name   = "Floored 2";
         const char* test_source = ""
-            "fcounter :: F64\n"
+            "fcounter :: Float\n"
             "fcounter ~ 0 = x\n"
             "  where\n"
             "    acc = fcounter + 0.0514123123\n"

@@ -807,6 +807,90 @@ f64EpsilonU = 4372995238176751616
 f64Epsilon :: Float
 f64Epsilon = fromBits f64EpsilonU
 
+
+--------------------
+-- FloatVec
+--------------------
+
+-- TODO: Finish!
+instance Eq (FloatVec n) where
+  eq  x y = primUndefined
+  neq x y = primUndefined
+
+instance Ord (FloatVec n) where
+  lt  x y = primUndefined
+  gt  x y = primUndefined
+  lte x y = primUndefined
+  gte x y = primUndefined
+
+-- TODO: prim zero / one instances
+instance Semiring (FloatVec n) where
+  zero    = primUndefined
+  one     = primUndefined
+  add x y = primUndefined
+  mul x y = primUndefined
+
+instance Ring (FloatVec n) where
+  sub   x y = primUndefined
+  fromInt x = primUndefined
+
+instance Num (FloatVec n) where
+  abs      x      = primUndefined
+  copysign x sign = primUndefined
+  signum   x      = copysign 1 x
+
+instance EuclideanRing (FloatVec n) where
+  div x y = primUndefined
+  rem x y = primUndefined
+
+instance DivisionRing (FloatVec n) where
+  recip x = 1 / x
+
+instance Field (FloatVec n) where
+
+instance Floating (FloatVec n) where
+  fromFloat x = primUndefined
+  sqrt      x = primUndefined
+  floor     x = primUndefined
+  ceil      x = primUndefined
+  truncate  x = primUndefined
+  round     x = primUndefined
+  -- fmin      x y = primUndefined
+  -- fmax      x y = primUndefined
+
+-- instance Trig (FloatVec n) where
+--   sine   x = primUndefined
+--   cosine x = primUndefined
+--   sinh   x = primUndefined
+--   exp    x = primUndefined
+--   exp2   x = primUndefined
+--   log    x = primUndefined
+--   log10  x = primUndefined
+--   log2   x = primUndefined
+--   pow  x y = primUndefined
+
+-- instance Bits (FloatVec n) where
+--   bitAnd         x y = primUndefined
+--   bitNot         x   = primUndefined
+--   bitOr          x y = primUndefined
+--   bitXor         x y = primUndefined
+--   bitShiftLeft   x y = primUndefined
+--   bitShiftRight  x y = primUndefined
+--   bitShiftRightA x y = primUndefined
+--   bitReverse     x   = primUndefined
+--   toBits         x   = primUndefined
+--   fromBits       x   = primUndefined
+
+instance Semigroup (FloatVec n) where
+  append x y = x + y
+
+instance Monoid (FloatVec n) where
+  mempty = 0
+
+instance Default (FloatVec n) where
+  default = 0
+
+
 --------------------
 -- Rational
 --------------------

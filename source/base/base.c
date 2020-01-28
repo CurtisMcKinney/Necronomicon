@@ -395,9 +395,15 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_create_simple_data_decl(arena, top, intern, "UInt", "_UInt");
     necro_base_create_simple_data_decl(arena, top, intern, "Float", "_Float");
     necro_base_create_simple_data_decl(arena, top, intern, "Char", "_Char");
-    necro_base_create_simple_data_decl(arena, top, intern, "Floatx32", "_Floatx32");
     // necro_base_create_simple_data_decl(arena, top, intern, "F64", "_F64");
     // necro_base_create_simple_data_decl(arena, top, intern, "I64", "_I64");
+
+    // FloatVec
+    NecroAst* float_vec_n_type   = necro_ast_create_type_signature(arena, NECRO_SIG_TYPE_VAR, necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_VAR_DECLARATION), NULL, necro_ast_create_conid(arena, intern, "Nat", NECRO_CON_TYPE_VAR));
+    NecroAst* float_vec_s_type   = necro_ast_create_simple_type(arena, intern, "FloatVec", necro_ast_create_list(arena, float_vec_n_type, NULL));
+    NecroAst* float_vec_con      = necro_ast_create_data_con(arena, intern, "_FloatVec", NULL);
+    NecroAst* float_vec_con_list = necro_ast_create_list(arena, float_vec_con, NULL);
+    necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, float_vec_s_type, float_vec_con_list));
 
     // _project :: a -> UInt -> b, primitive data structure projection
     {
@@ -422,7 +428,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     NecroAst* array_n_type   = necro_ast_create_type_signature(arena, NECRO_SIG_TYPE_VAR, necro_ast_create_var(arena, intern, "n", NECRO_VAR_TYPE_VAR_DECLARATION), NULL, necro_ast_create_conid(arena, intern, "Nat", NECRO_CON_TYPE_VAR));
     NecroAst* array_s_type   = necro_ast_create_simple_type(arena, intern, "Array", necro_ast_create_list(arena, array_n_type, necro_ast_create_var_list(arena, intern, 1, NECRO_VAR_TYPE_VAR_DECLARATION)));
     NecroAst* array_args     = necro_ast_create_list(arena, necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR), NULL);
-    NecroAst* array_con      = necro_ast_create_data_con(arena, intern, "Array", array_args);
+    NecroAst* array_con      = necro_ast_create_data_con(arena, intern, "_Array", array_args);
     NecroAst* array_con_list = necro_ast_create_list(arena, array_con, NULL);
     necro_append_top(arena, top, necro_ast_create_data_declaration(arena, intern, array_s_type, array_con_list));
 
@@ -1021,6 +1027,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.uint_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "UInt"));
     base.float_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Float"));
     base.float_con              = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Float"));
+    base.float_vec_type         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "FloatVec"));
     // base.int64_type             = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "I64"));
     // base.float64_type           = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "F64"));
     base.char_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Char"));
@@ -1266,7 +1273,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "ceilToInt",             &base.ceil_to_int_float,       NECRO_PRIMOP_UOP_FCEIL_TO_INT);
     necro_base_setup_primitive(scoped_symtable, intern, "truncateToInt",         &base.truncate_to_int_float,   NECRO_PRIMOP_UOP_FTRNC_TO_INT);
     necro_base_setup_primitive(scoped_symtable, intern, "roundToInt",            &base.round_to_int_float,      NECRO_PRIMOP_UOP_FRND_TO_INT);
-
 
     necro_base_setup_primitive(scoped_symtable, intern, "sine<Float>",           &base.sine_float,              NECRO_PRIMOP_INTR_SIN);
     necro_base_setup_primitive(scoped_symtable, intern, "cosine<Float>",         &base.cosine_float,            NECRO_PRIMOP_INTR_COS);

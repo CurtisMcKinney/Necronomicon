@@ -1322,11 +1322,13 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_UOP_ITOI:
     case NECRO_PRIMOP_UOP_ITOU:
     case NECRO_PRIMOP_UOP_ITOF:
+    case NECRO_PRIMOP_UOP_ITOFV:
     case NECRO_PRIMOP_UOP_UTOI:
     case NECRO_PRIMOP_UOP_FTRI:
     case NECRO_PRIMOP_UOP_FTRU:
     case NECRO_PRIMOP_UOP_FRNI:
     case NECRO_PRIMOP_UOP_FTOF:
+    case NECRO_PRIMOP_UOP_FTOFV:
     case NECRO_PRIMOP_UOP_FFLR:
     case NECRO_PRIMOP_UOP_FFLR_TO_INT:
     case NECRO_PRIMOP_UOP_FCEIL_TO_INT:
@@ -1358,6 +1360,11 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     case NECRO_PRIMOP_BINOP_FMUL:
     case NECRO_PRIMOP_BINOP_FDIV:
     case NECRO_PRIMOP_BINOP_FREM:
+    case NECRO_PRIMOP_BINOP_FVADD:
+    case NECRO_PRIMOP_BINOP_FVSUB:
+    case NECRO_PRIMOP_BINOP_FVMUL:
+    case NECRO_PRIMOP_BINOP_FVDIV:
+    case NECRO_PRIMOP_BINOP_FVREM:
     case NECRO_PRIMOP_BINOP_AND:
     case NECRO_PRIMOP_BINOP_OR:
     case NECRO_PRIMOP_BINOP_SHL:
@@ -1485,6 +1492,36 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         necro_mach_build_store(program, outer->machine_def.update_fn, source_value, elem_ptr);
         return array_value;
     }
+
+    case NECRO_PRIMOP_ARRAY_TO_FV:
+    {
+        assert(arg_count == 1);
+        NecroMachAst* array_value = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        return necro_mach_build_bit_cast(program, outer->machine_def.update_fn, array_value, necro_mach_type_create_ptr(&program->arena, necro_mach_type_from_necro_type(program, app_ast->necro_type)));
+    }
+
+    case NECRO_PRIMOP_ARRAY_FROM_FV:
+    {
+        assert(arg_count == 1);
+        NecroMachAst* vector_type = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        return necro_mach_build_bit_cast(program, outer->machine_def.update_fn, vector_type, necro_mach_type_create_ptr(&program->arena, necro_mach_type_from_necro_type(program, app_ast->necro_type)));
+    }
+
+    // case NECRO_PRIMOP_FV_INSERT:
+    // {
+    //     assert(arg_count == 3);
+    //     assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
+    //     assert(app_ast->app.expr1->app.expr1->ast_type == NECRO_CORE_AST_APP);
+    //     NecroMachAst* index_value  = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr1->app.expr2, outer);
+    //     NecroMachAst* source_value = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+    //     NecroMachAst* vector_value = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+    //     return necro_mach_build_insert_value(program, outer->machine_def.update_fn, vector_value, source_value, index_value, "fv");
+    // }
+
+    // case NECRO_PRIMOP_FV_INSERT:
+    // {
+    //     return NULL;
+    // }
 
     case NECRO_PRIMOP_INTR_FABS:
     case NECRO_PRIMOP_INTR_SIN:
@@ -2294,7 +2331,7 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_MACH_TEST_VERBOSE 0
+#define NECRO_MACH_TEST_VERBOSE 1
 void necro_mach_test_string(const char* test_name, const char* str)
 {
 
@@ -2339,7 +2376,7 @@ void necro_mach_test_string(const char* test_name, const char* str)
     // printf("\n");
     // necro_core_ast_pretty_print(core_ast.root);
     // printf("\n");
-    // necro_mach_print_program(&mach_program);
+    necro_mach_print_program(&mach_program);
     // for (size_t i = 0; i < mach_program.machine_defs.length; ++i)
     // {
     //     if (strcmp("Necro.Base.mapAudio2b8f", mach_program.machine_defs.data[i]->machine_def.symbol->name->str) == 0)

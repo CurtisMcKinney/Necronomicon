@@ -594,7 +594,7 @@ NecroType* necro_core_ast_type_specialize(NecroStateAnalysis* sa, NecroType* typ
 
         //--------------------
         // Primitively polymoprhic types Early exit
-        if (type->con.con_symbol == sa->base->array_type || type->con.con_symbol == sa->base->ptr_type)
+        if (type->con.con_symbol == sa->base->array_type || type->con.con_symbol == sa->base->ptr_type || type->con.con_symbol == sa->base->float_vec)
         {
             NecroType* con_args = necro_core_ast_type_specialize(sa, type->con.args);
             if (con_args == type->con.args)
@@ -795,7 +795,8 @@ NecroCoreAst* necro_core_ast_maybe_deep_copy(NecroStateAnalysis* context, NecroC
     assert(ast_to_deep_copy != NULL);
     NecroType* type = necro_type_find(ast_to_deep_copy->necro_type);
     assert(type->type == NECRO_TYPE_CON);
-    if (type->con.con_symbol == context->base->array_type || type->con.con_symbol == context->base->ptr_type)
+    // TODO: primitively polymorphic flag
+    if (type->con.con_symbol == context->base->array_type || type->con.con_symbol == context->base->ptr_type || type->con.con_symbol == context->base->float_vec)
     {
         return necro_core_ast_create_deep_copy_array(context, ast_to_deep_copy);
     }
@@ -878,7 +879,7 @@ NecroCoreAst* necro_core_ast_create_deep_copy(NecroStateAnalysis* context, Necro
         return NULL;
 
     // TODO: How to handle arrays!?!?!?!?!
-    if (ast->data_decl.ast_symbol == context->base->array_type->core_ast_symbol || ast->data_decl.ast_symbol == context->base->ptr_type->core_ast_symbol)
+    if (ast->data_decl.ast_symbol == context->base->array_type->core_ast_symbol || ast->data_decl.ast_symbol == context->base->ptr_type->core_ast_symbol || ast->data_decl.ast_symbol == context->base->float_vec->core_ast_symbol)
         return necro_core_ast_create_deep_copy_array(context, ast);
 
     //--------------------

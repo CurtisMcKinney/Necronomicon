@@ -154,10 +154,10 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
         LLVMAddConstantPropagationPass(fn_pass_manager);
         LLVMAddMergedLoadStoreMotionPass(fn_pass_manager);
         LLVMAddInstructionCombiningPass(fn_pass_manager);
-        LLVMAddScalarizerPass(fn_pass_manager);
+        // LLVMAddScalarizerPass(fn_pass_manager);
         LLVMAddScalarReplAggregatesPass(fn_pass_manager);
         LLVMAddScalarReplAggregatesPassSSA(fn_pass_manager);
-        LLVMAddScalarizerPass(fn_pass_manager);
+        // LLVMAddScalarizerPass(fn_pass_manager);
         LLVMAddReassociatePass(fn_pass_manager);
         LLVMAddInstructionCombiningPass(fn_pass_manager);
         LLVMAddMergedLoadStoreMotionPass(fn_pass_manager);
@@ -177,10 +177,10 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
         LLVMAddInstructionCombiningPass(mod_pass_manager);
         LLVMAddArgumentPromotionPass(mod_pass_manager);
         LLVMAddFunctionAttrsPass(mod_pass_manager);
-        LLVMAddScalarizerPass(mod_pass_manager);
+        // LLVMAddScalarizerPass(mod_pass_manager);
         LLVMAddScalarReplAggregatesPass(mod_pass_manager);
         LLVMAddScalarReplAggregatesPassSSA(mod_pass_manager);
-        LLVMAddScalarizerPass(mod_pass_manager);
+        // LLVMAddScalarizerPass(mod_pass_manager);
         LLVMAddInstructionCombiningPass(mod_pass_manager);
         LLVMAddMergedLoadStoreMotionPass(mod_pass_manager);
         LLVMAddNewGVNPass(mod_pass_manager);
@@ -318,6 +318,7 @@ LLVMTypeRef necro_llvm_type_from_mach_type(NecroLLVM* context, NecroMachType* ma
     case NECRO_MACH_TYPE_VOID:   return LLVMVoidTypeInContext(context->context);
     case NECRO_MACH_TYPE_PTR:    return LLVMPointerType(necro_llvm_type_from_mach_type(context, mach_type->ptr_type.element_type), 0);
     case NECRO_MACH_TYPE_ARRAY:  return LLVMArrayType(necro_llvm_type_from_mach_type(context, mach_type->array_type.element_type), (unsigned int) mach_type->array_type.element_count);
+    case NECRO_MACH_TYPE_VECTOR: return LLVMVectorType(necro_llvm_type_from_mach_type(context, mach_type->array_type.element_type), (unsigned int) mach_type->array_type.element_count);
     case NECRO_MACH_TYPE_STRUCT:
     {
         NecroLLVMSymbol* llvm_symbol = necro_llvm_symbol_get(&context->arena, mach_type->struct_type.symbol);
@@ -587,6 +588,11 @@ LLVMValueRef necro_llvm_codegen_binop(NecroLLVM* context, NecroMachAst* ast)
     case NECRO_PRIMOP_BINOP_FMUL: value = LLVMBuildFMul(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FDIV: value = LLVMBuildFDiv(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FREM: value = LLVMBuildFRem(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FVADD: value = LLVMBuildFAdd(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FVSUB: value = LLVMBuildFSub(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FVMUL: value = LLVMBuildFMul(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FVDIV: value = LLVMBuildFDiv(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FVREM: value = LLVMBuildFRem(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_AND:  value = LLVMBuildAnd(context->builder, left, right, name);  break;
     case NECRO_PRIMOP_BINOP_OR:   value = LLVMBuildOr(context->builder, left, right, name);   break;
     case NECRO_PRIMOP_BINOP_XOR:  value = LLVMBuildXor(context->builder, left, right, name);  break;
@@ -897,6 +903,24 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
             value = LLVMBuildTrunc(context->builder, param, result_type, name);
         else
             value = param;
+        break;
+    }
+
+    case NECRO_PRIMOP_UOP_ITOFV:
+    {
+        LLVMTypeRef  e_type  = necro_llvm_type_from_mach_type(context, ast->uop.result->necro_machine_type->vector_type.element_type);
+        LLVMValueRef f_value = LLVMBuildSIToFP(context->builder, param, e_type, name);
+        value                = LLVMGetUndef(result_type);
+        value                = LLVMBuildInsertElement(context->builder, value, f_value, LLVMConstInt(LLVMInt32TypeInContext(context->context), 0, false), "fv");
+        value                = LLVMBuildShuffleVector(context->builder, value, value, LLVMConstNull(LLVMVectorType(LLVMInt32TypeInContext(context->context), (unsigned int) ast->uop.result->necro_machine_type->vector_type.element_count)), "fv");
+        break;
+    }
+
+    case NECRO_PRIMOP_UOP_FTOFV:
+    {
+        value = LLVMGetUndef(result_type);
+        value = LLVMBuildInsertElement(context->builder, value, param, LLVMConstInt(LLVMInt32TypeInContext(context->context), 0, false), "fv");
+        value = LLVMBuildShuffleVector(context->builder, value, value, LLVMConstNull(LLVMVectorType(LLVMInt32TypeInContext(context->context), (unsigned int) ast->uop.result->necro_machine_type->vector_type.element_count)), "fv");
         break;
     }
 
@@ -1811,8 +1835,8 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     NecroMachProgram    mach_program    = necro_mach_program_empty();
     NecroLLVM           llvm            = necro_llvm_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
-    if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
-        info.opt_level = 1;
+    // if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
+        info.opt_level = 0;
     info.verbosity = 0;
 
     //--------------------
@@ -3995,6 +4019,6 @@ void necro_llvm_test_compile()
         const char* test_source = ""
             "main :: *World -> *World\n"
             "main w = testJit w\n";
-        necro_llvm_jit_string(test_name, test_source);
+        necro_llvm_compile_string(test_name, test_source);
     }
 }

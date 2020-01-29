@@ -857,6 +857,15 @@ size_t necro_nat_to_size_t(const NecroBase* base, const NecroType* n)
         const size_t result = necro_nat_to_size_t(base, arg1) * necro_nat_to_size_t(base, arg2);
         return result;
     }
+    else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->nat_div_type)
+    {
+        assert(n->con.args != NULL);
+        assert(n->con.args->list.next != NULL);
+        NecroType*   arg1   = n->con.args->list.item;
+        NecroType*   arg2   = n->con.args->list.next->list.item;
+        const size_t result = necro_nat_to_size_t(base, arg1) / necro_nat_to_size_t(base, arg2);
+        return result;
+    }
     else if (n->type == NECRO_TYPE_CON && n->con.con_symbol == base->nat_max_type)
     {
         assert(n->con.args != NULL);

@@ -126,6 +126,9 @@ not b =
 -- Some Base Classes
 ----------------------
 
+class Print a where
+  print :: a -> *World -> *World
+
 class Semigroup m where
   append :: m -> m -> m
 
@@ -175,6 +178,47 @@ class Eq a => Ord a where
 
 class Default a where
   default :: a
+
+printUInt :: UInt -> *World -> *World
+printUInt u w = w
+
+printInt :: Int -> *World -> *World
+printInt i w = w
+
+printFloat :: Float -> *World -> *World
+printFloat i w = w
+
+printChar :: Char -> *World -> *World
+printChar c w = w
+
+printNewline :: *World -> *World
+printNewline w = printChar '\n' w
+
+instance Print UInt where
+  print x w = printUInt x w
+
+instance Print Int where
+  print x w = printInt x w
+
+instance Print Float where
+  print x w = printFloat x w
+
+instance Print Char where
+  print x w = printChar x w
+
+printLn :: Print a => a -> *World -> *World
+printLn x w =
+  printNewline (print x w)
+
+trace :: Print a => a -> .b -> .b
+trace x y =
+  case print x primUndefined of
+    _ -> y
+
+traceLn :: Print a => a -> .b -> .b
+traceLn x y =
+  case printLn x primUndefined of
+    _ -> y
 
 
 ----------------------
@@ -812,16 +856,19 @@ f64Epsilon = fromBits f64EpsilonU
 -- FloatVec
 --------------------
 
+--TODO: insertelement
+--TODO: extractelement
+
 -- TODO: Finish!
 instance Eq (FloatVec n) where
   eq  x y = primUndefined
   neq x y = primUndefined
 
-instance Ord (FloatVec n) where
-  lt  x y = primUndefined
-  gt  x y = primUndefined
-  lte x y = primUndefined
-  gte x y = primUndefined
+-- instance Ord (FloatVec n) where
+--   lt  x y = primUndefined
+--   gt  x y = primUndefined
+--   lte x y = primUndefined
+--   gte x y = primUndefined
 
 -- TODO: prim zero / one instances
 instance Semiring (FloatVec n) where
@@ -889,6 +936,18 @@ instance Monoid (FloatVec n) where
 
 instance Default (FloatVec n) where
   default = 0
+
+-- floatVecInsert :: Index n -> Float -> FloatVec n -> FloatVec n
+-- floatVecInsert i f v = primUndefined
+
+-- floatVecExtract :: Index n -> FloatVec n -> Float
+-- floatVecExtract i v = primUndefined
+
+toFloatVecArray :: .Array n Float -> .Array (NatDiv n vn) (FloatVec vn)
+toFloatVecArray a = primUndefined
+
+fromFloatVecArray ::  .Array (NatDiv n vn) (FloatVec vn) -> .Array n Float
+fromFloatVecArray v = primUndefined
 
 
 --------------------
@@ -1436,8 +1495,6 @@ audioInitArray u =
   snd' <| loop (#i, a#) = (#0, unsafeEmptyArray ()#) while i < audioSampleOffset do
     (#i + 1, writeArray (Index i) 0 a#)
 
--- TODO: Floatx32
--- TODO: unroll loop?
 mapAudio :: (Float -> Float) -> Audio -> Audio
 mapAudio f c =
   case c of
@@ -1451,8 +1508,6 @@ mapAudio f c =
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
 
--- TODO: Floatx32
--- TODO: unroll loop?
 mapAudio2 :: (Float -> Float -> Float) -> Audio -> Audio -> Audio
 mapAudio2 f cx cy =
   case cx of
@@ -1482,6 +1537,53 @@ mapAudio2 f cx cy =
   where
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
+
+mapAudio2Vec :: (FloatVec 32 -> FloatVec 32 -> FloatVec 32) -> (Float -> Float -> Float) -> Audio -> Audio -> Audio
+mapAudio2Vec f ff cx cy =
+  case cx of
+    AudioEnd     -> AudioEnd
+    BlockRate x' ->
+      case cy of
+        AudioEnd     -> AudioEnd
+        BlockRate y' -> traceLn 601 <| BlockRate (ff x' y')
+        AudioRate y' ->
+          let
+            x = traceLn 602 <| fromFloat x'
+            y = toFloatVecArray y'
+          in
+            AudioRate
+            <| traceLn 802
+            <| freezeArray
+            <| fromFloatVecArray
+            <| loop a = ia for i <- each do
+              writeArray i (f x (readArray i y)) a
+    AudioRate x' ->
+      case cy of
+        AudioEnd     -> AudioEnd
+        BlockRate y' ->
+          let
+            x = traceLn 603 <| toFloatVecArray x'
+            y = fromFloat y'
+          in
+            AudioRate
+            <| traceLn 803
+            <| freezeArray
+            <| fromFloatVecArray
+            <| loop a = ia for i <- each do
+              writeArray i (f (readArray i <| traceLn 703 <| x) y) a
+        AudioRate y' ->
+          let
+            x = traceLn 604 <| toFloatVecArray x'
+            y = toFloatVecArray y'
+          in
+            AudioRate
+            <| traceLn 804
+            <| freezeArray
+            <| fromFloatVecArray
+            <| loop a = ia for i <- each do
+              writeArray i (f (readArray i x) (readArray i y)) a
+  where
+    ia = toFloatVecArray <| audioInitArray ()
 
 constTrue :: a -> Bool
 constTrue _ = True
@@ -1866,11 +1968,11 @@ instance Eq Audio where
 instance Semiring Audio where
   zero    = BlockRate 0
   one     = BlockRate 1
-  add x y = mapAudio2 add x y
-  mul x y = mapAudio2 mul x y
+  add x y = mapAudio2Vec add add x y
+  mul x y = mapAudio2Vec mul mul x y
 
 instance Ring Audio where
-  sub x y   = mapAudio2 sub x y
+  sub x y   = mapAudio2Vec sub sub x y
   fromInt i = BlockRate (fromInt i)
 
 instance EuclideanRing Audio where
@@ -3575,35 +3677,6 @@ interleaveTick slot maxSlot sv =
 --------------------
 -- Print
 --------------------
-class Print a where
-  print :: a -> *World -> *World
-
-printUInt :: UInt -> *World -> *World
-printUInt u w = w
-
-printInt :: Int -> *World -> *World
-printInt i w = w
-
-printFloat :: Float -> *World -> *World
-printFloat i w = w
-
-printChar :: Char -> *World -> *World
-printChar c w = w
-
-printNewline :: *World -> *World
-printNewline w = printChar '\n' w
-
-instance Print UInt where
-  print x w = printUInt x w
-
-instance Print Int where
-  print x w = printInt x w
-
-instance Print Float where
-  print x w = printFloat x w
-
-instance Print Char where
-  print x w = printChar x w
 
 instance Print a => Print (Array n a) where
   print a w =
@@ -3665,15 +3738,6 @@ instance Print Audio where
         print '}' <| loop w' = (print '{' w) for i <- each do
           print (readArray i b) w' |> print ',' |> print ' '
 
--- instance Foldable f => Print (Audio f) where
---   print (Audio f) w =
---     print "Audio [" w
---     |> printNewline
---     |> printNewline
---     |> (\w' -> foldl (\w'' c -> print c w'' |> printNewline |> printNewline) w' f)
---     |> print ']'
---     |> printNewline
-
 instance Print Complex where
   print (Complex# r i) w =
     print '(' w
@@ -3690,20 +3754,6 @@ instance Print (FFT k) where
     |> print c
     |> print ']'
     |> printNewline
-
-printLn :: Print a => a -> *World -> *World
-printLn x w =
-  printNewline (print x w)
-
-trace :: Print a => a -> .b -> .b
-trace x y =
-  case print x primUndefined of
-    _ -> y
-
-traceLn :: Print a => a -> .b -> .b
-traceLn x y =
-  case printLn x primUndefined of
-    _ -> y
 
   -- foldp :: (b -> a -> b) -> f a -> b
 
@@ -4215,73 +4265,23 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --       allBitsF :: Float
 --       allBitsF = fromBits allBits
 
--- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
--- TODO: Test arg copying
--- TODO: Test shared beats, etc (NOTE: Known to assert false currently)
-
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 badAudio w
---   where
---     badAudio   = poly badSynth badBeat
---     badBeat    = [400 600 [800:500] <900 <600 [700:1200]> <300 200>>]
---     badSynth f =
---       saw (fromFloat f)
---       |> mul 0.0125
---       |> perc 0.0125 3 1
---       |> pan 0.5
-
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 badAudio w
---   where
---     badAudio   = poly badSynth badBeat
---     badBeat    = [_ 600] |> seqSpeed (1 // 10)
---     badSynth f =
---       saw (fromFloat f)
-
--- -- TODO: Deep copy arrays, but don't deep copy unique arrays
--- -- TODO: id in poly causing compile assert... probably due to inlining???
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 badAudio w
---   where
---     badBeat    = [100 1200 1400 1800] |> seqSpeed (1 // 2) |> map saw
---     badSynth a = a * 0.1 |> perc 1 3 1 |> pan 0.5
---     badAudio   = poly badSynth badBeat
-
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 badAudio w
---   where
---     badBeat1     = seqSpeed (6 // 1) [100 600 800 900]
---     badBeat2     = seqSpeed (3 // 1) [0.2 0.8 0.4 0.6]
---     badSynth f p = saw (f * fromInt (mouseX / 32 + 1)) * 0.05 |> perc 0.0125 1 1 |> pan p
---     badAudio     = poly2 badSynth badBeat1 badBeat2
-
--- -- TODO: Look at arg copying scheme....seems off (related to array copying?0
--- -- TODO: map3, etc
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 badAudio w
---   where
---     badBeat1       = seqSpeed (6 // 1) [100 600 800 900]
---     badBeat2       = seqSpeed (3 // 1) [900 800 600 100 1200 100 600 800 900 1200]
---     badBeat3       = seqSpeed (3 // 1) [0.2 0.8 0.4 0.6]
---     badSynth f g p = (saw (fromFloat f) + saw (fromFloat g)) * 0.05 |> perc 0.0125 1 1 |> pan (fromFloat p)
---     badAudio       = poly3 badSynth badBeat1 badBeat2 badBeat3
-
 ----------------------
 -- Oscillator tests
 ----------------------
 
+-- TODO: alignment!?!?!? what!?!?!?
 oscTest :: (Mono Audio -> Mono Audio) -> Stereo Audio
 oscTest f =
   perc 10 1 3 6000 + 50
+  |> traceLn 0
   |> f
+  |> traceLn 111
   |> perc 5 5 -1
+  |> traceLn 222
   |> mul 0.2
+  |> traceLn 333
   |> mixStereo
+  |> traceLn 444
 
 -- testJit :: *World -> *World
 -- testJit w =
@@ -4313,9 +4313,22 @@ oscTest f =
 -- testJit w =
 --   outAudio 0 (oscTest lfSaw) w
 
+testJit :: *World -> *World
+testJit w =
+  outAudio 0 (oscTest saw) w
+
+-- floatVecMathTest :: Array BlockSize Float -> Array BlockSize Float -> Array BlockSize Float
+-- floatVecMathTest xa ya =
+--   freezeArray <| fromFloatVecArray <| loop a = unsafeEmptyArray () for i <- each do
+--     writeArray i (readArray i x + readArray i y) a
+--   where
+--     x :: Array (NatDiv BlockSize 32) (FloatVec 32)
+--     x = toFloatVecArray xa
+--     y = toFloatVecArray ya
+
 -- testJit :: *World -> *World
 -- testJit w =
---   outAudio 0 (oscTest saw) w
+--   printNewline <| printNewline <| print (floatVecMathTest (arrayFrom 100) (arrayFrom 578)) w
 
 -- testJit :: *World -> *World
 -- testJit w =
@@ -4521,39 +4534,39 @@ oscTest f =
 --       |> perc 5 20 -1
 --       |> mul 0.2
 
-testJit :: *World -> *World
-testJit w =
-  outAudio 0 badAudio w
-  where
-    freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
-    freqMul2  = sin 0.14 *  0.0035 + sin 0.5 * -0.00025 + 0.5
-    freqMul3  = sin 0.23 * -0.0035 + sin 0.4 *  0.00025 + 0.5
-    beatSpeed = 3 // 2
-    badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
-    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ _ _ 0.25 0.5 0.75 1 1.5]))
-    badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
-    badSynth1 f =
-      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (sin (fromFloat f) * 0.75)
-      |> mul 0.11
-      |> perc 0.005 2.5 -3.75
-      |> pan 0.375
-    badSynth2 f =
-      tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.3)
-      |> mul 0.09
-      |> perc 0.01 3.5 -2.75
-      |> pan 0.625
-    bassSynth f =
-      sin (fromFloat (f * 0.5)) + (0.5 * (tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))))
-      |> mul 0.1
-      |> perc 0.005 5 -1.8
-      |> mixStereo
-    synths =
-      poly badSynth1 badBeat1 +
-      poly badSynth2 badBeat2
-      |> delay oneSec 0.6666667 0.6
-    badAudio =
-      poly bassSynth badBeat3 +
-      synths
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 badAudio w
+--   where
+--     freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
+--     freqMul2  = sin 0.14 *  0.0035 + sin 0.5 * -0.00025 + 0.5
+--     freqMul3  = sin 0.23 * -0.0035 + sin 0.4 *  0.00025 + 0.5
+--     beatSpeed = 3 // 2
+--     badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
+--     badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ _ _ 0.25 0.5 0.75 1 1.5]))
+--     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
+--     badSynth1 f =
+--       tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (sin (fromFloat f) * 0.75)
+--       |> mul 0.11
+--       |> perc 0.005 2.5 -3.75
+--       |> pan 0.375
+--     badSynth2 f =
+--       tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.3)
+--       |> mul 0.09
+--       |> perc 0.01 3.5 -2.75
+--       |> pan 0.625
+--     bassSynth f =
+--       sin (fromFloat (f * 0.5)) + (0.5 * (tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))))
+--       |> mul 0.1
+--       |> perc 0.005 5 -1.8
+--       |> mixStereo
+--     synths =
+--       poly badSynth1 badBeat1 +
+--       poly badSynth2 badBeat2
+--       |> delay oneSec 0.6666667 0.6
+--     badAudio =
+--       poly bassSynth badBeat3 +
+--       synths
 
 -- testJit :: *World -> *World
 -- testJit w = print one w
@@ -4727,7 +4740,6 @@ testJit w =
 --   in
 --     SeqValue# 2 SeqNormal (Just value)
 
--- -- Simplification is getting out of hand, current setup is n^2 which is....bad.
 -- seqTest :: Seq Float
 -- seqTest =
 --   [x 100 200 <300 x> [400:500]]
@@ -4745,6 +4757,10 @@ testJit w =
 --     x = <0 5 <1 2> 1>
 --     y = 3
 --     z = fromInt mouseX * 100
+
+-- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
+-- TODO: Test arg copying
+-- TODO: Test shared beats, etc (NOTE: Known to assert false currently)
 
 -- TODO: Floatx32
 -- TODO: Waveterrain oscillators + mandelbulb + strange attractors + delauney triangulation

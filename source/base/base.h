@@ -76,7 +76,7 @@ typedef struct NecroBase
     NecroAstSymbol* uint_type;
     NecroAstSymbol* float_type;
     NecroAstSymbol* float_con;
-    NecroAstSymbol* float_vec_type;
+    NecroAstSymbol* float_vec;
     // NecroAstSymbol* float64_type;
     NecroAstSymbol* rational_type;
     NecroAstSymbol* char_type;
@@ -118,6 +118,7 @@ typedef struct NecroBase
     NecroAstSymbol* block_size_type;
     NecroAstSymbol* sample_rate_type;
     NecroAstSymbol* nat_mul_type;
+    NecroAstSymbol* nat_div_type;
     NecroAstSymbol* nat_max_type;
     NecroAstSymbol* nat_next_power_of_2;
     NecroAstSymbol* sample_rate;

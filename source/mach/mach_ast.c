@@ -474,17 +474,23 @@ NecroMachAst* necro_mach_build_insert_value(NecroMachProgram* program, NecroMach
     assert(fn_def->type == NECRO_MACH_FN_DEF);
     assert(aggregate_value->type == NECRO_MACH_VALUE);
     assert(aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT ||
-           aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY);
+           aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY  ||
+           aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_VECTOR);
     assert(inserted_value->type == NECRO_MACH_VALUE);
     if (aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT)
     {
         assert(index < aggregate_value->necro_machine_type->struct_type.num_members);
         necro_mach_type_check(program, aggregate_value->necro_machine_type->struct_type.members[index], inserted_value->necro_machine_type);
     }
-    else
+    else if (aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY)
     {
         assert(index < aggregate_value->necro_machine_type->array_type.element_count);
         necro_mach_type_check(program, aggregate_value->necro_machine_type->array_type.element_type, inserted_value->necro_machine_type);
+    }
+    else if (aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY)
+    {
+        assert(index < aggregate_value->necro_machine_type->vector_type.element_count);
+        necro_mach_type_check(program, aggregate_value->necro_machine_type->vector_type.element_type, inserted_value->necro_machine_type);
     }
     NecroMachAst*  ast                = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
     ast->type                         = NECRO_MACH_INSERT_VALUE;
@@ -503,7 +509,8 @@ NecroMachAst* necro_mach_build_extract_value(NecroMachProgram* program, NecroMac
     assert(fn_def->type == NECRO_MACH_FN_DEF);
     assert(aggregate_value->type == NECRO_MACH_VALUE);
     assert(aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT ||
-           aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY);
+           aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY  ||
+           aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_VECTOR);
     NecroMachAst*  ast            = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
     ast->type                     = NECRO_MACH_EXTRACT_VALUE;
     NecroMachType* extracted_type = NULL;
@@ -512,10 +519,15 @@ NecroMachAst* necro_mach_build_extract_value(NecroMachProgram* program, NecroMac
         assert(index < aggregate_value->necro_machine_type->struct_type.num_members);
         extracted_type = aggregate_value->necro_machine_type->struct_type.members[index];
     }
-    else
+    else if (aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_ARRAY)
     {
         assert(index < aggregate_value->necro_machine_type->array_type.element_count);
         extracted_type = aggregate_value->necro_machine_type->array_type.element_type;
+    }
+    else
+    {
+        assert(index < aggregate_value->necro_machine_type->vector_type.element_count);
+        extracted_type = aggregate_value->necro_machine_type->vector_type.element_type;
     }
     ast->extract_value.aggregate_value = aggregate_value;
     ast->extract_value.index           = index;
@@ -1026,6 +1038,20 @@ NecroMachAst* necro_mach_build_binop(NecroMachProgram* program, NecroMachAst* fn
         ast->binop.result       = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
         break;
     }
+    case NECRO_PRIMOP_BINOP_FVADD:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FVSUB:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FVMUL:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FVDIV:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FVREM:
+    {
+        assert(left->necro_machine_type->type == NECRO_MACH_TYPE_VECTOR);
+        assert(left->necro_machine_type->vector_type.element_count > 0);
+        assert(left->necro_machine_type->vector_type.element_type->type == NECRO_MACH_TYPE_F64);
+        necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
+        ast->necro_machine_type = left->necro_machine_type;
+        ast->binop.result       = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
+        break;
+    }
     case NECRO_PRIMOP_BINOP_FSHL:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FSHR:  /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FSHRA:
@@ -1125,6 +1151,13 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
+    case NECRO_PRIMOP_UOP_ITOFV:
+    {
+        necro_mach_type_check_is_int_type(param->necro_machine_type);
+        ast->necro_machine_type = result_type;
+        ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
+        break;
+    }
     case NECRO_PRIMOP_UOP_UTOI:
     {
         necro_mach_type_check_is_uint_type(param->necro_machine_type);
@@ -1160,6 +1193,13 @@ NecroMachAst* necro_mach_build_uop(NecroMachProgram* program, NecroMachAst* fn_d
         necro_mach_type_check_is_float_type(param->necro_machine_type);
         ast->necro_machine_type = result_type;
         ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "fop");
+        break;
+    }
+    case NECRO_PRIMOP_UOP_FTOFV:
+    {
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        ast->necro_machine_type = result_type;
+        ast->uop.result         = necro_mach_value_create_reg(program, ast->necro_machine_type, "uop");
         break;
     }
     case NECRO_PRIMOP_UOP_FFLR:

@@ -149,6 +149,13 @@ NecroMachType* _necro_mach_type_from_necro_type_poly_con(NecroMachProgram* progr
         NecroMachType* element_mach_type  = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, element_necro_type));
         return necro_mach_type_create_array(&program->arena, element_mach_type, element_count);
     }
+    if (type->con.con_symbol == program->base->float_vec)
+    {
+        NecroType*     n                  = type->con.args->list.item;
+        size_t         element_count      = necro_nat_to_size_t(program->base, n);
+        NecroMachType* element_mach_type  = program->type_cache.f64_type;
+        return necro_mach_type_create_vector(program, element_mach_type, element_count);
+    }
     else if (type->con.con_symbol == program->base->ptr_type)
     {
         NecroType*     element_necro_type = type->con.args->list.item;
@@ -236,6 +243,7 @@ NecroMachType* necro_mach_type_from_necro_type(NecroMachProgram* program, NecroT
 ///////////////////////////////////////////////////////
 // Create
 ///////////////////////////////////////////////////////
+
 NecroMachType* necro_mach_type_create_word_sized_uint(NecroMachProgram* program)
 {
     if (program->type_cache.word_uint_type != NULL)
@@ -416,6 +424,28 @@ NecroMachType* necro_mach_type_create_array(NecroPagedArena* arena, NecroMachTyp
     return type;
 }
 
+NecroMachType* necro_mach_type_create_vector(struct NecroMachProgram* program, NecroMachType* element_type, size_t element_count)
+{
+    assert(element_type != NULL);
+    assert(element_count > 0);
+    assert(
+        element_type->type == NECRO_MACH_TYPE_UINT1  ||
+        element_type->type == NECRO_MACH_TYPE_UINT8  ||
+        element_type->type == NECRO_MACH_TYPE_UINT16 ||
+        element_type->type == NECRO_MACH_TYPE_UINT32 ||
+        element_type->type == NECRO_MACH_TYPE_UINT64 ||
+        element_type->type == NECRO_MACH_TYPE_INT32  ||
+        element_type->type == NECRO_MACH_TYPE_INT64  ||
+        element_type->type == NECRO_MACH_TYPE_F32    ||
+        element_type->type == NECRO_MACH_TYPE_F64
+    );
+    NecroMachType* type             = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachType));
+    type->type                      = NECRO_MACH_TYPE_VECTOR;
+    type->vector_type.element_type  = element_type;
+    type->vector_type.element_count = element_count;
+    return type;
+}
+
 ///////////////////////////////////////////////////////
 // Utility
 ///////////////////////////////////////////////////////
@@ -427,6 +457,7 @@ bool necro_mach_type_is_unboxed(struct NecroMachProgram* program, NecroMachType*
         || type->type == program->type_cache.f32_type->type
         || type->type == program->type_cache.int64_type->type
         || type->type == program->type_cache.f64_type->type
+        || type->type == NECRO_MACH_TYPE_VECTOR
         || (type->type == NECRO_MACH_TYPE_STRUCT && type->struct_type.symbol->is_unboxed);
 }
 
@@ -471,6 +502,11 @@ size_t necro_mach_type_calculate_size_in_bytes_go(NecroMachType* type, size_t wo
     case NECRO_MACH_TYPE_F32:    return 4;
     case NECRO_MACH_TYPE_F64:    return 8;
     case NECRO_MACH_TYPE_PTR:    return word_size_in_bytes;
+    case NECRO_MACH_TYPE_VECTOR:
+    {
+        size_t element_size = necro_mach_type_calculate_size_in_bytes_go(type->vector_type.element_type, word_size_in_bytes);
+        return element_size * type->vector_type.element_count;
+    }
     case NECRO_MACH_TYPE_ARRAY:
     {
         size_t element_size = necro_mach_type_calculate_size_in_bytes_go(type->array_type.element_type, word_size_in_bytes);
@@ -563,6 +599,11 @@ void necro_mach_type_print_go(NecroMachType* type, bool is_recursive)
         necro_mach_type_print_go(type->ptr_type.element_type, false);
         printf("*");
         return;
+    case NECRO_MACH_TYPE_VECTOR:
+        printf("<%zu x ", type->vector_type.element_count);
+        necro_mach_type_print_go(type->vector_type.element_type, false);
+        printf(">");
+        return;
     case NECRO_MACH_TYPE_ARRAY:
         printf("[%zu x ", type->array_type.element_count);
         necro_mach_type_print_go(type->array_type.element_type, false);
@@ -630,6 +671,22 @@ void necro_mach_type_check(NecroMachProgram* program, NecroMachType* type1, Necr
     case NECRO_MACH_TYPE_PTR:
         necro_mach_type_check(program, type1->ptr_type.element_type, type2->ptr_type.element_type);
         return;
+    case NECRO_MACH_TYPE_VECTOR:
+        assert(type1->vector_type.element_count > 0);
+        assert(type1->vector_type.element_count == type2->vector_type.element_count);
+        assert(
+            type1->vector_type.element_type->type == NECRO_MACH_TYPE_UINT1  ||
+            type1->vector_type.element_type->type == NECRO_MACH_TYPE_UINT8  ||
+            type1->vector_type.element_type->type == NECRO_MACH_TYPE_UINT16 ||
+            type1->vector_type.element_type->type == NECRO_MACH_TYPE_UINT32 ||
+            type1->vector_type.element_type->type == NECRO_MACH_TYPE_UINT64 ||
+            type1->vector_type.element_type->type == NECRO_MACH_TYPE_INT32  ||
+            type1->vector_type.element_type->type == NECRO_MACH_TYPE_INT64  ||
+            type1->vector_type.element_type->type == NECRO_MACH_TYPE_F32    ||
+            type1->vector_type.element_type->type == NECRO_MACH_TYPE_F64
+        );
+        necro_mach_type_check(program, type1->vector_type.element_type, type2->vector_type.element_type);
+        return;
     case NECRO_MACH_TYPE_ARRAY:
         assert(type1->array_type.element_count == type2->array_type.element_count);
         necro_mach_type_check(program, type1->array_type.element_type, type2->array_type.element_type);
@@ -690,6 +747,8 @@ bool necro_mach_type_is_eq(NecroMachType* type1, NecroMachType* type2)
         return necro_mach_type_is_eq(type1->fn_type.return_type, type2->fn_type.return_type);
     case NECRO_MACH_TYPE_PTR:
         return necro_mach_type_is_eq(type1->ptr_type.element_type, type2->ptr_type.element_type);
+    case NECRO_MACH_TYPE_VECTOR:
+        return type1->vector_type.element_count == type2->vector_type.element_count && necro_mach_type_is_eq(type1->vector_type.element_type, type2->vector_type.element_type);
     case NECRO_MACH_TYPE_ARRAY:
         return type1->array_type.element_count == type2->array_type.element_count && necro_mach_type_is_eq(type1->array_type.element_type, type2->array_type.element_type);
     default:
@@ -1008,12 +1067,24 @@ void necro_mach_ast_type_check_binop(NecroMachProgram* program, NecroMachAst* as
     case NECRO_PRIMOP_BINOP_FREM:    /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FAND:    /* FALL THROUGH */
     case NECRO_PRIMOP_BINOP_FOR:     /* FALL THROUGH */
-    case NECRO_PRIMOP_BINOP_FXOR:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FXOR:
     {
         necro_mach_type_check_is_float_type(left->necro_machine_type);
         necro_mach_type_check_is_float_type(right->necro_machine_type);
         necro_mach_type_check_is_float_type(result->necro_machine_type);
         necro_mach_type_check_is_float_type(ast->necro_machine_type);
+        break;
+    }
+    case NECRO_PRIMOP_BINOP_FVADD:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FVSUB:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FVMUL:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FVDIV:    /* FALL THROUGH */
+    case NECRO_PRIMOP_BINOP_FVREM:
+    {
+        assert(left->necro_machine_type->type == NECRO_MACH_TYPE_VECTOR);
+        assert(left->necro_machine_type->vector_type.element_count > 0);
+        assert(left->necro_machine_type->vector_type.element_type->type == NECRO_MACH_TYPE_F64);
+        necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
         break;
     }
     default:
@@ -1091,6 +1162,14 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
         necro_mach_type_check_is_float_type(result->necro_machine_type);
         break;
     }
+    case NECRO_PRIMOP_UOP_ITOFV:
+    {
+        necro_mach_type_check_is_int_type(param->necro_machine_type);
+        assert(result->necro_machine_type->type == NECRO_MACH_TYPE_VECTOR);
+        assert(result->necro_machine_type->vector_type.element_count > 0);
+        assert(result->necro_machine_type->vector_type.element_type->type == NECRO_MACH_TYPE_F64);
+        break;
+    }
     case NECRO_PRIMOP_UOP_UTOI:
     {
         necro_mach_type_check_is_uint_type(param->necro_machine_type);
@@ -1119,6 +1198,14 @@ void necro_mach_ast_type_check_uop(NecroMachProgram* program, NecroMachAst* ast)
     {
         necro_mach_type_check_is_float_type(param->necro_machine_type);
         necro_mach_type_check_is_float_type(result->necro_machine_type);
+        break;
+    }
+    case NECRO_PRIMOP_UOP_FTOFV:
+    {
+        necro_mach_type_check_is_float_type(param->necro_machine_type);
+        assert(result->necro_machine_type->type == NECRO_MACH_TYPE_VECTOR);
+        assert(result->necro_machine_type->vector_type.element_count > 0);
+        assert(result->necro_machine_type->vector_type.element_type->type == NECRO_MACH_TYPE_F64);
         break;
     }
     case NECRO_PRIMOP_UOP_FFLR:

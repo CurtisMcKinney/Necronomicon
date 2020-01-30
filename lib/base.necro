@@ -1481,7 +1481,10 @@ outAudioBlock c a w = primUndefined
 
 silentBlock :: Array BlockSize Float
 silentBlock =
-  arrayFrom 0
+  fromFloatVecArray a
+  where
+    a :: Array (NatDiv BlockSize 32) (FloatVec 32)
+    a = arrayFrom 0
 
 outChannel :: UInt -> Audio -> *World -> *World
 outChannel n c w =
@@ -1490,10 +1493,20 @@ outChannel n c w =
     BlockRate _ -> outAudioBlock n silentBlock w
     AudioRate b -> outAudioBlock n b w
 
+-- TODO / NOTE:
+--     Take care when creating arrays for usage as audio buffers, they must be 64 BYTE aligned to allow for proper simd usage,
+--     Thus audio buffers should always be created in the form:
+--         Array (NatDiv BlockSize 32) (FloatVec 32)
+--     and then cast to:
+--         Array BlockSize Float
+--     This will insure that the audio buffer is aligned properly by the llvm back end
 audioInitArray :: () -> *Array BlockSize Float
 audioInitArray u =
-  snd' <| loop (#i, a#) = (#0, unsafeEmptyArray ()#) while i < audioSampleOffset do
+  snd' <| loop (#i, a#) = (#0, fromFloatVecArray ia#) while i < audioSampleOffset do
     (#i + 1, writeArray (Index i) 0 a#)
+  where
+    ia :: *Array (NatDiv BlockSize 32) (FloatVec 32)
+    ia = unsafeEmptyArray ()
 
 mapAudio :: (Float -> Float) -> Audio -> Audio
 mapAudio f c =
@@ -1538,6 +1551,7 @@ mapAudio2 f cx cy =
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
 
+-- TODO: perc Env state in for loop
 mapAudio2Vec :: (FloatVec 32 -> FloatVec 32 -> FloatVec 32) -> (Float -> Float -> Float) -> Audio -> Audio -> Audio
 mapAudio2Vec f ff cx cy =
   case cx of
@@ -1545,14 +1559,13 @@ mapAudio2Vec f ff cx cy =
     BlockRate x' ->
       case cy of
         AudioEnd     -> AudioEnd
-        BlockRate y' -> traceLn 601 <| BlockRate (ff x' y')
+        BlockRate y' -> BlockRate (ff x' y')
         AudioRate y' ->
           let
-            x = traceLn 602 <| fromFloat x'
+            x = fromFloat x'
             y = toFloatVecArray y'
           in
             AudioRate
-            <| traceLn 802
             <| freezeArray
             <| fromFloatVecArray
             <| loop a = ia for i <- each do
@@ -1562,22 +1575,20 @@ mapAudio2Vec f ff cx cy =
         AudioEnd     -> AudioEnd
         BlockRate y' ->
           let
-            x = traceLn 603 <| toFloatVecArray x'
+            x = toFloatVecArray x'
             y = fromFloat y'
           in
             AudioRate
-            <| traceLn 803
             <| freezeArray
             <| fromFloatVecArray
             <| loop a = ia for i <- each do
-              writeArray i (f (readArray i <| traceLn 703 <| x) y) a
+              writeArray i (f (readArray i x) y) a
         AudioRate y' ->
           let
-            x = traceLn 604 <| toFloatVecArray x'
+            x = toFloatVecArray x'
             y = toFloatVecArray y'
           in
             AudioRate
-            <| traceLn 804
             <| freezeArray
             <| fromFloatVecArray
             <| loop a = ia for i <- each do
@@ -2448,15 +2459,15 @@ instance Default OverSampleSawStateIIR where
 -- TODO: Port to using highShelf
 -- TODO: fneg
 
--- -- Brickwall filter constants
--- ffreqBrickWall = 20000
--- gainBrickWall  = -28
--- slopeBrickWall = 1
--- bigaBrickWall  = pow 10 (gainBrickWall / 40)
--- omegaBrickWall = ffreqBrickWall * audioRecipOverSampleRate * tau
--- csoBrickWall   = cosine omegaBrickWall
--- alphaBrickWall = sine omegaBrickWall * 0.5 * sqrt (((bigaBrickWall + (1 / bigaBrickWall)) * ((1 / slopeBrickWall) - 1)) + 2)
--- betaBrickWall  = 2 * sqrt bigaBrickWall * alphaBrickWall
+-- Brickwall filter constants
+ffreqBrickWall = 20000
+gainBrickWall  = -28
+slopeBrickWall = 1
+bigaBrickWall  = pow 10 (gainBrickWall / 40)
+omegaBrickWall = ffreqBrickWall * audioRecipOverSampleRate * tau
+csoBrickWall   = cosine omegaBrickWall
+alphaBrickWall = sine omegaBrickWall * 0.5 * sqrt (((bigaBrickWall + (1 / bigaBrickWall)) * ((1 / slopeBrickWall) - 1)) + 2)
+betaBrickWall  = 2 * sqrt bigaBrickWall * alphaBrickWall
 
 -- -- Oversampling saw wave with IIR brickwall filter
 -- -- TODO: Upsample frequency?!?!!?
@@ -2612,48 +2623,48 @@ lfSaw freq =
 -----------
 -- Oversampling saw wave with IIR brickwall filter
 
--- accumulatePulse :: Float -> Float -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, Float#)
--- accumulatePulse width freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
---   (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
---   where
---     freqDelta = freq * audioRecipOverSampleRate
---     b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
---     b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
---     b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
---     a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
---     a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
---     a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
---     ra0       = 1 / a0
---     (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
---       loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
---         let
---           phase1  = freqDelta + phase0
---           in1     = fma (fromInt (boolToInt (gt width (phase1 - floor phase1)))) 2 -1
---           out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
---           phase2  = freqDelta + phase1
---           in2     = fma (fromInt (boolToInt (gt width (phase2 - floor phase2)))) 2 -1
---           out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
---           phase3  = freqDelta + phase2
---           in3     = fma (fromInt (boolToInt (gt width (phase3 - floor phase3)))) 2 -1
---           out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
---           phase4  = freqDelta + phase3
---           in4     = fma (fromInt (boolToInt (gt width (phase4 - floor phase4)))) 2 -1
---           out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
---           phase5  = freqDelta + phase4
---           in5     = fma (fromInt (boolToInt (gt width (phase5 - floor phase5)))) 2 -1
---           out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
---           phase6  = freqDelta + phase5
---           in6     = fma (fromInt (boolToInt (gt width (phase6 - floor phase6)))) 2 -1
---           out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
---           phase7  = freqDelta + phase6
---           in7     = fma (fromInt (boolToInt (gt width (phase7 - floor phase7)))) 2 -1
---           out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
---           phase8  = freqDelta + phase7
---           in8     = fma (fromInt (boolToInt (gt width (phase8 - floor phase8)))) 2 -1
---           out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
---         in
---           (#i + 8, phase8, in8, in7, out8, out7#)
---
+accumulatePulse :: Float -> Float -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, Float#)
+accumulatePulse width freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
+  (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
+  where
+    freqDelta = freq * audioRecipOverSampleRate
+    b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
+    b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
+    b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
+    a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
+    a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
+    a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
+    ra0       = 1 / a0
+    (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
+      loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
+        let
+          phase1  = freqDelta + phase0
+          in1     = fma (fromInt (boolToInt (gt width (phase1 - floor phase1)))) 2 -1
+          out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
+          phase2  = freqDelta + phase1
+          in2     = fma (fromInt (boolToInt (gt width (phase2 - floor phase2)))) 2 -1
+          out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
+          phase3  = freqDelta + phase2
+          in3     = fma (fromInt (boolToInt (gt width (phase3 - floor phase3)))) 2 -1
+          out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
+          phase4  = freqDelta + phase3
+          in4     = fma (fromInt (boolToInt (gt width (phase4 - floor phase4)))) 2 -1
+          out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
+          phase5  = freqDelta + phase4
+          in5     = fma (fromInt (boolToInt (gt width (phase5 - floor phase5)))) 2 -1
+          out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
+          phase6  = freqDelta + phase5
+          in6     = fma (fromInt (boolToInt (gt width (phase6 - floor phase6)))) 2 -1
+          out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
+          phase7  = freqDelta + phase6
+          in7     = fma (fromInt (boolToInt (gt width (phase7 - floor phase7)))) 2 -1
+          out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
+          phase8  = freqDelta + phase7
+          in8     = fma (fromInt (boolToInt (gt width (phase8 - floor phase8)))) 2 -1
+          out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
+        in
+          (#i + 8, phase8, in8, in7, out8, out7#)
+
 -- pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
 -- pulse width freq =
 --   accumulate2 accumulatePulse constTrue width freq
@@ -2681,7 +2692,7 @@ accumulatePulseEPTR :: Float -> Float -> PulseState -> (#PulseState, Float#)
 accumulatePulseEPTR width freq (PulseState# phase0 dir) =
   if dir == 0 then
     let
-      warp   = 1 / (width * 2)
+      warp   = 0.5 / width
       t      = 2 * warp * freq * recipSampleRate
       phase1 = fma 2 t phase0
     in
@@ -2691,7 +2702,7 @@ accumulatePulseEPTR width freq (PulseState# phase0 dir) =
         (#PulseState# phase1 0, 1#)
   else
     let
-      warp   = 1 / ((1 - width) * 2)
+      warp   = 0.5 / (1 - width)
       t      = 2 * warp * freq * recipSampleRate
       phase1 = fma 2 t phase0
     in
@@ -3738,6 +3749,12 @@ instance Print Audio where
         print '}' <| loop w' = (print '{' w) for i <- each do
           print (readArray i b) w' |> print ',' |> print ' '
 
+instance Print a => Print (Mono a) where
+  print (Mono c) w = print c w
+
+instance Print a => Print (Stereo a) where
+  print (Stereo# l r) w = print l (print ',' (print r w))
+
 instance Print Complex where
   print (Complex# r i) w =
     print '(' w
@@ -4273,15 +4290,10 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 oscTest :: (Mono Audio -> Mono Audio) -> Stereo Audio
 oscTest f =
   perc 10 1 3 6000 + 50
-  |> traceLn 0
   |> f
-  |> traceLn 111
   |> perc 5 5 -1
-  |> traceLn 222
   |> mul 0.2
-  |> traceLn 333
   |> mixStereo
-  |> traceLn 444
 
 -- testJit :: *World -> *World
 -- testJit w =
@@ -4299,36 +4311,45 @@ oscTest f =
 -- testJit w =
 --   outAudio 0 (pulse 0.5 |> oscTest) w
 
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 a w
---   where
---     a =
---       pulse ((sin 0.2 * 0.4) + 0.5) 220
---       |> perc 5 5 -1
---       |> mul 0.2
---       |> mixStereo
+testJit :: *World -> *World
+testJit w =
+  outAudio 0 a w
+  where
+    a =
+      pulse ((sin 0.2 * 0.4) + 0.5) 440
+      |> perc 5 5 -1
+      |> mul 0.1
+      |> mixStereo
 
 -- testJit :: *World -> *World
 -- testJit w =
 --   outAudio 0 (oscTest lfSaw) w
 
-testJit :: *World -> *World
-testJit w =
-  outAudio 0 (oscTest saw) w
-
--- floatVecMathTest :: Array BlockSize Float -> Array BlockSize Float -> Array BlockSize Float
--- floatVecMathTest xa ya =
---   freezeArray <| fromFloatVecArray <| loop a = unsafeEmptyArray () for i <- each do
---     writeArray i (readArray i x + readArray i y) a
---   where
---     x :: Array (NatDiv BlockSize 32) (FloatVec 32)
---     x = toFloatVecArray xa
---     y = toFloatVecArray ya
-
 -- testJit :: *World -> *World
 -- testJit w =
---   printNewline <| printNewline <| print (floatVecMathTest (arrayFrom 100) (arrayFrom 578)) w
+--   outAudio 0 (oscTest saw) w
+
+-- floatVecMathTest :: Array BlockSize Float -> Float -> Array BlockSize Float
+-- floatVecMathTest xa yf =
+--   freezeArray <| fromFloatVecArray <| loop a = ia for i <- each do
+--     writeArray i (readArray i x + y) a
+--   where
+--     x :: Array (NatDiv BlockSize 32) (FloatVec 32)
+--     x  = toFloatVecArray xa
+--     y  = fromFloat yf
+--     ia = toFloatVecArray <| audioInitArray ()
+
+-- -- TODO: I think I see the issue...audio arrays are NOT vectors and thus are not aligned as such, and thus when we bitcast them they are misaligned, and thus KABOOM!
+-- -- TODO: 64-byte align vectors in state obejcts!
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     a :: Mono Audio
+--     a =
+--       case Nothing of
+--         Nothing -> 1 * saw 220
+--         Just x  -> x
 
 -- testJit :: *World -> *World
 -- testJit w =

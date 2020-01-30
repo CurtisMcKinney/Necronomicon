@@ -204,6 +204,13 @@ extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size)
     if (size == 0)
         return NULL;
     assert(size % 8 == 0);
+    // Make sure we're 64 byte aligned for proper simd usage
+    size_t padding = 0;
+    if ((((size_t)(necro_heap.data + necro_heap.bump)) % 64) != 0)
+    {
+        padding          = 64 - (((size_t)(necro_heap.data + necro_heap.bump)) % 64);
+        necro_heap.bump += padding;
+    }
     if (necro_heap.bump + size >= necro_heap.capacity)
     {
         fprintf(stderr, "Necro memory exhausted!\n");
@@ -211,7 +218,7 @@ extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size)
     }
     uint8_t* data    = necro_heap.data + necro_heap.bump;
     necro_heap.bump += size;
-    // printf("Alloc: %zu bytes, total: %fmb\n\n", size, (((double)necro_heap.bump) / 1000000.0));
+    // printf("Alloc: %zu bytes, %zu padding, %zu alignmod64, total: %fmb\n\n", size, padding, ((size_t)data) % 64, (((double)necro_heap.bump) / 1000000.0));
     return data;
 }
 

@@ -1270,18 +1270,10 @@ void necro_mach_ast_type_check_phi(NecroMachProgram* program, NecroMachAst* ast)
     }
 }
 
-void necro_mach_ast_type_check_memcpy(NecroMachProgram* program, NecroMachAst* ast)
+void necro_mach_ast_type_check_size_of(NecroMachProgram* program, NecroMachAst* ast)
 {
     UNUSED(program);
     UNUSED(ast);
-    // TODO:
-}
-
-void necro_mach_ast_type_check_memset(NecroMachProgram* program, NecroMachAst* ast)
-{
-    UNUSED(program);
-    UNUSED(ast);
-    // TODO:
 }
 
 void necro_mach_ast_type_check_struct_def(NecroMachProgram* program, NecroMachAst* ast)
@@ -1340,8 +1332,7 @@ void necro_mach_ast_type_check(NecroMachProgram* program, NecroMachAst* ast)
     case NECRO_MACH_UOP:           necro_mach_ast_type_check_uop(program, ast);            return;
     case NECRO_MACH_CMP:           necro_mach_ast_type_check_cmp(program, ast);            return;
     case NECRO_MACH_PHI:           necro_mach_ast_type_check_phi(program, ast);            return;
-    case NECRO_MACH_MEMCPY:        necro_mach_ast_type_check_memcpy(program, ast);         return;
-    case NECRO_MACH_MEMSET:        necro_mach_ast_type_check_memset(program, ast);         return;
+    case NECRO_MACH_SIZE_OF:       necro_mach_ast_type_check_size_of(program, ast);        return;
     case NECRO_MACH_STRUCT_DEF:    necro_mach_ast_type_check_struct_def(program, ast);     return;
     case NECRO_MACH_FN_DEF:        necro_mach_ast_type_check_fn_def(program, ast);         return;
     case NECRO_MACH_DEF:           necro_mach_ast_type_check_mach_def(program, ast);       return;

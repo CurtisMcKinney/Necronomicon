@@ -131,9 +131,12 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
         assert(false);
     }
     LLVMTargetMachineRef target_machine = LLVMCreateTargetMachine(target, target_triple, target_cpu, target_features, opt_level, LLVMRelocDefault, LLVMCodeModelJITDefault);
-    LLVMTargetDataRef    target_data    = LLVMCreateTargetDataLayout(target_machine);
     LLVMSetTarget(mod, target_triple);
+    LLVMTargetDataRef    target_data    = LLVMCreateTargetDataLayout(target_machine);
     LLVMSetModuleDataLayout(mod, target_data);
+    // LLVMSetDataLayout(mod, "e-m:w-i64:64-f64:64-f80:128-n8:16:32:64-S128-v128:128:128");
+    // LLVMTargetDataRef target_data = LLVMGetModuleDataLayout(mod);
+    // printf("data layout: %s\n", LLVMGetDataLayoutStr(mod));
 
     LLVMPassManagerRef fn_pass_manager  = LLVMCreateFunctionPassManagerForModule(mod);
     LLVMPassManagerRef mod_pass_manager = LLVMCreatePassManager();
@@ -489,6 +492,23 @@ LLVMValueRef necro_llvm_codegen_gep(NecroLLVM* context, NecroMachAst* ast)
     necro_llvm_codegen_delayed_phi_node(context, symbol);
     // necro_snapshot_arena_rewind(&context->snapshot_arena, snapshot);
     return value;
+}
+
+LLVMValueRef necro_llvm_codegen_size_of(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_SIZE_OF);
+    LLVMTypeRef      result_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.word_uint_type);
+    LLVMTypeRef      llvm_type   = necro_llvm_type_from_mach_type(context, necro_mach_type_create_ptr(&context->arena, ast->size_of.type_to_get_size_of));
+    LLVMValueRef     null_value  = LLVMConstNull(llvm_type);
+    LLVMValueRef     sizep       = LLVMBuildGEP(context->builder, null_value, (LLVMValueRef[]) { LLVMConstInt(LLVMInt32TypeInContext(context->context), 1, false) }, 1, "sizep");
+    LLVMValueRef     sizei       = LLVMBuildPtrToInt(context->builder, sizep, result_type, "sizei");
+    NecroLLVMSymbol* symbol      = necro_llvm_symbol_get(&context->arena, ast->size_of.result_reg->value.reg_symbol);
+    symbol->type                 = result_type;
+    symbol->value                = sizei;
+    necro_llvm_codegen_delayed_phi_node(context, symbol);
+    return sizei;
 }
 
 LLVMValueRef necro_llvm_codegen_insert_value(NecroLLVM* context, NecroMachAst* ast)
@@ -1279,11 +1299,9 @@ LLVMValueRef necro_llvm_codegen_block_statement(NecroLLVM* codegen, NecroMachAst
     case NECRO_MACH_UOP:           return necro_llvm_codegen_uop(codegen, ast);
     case NECRO_MACH_CALL:          return necro_llvm_codegen_call(codegen, ast);
     case NECRO_MACH_CALLI:         return necro_llvm_codegen_call_intrinsic(codegen, ast);
+    case NECRO_MACH_SIZE_OF:       return necro_llvm_codegen_size_of(codegen, ast);
 
     // Not currently supported
-    // case NECRO_MACH_NALLOC:   return necro_llvm_codegen_nalloc(codegen, ast);
-    // case NECRO_MACH_MEMCPY:   return necro_llvm_codegen_memcpy(codegen, ast);
-    // case NECRO_MACH_MEMSET:   return necro_llvm_codegen_memset(codegen, ast);
     // case NECRO_MACH_ALLOCA:   return necro_codegen_alloca(codegen, ast);
     // case NECRO_MACH_SELECT:   return necro_codegen_select(codegen, ast);
 
@@ -1712,7 +1730,8 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     struct LLVMMCJITCompilerOptions options;
     LLVMInitializeMCJITCompilerOptions(&options, sizeof(options));
     options.OptLevel       = context->opt_level;
-    options.EnableFastISel = true;
+    options.EnableFastISel = false;
+    // options.EnableFastISel = true;
     if (LLVMCreateMCJITCompilerForModule(&context->engine, context->mod, &options, sizeof(options), &error) != 0)
     {
         fprintf(stderr, "necro error: %s\n", error);
@@ -1835,8 +1854,8 @@ void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHA
     NecroMachProgram    mach_program    = necro_mach_program_empty();
     NecroLLVM           llvm            = necro_llvm_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
-    // if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
-        info.opt_level = 0;
+    if (phase == NECRO_PHASE_JIT || phase == NECRO_PHASE_COMPILE)
+        info.opt_level = 1;
     info.verbosity = 0;
 
     //--------------------

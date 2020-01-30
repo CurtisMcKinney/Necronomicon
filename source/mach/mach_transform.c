@@ -1458,6 +1458,19 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachType* elem_ptr_type = necro_mach_type_create_ptr(&program->arena, array_value->necro_machine_type->ptr_type.element_type->array_type.element_type);
         NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, array_value, (NecroMachAst*[]) { necro_mach_value_create_uint32(program, 0), index_value }, 2, "elem_ptr", elem_ptr_type);
         NecroMachAst*  elem_value    = necro_mach_build_load(program, outer->machine_def.update_fn, elem_ptr, "elem_value");
+
+        // NecroMachAst*  ptr_uint      = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, array_value, program->type_cache.uint64_type);
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, 'a'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { ptr_uint, necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, '\n'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, 'i'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { index_value, necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, '\n'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // NecroMachAst*  elem_uint     = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, elem_ptr, program->type_cache.uint64_type);
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, 'e'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { elem_uint, necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, '\n'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+
         return elem_value;
     }
 
@@ -1497,14 +1510,34 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     {
         assert(arg_count == 1);
         NecroMachAst* array_value = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
-        return necro_mach_build_bit_cast(program, outer->machine_def.update_fn, array_value, necro_mach_type_create_ptr(&program->arena, necro_mach_type_from_necro_type(program, app_ast->necro_type)));
+        // NecroMachAst* ptr_uint    = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, array_value, program->type_cache.uint64_type);
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, 't'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { ptr_uint, necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, '\n'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        NecroMachAst* result      = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, array_value, necro_mach_type_create_ptr(&program->arena, necro_mach_type_from_necro_type(program, app_ast->necro_type)));
+        // NecroMachAst* result_uint = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, result, program->type_cache.uint64_type);
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, 't'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { result_uint, necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, '\n'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, '\n'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        return result;
     }
 
     case NECRO_PRIMOP_ARRAY_FROM_FV:
     {
         assert(arg_count == 1);
         NecroMachAst* vector_type = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
-        return necro_mach_build_bit_cast(program, outer->machine_def.update_fn, vector_type, necro_mach_type_create_ptr(&program->arena, necro_mach_type_from_necro_type(program, app_ast->necro_type)));
+        // NecroMachAst* ptr_uint    = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, vector_type, program->type_cache.uint64_type);
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, 'f'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { ptr_uint, necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, '\n'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        NecroMachAst* result      =  necro_mach_build_bit_cast(program, outer->machine_def.update_fn, vector_type, necro_mach_type_create_ptr(&program->arena, necro_mach_type_from_necro_type(program, app_ast->necro_type)));
+        // NecroMachAst* result_uint = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, result, program->type_cache.uint64_type);
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, 'f'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_uint->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { result_uint, necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, '\n'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        // necro_mach_build_call(program, outer->machine_def.update_fn, program->base->print_char->core_ast_symbol->mach_symbol->ast->fn_def.fn_value, (NecroMachAst*[]) { necro_mach_value_create_uint64(program, '\n'), necro_mach_value_create_uint64(program, 0) }, 2, NECRO_MACH_CALL_C, "p");
+        return result;
     }
 
     // case NECRO_PRIMOP_FV_INSERT:
@@ -2331,7 +2364,7 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_MACH_TEST_VERBOSE 1
+#define NECRO_MACH_TEST_VERBOSE 0
 void necro_mach_test_string(const char* test_name, const char* str)
 {
 

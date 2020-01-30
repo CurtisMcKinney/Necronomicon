@@ -353,40 +353,13 @@ void necro_mach_print_extract_value(NecroMachAst* ast, size_t depth)
     printf(", %zu", ast->extract_value.index);
 }
 
-// void necro_mach_print_nalloc(NecroMachAst* ast, size_t depth)
-// {
-//     UNUSED(depth);
-//     assert(ast->type == NECRO_MACH_NALLOC);
-//     // if (ast->nalloc.is_constant)
-//     //     printf("%%%s = alloc_const (", necro_intern_get_string(ast->nalloc.result_reg->value.reg_symbol->name));
-//     // else
-//         printf("%%%s = nalloc (", ast->nalloc.result_reg->value.reg_symbol->name->str);
-//     necro_mach_type_print_go(ast->nalloc.type_to_alloc, false);
-//     printf("), slots: %zu", ast->nalloc.slots_used);
-// }
-
-void necro_mach_print_memcpy(NecroMachAst* ast, size_t depth)
+void necro_mach_print_size_of(NecroMachAst* ast, size_t depth)
 {
-    assert(ast->type == NECRO_MACH_MEMCPY);
+    assert(ast->type == NECRO_MACH_SIZE_OF);
     print_white_space(depth);
-    printf("memcpy ");
-    necro_mach_print_value(ast->memcpy.dest, NECRO_PRINT_VALUE_TYPE);
-    printf(" ");
-    necro_mach_print_value(ast->memcpy.source, NECRO_PRINT_VALUE_TYPE);
-    printf(" ");
-    necro_mach_print_value(ast->memcpy.num_bytes, NECRO_DONT_PRINT_VALUE_TYPE);
-}
-
-void necro_mach_print_memset(NecroMachAst* ast, size_t depth)
-{
-    assert(ast->type == NECRO_MACH_MEMSET);
-    print_white_space(depth);
-    printf("memset ");
-    necro_mach_print_value(ast->memcpy.dest, NECRO_PRINT_VALUE_TYPE);
-    printf(" ");
-    necro_mach_print_value(ast->memcpy.source, NECRO_PRINT_VALUE_TYPE);
-    printf(" ");
-    necro_mach_print_value(ast->memcpy.num_bytes, NECRO_PRINT_VALUE_TYPE);
+    printf("%%%s = sizeof ", ast->size_of.result_reg->value.reg_symbol->name->str);
+    necro_mach_type_print_go(ast->size_of.type_to_get_size_of, false);
+    // printf(")");
 }
 
 // void necro_mach_print_alloca(NecroMachAst* ast, size_t depth)
@@ -655,11 +628,8 @@ void necro_mach_print_ast_go(NecroMachAst* ast, size_t depth)
     case NECRO_MACH_CMP:
         necro_mach_print_cmp(ast, depth);
         return;
-    case NECRO_MACH_MEMCPY:
-        necro_mach_print_memcpy(ast, depth);
-        return;
-    case NECRO_MACH_MEMSET:
-        necro_mach_print_memset(ast, depth);
+    case NECRO_MACH_SIZE_OF:
+        necro_mach_print_size_of(ast, depth);
         return;
     // case NECRO_MACH_ALLOCA:
     //     necro_mach_print_alloca(ast, depth);

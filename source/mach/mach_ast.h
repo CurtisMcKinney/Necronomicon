@@ -334,12 +334,11 @@ typedef struct NecroMachZExt
     struct NecroMachAst* to_value;
 } NecroMachZExt;
 
-typedef struct NecroMachNAlloc
+typedef struct NecroMachSizeOf
 {
-    struct NecroMachType* type_to_alloc;
+    struct NecroMachType* type_to_get_size_of;
     struct NecroMachAst*  result_reg;
-    size_t                slots_used;
-} NecroMachNAlloc;
+} NecroMachSizeOf;
 
 typedef struct NecroMachAlloca
 {
@@ -433,10 +432,8 @@ typedef enum
     NECRO_MACH_BINOP,
     NECRO_MACH_CMP,
     NECRO_MACH_PHI,
+    NECRO_MACH_SIZE_OF,
 
-
-    NECRO_MACH_MEMCPY, // TODO: Maybe remove
-    NECRO_MACH_MEMSET, // TODO: Maybe remove
     // NECRO_MACH_ALLOCA, // TODO: Maybe remove
     // NECRO_MACH_SELECT, // TODO: Maybe remove
 
@@ -469,9 +466,8 @@ typedef struct NecroMachAst
         NecroMachUOp           uop;
         NecroMachCmp           cmp;
         NecroMachPhi           phi;
-        NecroMachMemCpy        memcpy;
-        NecroMachMemSet        memset;
         NecroMachSelect        select;
+        NecroMachSizeOf        size_of;
     };
     NECRO_MACH_AST_TYPE   type;
     struct NecroMachType* necro_machine_type;
@@ -600,8 +596,7 @@ NecroMachAst* necro_mach_build_up_cast(NecroMachProgram* program, NecroMachAst* 
 NecroMachAst* necro_mach_build_down_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
 NecroMachAst* necro_mach_build_maybe_bit_cast(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
 NecroMachAst* necro_mach_build_zext(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* value, struct NecroMachType* to_type);
-void          necro_mach_build_memcpy(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* dest, NecroMachAst* source, NecroMachAst* num_bytes);
-void          necro_mach_build_memset(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* ptr, NecroMachAst* value, NecroMachAst* num_bytes);
+NecroMachAst* necro_mach_build_size_of(NecroMachProgram* program, NecroMachAst* fn_def, struct NecroMachType* type_to_get_size_of);
 
 //--------------------
 // Load / Store

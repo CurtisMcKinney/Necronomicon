@@ -393,16 +393,17 @@ NecroMachAst* necro_mach_build_nalloc(NecroMachProgram* program, NecroMachAst* f
     assert(type != NULL);
     assert(fn_def != NULL);
     assert(fn_def->type == NECRO_MACH_FN_DEF);
-    size_t size = necro_mach_type_calculate_size_in_bytes(program, type);
-    assert(size > 0);
-    // Branchless Align
-    size +=
-        ((size & (sizeof(size_t) - 1)) != 0) *
-        (sizeof(size_t) - (size & (sizeof(size_t) - 1)));
-    if (program->word_size == NECRO_WORD_8_BYTES) assert(size % 8 == 0);
-    NecroMachAst* alloc_size    = necro_mach_value_create_word_uint(program, size);
-    NecroMachAst* void_ptr      = necro_mach_build_call(program, fn_def, program->runtime.necro_runtime_alloc->ast->fn_def.fn_value, (NecroMachAst*[]) { alloc_size }, 1, NECRO_MACH_CALL_C, "void_ptr");
-    NecroMachAst* data_ptr      = necro_mach_build_bit_cast(program, fn_def, void_ptr, necro_mach_type_create_ptr(&program->arena, type));
+    // size_t size = necro_mach_type_calculate_size_in_bytes(program, type);
+    // assert(size > 0);
+    // // Branchless Align
+    // size +=
+    //     ((size & (sizeof(size_t) - 1)) != 0) *
+    //     (sizeof(size_t) - (size & (sizeof(size_t) - 1)));
+    // if (program->word_size == NECRO_WORD_8_BYTES) assert(size % 8 == 0);
+    // NecroMachAst* alloc_size    = necro_mach_value_create_word_uint(program, size);
+    NecroMachAst* alloc_size = necro_mach_build_size_of(program, fn_def, type);
+    NecroMachAst* void_ptr   = necro_mach_build_call(program, fn_def, program->runtime.necro_runtime_alloc->ast->fn_def.fn_value, (NecroMachAst*[]) { alloc_size }, 1, NECRO_MACH_CALL_C, "void_ptr");
+    NecroMachAst* data_ptr   = necro_mach_build_bit_cast(program, fn_def, void_ptr, necro_mach_type_create_ptr(&program->arena, type));
     return data_ptr;
 }
 
@@ -633,39 +634,6 @@ NecroMachAst* necro_mach_build_zext(NecroMachProgram* program, NecroMachAst* fn_
     return ast->zext.to_value;
 }
 
-void necro_mach_build_memcpy(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* dest, NecroMachAst* source, NecroMachAst* num_bytes)
-{
-    assert(program != NULL);
-    assert(fn_def != NULL);
-    assert(fn_def->type == NECRO_MACH_FN_DEF);
-    assert(dest->necro_machine_type->type == NECRO_MACH_TYPE_PTR);
-    assert(source->necro_machine_type->type == NECRO_MACH_TYPE_PTR);
-    assert(necro_mach_type_is_word_uint(program, num_bytes->necro_machine_type));
-    necro_mach_type_check(program, dest->necro_machine_type, source->necro_machine_type);
-    NecroMachAst* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
-    ast->type             = NECRO_MACH_MEMCPY;
-    ast->memcpy.dest      = dest;
-    ast->memcpy.source    = source;
-    ast->memcpy.num_bytes = num_bytes;
-    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
-}
-
-void necro_mach_build_memset(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* ptr, NecroMachAst* value, NecroMachAst* num_bytes)
-{
-    assert(program != NULL);
-    assert(fn_def != NULL);
-    assert(fn_def->type == NECRO_MACH_FN_DEF);
-    assert(ptr->necro_machine_type->type == NECRO_MACH_TYPE_PTR);
-    assert(value->necro_machine_type->type == NECRO_MACH_TYPE_UINT8);
-    assert(necro_mach_type_is_word_uint(program, num_bytes->necro_machine_type));
-    NecroMachAst* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
-    ast->type             = NECRO_MACH_MEMSET;
-    ast->memset.ptr       = ptr;
-    ast->memset.value     = value;
-    ast->memset.num_bytes = num_bytes;
-    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
-}
-
 void necro_mach_build_store(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* source_value, NecroMachAst* dest_ptr)
 {
     assert(program != NULL);
@@ -698,6 +666,21 @@ NecroMachAst* necro_mach_build_load(NecroMachProgram* program, NecroMachAst* fn_
     ast->necro_machine_type = source_ptr_ast->necro_machine_type->ptr_type.element_type;
     necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
     return ast->load.dest_value;
+}
+
+NecroMachAst* necro_mach_build_size_of(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachType* type_to_get_size_of)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(type_to_get_size_of != NULL);
+    NecroMachAst* ast                = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type                        = NECRO_MACH_SIZE_OF;
+    ast->size_of.type_to_get_size_of = type_to_get_size_of;
+    ast->size_of.result_reg          = necro_mach_value_create_reg(program, program->type_cache.word_uint_type, "size");
+    ast->necro_machine_type          = program->type_cache.word_uint_type;
+    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
+    return ast->size_of.result_reg;
 }
 
 ///////////////////////////////////////////////////////

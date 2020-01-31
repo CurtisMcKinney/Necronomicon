@@ -1435,7 +1435,7 @@ audioBlockSize :: UInt
 audioBlockSize = 256
 
 audioOverSampleAmount :: UInt
-audioOverSampleAmount = 32
+audioOverSampleAmount = 24
 
 audioRecipOverSampleRate :: Float
 audioRecipOverSampleRate = recip <| fromUInt <| audioSampleRate * audioOverSampleAmount
@@ -2347,17 +2347,24 @@ kaiserBesselWindowFunction i windowSize beta =
 
 hannWindowFunction :: Float -> Float -> Float
 hannWindowFunction i windowSize =
-  0.5 - 0.5 * cosine (tau * (i + 1) / windowSize)
+  0.5 - (0.5 * cosine (tau * (i + 1) / windowSize))
 
 hammingWindowFunction :: Float -> Float -> Float
 hammingWindowFunction i windowSize =
-  0.54 - 0.46 * cosine (tau * (i + 1) / windowSize)
+  0.54 - (0.46 * cosine (tau * (i + 1) / windowSize))
 
-downsampleCoefficients :: Array 64 Float
+nuttallBlackmanWindowFunction :: Float -> Float -> Float
+nuttallBlackmanWindowFunction i windowSize =
+  0.355768 -
+  (0.487396 * cosine ((2.0 * pi * i) / windowSize)) +
+  (0.144232 * cosine ((4.0 * pi * i) / windowSize)) -
+  (0.012604 * cosine ((6.0 * pi * i) / windowSize))
+
+downsampleCoefficients :: Array 32 Float
 downsampleCoefficients =
   freezeArray coeff3
   where
-    windowSize = 64
+    windowSize = 32
     freqCutoff = 20000
     omega      = freqCutoff / (audioSampleRateF * fromUInt audioOverSampleAmount)
     coeff1     =
@@ -2374,7 +2381,7 @@ downsampleCoefficients =
         case readArrayU i a0 of
           (#x, a1#) ->
             (#sum + x, a1#)
-    gainAdjust = 1.5 -- (1 / gainSum) * (1 / windowSize)
+    gainAdjust = 1.25 -- (1 / gainSum) * (1 / windowSize)
     coeff3     =
       loop a0 = coeff2 for i <- each do
         case readArrayU i a0 of
@@ -2391,7 +2398,7 @@ downsampleCoefficients =
 --   * Audible Aliasing Distortion in Digital Audio Synthesis
 --       https://www.researchgate.net/publication/268382833_Audible_Aliasing_Distortion_in_Digital_Audio_Synthesis
 
-data OverSampleSawState = OverSampleSawState# Float UInt (.Array 64 Float)
+data OverSampleSawState = OverSampleSawState# Float UInt (.Array 32 Float)
 
 mkOverSampleSawState :: () -> *OverSampleSawState
 mkOverSampleSawState _ = OverSampleSawState# 0 0 (arrayFrom 0)
@@ -2519,6 +2526,10 @@ betaBrickWall  = 2 * sqrt bigaBrickWall * alphaBrickWall
 
 -----------
 -- eptr saw
+--
+-- Alias-Suppressed Oscillators Based on Differentiated Polynomial Waveforms:
+--   https://www.researchgate.net/publication/224557976_Alias-Suppressed_Oscillators_Based_on_Differentiated_Polynomial_Waveforms
+--
 -- IMPROVED POLYNOMIAL TRANSITION REGIONS ALGORITHM FORALIAS-SUPPRESSED SIGNAL SYNTHESIS:
 --   http://home.mit.bme.hu/~bank/publist/smc13.pdf
 
@@ -2576,91 +2587,120 @@ lfSaw freq =
 --       loop (#i, phase0, di, d0#) = (#0, phaseIn, downsampleIndexIn, downsampleBufferIn#) while i < audioOverSampleAmount do
 --         let
 --           phase1  = freqDelta + phase0
---           d1      = writeArray (Index (bitAnd (di + 0) 63)) (fma (fromInt <| boolToInt <| gt width <| phase1 - floor phase1) 2 -1) d0
+--           d1      = writeArray (Index (bitAnd (di + 0) 31)) (fma (fromInt <| boolToInt <| gt width <| phase1 - floor phase1) 2 -1) d0
 --           phase2  = freqDelta + phase1
---           d2      = writeArray (Index (bitAnd (di + 1) 63)) (fma (fromInt <| boolToInt <| gt width <| phase2 - floor phase2) 2 -1) d1
+--           d2      = writeArray (Index (bitAnd (di + 1) 31)) (fma (fromInt <| boolToInt <| gt width <| phase2 - floor phase2) 2 -1) d1
 --           phase3  = freqDelta + phase2
---           d3      = writeArray (Index (bitAnd (di + 2) 63)) (fma (fromInt <| boolToInt <| gt width <| phase3 - floor phase3) 2 -1) d2
+--           d3      = writeArray (Index (bitAnd (di + 2) 31)) (fma (fromInt <| boolToInt <| gt width <| phase3 - floor phase3) 2 -1) d2
 --           phase4  = freqDelta + phase3
---           d4      = writeArray (Index (bitAnd (di + 3) 63)) (fma (fromInt <| boolToInt <| gt width <| phase4 - floor phase4) 2 -1) d3
+--           d4      = writeArray (Index (bitAnd (di + 3) 31)) (fma (fromInt <| boolToInt <| gt width <| phase4 - floor phase4) 2 -1) d3
 --           phase5  = freqDelta + phase4
---           d5      = writeArray (Index (bitAnd (di + 4) 63)) (fma (fromInt <| boolToInt <| gt width <| phase5 - floor phase5) 2 -1) d4
+--           d5      = writeArray (Index (bitAnd (di + 4) 31)) (fma (fromInt <| boolToInt <| gt width <| phase5 - floor phase5) 2 -1) d4
 --           phase6  = freqDelta + phase5
---           d6      = writeArray (Index (bitAnd (di + 5) 63)) (fma (fromInt <| boolToInt <| gt width <| phase6 - floor phase6) 2 -1) d5
+--           d6      = writeArray (Index (bitAnd (di + 5) 31)) (fma (fromInt <| boolToInt <| gt width <| phase6 - floor phase6) 2 -1) d5
 --           phase7  = freqDelta + phase6
---           d7      = writeArray (Index (bitAnd (di + 6) 63)) (fma (fromInt <| boolToInt <| gt width <| phase7 - floor phase7) 2 -1) d6
+--           d7      = writeArray (Index (bitAnd (di + 6) 31)) (fma (fromInt <| boolToInt <| gt width <| phase7 - floor phase7) 2 -1) d6
 --           phase8  = freqDelta + phase7
---           d8      = writeArray (Index (bitAnd (di + 7) 63)) (fma (fromInt <| boolToInt <| gt width <| phase8 - floor phase8) 2 -1) d7
+--           d8      = writeArray (Index (bitAnd (di + 7) 31)) (fma (fromInt <| boolToInt <| gt width <| phase8 - floor phase8) 2 -1) d7
 --         in
---           (#i + 8, phase8, bitAnd (di + 8) 63, d8#)
+--           (#i + 8, phase8, bitAnd (di + 8) 31, d8#)
 --     (#_, downsampleIndex, downsampleBuffer, firResult#) =
---       loop (#i, di, d0, firResult0#) = (#0, downsampleIndex1, downsampleBuffer1, 0#) while i < 64 do
+--       loop (#i, di, d0, firResult0#) = (#0, downsampleIndex1, downsampleBuffer1, 0#) while i < 32 do
 --         let
---           (#s1, d1#) = readArrayU (Index (bitAnd (di + 0) 63)) d0
+--           (#s1, d1#) = readArrayU (Index (bitAnd (di + 0) 31)) d0
 --           firResult1 = s1 * readArray (Index i) downsampleCoefficients
---           (#s2, d2#) = readArrayU (Index (bitAnd (di + 1) 63)) d1
+--           (#s2, d2#) = readArrayU (Index (bitAnd (di + 1) 31)) d1
 --           firResult2 = s2 * readArray (Index (i + 1)) downsampleCoefficients
---           (#s3, d3#) = readArrayU (Index (bitAnd (di + 2) 63)) d2
+--           (#s3, d3#) = readArrayU (Index (bitAnd (di + 2) 31)) d2
 --           firResult3 = s3 * readArray (Index (i + 2)) downsampleCoefficients
---           (#s4, d4#) = readArrayU (Index (bitAnd (di + 3) 63)) d3
+--           (#s4, d4#) = readArrayU (Index (bitAnd (di + 3) 31)) d3
 --           firResult4 = s4 * readArray (Index (i + 3)) downsampleCoefficients
---           (#s5, d5#) = readArrayU (Index (bitAnd (di + 4) 63)) d4
+--           (#s5, d5#) = readArrayU (Index (bitAnd (di + 4) 31)) d4
 --           firResult5 = s5 * readArray (Index (i + 4)) downsampleCoefficients
---           (#s6, d6#) = readArrayU (Index (bitAnd (di + 5) 63)) d5
+--           (#s6, d6#) = readArrayU (Index (bitAnd (di + 5) 31)) d5
 --           firResult6 = s6 * readArray (Index (i + 5)) downsampleCoefficients
---           (#s7, d7#) = readArrayU (Index (bitAnd (di + 6) 63)) d6
+--           (#s7, d7#) = readArrayU (Index (bitAnd (di + 6) 31)) d6
 --           firResult7 = s7 * readArray (Index (i + 6)) downsampleCoefficients
---           (#s8, d8#) = readArrayU (Index (bitAnd (di + 7) 63)) d7
+--           (#s8, d8#) = readArrayU (Index (bitAnd (di + 7) 31)) d7
 --           firResult8 = s8 * readArray (Index (i + 7)) downsampleCoefficients
 --           firResult  = firResult0 + firResult1 + firResult2 + firResult3 + firResult4 + firResult5 + firResult6 + firResult7 + firResult8
 --         in
---           (#i + 8, bitAnd (di + 8) 63, d8, firResult#)
+--           (#i + 8, bitAnd (di + 8) 31, d8, firResult#)
+
+-- Oversampling pulse oscillator, with FIR downsampling
+accumulatePulseFIR :: Float -> Float -> Float -> (#Float, Float#)
+accumulatePulseFIR width freq phaseIn =
+  (#phase, out#)
+  where
+    freqDelta = freq * audioRecipOverSampleRate
+    (#_, phase, out#) =
+      loop (#i, phase0, out0#) = (#0, phaseIn, 0#) while i < 32 do
+        let
+          phase1  = freqDelta + phase0
+          out1    = fma (fma (fromInt <| boolToInt <| gt width <| phase1 - floor phase1) 2 -1) (readArray (Index i) downsampleCoefficients) out0
+          phase2  = freqDelta + phase1
+          out2    = fma (fma (fromInt <| boolToInt <| gt width <| phase2 - floor phase2) 2 -1) (readArray (Index i) downsampleCoefficients) out1
+          phase3  = freqDelta + phase2
+          out3    = fma (fma (fromInt <| boolToInt <| gt width <| phase3 - floor phase3) 2 -1) (readArray (Index i) downsampleCoefficients) out2
+          phase4  = freqDelta + phase3
+          out4    = fma (fma (fromInt <| boolToInt <| gt width <| phase4 - floor phase4) 2 -1) (readArray (Index i) downsampleCoefficients) out3
+          phase5  = freqDelta + phase4
+          out5    = fma (fma (fromInt <| boolToInt <| gt width <| phase5 - floor phase5) 2 -1) (readArray (Index i) downsampleCoefficients) out4
+          phase6  = freqDelta + phase5
+          out6    = fma (fma (fromInt <| boolToInt <| gt width <| phase6 - floor phase6) 2 -1) (readArray (Index i) downsampleCoefficients) out5
+          phase7  = freqDelta + phase6
+          out7    = fma (fma (fromInt <| boolToInt <| gt width <| phase7 - floor phase7) 2 -1) (readArray (Index i) downsampleCoefficients) out6
+          phase8  = freqDelta + phase7
+          out8    = fma (fma (fromInt <| boolToInt <| gt width <| phase8 - floor phase8) 2 -1) (readArray (Index i) downsampleCoefficients) out7
+        in
+          (#i + 8, phase8, out8#)
 
 -- pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
 -- pulse width freq =
---   accumulate2U mkOverSampleSawState accumulatePulseFIR constTrue' width freq
+--   accumulate2 accumulatePulseFIR constTrue width freq
 
 -----------
 -- Oversampling saw wave with IIR brickwall filter
 
+b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
+b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
+b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
+a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
+a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
+a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
+ra0       = 1 / a0
+
 accumulatePulse :: Float -> Float -> OverSampleSawStateIIR -> (#OverSampleSawStateIIR, Float#)
 accumulatePulse width freq (OverSampleSawStateIIR# phaseIn x1In x2In y1In y2In) =
-  (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, negate y1Out#)
+  (#OverSampleSawStateIIR# phaseOut x1Out x2Out y1Out y2Out, fma (negate y1Out) 2 -1#)
   where
     freqDelta = freq * audioRecipOverSampleRate
-    b0        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall)
-    b1        = -2 * bigaBrickWall * ((bigaBrickWall - 1) + ((bigaBrickWall + 1) * csoBrickWall))
-    b2        = bigaBrickWall * ((bigaBrickWall + 1) + ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall)
-    a0        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) + betaBrickWall
-    a1        = 2 * ((bigaBrickWall - 1) - ((bigaBrickWall + 1) * csoBrickWall))
-    a2        = (bigaBrickWall + 1) - ((bigaBrickWall - 1) * csoBrickWall) - betaBrickWall
-    ra0       = 1 / a0
     (#_, phaseOut, x1Out, x2Out, y1Out, y2Out#) =
       loop (#i, phase0, inZ1, inZ2, outZ1, outZ2#) = (#0, phaseIn, x1In, x2In, y1In, y2In#) while i < audioOverSampleAmount do
         let
           phase1  = freqDelta + phase0
-          in1     = fma (fromInt (boolToInt (gt width (phase1 - floor phase1)))) 2 -1
+          in1     = fromInt (boolToInt (gt width (phase1 - floor phase1)))
           out1    = 0 - (fma b0 in1 (fma b1 inZ1 (fma b2 inZ2 (fma a1 outZ1 (a2 * outZ2)))) * ra0)
           phase2  = freqDelta + phase1
-          in2     = fma (fromInt (boolToInt (gt width (phase2 - floor phase2)))) 2 -1
+          in2     = fromInt (boolToInt (gt width (phase2 - floor phase2)))
           out2    = 0 - (fma b0 in2 (fma b1 in1 (fma b2 inZ1 (fma a1 out1 (a2 * outZ1)))) * ra0)
           phase3  = freqDelta + phase2
-          in3     = fma (fromInt (boolToInt (gt width (phase3 - floor phase3)))) 2 -1
+          in3     = fromInt (boolToInt (gt width (phase3 - floor phase3)))
           out3    = 0 - (fma b0 in3 (fma b1 in2 (fma b2 in1 (fma a1 out2 (a2 * out1)))) * ra0)
           phase4  = freqDelta + phase3
-          in4     = fma (fromInt (boolToInt (gt width (phase4 - floor phase4)))) 2 -1
+          in4     = fromInt (boolToInt (gt width (phase4 - floor phase4)))
           out4    = 0 - (fma b0 in4 (fma b1 in3 (fma b2 in2 (fma a1 out3 (a2 * out2)))) * ra0)
           phase5  = freqDelta + phase4
-          in5     = fma (fromInt (boolToInt (gt width (phase5 - floor phase5)))) 2 -1
+          in5     = fromInt (boolToInt (gt width (phase5 - floor phase5)))
           out5    = 0 - (fma b0 in5 (fma b1 in4 (fma b2 in3 (fma a1 out4 (a2 * out3)))) * ra0)
           phase6  = freqDelta + phase5
-          in6     = fma (fromInt (boolToInt (gt width (phase6 - floor phase6)))) 2 -1
+          in6     = fromInt (boolToInt (gt width (phase6 - floor phase6)))
           out6    = 0 - (fma b0 in6 (fma b1 in5 (fma b2 in4 (fma a1 out5 (a2 * out4)))) * ra0)
           phase7  = freqDelta + phase6
-          in7     = fma (fromInt (boolToInt (gt width (phase7 - floor phase7)))) 2 -1
+          in7     = fromInt (boolToInt (gt width (phase7 - floor phase7)))
           out7    = 0 - (fma b0 in7 (fma b1 in6 (fma b2 in5 (fma a1 out6 (a2 * out5)))) * ra0)
           phase8  = freqDelta + phase7
-          in8     = fma (fromInt (boolToInt (gt width (phase8 - floor phase8)))) 2 -1
+          in8     = fromInt (boolToInt (gt width (phase8 - floor phase8)))
           out8    = 0 - fma b0 in8 (fma b1 in7 (fma b2 in6 (fma a1 out7 (a2 * out6)))) * ra0
         in
           (#i + 8, phase8, in8, in7, out8, out7#)
@@ -2679,35 +2719,44 @@ data PulseState = PulseState# Float UInt
 instance Default PulseState where
   default = PulseState# -1 0
 
-generalizedCorrectEPT :: Float -> Float -> Float -> Float
-generalizedCorrectEPT p t a =
-  p + ((-2 / (2 * a * t)) * p) + -1 + (4 / (4 * a * t))
+generalizedCorrectEPT :: Float -> Float -> Float -> Float -> Float -> Float
+generalizedCorrectEPT p t a pmin pmax =
+  p +
+  ((invRange/(2 * a * t)) * p) +
+  (invRange/2) +
+  ((invRange * invRange) / (4 * a * t))
+  where
+    invRange = pmin - pmax
 
-pulseCorrectEPT :: Float -> Float -> Float
-pulseCorrectEPT p t =
-  p + ((-2 / (2 * t)) * p) + -1 + (4 / (4 * t))
+-- p + ((-2 / (2 * a * t)) * p) + -1 + (4 / (4 * a * t))
+
+pulseCorrectEPT :: Float -> Float -> Float -> Float
+pulseCorrectEPT p t a =
+  p + ((-2 / (2 * a * t)) * p) + -1 + (4 / (4 * a * t))
 
 -- TODO: Negative freq arg support!
 accumulatePulseEPTR :: Float -> Float -> PulseState -> (#PulseState, Float#)
 accumulatePulseEPTR width freq (PulseState# phase0 dir) =
   if dir == 0 then
     let
-      warp   = 0.5 / width
-      t      = 2 * warp * freq * recipSampleRate
-      phase1 = fma 2 t phase0
+      w      = width * 2
+      t      = 2 * freq * recipSampleRate
+      phase1 = t + phase0
+      a      = w
     in
-      if phase1 > 1 - t then
-        (#PulseState# (phase1 - 2) 1, pulseCorrectEPT phase1 t#)
+      if phase1 > w - t then
+        (#PulseState# (phase1 - w) 1, fma (generalizedCorrectEPT phase1 t a 0 1) 2 -1#)
       else
         (#PulseState# phase1 0, 1#)
   else
     let
-      warp   = 0.5 / (1 - width)
-      t      = 2 * warp * freq * recipSampleRate
-      phase1 = fma 2 t phase0
+      w      = (1 - width) * 2
+      t      = 2 * freq * recipSampleRate
+      phase1 = t + phase0
+      a      = w
     in
-      if phase1 > 1 - t then
-        (#PulseState# (phase1 - 2) 0, 0 - pulseCorrectEPT phase1 t#)
+      if phase1 > w - t then
+        (#PulseState# (phase1 - w) 0, fma (0 - generalizedCorrectEPT phase1 t a 0 1) 2 -1#)
       else
         (#PulseState# phase1 1, -1#)
 
@@ -4194,6 +4243,193 @@ poly2 f x y = poly (uncurry' f) (map2 (\x' y' -> (#x', y'#)) x y)
 poly3 :: Poly d => (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> d
 poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 
+
+----------------------
+-- MinBLEP
+--
+-- Hard Sync Without Aliasing:
+--   http://www.cs.cmu.edu/~eli/papers/icmc01-hardsync.pdf
+--
+-- ExperimentalScene article on MinBLEPs with nice code examples
+-- https://www.experimentalscene.com/articles/minbleps.php
+----------------------
+
+data MinBlepBuffer z o = MinBlepBuffer (.Array (NatMul (NatMul z 2) o) Float)
+data MinBlepFFT    z o = MinBlepFFT (.Array (NatMul (NatMul z 2) o) Complex)
+
+-- Slow n' dirty fft
+minBlepFFT :: UInt -> MinBlepFFT z o -> *MinBlepFFT z o
+minBlepFFT n (MinBlepFFT signal) =
+  MinBlepFFT bins1
+  where
+    rn    = fromUInt n
+    bins0 =
+      loop b = unsafeEmptyArray () for i <- each do
+        writeArray i (Complex# 0 0) b
+    bins1 = snd' <|
+      loop (#k, b1#) = (#0, bins0#) while k < n do
+        let
+          b4 = snd' <|
+            loop (#i, b2#) = (#0, b1#) while i < n do
+              let
+                p                      = (2 * pi * fromUInt k * fromUInt i) / rn
+                sr                     = cosine p
+                si                     = negate (sine p)
+                (#Complex# fr fi, b3#) = readArrayU (Index k) b2
+                Complex# xr xi         = readArray (Index i) signal
+                yr                     = fr + ((xr * sr) - (xi * si))
+                yi                     = fi + ((xr * si) + (xi * sr))
+              in
+                (#i + 1, writeArray (Index k) (Complex# yr yi) b3#)
+        in
+          (#k + 1, b4#)
+
+-- Slow n' dirty ifft
+minBlepIFFT :: UInt -> MinBlepFFT z o -> MinBlepFFT z o
+minBlepIFFT n (MinBlepFFT freqDomain) =
+  MinBlepFFT <| freezeArray bins1
+  where
+    rn    = fromUInt n
+    bins0 =
+      loop b = unsafeEmptyArray () for i <- each do
+        writeArray i (Complex# 0 0) b
+    bins1 = snd' <|
+      loop (#k, b1#) = (#0, bins0#) while k < n do
+        let
+          b4 = snd' <|
+            loop (#i, b2#) = (#0, b1#) while i < n do
+              let
+                p                      = (2 * pi * fromUInt k * fromUInt i) / rn
+                sr                     = cosine p
+                si                     = negate (sine p)
+                (#Complex# fr fi, b3#) = readArrayU (Index k) b2
+                Complex# xr xi         = readArray (Index i) freqDomain
+                yr                     = fr + ((xr * sr) + (xi * si))
+                yi                     = fi + ((xr * si) - (xi * sr))
+              in
+                (#i + 1, writeArray (Index k) (Complex# yr yi) b3#)
+        in
+          case readArrayU (Index k) b4 of
+            (#Complex# xr xi, b5#) ->
+              (#k + 1, writeArray (Index k) (Complex# (xr * rn) (xi * rn)) b5#)
+
+-- Compute real cepstrum
+minBlepCepstrum :: UInt -> MinBlepBuffer z o -> MinBlepBuffer z o
+minBlepCepstrum n (MinBlepBuffer signal) =
+  MinBlepBuffer <| freezeArray realCepstrum
+  where
+    MinBlepFFT freqDomain = minBlepFFT n <| MinBlepFFT <| freezeArray <|
+      loop td = unsafeEmptyArray () for i <- each do
+        writeArray i (Complex# (readArray i signal) 0) td
+
+    MinBlepFFT timeDomain = minBlepIFFT n <| MinBlepFFT <| freezeArray <|
+      loop fd0 = freqDomain for i <- each do
+        let
+          (#Complex# xr xi, fd1#) = readArrayU i fd0
+          lcabs                   = log (sqrt ((xr * xr) + (xi * xi)))
+          c                       = Complex# lcabs 0
+        in
+          writeArray i c fd1
+
+    realCepstrum =
+      loop rc = unsafeEmptyArray () for i <- each do
+        writeArray i (realPart (readArray i timeDomain)) rc
+
+-- Minimum phase reconstruction
+minBlepMinimumPhase :: UInt -> MinBlepBuffer z o -> MinBlepBuffer z o
+minBlepMinimumPhase n (MinBlepBuffer realCepstrum) =
+  MinBlepBuffer <| freezeArray minimumPhase
+  where
+    n2                    = n / 2
+    MinBlepFFT freqDomain = minBlepFFT n <| MinBlepFFT <| freezeArray <|
+      loop td = unsafeEmptyArray () for i <- each do
+        if indexToUInt i == 0 then
+          writeArray i (Complex# (readArray i realCepstrum) 0) td
+        else if indexToUInt i < n2 then
+          writeArray i (Complex# (readArray i realCepstrum * 2) 0) td
+        else
+          writeArray i (Complex# 0 0) td
+
+    MinBlepFFT timeDomain = minBlepIFFT n <| MinBlepFFT <| freezeArray <|
+      loop fd0 = freqDomain for i <- each do
+        let
+          (#Complex# xr xi, fd1#) = readArrayU i fd0
+          rexp                    = exp xr
+          c                       = Complex# (rexp * cosine xi) (rexp * sine xi)
+        in
+          writeArray i c fd1
+
+    minimumPhase =
+      loop mp = unsafeEmptyArray () for i <- each do
+        writeArray i (realPart (readArray i timeDomain)) mp
+
+minBlepN :: NatVal z -> NatVal o -> NatVal (NatMul (NatMul z 2) o)
+minBlepN _ _ = NatVal
+
+-- Start with z = 16, o = 32, which should create 1024 table
+generateMinBLEP :: NatVal z -> NatVal o -> MinBlepBuffer z o
+generateMinBLEP z o =
+  MinBlepBuffer minBlep1
+  where
+    n            = minBlepN z o |> natVal
+    rn           = fromUInt n
+    b            = natVal z |> fromUInt
+    a            = negate b
+    windowedSinc = MinBlepBuffer <| freezeArray <|
+      loop wsb = unsafeEmptyArray () for i <- each do
+        let
+          ri = fromUInt (indexToUInt i)
+          r  = ri / (rn - 1)
+          s  = (a + (r * (b - a))) * pi |> sinc
+          ws = nuttallBlackmanWindowFunction ri rn * s
+        in
+          writeArray i ws wsb
+
+    MinBlepBuffer minPhase = minBlepCepstrum n windowedSinc |> minBlepMinimumPhase n
+
+    (#minBlep0, m#) =
+      loop (#mb, m0#) = (#unsafeEmptyArray (), 0#) for i <- each do
+        let
+          m1 = m0 + readArray i minPhase
+        in
+          (#writeArray i m1 mb, m1#)
+
+    rm       = 1 / m
+    minBlep1 = freezeArray <|
+      loop mb0 = minBlep0 for i <- each do
+        let
+          (#x, mb1#) = readArrayU i mb0
+        in
+          writeArray i (x * rm) mb1
+
+data File = File
+
+arrayLength :: Array n Char -> NatVal n -> UInt
+arrayLength _ n = natVal n
+
+unsafeOpenFile :: Array n Char -> UInt -> *File
+unsafeOpenFile fileName fileNameLength = primUndefined
+
+-- Polymorphic is a motherfucker
+openFile :: Array n Char -> *World -> (*File, *World)
+openFile fileName w =
+   (unsafeOpenFile fileName (arrayLength fileName NatVal), w)
+
+closeFile :: *File -> ()
+closeFile f = primUndefined
+
+writeIntToFile :: Int -> *File -> *File
+writeIntToFile x f = primUndefined
+
+writeUIntToFile :: UInt -> *File -> *File
+writeUIntToFile x f = primUndefined
+
+writeFloatToFile :: Float -> *File -> *File
+writeFloatToFile x f = primUndefined
+
+writeCharToFile :: Char -> *File -> *File
+writeCharToFile x f = primUndefined
+
 -- somePow :: F64
 -- somePow = pow pi 5
 
@@ -4311,15 +4547,15 @@ oscTest f =
 -- testJit w =
 --   outAudio 0 (pulse 0.5 |> oscTest) w
 
-testJit :: *World -> *World
-testJit w =
-  outAudio 0 a w
-  where
-    a =
-      pulse ((sin 0.2 * 0.4) + 0.5) 440
-      |> perc 5 5 -1
-      |> mul 0.1
-      |> mixStereo
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     a =
+--       pulse ((sin 0.2 * 0.4) + 0.5) 440
+--       |> perc 5 5 -1
+--       |> mul 0.1
+--       |> mixStereo
 
 -- testJit :: *World -> *World
 -- testJit w =
@@ -4328,28 +4564,6 @@ testJit w =
 -- testJit :: *World -> *World
 -- testJit w =
 --   outAudio 0 (oscTest saw) w
-
--- floatVecMathTest :: Array BlockSize Float -> Float -> Array BlockSize Float
--- floatVecMathTest xa yf =
---   freezeArray <| fromFloatVecArray <| loop a = ia for i <- each do
---     writeArray i (readArray i x + y) a
---   where
---     x :: Array (NatDiv BlockSize 32) (FloatVec 32)
---     x  = toFloatVecArray xa
---     y  = fromFloat yf
---     ia = toFloatVecArray <| audioInitArray ()
-
--- -- TODO: I think I see the issue...audio arrays are NOT vectors and thus are not aligned as such, and thus when we bitcast them they are misaligned, and thus KABOOM!
--- -- TODO: 64-byte align vectors in state obejcts!
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 a w
---   where
---     a :: Mono Audio
---     a =
---       case Nothing of
---         Nothing -> 1 * saw 220
---         Just x  -> x
 
 -- testJit :: *World -> *World
 -- testJit w =

@@ -1688,6 +1688,12 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_out_audio_block);
     necro_llvm_map_check_symbol(context->base->sinh_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->test_assertion->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->open_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->close_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->write_int_to_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->write_uint_to_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->write_float_to_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->write_char_to_file->core_ast_symbol->mach_symbol);
 
     // assert(context->delayed_phi_node_values.length == 0);
     if (context->should_optimize)
@@ -1770,6 +1776,12 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_out_audio_block);
     necro_llvm_map_runtime_symbol(context->engine, context->base->sinh_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->test_assertion->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->open_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->close_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->write_int_to_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->write_uint_to_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->write_float_to_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->write_char_to_file->core_ast_symbol->mach_symbol);
 
 #ifdef _WIN32
     system("cls");

@@ -175,6 +175,79 @@ extern DLLEXPORT size_t necro_runtime_panic(size_t world)
     return world;
 }
 
+
+//--------------------
+// File IO
+//--------------------
+
+extern DLLEXPORT size_t necro_runtime_open_file(size_t* str, uint64_t str_length)
+{
+    if (str_length == 0)
+        return 0;
+
+    char* file_name = malloc(str_length);
+    assert(file_name != NULL);
+
+    for (size_t i = 0; str[i] != '\0'; ++i)
+    {
+        // TODO: Unicode handling
+        file_name[i] = (char) str[i];
+    }
+
+#ifdef WIN32
+    FILE* file;
+    fopen_s(&file, file_name, "w");
+#else
+    FILE* file = fopen(argv[1], "w");
+#endif
+    if (!file)
+    {
+        return 0;
+    }
+
+    return (size_t)file;
+}
+
+extern DLLEXPORT size_t necro_runtime_close_file(size_t file)
+{
+    fclose((FILE*)file);
+    return 0;
+}
+
+extern DLLEXPORT size_t necro_runtime_write_int_to_file(int64_t value, size_t file)
+{
+    char buffer[NECRO_ITOA_BUF_LENGTH];
+    snprintf(buffer, NECRO_ITOA_BUF_LENGTH, "%" PRId64, value);
+    fputs(buffer, (FILE*)file);
+    return file;
+}
+
+extern DLLEXPORT size_t necro_runtime_write_uint_to_file(uint64_t value, size_t file)
+{
+    char buffer[NECRO_ITOA_BUF_LENGTH];
+    snprintf(buffer, NECRO_ITOA_BUF_LENGTH, "%zu", value);
+    fputs(buffer, (FILE*)file);
+    return file;
+}
+
+extern DLLEXPORT size_t necro_runtime_write_float_to_file(double value, size_t file)
+{
+    char buffer[NECRO_ITOA_BUF_LENGTH];
+    snprintf(buffer, NECRO_ITOA_BUF_LENGTH,  "%.7g", value);
+    fputs(buffer, (FILE*)file);
+    return file;
+}
+
+extern DLLEXPORT size_t necro_runtime_write_char_to_file(size_t value, size_t file)
+{
+    fputc((int)value, (FILE*)file);
+    return file;
+}
+
+
+//--------------------
+// Memory
+//--------------------
 typedef struct NecroHeap
 {
     uint8_t* data;

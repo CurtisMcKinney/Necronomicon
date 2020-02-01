@@ -200,7 +200,7 @@ extern DLLEXPORT size_t necro_runtime_open_file(size_t* str, uint64_t str_length
     FILE* file;
     fopen_s(&file, file_name, "w");
 #else
-    FILE* file = fopen(argv[1], "w");
+    FILE* file = fopen(file_name, "w");
 #endif
     if (!file)
     {

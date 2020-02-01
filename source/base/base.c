@@ -1125,6 +1125,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     // Misc
     necro_base_setup_primitive(scoped_symtable, intern, "_project",         &base.proj_fn,           NECRO_PRIMOP_PROJ);
+    necro_base_setup_primitive(scoped_symtable, intern, "unsafeArrayToPtr", NULL,                    NECRO_PRIMOP_UOP_BIT_CAST);
 
     // Intrinsics
     necro_base_setup_primitive(scoped_symtable, intern, "fma",              &base.fma,               NECRO_PRIMOP_INTR_FMA);

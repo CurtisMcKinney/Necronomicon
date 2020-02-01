@@ -1345,6 +1345,14 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         return necro_mach_build_uop(program, outer->machine_def.update_fn, param, necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, app_ast->necro_type)), primop_type);
     }
 
+    case NECRO_PRIMOP_UOP_BIT_CAST:
+    {
+        assert(arg_count == 1);
+        NecroMachAst*  param       = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        NecroMachType* result_type = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, app_ast->necro_type));
+        return necro_mach_build_bit_cast(program, outer->machine_def.update_fn, param, result_type);
+    }
+
     case NECRO_PRIMOP_BINOP_IADD:
     case NECRO_PRIMOP_BINOP_ISUB:
     case NECRO_PRIMOP_BINOP_IMUL:
@@ -2364,7 +2372,7 @@ void necro_core_transform_to_mach(NecroCompileInfo info, NecroIntern* intern, Ne
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_MACH_TEST_VERBOSE 0
+#define NECRO_MACH_TEST_VERBOSE 1
 void necro_mach_test_string(const char* test_name, const char* str)
 {
 

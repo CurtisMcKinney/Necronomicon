@@ -222,6 +222,41 @@ traceLn x y =
 
 
 ----------------------
+-- File IO
+----------------------
+
+data File = File
+
+arrayLength :: Array n Char -> NatVal n -> UInt
+arrayLength _ n = natVal n
+
+unsafeArrayToPtr :: Array n .a -> Ptr .a
+unsafeArrayToPtr a = primUndefined
+
+unsafeOpenFile :: Ptr Char -> UInt -> *File
+unsafeOpenFile fileName fileNameLength = primUndefined
+
+openFile :: Array n Char -> *World -> (*File, *World)
+openFile fileName w =
+  (unsafeOpenFile (unsafeArrayToPtr fileName) (arrayLength fileName NatVal), w)
+
+closeFile :: *File -> ()
+closeFile f = primUndefined
+
+writeIntToFile :: Int -> *File -> *File
+writeIntToFile x f = primUndefined
+
+writeUIntToFile :: UInt -> *File -> *File
+writeUIntToFile x f = primUndefined
+
+writeFloatToFile :: Float -> *File -> *File
+writeFloatToFile x f = primUndefined
+
+writeCharToFile :: Char -> *File -> *File
+writeCharToFile x f = primUndefined
+
+
+----------------------
 -- Numeric Hierarchy
 ----------------------
 class Semiring a where
@@ -4402,33 +4437,6 @@ generateMinBLEP z o =
         in
           writeArray i (x * rm) mb1
 
-data File = File
-
-arrayLength :: Array n Char -> NatVal n -> UInt
-arrayLength _ n = natVal n
-
-unsafeOpenFile :: Array n Char -> UInt -> *File
-unsafeOpenFile fileName fileNameLength = primUndefined
-
--- Polymorphic is a motherfucker
-openFile :: Array n Char -> *World -> (*File, *World)
-openFile fileName w =
-   (unsafeOpenFile fileName (arrayLength fileName NatVal), w)
-
-closeFile :: *File -> ()
-closeFile f = primUndefined
-
-writeIntToFile :: Int -> *File -> *File
-writeIntToFile x f = primUndefined
-
-writeUIntToFile :: UInt -> *File -> *File
-writeUIntToFile x f = primUndefined
-
-writeFloatToFile :: Float -> *File -> *File
-writeFloatToFile x f = primUndefined
-
-writeCharToFile :: Char -> *File -> *File
-writeCharToFile x f = primUndefined
 
 -- somePow :: F64
 -- somePow = pow pi 5

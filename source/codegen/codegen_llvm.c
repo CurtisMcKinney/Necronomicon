@@ -1849,7 +1849,7 @@ void necro_llvm_compile(NecroCompileInfo info, NecroLLVM* context)
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_LLVM_TEST_VERBOSE 1
+#define NECRO_LLVM_TEST_VERBOSE 0
 void necro_llvm_test_string_go(const char* test_name, const char* str, NECRO_PHASE phase)
 {
 

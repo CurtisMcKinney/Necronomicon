@@ -255,6 +255,42 @@ writeFloatToFile x f = primUndefined
 writeCharToFile :: Char -> *File -> *File
 writeCharToFile x f = primUndefined
 
+writeStringToFile :: Array n Char -> *File -> *File
+writeStringToFile str file =
+  loop f = file for i <- each do
+    writeCharToFile (readArray i str) f
+
+writePlot2DToFileOnce :: Array s Char -> Array n Float -> *World -> *World
+writePlot2DToFileOnce name dat w0 =
+  if epoch > 1 then
+    w0
+  else
+    let
+      (f0, w1) = openFile name w0
+      f1       =
+        loop f = f0 for i <- each do
+          writeUIntToFile (indexToUInt i) f
+          |> writeCharToFile ' '
+          |> writeFloatToFile (readArray i dat)
+          |> writeCharToFile '\n'
+    in
+      case closeFile f1 of
+        _ -> printLn "Done writing file" w1
+  where
+    epoch ~ 0 = epoch + 1
+
+-- writeMyCoolPlot :: *World -> *World
+-- writeMyCoolPlot w =
+--   writePlot2DToFileOnce ".\Test.txt" a w
+--   where
+--     a :: Array 1024 Float
+--     a =
+--       mkArray (\i -> sine ((fromUInt i / 1024) * tau * 4))
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   writeMyCoolPlot w
+
 
 ----------------------
 -- Numeric Hierarchy
@@ -1429,6 +1465,14 @@ arrayFrom x =
     xa =
       loop a = unsafeEmptyArray () for i <- each do
         writeArray i x a
+
+mkArray :: (UInt -> a) -> .Array n a
+mkArray f =
+  freezeArray xa
+  where
+    xa =
+      loop a = unsafeEmptyArray () for i <- each do
+        writeArray i (f (indexToUInt i)) a
 
 instance Foldable (Array n) where
   fold a =
@@ -4294,7 +4338,7 @@ data MinBlepFFT    z o = MinBlepFFT (.Array (NatMul (NatMul z 2) o) Complex)
 
 -- Slow n' dirty fft
 minBlepFFT :: UInt -> MinBlepFFT z o -> *MinBlepFFT z o
-minBlepFFT n (MinBlepFFT signal) =
+minBlepFFT n (MinBlepFFT timeDomain) =
   MinBlepFFT bins1
   where
     rn    = fromUInt n
@@ -4309,11 +4353,11 @@ minBlepFFT n (MinBlepFFT signal) =
               let
                 p                      = (2 * pi * fromUInt k * fromUInt i) / rn
                 sr                     = cosine p
-                si                     = negate (sine p)
+                si                     = 0 - sine p
                 (#Complex# fr fi, b3#) = readArrayU (Index k) b2
-                Complex# xr xi         = readArray (Index i) signal
-                yr                     = fr + ((xr * sr) - (xi * si))
-                yi                     = fi + ((xr * si) + (xi * sr))
+                Complex# tr ti         = readArray (Index i) timeDomain
+                yr                     = fr + ((tr * sr) - (ti * si))
+                yi                     = fi + ((tr * si) + (ti * sr))
               in
                 (#i + 1, writeArray (Index k) (Complex# yr yi) b3#)
         in
@@ -4337,16 +4381,16 @@ minBlepIFFT n (MinBlepFFT freqDomain) =
                 p                      = (2 * pi * fromUInt k * fromUInt i) / rn
                 sr                     = cosine p
                 si                     = negate (sine p)
-                (#Complex# fr fi, b3#) = readArrayU (Index k) b2
-                Complex# xr xi         = readArray (Index i) freqDomain
-                yr                     = fr + ((xr * sr) + (xi * si))
-                yi                     = fi + ((xr * si) - (xi * sr))
+                (#Complex# tr ti, b3#) = readArrayU (Index k) b2
+                Complex# fr fi         = readArray (Index i) freqDomain
+                yr                     = tr + ((fr * sr) + (fi * si))
+                yi                     = ti + ((fr * si) - (fi * sr))
               in
                 (#i + 1, writeArray (Index k) (Complex# yr yi) b3#)
         in
           case readArrayU (Index k) b4 of
             (#Complex# xr xi, b5#) ->
-              (#k + 1, writeArray (Index k) (Complex# (xr * rn) (xi * rn)) b5#)
+              (#k + 1, writeArray (Index k) (Complex# (xr / rn) (xi / rn)) b5#)
 
 -- Compute real cepstrum
 minBlepCepstrum :: UInt -> MinBlepBuffer z o -> MinBlepBuffer z o
@@ -4404,23 +4448,27 @@ minBlepN _ _ = NatVal
 -- Start with z = 16, o = 32, which should create 1024 table
 generateMinBLEP :: NatVal z -> NatVal o -> MinBlepBuffer z o
 generateMinBLEP z o =
-  MinBlepBuffer minBlep1
+  minBlep1
   where
     n            = minBlepN z o |> natVal
     rn           = fromUInt n
     b            = natVal z |> fromUInt
     a            = negate b
-    windowedSinc = MinBlepBuffer <| freezeArray <|
+    windowedSinc = debugPlotMinBlepBuffer ".\data\minBlepWindowedSinc.txt" <| MinBlepBuffer <| freezeArray <|
       loop wsb = unsafeEmptyArray () for i <- each do
         let
           ri = fromUInt (indexToUInt i)
           r  = ri / (rn - 1)
           s  = (a + (r * (b - a))) * pi |> sinc
-          ws = nuttallBlackmanWindowFunction ri rn * s
+          ws = hannWindowFunction ri rn * s
         in
           writeArray i ws wsb
 
-    MinBlepBuffer minPhase = minBlepCepstrum n windowedSinc |> minBlepMinimumPhase n
+    MinBlepBuffer minPhase =
+      minBlepCepstrum n windowedSinc
+      |> debugPlotMinBlepBuffer ".\data\minBlepCepstrum.txt"
+      |> minBlepMinimumPhase n
+      |> debugPlotMinBlepBuffer ".\data\minBlepMinimumPhase.txt"
 
     (#minBlep0, m#) =
       loop (#mb, m0#) = (#unsafeEmptyArray (), 0#) for i <- each do
@@ -4430,13 +4478,24 @@ generateMinBLEP z o =
           (#writeArray i m1 mb, m1#)
 
     rm       = 1 / m
-    minBlep1 = freezeArray <|
+    minBlep1 = debugPlotMinBlepBuffer ".\data\minBlep.txt" <| MinBlepBuffer <| freezeArray <|
       loop mb0 = minBlep0 for i <- each do
         let
           (#x, mb1#) = readArrayU i mb0
         in
           writeArray i (x * rm) mb1
 
+myCoolBLEP :: MinBlepBuffer 16 32
+myCoolBLEP =
+  generateMinBLEP NatVal NatVal
+
+debugPlotMinBlepBuffer :: Array n Char -> MinBlepBuffer z o -> MinBlepBuffer z o
+debugPlotMinBlepBuffer name (MinBlepBuffer buffer) =
+  case writePlot2DToFileOnce name buffer primUndefined of
+    _ -> MinBlepBuffer buffer
+
+testJit :: *World -> *World
+testJit w = w
 
 -- somePow :: F64
 -- somePow = pow pi 5

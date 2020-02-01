@@ -185,15 +185,17 @@ extern DLLEXPORT size_t necro_runtime_open_file(size_t* str, uint64_t str_length
     if (str_length == 0)
         return 0;
 
-    char* file_name = malloc(str_length);
+    // Create ascii string
+    char* file_name = malloc(str_length + 1);
     assert(file_name != NULL);
-
-    for (size_t i = 0; str[i] != '\0'; ++i)
+    for (size_t i = 0; i < str_length; ++i)
     {
         // TODO: Unicode handling
         file_name[i] = (char) str[i];
     }
+    file_name[str_length] = '\0';
 
+    // Open File
 #ifdef WIN32
     FILE* file;
     fopen_s(&file, file_name, "w");
@@ -205,6 +207,8 @@ extern DLLEXPORT size_t necro_runtime_open_file(size_t* str, uint64_t str_length
         return 0;
     }
 
+    // Clean up and return
+    free(file_name);
     return (size_t)file;
 }
 
@@ -233,7 +237,7 @@ extern DLLEXPORT size_t necro_runtime_write_uint_to_file(uint64_t value, size_t 
 extern DLLEXPORT size_t necro_runtime_write_float_to_file(double value, size_t file)
 {
     char buffer[NECRO_ITOA_BUF_LENGTH];
-    snprintf(buffer, NECRO_ITOA_BUF_LENGTH,  "%.7g", value);
+    snprintf(buffer, NECRO_ITOA_BUF_LENGTH,  "%.17f", value);
     fputs(buffer, (FILE*)file);
     return file;
 }

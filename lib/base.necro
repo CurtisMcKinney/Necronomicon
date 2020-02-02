@@ -2773,21 +2773,19 @@ generateMinBLEP z o =
     rn           = fromUInt n
     b            = natVal z |> fromUInt
     a            = negate b
-    windowedSinc = debugPlotMinBlepBuffer ".\data\minBlepWindowedSinc.txt" <| MinBlepBuffer <| freezeArray <|
+    windowedSinc = MinBlepBuffer <| freezeArray <|
       loop wsb = unsafeEmptyArray () for i <- each do
         let
           ri = fromUInt (indexToUInt i)
           r  = ri / (rn - 1)
           s  = (a + (r * (b - a))) * pi |> sinc
-          ws = hannWindowFunction ri rn * s
+          ws = kaiserBesselWindowFunction ri rn 10 * s
         in
           writeArray i ws wsb
 
     MinBlepBuffer minPhase =
       minBlepCepstrum n windowedSinc
-      |> debugPlotMinBlepBuffer ".\data\minBlepCepstrum.txt"
       |> minBlepMinimumPhase n
-      |> debugPlotMinBlepBuffer ".\data\minBlepMinimumPhase.txt"
 
     (#minBlep0, m#) =
       loop (#mb, m0#) = (#unsafeEmptyArray (), 0#) for i <- each do
@@ -2797,7 +2795,7 @@ generateMinBLEP z o =
           (#writeArray i m1 mb, m1#)
 
     rm       = 1 / m
-    minBlep1 = debugPlotMinBlepBuffer ".\data\minBlep.txt" <| MinBlepBuffer <| freezeArray <|
+    minBlep1 = MinBlepBuffer <| freezeArray <|
       loop mb0 = minBlep0 for i <- each do
         let
           (#x, mb1#) = readArrayU i mb0
@@ -2819,46 +2817,52 @@ data MinBlepState = MinBlepState# Float UInt (.Array 32 Float)
 mkMinBlepState :: () -> *MinBlepState
 mkMinBlepState _ = MinBlepState# 0 0 (arrayFrom 0)
 
--- TODO: Finish!
 -- NOTE:
 --   * zcrossings   = 16
 --   * oversampling = 32
 --   * buffer size  = 16 * 2 * 32 = 1024
--- Remember to invert minBLEP for negative crossings for Pulse oscillator!
+-- TODO: fmin, or branchless min primop
+
+addMinBlep :: Float -> Float -> Float -> UInt -> *Array 32 Float -> *Array 32 Float
+addMinBlep polarity phase freqDelta index buffer0 =
+  buffer1
+  where
+    MinBlepBuffer mBuffer = minBLEP
+    offset                = (((abs phase) % 1) / abs freqDelta) * 32
+    delta                 = offset % 1
+    offsetu               = floorToInt offset |> fromInt
+    mOffset               = 0 - polarity
+    (#_, buffer1#) =
+      loop (#i, b0#) = (#0, buffer0#) while i < 32 do
+        let
+          ci         = Index (bitAnd (i + index) 31)
+          mi         = min 1022 ((i * 32) + offsetu)
+          (#cx, b1#) = readArrayU ci b0
+          m0         = readArray (Index mi) mBuffer
+          m1         = readArray (Index (mi + 1)) mBuffer
+          mx         = fma (m0 + (delta * (m1 - m0))) polarity mOffset
+        in
+          (#i + 1, writeArray ci (cx + mx) b1#)
+
 accumulateMinBlepSaw :: Float -> *MinBlepState -> (#*MinBlepState, Float#)
 accumulateMinBlepSaw freq (MinBlepState# phase0 cIndex0 cBuffer0) =
-  if phase1 < 1 then
-    let
-      (#cx, cBuffer1#) = readArrayU (Index cIndex0) cBuffer0
-      cBuffer2         = writeArray (Index cIndex0) 0 cBuffer1
-      out              = fma (phase1 + cx) 2 -1
-    in
-      (#MinBlepState# phase1 cIndex1 cBuffer2, out#)
-  else
-    let
-      MinBlepBuffer mBuffer = minBLEP
-      offset                = (phase1 * 1024) - 1024
-      delta                 = offset - floor offset
-      phase2                = phase1 - 1
-      cBuffer1              = writeArray (Index cIndex0) 0 cBuffer0
-      (#_, cBuffer2#)       =
-        loop (#i, cb0#) = (#0, cBuffer1#) while i < 32 do
-          let
-            ci          = Index <| bitAnd (i + cIndex0) 31
-            mi          = min 1022 ((i * 32) + fromInt (floorToInt offset))
-            (#cx, cb1#) = readArrayU ci cb0
-            m0          = readArray (Index mi) mBuffer
-            m1          = readArray (Index (mi + 1)) mBuffer
-            mx          = 1 - ((m0 * delta) + (m1 * (1 - delta)))
-          in
-            (#i + 1, writeArray ci (cx + mx) cb1#)
-      (#cx, cBuffer3#) = readArrayU (Index cIndex0) cBuffer2
-      out              = fma (phase1 + cx) 2 -1
-    in
-      (#MinBlepState# phase2 cIndex1 cBuffer3, out#)
+  (#MinBlepState# phase2 cIndex1 cBuffer3, out#)
   where
-    cIndex1 = bitAnd (cIndex0 + 1) 31
-    phase1  = fma freq recipSampleRate phase0
+    cIndex1   = bitAnd (cIndex0 + 1) 31
+    freqDelta = freq * recipSampleRate
+    phase1    = phase0 + freqDelta
+    (#phase2, cBuffer1#) =
+      if (phase0 >= 1 && freq > 0) || (phase0 <= 0 && freq < 0) then
+        let
+          polarity = 0 - copysign 1 freq
+          phase2   = phase1 + polarity
+        in
+          (#phase2, addMinBlep polarity phase1 freqDelta cIndex0 cBuffer0#)
+      else
+        (#phase1, cBuffer0#)
+    (#cx, cBuffer2#) = readArrayU (Index cIndex0) cBuffer1
+    cBuffer3         = writeArray (Index cIndex0) 0 cBuffer2
+    out              = fma (phase2 + cx) 2 -1
 
 saw :: AudioFormat f => f Audio -> f Audio
 saw freq =
@@ -3069,6 +3073,31 @@ pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
 pulse width freq =
   accumulate2 accumulatePulseEPTR constTrue width freq
 
+-- -----------
+-- -- minBLEP pulse
+-- accumulateMinBlepPulse :: Float -> Float -> *MinBlepState -> (#*MinBlepState, Float#)
+-- accumulateMinBlepPulse width freq (MinBlepState# phase0 cIndex0 cBuffer0) =
+--   (#MinBlepState# phase2 cIndex1 cBuffer3, out#)
+--   where
+--     cIndex1   = bitAnd (cIndex0 + 1) 31
+--     freqDelta = freq * recipSampleRate
+--     phase1    = phase0 + freqDelta
+--     (#phase2, cBuffer1#) =
+--       if (phase0 >= 1 && freq > 0) || (phase0 <= -1 && freq < 0) then
+--         let
+--           polarity = 0 - copysign 1 freq
+--           phase2   = phase1 + polarity
+--         in
+--           (#phase2, addMinBlep polarity phase2 freqDelta cIndex0 cBuffer0#)
+--       else
+--         (#phase1, cBuffer0#)
+--     (#cx, cBuffer2#) = readArrayU (Index cIndex0) cBuffer1
+--     cBuffer3         = writeArray (Index cIndex0) 0 cBuffer2
+--     out              = fma (phase2 + cx) 2 -1
+
+-- pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
+-- pulse width freq =
+--   accumulate2U mkMinBlepState accumulateMinBlepPulse constTrue' width freq
 
 -----------
 -- lfPulse
@@ -4643,7 +4672,6 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 -- Oscillator tests
 ----------------------
 
--- TODO: alignment!?!?!? what!?!?!?
 oscTest :: (Mono Audio -> Mono Audio) -> Stereo Audio
 oscTest f =
   perc 10 1 3 6000 + 50
@@ -4651,6 +4679,22 @@ oscTest f =
   |> perc 5 5 -1
   |> mul 0.2
   |> mixStereo
+
+-- -- Arrays of Audio seems broken at the moment :\
+-- oscTestMany :: (Mono Audio -> Mono Audio) -> Stereo Audio
+-- oscTestMany f =
+--   s
+--   |> mul 0.01
+--   |> perc 5 5 -1
+--   |> mul 0.1
+--   |> mixStereo
+--   where
+--     freq = perc 10 1 3 6000 + 50
+--     r :: Range 100
+--     r = each
+--     s     =
+--       loop o = 0 for i <- r do
+--         f freq + o
 
 -- testJit :: *World -> *World
 -- testJit w =
@@ -4685,6 +4729,10 @@ oscTest f =
 testJit :: *World -> *World
 testJit w =
   outAudio 0 (oscTest saw) w
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (oscTestMany saw) w
 
 -- testJit :: *World -> *World
 -- testJit w =

@@ -2635,9 +2635,235 @@ accumulateSawEPTR freq phase0 =
     t      = freq * recipSampleRate
     phase1 = fma 2 t phase0
 
+-- saw :: AudioFormat f => f Audio -> f Audio
+-- saw freq =
+--   accumulate1 accumulateSawEPTR constTrue freq
+
+----------------------
+-- MinBLEP
+--
+-- Hard Sync Without Aliasing:
+--   http://www.cs.cmu.edu/~eli/papers/icmc01-hardsync.pdf
+--
+-- ExperimentalScene article on MinBLEPs with nice code examples
+-- https://www.experimentalscene.com/articles/minbleps.php
+--
+-- Minimum phase filters
+--   https://ccrma.stanford.edu/~jos/fp/Creating_Minimum_Phase_Filters.html
+----------------------
+
+data MinBlepBuffer z o = MinBlepBuffer (.Array (NatMul (NatMul z 2) o) Float)
+data MinBlepFFT    z o = MinBlepFFT (.Array (NatMul (NatMul z 2) o) Complex)
+
+-- Slow n' dirty fft
+minBlepFFT :: UInt -> MinBlepFFT z o -> *MinBlepFFT z o
+minBlepFFT n (MinBlepFFT timeDomain) =
+  MinBlepFFT bins1
+  where
+    rn    = fromUInt n
+    bins0 =
+      loop b = unsafeEmptyArray () for i <- each do
+        writeArray i (Complex# 0 0) b
+    bins1 = snd' <|
+      loop (#k, b1#) = (#0, bins0#) while k < n do
+        let
+          b4 = snd' <|
+            loop (#i, b2#) = (#0, b1#) while i < n do
+              let
+                p                      = (2 * pi * fromUInt k * fromUInt i) / rn
+                sr                     = cosine p
+                si                     = 0 - sine p
+                (#Complex# fr fi, b3#) = readArrayU (Index k) b2
+                Complex# tr ti         = readArray (Index i) timeDomain
+                yr                     = fr + ((tr * sr) - (ti * si))
+                yi                     = fi + ((tr * si) + (ti * sr))
+              in
+                (#i + 1, writeArray (Index k) (Complex# yr yi) b3#)
+        in
+          (#k + 1, b4#)
+
+-- Slow n' dirty ifft
+minBlepIFFT :: UInt -> MinBlepFFT z o -> MinBlepFFT z o
+minBlepIFFT n (MinBlepFFT freqDomain) =
+  MinBlepFFT <| freezeArray bins1
+  where
+    rn    = fromUInt n
+    bins0 =
+      loop b = unsafeEmptyArray () for i <- each do
+        writeArray i (Complex# 0 0) b
+    bins1 = snd' <|
+      loop (#k, b1#) = (#0, bins0#) while k < n do
+        let
+          b4 = snd' <|
+            loop (#i, b2#) = (#0, b1#) while i < n do
+              let
+                p                      = (2 * pi * fromUInt k * fromUInt i) / rn
+                sr                     = cosine p
+                si                     = negate (sine p)
+                (#Complex# tr ti, b3#) = readArrayU (Index k) b2
+                Complex# fr fi         = readArray (Index i) freqDomain
+                yr                     = tr + ((fr * sr) + (fi * si))
+                yi                     = ti + ((fr * si) - (fi * sr))
+              in
+                (#i + 1, writeArray (Index k) (Complex# yr yi) b3#)
+        in
+          case readArrayU (Index k) b4 of
+            (#Complex# xr xi, b5#) ->
+              (#k + 1, writeArray (Index k) (Complex# (xr / rn) (xi / rn)) b5#)
+
+-- Compute real cepstrum
+minBlepCepstrum :: UInt -> MinBlepBuffer z o -> MinBlepBuffer z o
+minBlepCepstrum n (MinBlepBuffer signal) =
+  MinBlepBuffer <| freezeArray realCepstrum
+  where
+    MinBlepFFT freqDomain = minBlepFFT n <| MinBlepFFT <| freezeArray <|
+      loop td = unsafeEmptyArray () for i <- each do
+        writeArray i (Complex# (readArray i signal) 0) td
+
+    MinBlepFFT timeDomain = minBlepIFFT n <| MinBlepFFT <| freezeArray <|
+      loop fd0 = freqDomain for i <- each do
+        let
+          (#Complex# xr xi, fd1#) = readArrayU i fd0
+          lcabs                   = log (sqrt ((xr * xr) + (xi * xi)))
+          c                       = Complex# lcabs 0
+        in
+          writeArray i c fd1
+
+    realCepstrum =
+      loop rc = unsafeEmptyArray () for i <- each do
+        writeArray i (realPart (readArray i timeDomain)) rc
+
+-- Minimum phase reconstruction
+minBlepMinimumPhase :: UInt -> MinBlepBuffer z o -> MinBlepBuffer z o
+minBlepMinimumPhase n (MinBlepBuffer realCepstrum) =
+  MinBlepBuffer <| freezeArray minimumPhase
+  where
+    n2                    = n / 2
+    MinBlepFFT freqDomain = minBlepFFT n <| MinBlepFFT <| freezeArray <|
+      loop td = unsafeEmptyArray () for i <- each do
+        if indexToUInt i == 0 then
+          writeArray i (Complex# (readArray i realCepstrum) 0) td
+        else if indexToUInt i < n2 then
+          writeArray i (Complex# (readArray i realCepstrum * 2) 0) td
+        else
+          writeArray i (Complex# 0 0) td
+
+    MinBlepFFT timeDomain = minBlepIFFT n <| MinBlepFFT <| freezeArray <|
+      loop fd0 = freqDomain for i <- each do
+        let
+          (#Complex# xr xi, fd1#) = readArrayU i fd0
+          rexp                    = exp xr
+          c                       = Complex# (rexp * cosine xi) (rexp * sine xi)
+        in
+          writeArray i c fd1
+
+    minimumPhase =
+      loop mp = unsafeEmptyArray () for i <- each do
+        writeArray i (realPart (readArray i timeDomain)) mp
+
+minBlepN :: NatVal z -> NatVal o -> NatVal (NatMul (NatMul z 2) o)
+minBlepN _ _ = NatVal
+
+-- Start with z = 16, o = 32, which should create 1024 table
+generateMinBLEP :: NatVal z -> NatVal o -> MinBlepBuffer z o
+generateMinBLEP z o =
+  minBlep1
+  where
+    n            = minBlepN z o |> natVal
+    rn           = fromUInt n
+    b            = natVal z |> fromUInt
+    a            = negate b
+    windowedSinc = debugPlotMinBlepBuffer ".\data\minBlepWindowedSinc.txt" <| MinBlepBuffer <| freezeArray <|
+      loop wsb = unsafeEmptyArray () for i <- each do
+        let
+          ri = fromUInt (indexToUInt i)
+          r  = ri / (rn - 1)
+          s  = (a + (r * (b - a))) * pi |> sinc
+          ws = hannWindowFunction ri rn * s
+        in
+          writeArray i ws wsb
+
+    MinBlepBuffer minPhase =
+      minBlepCepstrum n windowedSinc
+      |> debugPlotMinBlepBuffer ".\data\minBlepCepstrum.txt"
+      |> minBlepMinimumPhase n
+      |> debugPlotMinBlepBuffer ".\data\minBlepMinimumPhase.txt"
+
+    (#minBlep0, m#) =
+      loop (#mb, m0#) = (#unsafeEmptyArray (), 0#) for i <- each do
+        let
+          m1 = m0 + readArray i minPhase
+        in
+          (#writeArray i m1 mb, m1#)
+
+    rm       = 1 / m
+    minBlep1 = debugPlotMinBlepBuffer ".\data\minBlep.txt" <| MinBlepBuffer <| freezeArray <|
+      loop mb0 = minBlep0 for i <- each do
+        let
+          (#x, mb1#) = readArrayU i mb0
+        in
+          writeArray i (x * rm) mb1
+
+minBLEP :: MinBlepBuffer 16 32
+minBLEP =
+  generateMinBLEP NatVal NatVal
+
+debugPlotMinBlepBuffer :: Array n Char -> MinBlepBuffer z o -> MinBlepBuffer z o
+debugPlotMinBlepBuffer name (MinBlepBuffer buffer) =
+  case writePlot2DToFileOnce name buffer primUndefined of
+    _ -> MinBlepBuffer buffer
+
+-- NOTE: Circular buffer size is equal to 2 * zcrossings
+data MinBlepState = MinBlepState# Float UInt (.Array 32 Float)
+
+mkMinBlepState :: () -> *MinBlepState
+mkMinBlepState _ = MinBlepState# 0 0 (arrayFrom 0)
+
+-- TODO: Finish!
+-- NOTE:
+--   * zcrossings   = 16
+--   * oversampling = 32
+--   * buffer size  = 16 * 2 * 32 = 1024
+-- Remember to invert minBLEP for negative crossings for Pulse oscillator!
+accumulateMinBlepSaw :: Float -> *MinBlepState -> (#*MinBlepState, Float#)
+accumulateMinBlepSaw freq (MinBlepState# phase0 cIndex0 cBuffer0) =
+  if phase1 < 1 then
+    let
+      (#cx, cBuffer1#) = readArrayU (Index cIndex0) cBuffer0
+      cBuffer2         = writeArray (Index cIndex0) 0 cBuffer1
+      out              = fma (phase1 + cx) 2 -1
+    in
+      (#MinBlepState# phase1 cIndex1 cBuffer2, out#)
+  else
+    let
+      MinBlepBuffer mBuffer = minBLEP
+      offset                = (phase1 * 1024) - 1024
+      delta                 = offset - floor offset
+      phase2                = phase1 - 1
+      cBuffer1              = writeArray (Index cIndex0) 0 cBuffer0
+      (#_, cBuffer2#)       =
+        loop (#i, cb0#) = (#0, cBuffer1#) while i < 32 do
+          let
+            ci          = Index <| bitAnd (i + cIndex0) 31
+            mi          = min 1022 ((i * 32) + fromInt (floorToInt offset))
+            (#cx, cb1#) = readArrayU ci cb0
+            m0          = readArray (Index mi) mBuffer
+            m1          = readArray (Index (mi + 1)) mBuffer
+            mx          = 1 - ((m0 * delta) + (m1 * (1 - delta)))
+          in
+            (#i + 1, writeArray ci (cx + mx) cb1#)
+      (#cx, cBuffer3#) = readArrayU (Index cIndex0) cBuffer2
+      out              = fma (phase1 + cx) 2 -1
+    in
+      (#MinBlepState# phase2 cIndex1 cBuffer3, out#)
+  where
+    cIndex1 = bitAnd (cIndex0 + 1) 31
+    phase1  = fma freq recipSampleRate phase0
+
 saw :: AudioFormat f => f Audio -> f Audio
 saw freq =
-  accumulate1 accumulateSawEPTR constTrue freq
+  accumulate1U mkMinBlepState accumulateMinBlepSaw constTrue' freq
+
 
 -----------
 -- lfSaw
@@ -4322,180 +4548,8 @@ poly2 f x y = poly (uncurry' f) (map2 (\x' y' -> (#x', y'#)) x y)
 poly3 :: Poly d => (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> d
 poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 
-
-----------------------
--- MinBLEP
---
--- Hard Sync Without Aliasing:
---   http://www.cs.cmu.edu/~eli/papers/icmc01-hardsync.pdf
---
--- ExperimentalScene article on MinBLEPs with nice code examples
--- https://www.experimentalscene.com/articles/minbleps.php
-----------------------
-
-data MinBlepBuffer z o = MinBlepBuffer (.Array (NatMul (NatMul z 2) o) Float)
-data MinBlepFFT    z o = MinBlepFFT (.Array (NatMul (NatMul z 2) o) Complex)
-
--- Slow n' dirty fft
-minBlepFFT :: UInt -> MinBlepFFT z o -> *MinBlepFFT z o
-minBlepFFT n (MinBlepFFT timeDomain) =
-  MinBlepFFT bins1
-  where
-    rn    = fromUInt n
-    bins0 =
-      loop b = unsafeEmptyArray () for i <- each do
-        writeArray i (Complex# 0 0) b
-    bins1 = snd' <|
-      loop (#k, b1#) = (#0, bins0#) while k < n do
-        let
-          b4 = snd' <|
-            loop (#i, b2#) = (#0, b1#) while i < n do
-              let
-                p                      = (2 * pi * fromUInt k * fromUInt i) / rn
-                sr                     = cosine p
-                si                     = 0 - sine p
-                (#Complex# fr fi, b3#) = readArrayU (Index k) b2
-                Complex# tr ti         = readArray (Index i) timeDomain
-                yr                     = fr + ((tr * sr) - (ti * si))
-                yi                     = fi + ((tr * si) + (ti * sr))
-              in
-                (#i + 1, writeArray (Index k) (Complex# yr yi) b3#)
-        in
-          (#k + 1, b4#)
-
--- Slow n' dirty ifft
-minBlepIFFT :: UInt -> MinBlepFFT z o -> MinBlepFFT z o
-minBlepIFFT n (MinBlepFFT freqDomain) =
-  MinBlepFFT <| freezeArray bins1
-  where
-    rn    = fromUInt n
-    bins0 =
-      loop b = unsafeEmptyArray () for i <- each do
-        writeArray i (Complex# 0 0) b
-    bins1 = snd' <|
-      loop (#k, b1#) = (#0, bins0#) while k < n do
-        let
-          b4 = snd' <|
-            loop (#i, b2#) = (#0, b1#) while i < n do
-              let
-                p                      = (2 * pi * fromUInt k * fromUInt i) / rn
-                sr                     = cosine p
-                si                     = negate (sine p)
-                (#Complex# tr ti, b3#) = readArrayU (Index k) b2
-                Complex# fr fi         = readArray (Index i) freqDomain
-                yr                     = tr + ((fr * sr) + (fi * si))
-                yi                     = ti + ((fr * si) - (fi * sr))
-              in
-                (#i + 1, writeArray (Index k) (Complex# yr yi) b3#)
-        in
-          case readArrayU (Index k) b4 of
-            (#Complex# xr xi, b5#) ->
-              (#k + 1, writeArray (Index k) (Complex# (xr / rn) (xi / rn)) b5#)
-
--- Compute real cepstrum
-minBlepCepstrum :: UInt -> MinBlepBuffer z o -> MinBlepBuffer z o
-minBlepCepstrum n (MinBlepBuffer signal) =
-  MinBlepBuffer <| freezeArray realCepstrum
-  where
-    MinBlepFFT freqDomain = minBlepFFT n <| MinBlepFFT <| freezeArray <|
-      loop td = unsafeEmptyArray () for i <- each do
-        writeArray i (Complex# (readArray i signal) 0) td
-
-    MinBlepFFT timeDomain = minBlepIFFT n <| MinBlepFFT <| freezeArray <|
-      loop fd0 = freqDomain for i <- each do
-        let
-          (#Complex# xr xi, fd1#) = readArrayU i fd0
-          lcabs                   = log (sqrt ((xr * xr) + (xi * xi)))
-          c                       = Complex# lcabs 0
-        in
-          writeArray i c fd1
-
-    realCepstrum =
-      loop rc = unsafeEmptyArray () for i <- each do
-        writeArray i (realPart (readArray i timeDomain)) rc
-
--- Minimum phase reconstruction
-minBlepMinimumPhase :: UInt -> MinBlepBuffer z o -> MinBlepBuffer z o
-minBlepMinimumPhase n (MinBlepBuffer realCepstrum) =
-  MinBlepBuffer <| freezeArray minimumPhase
-  where
-    n2                    = n / 2
-    MinBlepFFT freqDomain = minBlepFFT n <| MinBlepFFT <| freezeArray <|
-      loop td = unsafeEmptyArray () for i <- each do
-        if indexToUInt i == 0 then
-          writeArray i (Complex# (readArray i realCepstrum) 0) td
-        else if indexToUInt i < n2 then
-          writeArray i (Complex# (readArray i realCepstrum * 2) 0) td
-        else
-          writeArray i (Complex# 0 0) td
-
-    MinBlepFFT timeDomain = minBlepIFFT n <| MinBlepFFT <| freezeArray <|
-      loop fd0 = freqDomain for i <- each do
-        let
-          (#Complex# xr xi, fd1#) = readArrayU i fd0
-          rexp                    = exp xr
-          c                       = Complex# (rexp * cosine xi) (rexp * sine xi)
-        in
-          writeArray i c fd1
-
-    minimumPhase =
-      loop mp = unsafeEmptyArray () for i <- each do
-        writeArray i (realPart (readArray i timeDomain)) mp
-
-minBlepN :: NatVal z -> NatVal o -> NatVal (NatMul (NatMul z 2) o)
-minBlepN _ _ = NatVal
-
--- Start with z = 16, o = 32, which should create 1024 table
-generateMinBLEP :: NatVal z -> NatVal o -> MinBlepBuffer z o
-generateMinBLEP z o =
-  minBlep1
-  where
-    n            = minBlepN z o |> natVal
-    rn           = fromUInt n
-    b            = natVal z |> fromUInt
-    a            = negate b
-    windowedSinc = debugPlotMinBlepBuffer ".\data\minBlepWindowedSinc.txt" <| MinBlepBuffer <| freezeArray <|
-      loop wsb = unsafeEmptyArray () for i <- each do
-        let
-          ri = fromUInt (indexToUInt i)
-          r  = ri / (rn - 1)
-          s  = (a + (r * (b - a))) * pi |> sinc
-          ws = hannWindowFunction ri rn * s
-        in
-          writeArray i ws wsb
-
-    MinBlepBuffer minPhase =
-      minBlepCepstrum n windowedSinc
-      |> debugPlotMinBlepBuffer ".\data\minBlepCepstrum.txt"
-      |> minBlepMinimumPhase n
-      |> debugPlotMinBlepBuffer ".\data\minBlepMinimumPhase.txt"
-
-    (#minBlep0, m#) =
-      loop (#mb, m0#) = (#unsafeEmptyArray (), 0#) for i <- each do
-        let
-          m1 = m0 + readArray i minPhase
-        in
-          (#writeArray i m1 mb, m1#)
-
-    rm       = 1 / m
-    minBlep1 = debugPlotMinBlepBuffer ".\data\minBlep.txt" <| MinBlepBuffer <| freezeArray <|
-      loop mb0 = minBlep0 for i <- each do
-        let
-          (#x, mb1#) = readArrayU i mb0
-        in
-          writeArray i (x * rm) mb1
-
-myCoolBLEP :: MinBlepBuffer 16 32
-myCoolBLEP =
-  generateMinBLEP NatVal NatVal
-
-debugPlotMinBlepBuffer :: Array n Char -> MinBlepBuffer z o -> MinBlepBuffer z o
-debugPlotMinBlepBuffer name (MinBlepBuffer buffer) =
-  case writePlot2DToFileOnce name buffer primUndefined of
-    _ -> MinBlepBuffer buffer
-
-testJit :: *World -> *World
-testJit w = w
+-- testJit :: *World -> *World
+-- testJit w = w
 
 -- somePow :: F64
 -- somePow = pow pi 5
@@ -4628,9 +4682,9 @@ oscTest f =
 -- testJit w =
 --   outAudio 0 (oscTest lfSaw) w
 
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 (oscTest saw) w
+testJit :: *World -> *World
+testJit w =
+  outAudio 0 (oscTest saw) w
 
 -- testJit :: *World -> *World
 -- testJit w =

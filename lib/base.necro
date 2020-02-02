@@ -2640,7 +2640,7 @@ accumulateSawEPTR freq phase0 =
 --   accumulate1 accumulateSawEPTR constTrue freq
 
 ----------------------
--- MinBLEP
+-- minBLEP
 --
 -- Hard Sync Without Aliasing:
 --   http://www.cs.cmu.edu/~eli/papers/icmc01-hardsync.pdf
@@ -2822,13 +2822,11 @@ mkMinBlepState _ = MinBlepState# 0 0 (arrayFrom 0)
 --   * oversampling = 32
 --   * buffer size  = 16 * 2 * 32 = 1024
 -- TODO: fmin, or branchless min primop
-
-addMinBlep :: Float -> Float -> Float -> UInt -> *Array 32 Float -> *Array 32 Float
-addMinBlep polarity phase freqDelta index buffer0 =
+addMinBlep :: Float -> Float -> UInt -> *Array 32 Float -> *Array 32 Float
+addMinBlep polarity offset index buffer0 =
   buffer1
   where
     MinBlepBuffer mBuffer = minBLEP
-    offset                = (((abs phase) % 1) / abs freqDelta) * 32
     delta                 = offset % 1
     offsetu               = floorToInt offset |> fromInt
     mOffset               = 0 - polarity
@@ -2844,6 +2842,22 @@ addMinBlep polarity phase freqDelta index buffer0 =
         in
           (#i + 1, writeArray ci (cx + mx) b1#)
 
+----------------------
+-- minBLEP saw
+----------------------
+
+fselect :: Bool -> Float -> Float -> Float
+fselect c x y =
+  (fc * x) + ((1 - fc) * y)
+  where
+    fc = fromInt <| boolToInt c
+
+uselect :: Bool -> UInt -> UInt -> UInt
+uselect c x y =
+  (fc * x) + ((1 - fc) * y)
+  where
+    fc = fromInt <| boolToInt c
+
 accumulateMinBlepSaw :: Float -> *MinBlepState -> (#*MinBlepState, Float#)
 accumulateMinBlepSaw freq (MinBlepState# phase0 cIndex0 cBuffer0) =
   (#MinBlepState# phase2 cIndex1 cBuffer3, out#)
@@ -2852,12 +2866,13 @@ accumulateMinBlepSaw freq (MinBlepState# phase0 cIndex0 cBuffer0) =
     freqDelta = freq * recipSampleRate
     phase1    = phase0 + freqDelta
     (#phase2, cBuffer1#) =
-      if (phase0 >= 1 && freq > 0) || (phase0 <= 0 && freq < 0) then
+      if (phase1 >= 1 && freq > 0) || (phase1 <= 0 && freq < 0) then
         let
           polarity = 0 - copysign 1 freq
           phase2   = phase1 + polarity
+          offset   = (abs (fselect (polarity < 0) phase2 phase1) / abs freqDelta) * 32
         in
-          (#phase2, addMinBlep polarity phase1 freqDelta cIndex0 cBuffer0#)
+          (#phase2, addMinBlep polarity offset cIndex0 cBuffer0#)
       else
         (#phase1, cBuffer0#)
     (#cx, cBuffer2#) = readArrayU (Index cIndex0) cBuffer1
@@ -3069,35 +3084,49 @@ accumulatePulseEPTR width freq (PulseState# phase0 dir) =
       else
         (#PulseState# phase1 1, -1#)
 
-pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
-pulse width freq =
-  accumulate2 accumulatePulseEPTR constTrue width freq
-
--- -----------
--- -- minBLEP pulse
--- accumulateMinBlepPulse :: Float -> Float -> *MinBlepState -> (#*MinBlepState, Float#)
--- accumulateMinBlepPulse width freq (MinBlepState# phase0 cIndex0 cBuffer0) =
---   (#MinBlepState# phase2 cIndex1 cBuffer3, out#)
---   where
---     cIndex1   = bitAnd (cIndex0 + 1) 31
---     freqDelta = freq * recipSampleRate
---     phase1    = phase0 + freqDelta
---     (#phase2, cBuffer1#) =
---       if (phase0 >= 1 && freq > 0) || (phase0 <= -1 && freq < 0) then
---         let
---           polarity = 0 - copysign 1 freq
---           phase2   = phase1 + polarity
---         in
---           (#phase2, addMinBlep polarity phase2 freqDelta cIndex0 cBuffer0#)
---       else
---         (#phase1, cBuffer0#)
---     (#cx, cBuffer2#) = readArrayU (Index cIndex0) cBuffer1
---     cBuffer3         = writeArray (Index cIndex0) 0 cBuffer2
---     out              = fma (phase2 + cx) 2 -1
-
 -- pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
 -- pulse width freq =
---   accumulate2U mkMinBlepState accumulateMinBlepPulse constTrue' width freq
+--   accumulate2 accumulatePulseEPTR constTrue width freq
+
+-----------
+-- minBLEP pulse
+
+accumulateMinBlepPulse :: Float -> Float -> *MinBlepState -> (#*MinBlepState, Float#)
+accumulateMinBlepPulse width freq (MinBlepState# phase0 indexAndMode0 cBuffer0) =
+  (#MinBlepState# phase2 indexAndMode1 cBuffer3, out#)
+  where
+    mode0     = bitAnd 32 indexAndMode0
+    cIndex0   = bitAnd 31 indexAndMode0
+    cIndex1   = bitAnd (cIndex0 + 1) 31
+    freqDelta = freq * recipSampleRate
+    phase1    = phase0 + freqDelta
+    (#phase2, cBuffer1, mode1#) =
+      if (phase1 >= 1 && freq > 0) || (phase1 <= 0 && freq < 0) then
+        let
+          polarity = 0 - copysign 1 freq
+          phase2   = phase1 + polarity
+          offset   = (abs (fselect (polarity < 0) phase2 phase1) / abs freqDelta) * 32
+          mode1    = uselect (phase2 <= width) 0 32
+        in
+          (#phase2, addMinBlep polarity offset cIndex0 cBuffer0, mode1#)
+      else if (mode0 == 0 && phase1 >= width && freq > 0) || (mode0 == 32 && phase1 < width && freq < 0) then
+        let
+          polarity = fselect (mode0 == 0) 1 -1
+          offset   = ((abs (phase1 - width)) / abs freqDelta) * 32
+          mode1    = uselect (mode0 == 0) 32 0
+        in
+          (#phase1, addMinBlep polarity offset cIndex0 cBuffer0, mode1#)
+      else
+        (#phase1, cBuffer0, mode0#)
+    (#cx, cBuffer2#) = readArrayU (Index cIndex0) cBuffer1
+    cBuffer3         = writeArray (Index cIndex0) 0 cBuffer2
+    y                = fselect (mode1 == 0) 0 1
+    out              = fma (y + cx) 2 -1
+    indexAndMode1    = bitOr mode1 cIndex1
+
+pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
+pulse width freq =
+  accumulate2U mkMinBlepState accumulateMinBlepPulse constTrue' width freq
 
 -----------
 -- lfPulse
@@ -4726,9 +4755,9 @@ oscTest f =
 -- testJit w =
 --   outAudio 0 (oscTest lfSaw) w
 
-testJit :: *World -> *World
-testJit w =
-  outAudio 0 (oscTest saw) w
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 (oscTest saw) w
 
 -- testJit :: *World -> *World
 -- testJit w =
@@ -4923,7 +4952,7 @@ testJit w =
 --   outAudio 0 osc w
 --   where
 --     osc =
---       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 300)
+--       stereo 440 330 + (sin (1 + perc 5 20 -1 30) * perc 5 20 -1 4000)
 --       |> pulse 0.5
 --       |> perc 5 20 -1
 --       |> mul 0.2
@@ -4938,39 +4967,39 @@ testJit w =
 --       |> perc 5 20 -1
 --       |> mul 0.2
 
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 badAudio w
---   where
---     freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
---     freqMul2  = sin 0.14 *  0.0035 + sin 0.5 * -0.00025 + 0.5
---     freqMul3  = sin 0.23 * -0.0035 + sin 0.4 *  0.00025 + 0.5
---     beatSpeed = 3 // 2
---     badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
---     badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ _ _ 0.25 0.5 0.75 1 1.5]))
---     badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
---     badSynth1 f =
---       tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (sin (fromFloat f) * 0.75)
---       |> mul 0.11
---       |> perc 0.005 2.5 -3.75
---       |> pan 0.375
---     badSynth2 f =
---       tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.3)
---       |> mul 0.09
---       |> perc 0.01 3.5 -2.75
---       |> pan 0.625
---     bassSynth f =
---       sin (fromFloat (f * 0.5)) + (0.5 * (tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))))
---       |> mul 0.1
---       |> perc 0.005 5 -1.8
---       |> mixStereo
---     synths =
---       poly badSynth1 badBeat1 +
---       poly badSynth2 badBeat2
---       |> delay oneSec 0.6666667 0.6
---     badAudio =
---       poly bassSynth badBeat3 +
---       synths
+testJit :: *World -> *World
+testJit w =
+  outAudio 0 badAudio w
+  where
+    freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
+    freqMul2  = sin 0.14 *  0.0035 + sin 0.5 * -0.00025 + 0.5
+    freqMul3  = sin 0.23 * -0.0035 + sin 0.4 *  0.00025 + 0.5
+    beatSpeed = 3 // 2
+    badBeat1  = seqSpeed beatSpeed [200 _ 300 <_ 350> 200 400 _ 600 <_ [350:700]> [300:800]]
+    badBeat2  = seqSpeed beatSpeed ([400 _ 600 <_ 700> <_ 1200> [1400:1350]] @* (seqSpeed (1 // 9) [_ _ _ _ 0.25 0.5 0.75 1 1.5]))
+    badBeat3  = seqSpeed (beatSpeed / 8) [100 60 75 100 60 75 80]
+    badSynth1 f =
+      tri (fromFloat f * 0.501) + tri (fromFloat f * freqMul1 + tri 1.33334 * 3) + (sin (fromFloat f) * 0.75)
+      |> mul 0.11
+      |> perc 0.005 2.5 -3.75
+      |> pan 0.375
+    badSynth2 f =
+      tri (fromFloat f * freqMul3 * 2.02) + tri (fromFloat f * 0.998) + (pulse (freqMul1 - 0.175) (fromFloat f * freqMul2 + tri 2.0 * 3) * 0.3)
+      |> mul 0.09
+      |> perc 0.01 3.5 -2.75
+      |> pan 0.625
+    bassSynth f =
+      sin (fromFloat (f * 0.5)) + (0.5 * (tri (fromFloat f - 0.1) + tri (fromFloat f * freqMul1 * 2) + tri (fromFloat f * (1 - freqMul3)) + tri (fromFloat (f * 0.5))))
+      |> mul 0.1
+      |> perc 0.005 5 -1.8
+      |> mixStereo
+    synths =
+      poly badSynth1 badBeat1 +
+      poly badSynth2 badBeat2
+      |> delay oneSec 0.6666667 0.6
+    badAudio =
+      poly bassSynth badBeat3 +
+      synths
 
 -- testJit :: *World -> *World
 -- testJit w = print one w

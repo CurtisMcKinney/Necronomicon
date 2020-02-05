@@ -415,7 +415,7 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
         double cpu_load = Pa_GetStreamCpuLoad(necro_runtime_audio_pa_stream);
         if (cpu_check > 9)
         {
-            printf("  cpu: %.2f%%  mem: %.2fmb\r", cpu_load * 100.0, (((double)necro_heap.bump) / 1000000.0));
+            printf("  cpu: %.2f%%  mem: %.2fmb        \r", cpu_load * 100.0, (((double)necro_heap.bump) / 1000000.0));
             cpu_check = 0;
         }
         cpu_check++;

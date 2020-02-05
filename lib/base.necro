@@ -1419,9 +1419,10 @@ mutRefPut x ptr =
 --------------------
 
 -- TODO: Make range unboxed? Proper unboxed types? End constructor name with # to create unboxed type?
-data Range  (n :: Nat) = Range# UInt UInt UInt
-data Index  (n :: Nat) = Index UInt
-data NatVal (n :: Nat) = NatVal
+data Range   (n :: Nat)            = Range# UInt UInt UInt
+data Index   (n :: Nat)            = Index UInt
+data NatVal  (n :: Nat)            = NatVal
+data NatVal2 (n :: Nat) (m :: Nat) = NatVal2
 
 natVal :: NatVal n -> UInt
 natVal n = primUndefined
@@ -3193,6 +3194,104 @@ wave buffer freq =
 sin :: AudioFormat f => f Audio -> f Audio
 sin freq = wave sinTable freq
 
+-------------
+-- Wave Terrain
+data Vector2D      = Vector2D# Float Float
+data Vector3D      = Vector3D# Float Float Float
+data AudioVector2D = AudioVector2D# Audio Audio
+data AudioVector3D = AudioVector3D# Audio Audio Audio
+
+instance Print Vector2D where
+  print (Vector2D# x y) w =
+    print '(' w
+    |> print x
+    |> print ','
+    |> print y
+    |> print ')'
+
+data WaveTable2D n = WaveTable2D (Array (NatMul (NatNextPowerOfTwo n) (NatNextPowerOfTwo n)) Float)
+data WaveTable3D n = WaveTable3D (Array (NatMul (NatNextPowerOfTwo n) (NatMul (NatNextPowerOfTwo n) (NatNextPowerOfTwo n))) Float)
+
+audioVector2DX :: AudioVector2D -> Audio
+audioVector2DX (AudioVector2D# x _) = x
+
+audioVector2DY :: AudioVector2D -> Audio
+audioVector2DY (AudioVector2D# _ y) = y
+
+audioVector3DX :: AudioVector3D -> Audio
+audioVector3DX (AudioVector3D# x _ _) = x
+
+audioVector3DY :: AudioVector3D -> Audio
+audioVector3DY (AudioVector3D# _ y _) = y
+
+audioVector3DZ :: AudioVector3D -> Audio
+audioVector3DZ (AudioVector3D# _ _ z) = z
+
+accumulateWave2F :: AudioFormat f => (Vector2D -> Float) -> f AudioVector2D -> f Audio
+accumulateWave2F f a =
+  map (\v -> mapAudio2 (\x y -> f (Vector2D# x y)) (audioVector2DX v) (audioVector2DY v)) a
+
+-- accumulateWave3F :: (Default s, AudioFormat f) => (Vector3D -> s -> (#s, Float#)) -> f AudioVector3D -> f Audio
+-- accumulateWave3F f v =
+--   accumulate3 (\x y z -> f (Vector3D# x y z)) constTrue (map audioVector3DX v) (map audioVector3DY v) (map audioVector3DZ v)
+
+data IkedaState w h = IkedaState# (.Array (NatMul w h) (#Complex, Complex, Float#)) Float
+
+-- TODO: optimize
+-- TODO: How EXACTLY to map to audio?
+-- TODO: How EXACTLY to interpolate?
+accumulateIkedaAttractor2D :: Float -> Float -> *IkedaState w h -> (#*IkedaState w h, Float#)
+accumulateIkedaAttractor2D u speed (IkedaState# a0 tick0) =
+  (#IkedaState# a6 tick2, out#)
+  where
+    tick1         = fma speed recipSampleRate tick0
+    (#a3, tick2#) = if tick1 < 1 then (#a0, tick1#) else
+      loop (#a1, tick22#) = (#a0, tick1 - 1#) for i <- each do
+        let
+          (#(#_, Complex# x0 y0, s0#), a2#) = readArrayU i a1
+          t                                 = 0.4 - 6 / (1 + (x0 * x0) + (y0 * y0))
+          x1                                = 1 + (u * ((x0 * cosine t) - (y0 * sine t)))
+          y1                                = u * ((x0 * sine t) + (y0 * cosine t))
+        in
+          (#writeArray i (#Complex# x0 y0, Complex# x1 y1, s0#) a2, tick22#)
+    (#a6, out#) =
+      loop (#a4, o#) = (#a3, 0#) for i <- each do
+        let
+          (#(#Complex# x0 y0, Complex# x1 y1, s0#), a5#) = readArrayU i a4
+          xn                                             = (x0 * (1 - tick2)) + (x1 * tick2)
+          yn                                             = (y0 * (1 - tick2)) + (y1 * tick2)
+          (#s1, v#)                                      = accumulateWaveTable sinTable (yn * 200) s0
+        in
+          (#writeArray i (#Complex# x0 y0, Complex# x1 y1, s1#) a5, o + (sine (yn * 2000) * 0.04 * sine (xn * 0.1))#)
+
+mkIkedaState :: NatVal w -> NatVal h -> () -> *IkedaState w h
+mkIkedaState wv hv _ = IkedaState# a3 1
+  where
+    width  = natVal wv
+    height = natVal hv
+    a3     = snd' <|
+      loop (#y, a0#) = (#0, unsafeEmptyArray ()#) while y < height do
+        let
+          a2 =
+            snd' <| loop (#x, a1#) = (#0, a0#) while x < width do
+              let
+                p = Complex# (fromUInt x * 5) (fromUInt y * 5)
+              in
+                (#x + 1, writeArray (Index (x + (y * width))) ((#p, p, 1#)) a1#)
+        in
+          (#y + 1, a2#)
+
+natVal2ToNatVals :: NatVal2 w h -> (#NatVal w, NatVal h#)
+natVal2ToNatVals _ = (#NatVal, NatVal#)
+
+-- Different interpolation methods
+-- Different mapping methods
+ikedaAttractor2D :: (AudioFormat f) => f Audio -> f Audio -> NatVal2 w h -> f Audio
+ikedaAttractor2D u speed size =
+  accumulate2U (mkIkedaState wv hv) accumulateIkedaAttractor2D constTrue' u speed
+  where
+    (#wv, hv#) = natVal2ToNatVals size
+
 
 -----------
 -- Sync
@@ -3339,7 +3438,7 @@ accumulateMinBlepPulseHardSync sync width freq (MinBlepState# phase0 state0 cBuf
           (#phase2, cBuffer1, mode1#)
       else if syncPolarity0 == 0 && syncPolarity1 > 0 then
         let
-          phase2   = 0.5
+          phase2   = width
           mode1    = 32
           cBuffer1 = if mode0 == 32 then cBuffer0 else addMinBlep 1 0 cIndex0 cBuffer0
         in
@@ -4950,20 +5049,32 @@ oscTest f =
 --       |> mul 0.2
 --       |> mixStereo
 
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 osc w
+--   where
+--     sync =
+--       ([1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 50)
+--       |> seqSpeed 6
+--       |> seqToAudio
+--       |> lag 0.085
+--       |> lfPulse (0.5 + (sin 0.25 * 0.125))
+--     osc  =
+--       perc 10 1 3 4000 + 5
+--       |> hardSyncPulse sync 0.5
+--       |> perc 5 5 -1
+--       |> mul 0.2
+--       |> mixStereo
+
 testJit :: *World -> *World
 testJit w =
-  outAudio 0 osc w
+  outAudio 0 a w
   where
-    sync =
-      ([1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 50)
-      |> seqSpeed 6
-      |> seqToAudio
-      |> lag 0.085
-      |> lfPulse (0.5 + (sin 0.25 * 0.125))
-    osc  =
-      perc 10 1 3 4000 + 5
-      |> hardSyncPulse sync 0.5
-      |> perc 5 5 -1
+    s :: NatVal2 10 10
+    s = NatVal2
+    a =
+      ikedaAttractor2D 0.99 0.4 s
+      |> perc 5 20 -1
       |> mul 0.2
       |> mixStereo
 

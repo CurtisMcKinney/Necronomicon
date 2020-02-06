@@ -1217,6 +1217,165 @@ instance Floating Complex where
 --   log2   :: a -> a
 --   pow    :: a -> a -> a
 
+
+--------------------
+-- Vector2D
+--------------------
+data Vector2D      = Vector2D# Float Float
+data AudioVector2D = AudioVector2D# Audio Audio
+
+magnitude2D :: Vector2D -> Float
+magnitude2D (Vector2D# x y) = sqrt ((x * x) + (y * y))
+
+magnitudeSquared2D :: Vector2D -> Float
+magnitudeSquared2D (Vector2D# x y) = (x * x) + (y * y)
+
+dotProduct2D :: Vector2D -> Vector2D -> Float
+dotProduct2D (Vector2D# x0 y0) (Vector2D# x1 y1) = (x0 * x1) + (y0 * y1)
+
+instance Eq Vector2D where
+  eq  (Vector2D# x0 y0) (Vector2D# x1 y1) = x0 == x1 && y0 == y1
+  neq (Vector2D# x0 y0) (Vector2D# x1 y1) = x0 /= x1 || y0 /= y1
+
+instance Ord Vector2D where
+  lt  v0 v1 = lt  (magnitudeSquared2D v0) (magnitudeSquared2D v1)
+  lte v0 v1 = lte (magnitudeSquared2D v0) (magnitudeSquared2D v1)
+  gt  v0 v1 = gt  (magnitudeSquared2D v0) (magnitudeSquared2D v1)
+  gte v0 v1 = gte (magnitudeSquared2D v0) (magnitudeSquared2D v1)
+
+instance Semiring Vector2D where
+  zero                                    = Vector2D# 0 0
+  one                                     = Vector2D# 1 1
+  add (Vector2D# x0 y0) (Vector2D# x1 y1) = Vector2D# (x0 + x1) (y0 + y1)
+  mul (Vector2D# x0 y0) (Vector2D# x1 y1) = Vector2D# (x0 * x1) (y0 * y1)
+
+instance Ring Vector2D where
+  sub (Vector2D# x0 y0) (Vector2D# x1 y1) = Vector2D# (x0 - x1) (y0 - y1)
+  fromInt x                               = Vector2D# (fromInt x) (fromInt x)
+
+instance Num Vector2D where
+  abs      (Vector2D# x y)                     = Vector2D# (abs x) (abs y)
+  signum   (Vector2D# x y)                     = Vector2D# (signum x) (signum y)
+  copysign (Vector2D# x0 y0) (Vector2D# x1 y1) = Vector2D# (copysign x0 x1) (copysign y0 y1)
+
+instance DivisionRing Vector2D where
+  recip (Vector2D# x y) = Vector2D# (1 / x) (1 / y)
+
+instance EuclideanRing Vector2D where
+  rem (Vector2D# x0 y0) (Vector2D# x1 y1) = Vector2D# (rem x0 x1) (rem y0 y1)
+  div (Vector2D# x0 y0) (Vector2D# x1 y1) = Vector2D# (div x0 x1) (div y0 y1)
+
+instance Field Vector2D where
+
+instance Floating Vector2D where
+  fromFloat f              = Vector2D# f f
+  sqrt     (Vector2D# x y) = Vector2D# (sqrt x) (sqrt y)
+  floor    (Vector2D# x y) = Vector2D# (floor x) (floor y)
+  ceil     (Vector2D# x y) = Vector2D# (ceil x) (ceil y)
+  truncate (Vector2D# x y) = Vector2D# (truncate x) (truncate y)
+  round    (Vector2D# x y) = Vector2D# (round x) (round y)
+  -- fmin     (Mono x) (Mono y) = Mono (fmin x y)
+  -- fmax     (Mono x) (Mono y) = Mono (fmax x y)
+
+instance Semigroup Vector2D where
+  append x y = x + y
+
+instance Monoid Vector2D where
+  mempty = 0
+
+instance Default Vector2D where
+  default = 0
+
+instance Print Vector2D where
+  print (Vector2D# x y) w =
+    print '(' w
+    |> print x
+    |> print ','
+    |> print y
+    |> print ')'
+
+
+----------------------
+-- Vector3D
+----------------------
+data Vector3D      = Vector3D# Float Float Float
+data AudioVector3D = AudioVector3D# Audio Audio Audio
+
+magnitude3D :: Vector3D -> Float
+magnitude3D (Vector3D# x y z) = sqrt ((x * x) + (y * y) + (z * z))
+
+magnitudeSquared3D :: Vector3D -> Float
+magnitudeSquared3D (Vector3D# x y z) = (x * x) + (y * y) + (z * z)
+
+dotProduct3D :: Vector3D -> Vector3D -> Float
+dotProduct3D (Vector3D# x0 y0 z0) (Vector3D# x1 y1 z1) = (x0 * x1) + (y0 * y1) + (z0 * z1)
+
+-- TODO: VectorType class?
+
+instance Eq Vector3D where
+  eq  (Vector3D# x0 y0 z0) (Vector3D# x1 y1 z1) = x0 == x1 && y0 == y1 && z1 == z1
+  neq (Vector3D# x0 y0 z0) (Vector3D# x1 y1 z1) = x0 /= x1 || y0 /= y1 || z1 /= z1
+
+instance Ord Vector3D where
+  lt  v0 v1 = lt  (magnitudeSquared3D v0) (magnitudeSquared3D v1)
+  lte v0 v1 = lte (magnitudeSquared3D v0) (magnitudeSquared3D v1)
+  gt  v0 v1 = gt  (magnitudeSquared3D v0) (magnitudeSquared3D v1)
+  gte v0 v1 = gte (magnitudeSquared3D v0) (magnitudeSquared3D v1)
+
+instance Semiring Vector3D where
+  zero                                          = Vector3D# 0 0 0
+  one                                           = Vector3D# 1 1 1
+  add (Vector3D# x0 y0 z0) (Vector3D# x1 y1 z1) = Vector3D# (x0 + x1) (y0 + y1) (z0 + z1)
+  mul (Vector3D# x0 y0 z0) (Vector3D# x1 y1 z1) = Vector3D# (x0 * x1) (y0 * y1) (z0 * z1)
+
+instance Ring Vector3D where
+  sub (Vector3D# x0 y0 z0) (Vector3D# x1 y1 z1) = Vector3D# (x0 - x1) (y0 - y1) (z0 - z1)
+  fromInt x                                     = let f = fromInt x in Vector3D# f f f
+
+instance Num Vector3D where
+  abs      (Vector3D# x y z)                         = Vector3D# (abs x) (abs y) (abs z)
+  signum   (Vector3D# x y z)                         = Vector3D# (signum x) (signum y) (signum z)
+  copysign (Vector3D# x0 y0 z0) (Vector3D# x1 y1 z1) = Vector3D# (copysign x0 x1) (copysign y0 y1) (copysign z0 z1)
+
+instance DivisionRing Vector3D where
+  recip (Vector3D# x y z) = Vector3D# (1 / x) (1 / y) (1 / z)
+
+instance EuclideanRing Vector3D where
+  rem (Vector3D# x0 y0 z0) (Vector3D# x1 y1 z1) = Vector3D# (rem x0 x1) (rem y0 y1) (rem z0 z1)
+  div (Vector3D# x0 y0 z0) (Vector3D# x1 y1 z1) = Vector3D# (div x0 x1) (div y0 y1) (div z0 z1)
+
+instance Field Vector3D where
+
+instance Floating Vector3D where
+  fromFloat f                = Vector3D# f f f
+  sqrt     (Vector3D# x y z) = Vector3D# (sqrt x) (sqrt y) (sqrt z)
+  floor    (Vector3D# x y z) = Vector3D# (floor x) (floor y) (floor z)
+  ceil     (Vector3D# x y z) = Vector3D# (ceil x) (ceil y) (ceil z)
+  truncate (Vector3D# x y z) = Vector3D# (truncate x) (truncate y) (truncate z)
+  round    (Vector3D# x y z) = Vector3D# (round x) (round y) (round z)
+  -- fmin     (Mono x) (Mono y) = Mono (fmin x y)
+  -- fmax     (Mono x) (Mono y) = Mono (fmax x y)
+
+instance Semigroup Vector3D where
+  append x y = x + y
+
+instance Monoid Vector3D where
+  mempty = 0
+
+instance Default Vector3D where
+  default = 0
+
+instance Print Vector3D where
+  print (Vector3D# x y z) w =
+    print '(' w
+    |> print x
+    |> print ','
+    |> print y
+    |> print ','
+    |> print z
+    |> print ')'
+
+
 --------------------
 -- Maybe
 --------------------
@@ -1419,13 +1578,20 @@ mutRefPut x ptr =
 --------------------
 
 -- TODO: Make range unboxed? Proper unboxed types? End constructor name with # to create unboxed type?
-data Range   (n :: Nat)            = Range# UInt UInt UInt
-data Index   (n :: Nat)            = Index UInt
-data NatVal  (n :: Nat)            = NatVal
-data NatVal2 (n :: Nat) (m :: Nat) = NatVal2
+data Range   (n :: Nat)                       = Range# UInt UInt UInt
+data Index   (n :: Nat)                       = Index UInt
+data NatVal  (n :: Nat)                       = NatVal
+data NatVal2 (n :: Nat) (m :: Nat)            = NatVal2
+data NatVal3 (n :: Nat) (m :: Nat) (o :: Nat) = NatVal3
 
 natVal :: NatVal n -> UInt
 natVal n = primUndefined
+
+natVal2ToNatVals :: NatVal2 w h -> (#NatVal w, NatVal h#)
+natVal2ToNatVals _ = (#NatVal, NatVal#)
+
+natVal3ToNatVals :: NatVal3 w h d -> (#NatVal w, NatVal h, NatVal d#)
+natVal3ToNatVals _ = (#NatVal, NatVal, NatVal#)
 
 mkRange :: UInt -> UInt -> NatVal n -> Range n
 mkRange init inc end = Range# init inc (natVal end)
@@ -2159,6 +2325,23 @@ recipTau = 1 / tau
 
 recipTwoPi :: Floating a => a
 recipTwoPi = recipTau
+
+lerp :: Floating a => a -> a -> Float -> a
+lerp x y deltaF =
+  (x * (1 - delta)) + (y * delta)
+  where
+    delta = fromFloat deltaF
+
+cerp :: Floating a => a -> a -> a -> a -> Float -> a
+cerp x0 x1 x2 x3 deltaF =
+  (a0 * delta * delta2) + ((a1 * delta2) + (a2 * delta) + a3)
+  where
+    delta  = fromFloat deltaF
+    delta2 = delta * delta
+    a0     = x3 - x2 - x0 + x1
+    a1     = x0 - x1 - a0
+    a2     = x2 - x0
+    a3     = x1
 
 -- hanning :: FFTWindow
 -- hanning =
@@ -3196,18 +3379,6 @@ sin freq = wave sinTable freq
 
 -------------
 -- Wave Terrain
-data Vector2D      = Vector2D# Float Float
-data Vector3D      = Vector3D# Float Float Float
-data AudioVector2D = AudioVector2D# Audio Audio
-data AudioVector3D = AudioVector3D# Audio Audio Audio
-
-instance Print Vector2D where
-  print (Vector2D# x y) w =
-    print '(' w
-    |> print x
-    |> print ','
-    |> print y
-    |> print ')'
 
 data WaveTable2D n = WaveTable2D (Array (NatMul (NatNextPowerOfTwo n) (NatNextPowerOfTwo n)) Float)
 data WaveTable3D n = WaveTable3D (Array (NatMul (NatNextPowerOfTwo n) (NatMul (NatNextPowerOfTwo n) (NatNextPowerOfTwo n))) Float)
@@ -3235,37 +3406,24 @@ accumulateWave2F f a =
 -- accumulateWave3F f v =
 --   accumulate3 (\x y z -> f (Vector3D# x y z)) constTrue (map audioVector3DX v) (map audioVector3DY v) (map audioVector3DZ v)
 
-data IkedaState w h = IkedaState# (.Array (NatMul w h) (#Complex, Complex, Float#)) Float
 
--- TODO: optimize
--- TODO: How EXACTLY to map to audio?
--- TODO: How EXACTLY to interpolate?
-accumulateIkedaAttractor2D :: Float -> Float -> *IkedaState w h -> (#*IkedaState w h, Float#)
-accumulateIkedaAttractor2D u speed (IkedaState# a0 tick0) =
-  (#IkedaState# a6 tick2, out#)
+----------------------
+-- Ikeda Attractor
+----------------------
+
+ikeda :: Float -> Vector2D -> Vector2D
+ikeda u (Vector2D# x0 y0) =
+  Vector2D# x1 y1
   where
-    tick1         = fma speed recipSampleRate tick0
-    (#a3, tick2#) = if tick1 < 1 then (#a0, tick1#) else
-      loop (#a1, tick22#) = (#a0, tick1 - 1#) for i <- each do
-        let
-          (#(#_, Complex# x0 y0, s0#), a2#) = readArrayU i a1
-          t                                 = 0.4 - 6 / (1 + (x0 * x0) + (y0 * y0))
-          x1                                = 1 + (u * ((x0 * cosine t) - (y0 * sine t)))
-          y1                                = u * ((x0 * sine t) + (y0 * cosine t))
-        in
-          (#writeArray i (#Complex# x0 y0, Complex# x1 y1, s0#) a2, tick22#)
-    (#a6, out#) =
-      loop (#a4, o#) = (#a3, 0#) for i <- each do
-        let
-          (#(#Complex# x0 y0, Complex# x1 y1, s0#), a5#) = readArrayU i a4
-          xn                                             = (x0 * (1 - tick2)) + (x1 * tick2)
-          yn                                             = (y0 * (1 - tick2)) + (y1 * tick2)
-          (#s1, v#)                                      = accumulateWaveTable sinTable (yn * 200) s0
-        in
-          (#writeArray i (#Complex# x0 y0, Complex# x1 y1, s1#) a5, o + (sine (yn * 2000) * 0.04 * sine (xn * 0.1))#)
+    t  = 0.4 - 6 / (1 + (x0 * x0) + (y0 * y0))
+    x1 = 1 + (u * ((x0 * cosine t) - (y0 * sine t)))
+    y1 = u * ((x0 * sine t) + (y0 * cosine t))
 
-mkIkedaState :: NatVal w -> NatVal h -> () -> *IkedaState w h
-mkIkedaState wv hv _ = IkedaState# a3 1
+data IkedaStateL w h = IkedaStateL# (.Array (NatMul w h) (#Vector2D, Vector2D, Float#)) Float
+
+mkIkedaStateL :: NatVal w -> NatVal h -> Float -> () -> *IkedaStateL w h
+mkIkedaStateL wv hv u _ =
+  IkedaStateL# a3 0
   where
     width  = natVal wv
     height = natVal hv
@@ -3275,22 +3433,167 @@ mkIkedaState wv hv _ = IkedaState# a3 1
           a2 =
             snd' <| loop (#x, a1#) = (#0, a0#) while x < width do
               let
-                p = Complex# (fromUInt x * 5) (fromUInt y * 5)
+                v0 = Vector2D# (fromUInt x * 10) (fromUInt y * 10)
+                v1 = ikeda u v0
               in
-                (#x + 1, writeArray (Index (x + (y * width))) ((#p, p, 1#)) a1#)
+                (#x + 1, writeArray (Index (x + (y * width))) ((#v0, v1, 0#)) a1#)
         in
           (#y + 1, a2#)
 
-natVal2ToNatVals :: NatVal2 w h -> (#NatVal w, NatVal h#)
-natVal2ToNatVals _ = (#NatVal, NatVal#)
+accumulateIkedaAttractor2DL :: (Vector2D -> Float) -> Float -> Float -> *IkedaStateL w h -> (#*IkedaStateL w h, Float#)
+accumulateIkedaAttractor2DL f u speed (IkedaStateL# a0 phase0) =
+  (#IkedaStateL# a6 phase2, out#)
+  where
+    phase1         = fma speed recipSampleRate phase0
+    (#a3, phase2#) = if phase1 < 1 then (#a0, phase1#) else
+      loop (#a1, phase22#) = (#a0, phase1 - 1#) for i <- each do
+        let
+          (#(#_, v0, s0#), a2#) = readArrayU i a1
+          v1                    = ikeda u v0
+        in
+          (#writeArray i (#v0, v1, s0#) a2, phase22#)
+    (#a6, out#) =
+      loop (#a4, o#) = (#a3, 0#) for i <- each do
+        let
+          (#(#v0, v1, s0#), a5#) = readArrayU i a4
+          x                      = o + f (lerp v0 v1 phase2)
+        in
+          (#writeArray i (#v0, v1, s0#) a5, x#)
 
--- Different interpolation methods
--- Different mapping methods
-ikedaAttractor2D :: (AudioFormat f) => f Audio -> f Audio -> NatVal2 w h -> f Audio
-ikedaAttractor2D u speed size =
-  accumulate2U (mkIkedaState wv hv) accumulateIkedaAttractor2D constTrue' u speed
+ikedaAttractor2DL :: (AudioFormat f) => (Vector2D -> Float) -> Float -> f Audio -> NatVal2 w h ->  f Audio
+ikedaAttractor2DL f u speed size =
+  accumulate1U (mkIkedaStateL wv hv u) (accumulateIkedaAttractor2DL f u) constTrue' speed
   where
     (#wv, hv#) = natVal2ToNatVals size
+
+-- Cubic
+data IkedaStateC w h = IkedaStateC# (.Array (NatMul w h) (#Vector2D, Vector2D, Vector2D, Vector2D, Float#)) Float
+
+mkIkedaStateC :: NatVal w -> NatVal h -> Float -> () -> *IkedaStateC w h
+mkIkedaStateC wv hv u _ =
+  IkedaStateC# a3 0
+  where
+    width  = natVal wv
+    height = natVal hv
+    a3     = snd' <|
+      loop (#y, a0#) = (#0, unsafeEmptyArray ()#) while y < height do
+        let
+          a2 =
+            snd' <| loop (#x, a1#) = (#0, a0#) while x < width do
+              let
+                v0 = Vector2D# (fromUInt x * 10) (fromUInt y * 10)
+                v1 = ikeda u v0
+                v2 = ikeda u v1
+                v3 = ikeda u v2
+              in
+                (#x + 1, writeArray (Index (x + (y * width))) ((#v0, v1, v2, v3, 0#)) a1#)
+        in
+          (#y + 1, a2#)
+
+accumulateIkedaAttractorC :: (Vector2D -> Float -> (#Float, Float#)) -> Float -> Float -> Float -> *IkedaStateC w h -> (#*IkedaStateC w h, Float#)
+accumulateIkedaAttractorC f recipSize u speed (IkedaStateC# a0 phase0) =
+  (#IkedaStateC# a6 phase2, out#)
+  where
+    phase1         = fma speed recipSampleRate phase0
+    (#a3, phase2#) = if phase1 < 1 then (#a0, phase1#) else
+      loop (#a1, phase22#) = (#a0, phase1 - 1#) for i <- each do
+        let
+          (#(#_, v0, v1, v2, s0#), a2#) = readArrayU i a1
+          v3                            = ikeda u v2
+        in
+          (#writeArray i (#v0, v1, v2, v3, s0#) a2, phase22#)
+    (#a6, out#) =
+      loop (#a4, out0#) = (#a3, 0#) for i <- each do
+        let
+          (#(#v0, v1, v2, v3, s0#), a5#) = readArrayU i a4
+          (#s1, x#)                      = f (cerp v0 v1 v2 v3 phase2) s0
+          out1                           = out0 + (x * recipSize)
+        in
+          (#writeArray i (#v0, v1, v2, v3, s1#) a5, x#)
+
+ikedaAttractor :: (AudioFormat f) => NatVal2 w h -> (Vector2D -> Float -> (#Float, Float#)) -> Float -> f Audio -> f Audio
+ikedaAttractor size f u speed =
+  accumulate1U (mkIkedaStateC wv hv u) (accumulateIkedaAttractorC f recipSize u) constTrue' speed
+  where
+    (#wv, hv#) = natVal2ToNatVals size
+    recipSize  = 1 / (fromUInt (natVal wv) * fromUInt (natVal hv))
+
+
+----------------------
+-- Lorenz Attractor
+----------------------
+
+data LorenzState w h d = LorenzState# (.Array (NatMul (NatMul w h) d) (#Vector3D, Vector3D, Vector3D, Vector3D, Float#)) Float
+
+-- lorenz 1 10 28 (8/3) (Vector3D# 0.0001 0.0001 0.0001)
+lorenz :: Float -> Float -> Float -> Float -> Vector3D -> Vector3D
+lorenz h a b c (Vector3D# x0 y0 z0) =
+  Vector3D# x1 y1 z1
+  where
+    x1 = x0 + (h * a * (y0 - x0))
+    y1 = y0 + (h * ((x0 * (b - z0)) - y0))
+    z1 = z0 + (h * ((x0 * y0) - (c * z0)))
+
+mkLorenzState :: NatVal w -> NatVal h -> NatVal d -> Float -> Float -> Float -> Float -> () -> *LorenzState w h d
+mkLorenzState wv hv dv h a b c _ =
+  LorenzState# a1 0
+  where
+    width  = natVal wv
+    height = natVal hv
+    depth  = natVal dv
+    size   = width * height * depth
+    a1     =
+      loop a0 = unsafeEmptyArray () for i <- each do
+        let
+          ui = indexToUInt i
+          x  = ui % width
+          y  = (ui / width) % height
+          z  = ui / (width * height)
+          v0 = Vector3D# (fromUInt x * 20) (fromUInt y * 20) (fromUInt z * 20)
+          v1 = lorenz h a b c v0
+          v2 = lorenz h a b c v1
+          v3 = lorenz h a b c v2
+        in
+          writeArray i (#v0, v1, v2, v3, 0#) a0
+
+accumulateLorenzAttractor :: (Vector3D -> Float -> (#Float, Float#)) -> Float -> Float -> Float -> Float -> Float -> Float -> *LorenzState w h d -> (#*LorenzState w h d, Float#)
+accumulateLorenzAttractor f recipSize h a b c speed (LorenzState# a0 phase0) =
+  (#LorenzState# a6 phase2, out#)
+  where
+    phase1         = fma speed recipSampleRate phase0
+    (#a3, phase2#) = if phase1 < 1 then (#a0, phase1#) else
+      loop (#a1, phase22#) = (#a0, phase1 - 1#) for i <- each do
+        let
+          (#(#_, v0, v1, v2, s0#), a2#) = readArrayU i a1
+          v3                            = lorenz h a b c v2
+        in
+          (#writeArray i (#v0, v1, v2, v3, s0#) a2, phase22#)
+    (#a6, out#) =
+      loop (#a4, out0#) = (#a3, 0#) for i <- each do
+        let
+          (#(#v0, v1, v2, v3, s0#), a5#) = readArrayU i a4
+          (#s1, x#)                      = f (cerp v0 v1 v2 v3 phase2) s0
+          out1                           = out0 + (x * recipSize)
+        in
+          (#writeArray i (#v0, v1, v2, v3, s1#) a5, x#)
+
+lorenzAttractor :: (AudioFormat f) => NatVal3 w h d -> (Vector3D -> Float -> (#Float, Float#)) -> Float -> Float -> Float -> Float -> f Audio -> f Audio
+lorenzAttractor size f h a b c speed =
+  accumulate1U (mkLorenzState wv hv dv h a b c) (accumulateLorenzAttractor f recipSize h a b c) constTrue' speed
+  where
+    (#wv, hv, dv#) = natVal3ToNatVals size
+    recipSize      = 1 / (fromUInt (natVal wv) * fromUInt (natVal hv) * fromUInt (natVal dv))
+
+-- Different initial conditions...seeded randomness?
+-- Different interpolation methods
+-- Different mapping methods
+
+-- TODO: optimize
+-- TODO: How EXACTLY to map to audio?
+-- TODO: How EXACTLY to interpolate?
+
+-- (#writeArray i (#Vector2D# x0 y0, Vector2D# x1 y1, s1#) a5, o + (sine (yn * 2000) * 0.04 * sine (xn * 0.1))#)
+-- (#writeArray i (#Vector2D# x0 y0, Vector2D# x1 y1, 0#) a5, o + ((sine ((yn * 2000) + (sine (xn * 0.25) * 1000))) * 0.04 * sine (xn * 1))#)
 
 
 -----------
@@ -5066,17 +5369,32 @@ oscTest f =
 --       |> mul 0.2
 --       |> mixStereo
 
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     ikedaSize :: NatVal2 2 25
+--     ikedaSize = NatVal2
+--     ikedaFn (Vector2D# x y) s = (#s + ((abs x + abs y) * recipSampleRate * 0.05), 0.25 * (sine s + sine x + sine ((y * 2) + (sine (x * 0.0001) * 5)))#)
+--     a =
+--       ikedaAttractor ikedaSize ikedaFn 0.99925 (stereo 40 80)
+--       |> perc 10 20 -1
+--       |> mul 0.5
+--       |> mixStereo
+
 testJit :: *World -> *World
 testJit w =
   outAudio 0 a w
   where
-    s :: NatVal2 10 10
-    s = NatVal2
+    lorenzSize :: NatVal3 5 5 5
+    lorenzSize = NatVal3
+    lorenzFn (Vector3D# x y z) s = (#s + ((abs x + abs y + abs z) * recipSampleRate * 10000), sine ((x * 10000) + (sine (y * 100) * 10000)) + sine (z * 10000) |> mul 0.25#)
     a =
-      ikedaAttractor2D 0.99 0.4 s
-      |> perc 5 20 -1
-      |> mul 0.2
+      lorenzAttractor lorenzSize lorenzFn 0.0001 10 28 (8 / 3) (stereo 100 50)
+      |> perc 10 20 -1
+      |> mul 0.5
       |> mixStereo
+
 
 -- testJit :: *World -> *World
 -- testJit w =

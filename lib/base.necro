@@ -3543,17 +3543,17 @@ attractor3D size initF attractorF mapF p speed =
 -- Lorenz Attractor
 
 -- lorenz 1 10 28 (8/3) (Vector3D# 0.0001 0.0001 0.0001)
-lorenz :: (#Float, Float, Float, Float#) -> Float -> Vector3D -> Vector3D
-lorenz (#h, a, b, c#) t (Vector3D# x y z) =
+lorenz :: (#Float, Float, Float#) -> Float -> Vector3D -> Vector3D
+lorenz (#a, b, c#) t (Vector3D# x y z) =
   Vector3D# dx dy dz
   where
-    dx = x + (h * a * (y - x))
-    dy = y + (h * ((x * (b - z)) - y))
-    dz = z + (h * ((x * y) - (c * z)))
+    dx = a * (y - x)
+    dy = (x * (b - z)) - y
+    dz = (x * y) - (c * z)
 
-lorenzAttractor :: (AudioFormat f) => NatVal3 w h d -> (UInt -> Vector3D -> (#Vector3D, s#)) -> (UInt -> Vector3D -> s -> (#s, Float#)) -> Float -> Float -> Float -> Float -> f Audio -> f Audio
-lorenzAttractor size initF mapF h a b c speed =
-  attractor3D size initF lorenz mapF (#h, a, b, c#) speed
+lorenzAttractor :: (AudioFormat f) => NatVal3 w h d -> (UInt -> Vector3D -> (#Vector3D, s#)) -> (UInt -> Vector3D -> s -> (#s, Float#)) -> Float -> Float -> Float -> f Audio -> f Audio
+lorenzAttractor size initF mapF a b c speed =
+  attractor3D size initF lorenz mapF (#a, b, c#) speed
 
 ----------------------
 -- Rabinovich-Fabrikant Attractor
@@ -5393,7 +5393,7 @@ testJit w =
     ifn i (Vector3D# x y z)   = (#Vector3D# (x * 0.0001) (y * 0.0001) (z * 0.0001), fromUInt i#)
     mfn i (Vector3D# x y z) s = (#s, sine (x * 100)#)
     a =
-      lorenzAttractor size ifn mfn 1 10 28 (8/3) (stereo 1 2)
+      lorenzAttractor size ifn mfn 10 28 (8/3) (stereo 1 2)
       |> perc 10 20 -1
       |> mul 0.2
 

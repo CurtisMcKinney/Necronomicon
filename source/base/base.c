@@ -1178,6 +1178,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "signum<UInt>",         NULL, NECRO_PRIMOP_UOP_USGN);
     necro_base_setup_primitive(scoped_symtable, intern, "fromInt<UInt>",        NULL, NECRO_PRIMOP_UOP_ITOU);
     necro_base_setup_primitive(scoped_symtable, intern, "div<UInt>",            NULL, NECRO_PRIMOP_BINOP_UDIV);
+    necro_base_setup_primitive(scoped_symtable, intern, "rem<UInt>",            NULL, NECRO_PRIMOP_BINOP_UREM);
     necro_base_setup_primitive(scoped_symtable, intern, "eq<UInt>",             NULL, NECRO_PRIMOP_CMP_EQ);
     necro_base_setup_primitive(scoped_symtable, intern, "neq<UInt>",            NULL, NECRO_PRIMOP_CMP_NE);
     necro_base_setup_primitive(scoped_symtable, intern, "gt<UInt>",             NULL, NECRO_PRIMOP_CMP_GT);

@@ -3408,196 +3408,173 @@ accumulateWave2F f a =
 
 
 ----------------------
--- Ikeda Attractor
+-- Attractor2D
 ----------------------
 
-ikeda :: Float -> Vector2D -> Vector2D
-ikeda u (Vector2D# x0 y0) =
+data AttractorState2D w h s = AttractorState2D# (.Array (NatMul w h) (#Vector2D, s#)) Float
+
+mkAttractorState2D :: NatVal w -> NatVal h -> (UInt -> Vector2D -> (#Vector2D, s#)) -> () -> *AttractorState2D w h s
+mkAttractorState2D wv hv mkArrayFn _ =
+  AttractorState2D# a1 0
+  where
+    width  = natVal wv
+    height = natVal hv
+    hw     = fromUInt width * 0.5
+    hh     = fromUInt height * 0.5
+    a1     =
+      loop a0 = unsafeEmptyArray () for i <- each do
+        let
+          ui       = indexToUInt i
+          x        = fromUInt (ui % width) - hw
+          y        = fromUInt (ui / width) - hh
+          (#v, s#) = mkArrayFn ui (Vector2D# x y)
+        in
+          writeArray i (#v, s#) a0
+
+accumulateAttractor2D :: (p -> Float -> Vector2D -> Vector2D) ->
+                         (UInt -> Vector2D -> s -> (#s, Float#)) ->
+                         Float -> p -> Float ->
+                         *AttractorState2D w h s -> (#*AttractorState2D w h s, Float#)
+accumulateAttractor2D attractorF mapF recipSize param speed (AttractorState2D# a0 phase0) =
+  (#AttractorState2D# a3 phase1, out#)
+  where
+    delta       = speed * recipSampleRate
+    phase1      = phase0 + delta
+    (#a3, out#) =
+      loop (#a1, out0#) = (#a0, 0#) for i <- each do
+        let
+          ui                 = indexToUInt i
+          (#(#v0, s0#), a2#) = readArrayU i a1
+          v1                 = v0 + (Vector2D# delta delta * attractorF param phase0 v0)
+          (#s1, x#)          = mapF ui v1 s0
+          out1               = out0 + (x * recipSize)
+        in
+          (#writeArray i (#v1, s1#) a2, x#)
+
+attractor2D :: (AudioFormat f) => NatVal2 w h -> (UInt -> Vector2D -> (#Vector2D, s#)) -> (p -> Float -> Vector2D -> Vector2D) -> (UInt -> Vector2D -> s -> (#s, Float#)) -> p -> f Audio -> f Audio
+attractor2D size initF attractorF mapF p speed =
+  accumulate1U (mkAttractorState2D wv hv initF) (accumulateAttractor2D attractorF mapF recipSize p) constTrue' speed
+  where
+    (#wv, hv#) = natVal2ToNatVals size
+    recipSize  = 1 / (fromUInt (natVal wv) * fromUInt (natVal hv))
+
+----------------------
+-- duffingAttractor
+duffing :: (#Float, Float, Float#) -> Float -> Vector2D -> Vector2D
+duffing (#a, b, w#) t (Vector2D# x y) =
+  Vector2D# dx dy
+  where
+    dx = y
+    dy = x - (x * x * x) - (a * y) + (b * cosine (w * t))
+
+duffingAttractor :: (AudioFormat f) => NatVal2 w h -> (UInt -> Vector2D -> (#Vector2D, s#)) -> (UInt -> Vector2D -> s -> (#s, Float#)) -> Float -> Float -> Float -> f Audio -> f Audio
+duffingAttractor size initF mapF a b w speed =
+  attractor2D size initF duffing mapF (#a, b, w#) speed
+
+----------------------
+-- ikedaAttractor
+ikeda :: Float -> Float -> Vector2D -> Vector2D
+ikeda u t (Vector2D# x0 y0) =
   Vector2D# x1 y1
   where
     t  = 0.4 - 6 / (1 + (x0 * x0) + (y0 * y0))
     x1 = 1 + (u * ((x0 * cosine t) - (y0 * sine t)))
     y1 = u * ((x0 * sine t) + (y0 * cosine t))
 
-data IkedaStateL w h = IkedaStateL# (.Array (NatMul w h) (#Vector2D, Vector2D, Float#)) Float
-
-mkIkedaStateL :: NatVal w -> NatVal h -> Float -> () -> *IkedaStateL w h
-mkIkedaStateL wv hv u _ =
-  IkedaStateL# a3 0
-  where
-    width  = natVal wv
-    height = natVal hv
-    a3     = snd' <|
-      loop (#y, a0#) = (#0, unsafeEmptyArray ()#) while y < height do
-        let
-          a2 =
-            snd' <| loop (#x, a1#) = (#0, a0#) while x < width do
-              let
-                v0 = Vector2D# (fromUInt x * 10) (fromUInt y * 10)
-                v1 = ikeda u v0
-              in
-                (#x + 1, writeArray (Index (x + (y * width))) ((#v0, v1, 0#)) a1#)
-        in
-          (#y + 1, a2#)
-
-accumulateIkedaAttractor2DL :: (Vector2D -> Float) -> Float -> Float -> *IkedaStateL w h -> (#*IkedaStateL w h, Float#)
-accumulateIkedaAttractor2DL f u speed (IkedaStateL# a0 phase0) =
-  (#IkedaStateL# a6 phase2, out#)
-  where
-    phase1         = fma speed recipSampleRate phase0
-    (#a3, phase2#) = if phase1 < 1 then (#a0, phase1#) else
-      loop (#a1, phase22#) = (#a0, phase1 - 1#) for i <- each do
-        let
-          (#(#_, v0, s0#), a2#) = readArrayU i a1
-          v1                    = ikeda u v0
-        in
-          (#writeArray i (#v0, v1, s0#) a2, phase22#)
-    (#a6, out#) =
-      loop (#a4, o#) = (#a3, 0#) for i <- each do
-        let
-          (#(#v0, v1, s0#), a5#) = readArrayU i a4
-          x                      = o + f (lerp v0 v1 phase2)
-        in
-          (#writeArray i (#v0, v1, s0#) a5, x#)
-
-ikedaAttractor2DL :: (AudioFormat f) => (Vector2D -> Float) -> Float -> f Audio -> NatVal2 w h ->  f Audio
-ikedaAttractor2DL f u speed size =
-  accumulate1U (mkIkedaStateL wv hv u) (accumulateIkedaAttractor2DL f u) constTrue' speed
-  where
-    (#wv, hv#) = natVal2ToNatVals size
-
--- Cubic
-data IkedaStateC w h = IkedaStateC# (.Array (NatMul w h) (#Vector2D, Vector2D, Vector2D, Vector2D, Float#)) Float
-
-mkIkedaStateC :: NatVal w -> NatVal h -> Float -> () -> *IkedaStateC w h
-mkIkedaStateC wv hv u _ =
-  IkedaStateC# a3 0
-  where
-    width  = natVal wv
-    height = natVal hv
-    a3     = snd' <|
-      loop (#y, a0#) = (#0, unsafeEmptyArray ()#) while y < height do
-        let
-          a2 =
-            snd' <| loop (#x, a1#) = (#0, a0#) while x < width do
-              let
-                v0 = Vector2D# (fromUInt x * 10) (fromUInt y * 10)
-                v1 = ikeda u v0
-                v2 = ikeda u v1
-                v3 = ikeda u v2
-              in
-                (#x + 1, writeArray (Index (x + (y * width))) ((#v0, v1, v2, v3, 0#)) a1#)
-        in
-          (#y + 1, a2#)
-
-accumulateIkedaAttractorC :: (Vector2D -> Float -> (#Float, Float#)) -> Float -> Float -> Float -> *IkedaStateC w h -> (#*IkedaStateC w h, Float#)
-accumulateIkedaAttractorC f recipSize u speed (IkedaStateC# a0 phase0) =
-  (#IkedaStateC# a6 phase2, out#)
-  where
-    phase1         = fma speed recipSampleRate phase0
-    (#a3, phase2#) = if phase1 < 1 then (#a0, phase1#) else
-      loop (#a1, phase22#) = (#a0, phase1 - 1#) for i <- each do
-        let
-          (#(#_, v0, v1, v2, s0#), a2#) = readArrayU i a1
-          v3                            = ikeda u v2
-        in
-          (#writeArray i (#v0, v1, v2, v3, s0#) a2, phase22#)
-    (#a6, out#) =
-      loop (#a4, out0#) = (#a3, 0#) for i <- each do
-        let
-          (#(#v0, v1, v2, v3, s0#), a5#) = readArrayU i a4
-          (#s1, x#)                      = f (cerp v0 v1 v2 v3 phase2) s0
-          out1                           = out0 + (x * recipSize)
-        in
-          (#writeArray i (#v0, v1, v2, v3, s1#) a5, x#)
-
-ikedaAttractor :: (AudioFormat f) => NatVal2 w h -> (Vector2D -> Float -> (#Float, Float#)) -> Float -> f Audio -> f Audio
-ikedaAttractor size f u speed =
-  accumulate1U (mkIkedaStateC wv hv u) (accumulateIkedaAttractorC f recipSize u) constTrue' speed
-  where
-    (#wv, hv#) = natVal2ToNatVals size
-    recipSize  = 1 / (fromUInt (natVal wv) * fromUInt (natVal hv))
-
+ikedaAttractor :: (AudioFormat f) => NatVal2 w h -> (UInt -> Vector2D -> (#Vector2D, s#)) -> (UInt -> Vector2D -> s -> (#s, Float#)) -> Float -> f Audio -> f Audio
+ikedaAttractor size initF mapF u speed =
+  attractor2D size initF ikeda mapF u speed
 
 ----------------------
--- Lorenz Attractor
+-- Attractor3D
 ----------------------
 
-data LorenzState w h d = LorenzState# (.Array (NatMul (NatMul w h) d) (#Vector3D, Vector3D, Vector3D, Vector3D, Float#)) Float
+data AttractorState3D w h d s = AttractorState3D# (.Array (NatMul (NatMul w h) d) (#Vector3D, s#)) Float
 
--- lorenz 1 10 28 (8/3) (Vector3D# 0.0001 0.0001 0.0001)
-lorenz :: Float -> Float -> Float -> Float -> Vector3D -> Vector3D
-lorenz h a b c (Vector3D# x0 y0 z0) =
-  Vector3D# x1 y1 z1
-  where
-    x1 = x0 + (h * a * (y0 - x0))
-    y1 = y0 + (h * ((x0 * (b - z0)) - y0))
-    z1 = z0 + (h * ((x0 * y0) - (c * z0)))
-
-mkLorenzState :: NatVal w -> NatVal h -> NatVal d -> Float -> Float -> Float -> Float -> () -> *LorenzState w h d
-mkLorenzState wv hv dv h a b c _ =
-  LorenzState# a1 0
+mkAttractorState3D :: NatVal w -> NatVal h -> NatVal d -> (UInt -> Vector3D -> (#Vector3D, s#)) -> () -> *AttractorState3D w h d s
+mkAttractorState3D wv hv dv mkArrayFn _ =
+  AttractorState3D# a1 0
   where
     width  = natVal wv
     height = natVal hv
     depth  = natVal dv
-    size   = width * height * depth
+    hw     = fromUInt width  * 0.5
+    hh     = fromUInt height * 0.5
+    hd     = fromUInt depth  * 0.5
     a1     =
       loop a0 = unsafeEmptyArray () for i <- each do
         let
-          ui = indexToUInt i
-          x  = ui % width
-          y  = (ui / width) % height
-          z  = ui / (width * height)
-          v0 = Vector3D# (fromUInt x * 20) (fromUInt y * 20) (fromUInt z * 20)
-          v1 = lorenz h a b c v0
-          v2 = lorenz h a b c v1
-          v3 = lorenz h a b c v2
+          ui       = indexToUInt i
+          x        = fromUInt (ui % width) - hw
+          y        = fromUInt ((ui / width) % height) - hh
+          z        = fromUInt ((ui / width) / height) - hd
+          (#v, s#) = mkArrayFn ui (Vector3D# x y z)
         in
-          writeArray i (#v0, v1, v2, v3, 0#) a0
+          writeArray i (#v, s#) a0
 
-accumulateLorenzAttractor :: (Vector3D -> Float -> (#Float, Float#)) -> Float -> Float -> Float -> Float -> Float -> Float -> *LorenzState w h d -> (#*LorenzState w h d, Float#)
-accumulateLorenzAttractor f recipSize h a b c speed (LorenzState# a0 phase0) =
-  (#LorenzState# a6 phase2, out#)
+accumulateAttractor3D :: (p -> Float -> Vector3D -> Vector3D) ->
+                         (UInt -> Vector3D -> s -> (#s, Float#)) ->
+                         Float -> p -> Float ->
+                         *AttractorState3D w h d s -> (#*AttractorState3D w h d s, Float#)
+accumulateAttractor3D attractorF mapF recipSize param speed (AttractorState3D# a0 phase0) =
+  (#AttractorState3D# a3 phase1, out#)
   where
-    phase1         = fma speed recipSampleRate phase0
-    (#a3, phase2#) = if phase1 < 1 then (#a0, phase1#) else
-      loop (#a1, phase22#) = (#a0, phase1 - 1#) for i <- each do
+    delta       = speed * recipSampleRate
+    phase1      = phase0 + delta
+    (#a3, out#) =
+      loop (#a1, out0#) = (#a0, 0#) for i <- each do
         let
-          (#(#_, v0, v1, v2, s0#), a2#) = readArrayU i a1
-          v3                            = lorenz h a b c v2
+          ui                 = indexToUInt i
+          (#(#v0, s0#), a2#) = readArrayU i a1
+          v1                 = v0 + (Vector3D# delta delta delta * attractorF param phase0 v0)
+          (#s1, x#)          = mapF ui v1 s0
+          out1               = out0 + (x * recipSize)
         in
-          (#writeArray i (#v0, v1, v2, v3, s0#) a2, phase22#)
-    (#a6, out#) =
-      loop (#a4, out0#) = (#a3, 0#) for i <- each do
-        let
-          (#(#v0, v1, v2, v3, s0#), a5#) = readArrayU i a4
-          (#s1, x#)                      = f (cerp v0 v1 v2 v3 phase2) s0
-          out1                           = out0 + (x * recipSize)
-        in
-          (#writeArray i (#v0, v1, v2, v3, s1#) a5, x#)
+          (#writeArray i (#v1, s1#) a2, x#)
 
-lorenzAttractor :: (AudioFormat f) => NatVal3 w h d -> (Vector3D -> Float -> (#Float, Float#)) -> Float -> Float -> Float -> Float -> f Audio -> f Audio
-lorenzAttractor size f h a b c speed =
-  accumulate1U (mkLorenzState wv hv dv h a b c) (accumulateLorenzAttractor f recipSize h a b c) constTrue' speed
+attractor3D :: (AudioFormat f) => NatVal3 w h d -> (UInt -> Vector3D -> (#Vector3D, s#)) -> (p -> Float -> Vector3D -> Vector3D) -> (UInt -> Vector3D -> s -> (#s, Float#)) -> p -> f Audio -> f Audio
+attractor3D size initF attractorF mapF p speed =
+  accumulate1U (mkAttractorState3D wv hv dv initF) (accumulateAttractor3D attractorF mapF recipSize p) constTrue' speed
   where
     (#wv, hv, dv#) = natVal3ToNatVals size
     recipSize      = 1 / (fromUInt (natVal wv) * fromUInt (natVal hv) * fromUInt (natVal dv))
 
--- Different initial conditions...seeded randomness?
--- Different interpolation methods
--- Different mapping methods
+----------------------
+-- Lorenz Attractor
 
--- TODO: optimize
--- TODO: How EXACTLY to map to audio?
--- TODO: How EXACTLY to interpolate?
+-- lorenz 1 10 28 (8/3) (Vector3D# 0.0001 0.0001 0.0001)
+lorenz :: (#Float, Float, Float, Float#) -> Float -> Vector3D -> Vector3D
+lorenz (#h, a, b, c#) t (Vector3D# x y z) =
+  Vector3D# dx dy dz
+  where
+    dx = x + (h * a * (y - x))
+    dy = y + (h * ((x * (b - z)) - y))
+    dz = z + (h * ((x * y) - (c * z)))
 
--- (#writeArray i (#Vector2D# x0 y0, Vector2D# x1 y1, s1#) a5, o + (sine (yn * 2000) * 0.04 * sine (xn * 0.1))#)
--- (#writeArray i (#Vector2D# x0 y0, Vector2D# x1 y1, 0#) a5, o + ((sine ((yn * 2000) + (sine (xn * 0.25) * 1000))) * 0.04 * sine (xn * 1))#)
+lorenzAttractor :: (AudioFormat f) => NatVal3 w h d -> (UInt -> Vector3D -> (#Vector3D, s#)) -> (UInt -> Vector3D -> s -> (#s, Float#)) -> Float -> Float -> Float -> Float -> f Audio -> f Audio
+lorenzAttractor size initF mapF h a b c speed =
+  attractor3D size initF lorenz mapF (#h, a, b, c#) speed
+
+----------------------
+-- Rabinovich-Fabrikant Attractor
+
+-- rabinovichFabrikant 0.87 1.1
+rabinovichFabrikant :: (#Float, Float#) -> Float -> Vector3D -> Vector3D
+rabinovichFabrikant (#a, g#) t (Vector3D# x y z) =
+  Vector3D# dx dy dz
+  where
+    dx = (y * (z - 1 + (x * x))) + (g * x)
+    dy = (x * ((3 * z) + 1 - (x * x))) + (g * y)
+    dz = -2 * z * (a + (x * y))
+
+rabinovichFabrikantAttractor :: (AudioFormat f) => NatVal3 w h d -> (UInt -> Vector3D -> (#Vector3D, s#)) -> (UInt -> Vector3D -> s -> (#s, Float#)) -> Float -> Float -> f Audio -> f Audio
+rabinovichFabrikantAttractor size initF mapF a g speed =
+  attractor3D size initF rabinovichFabrikant mapF (#a, g#) speed
 
 
 -----------
 -- Sync
+-----------
 
 -- TODO: default instance instead of accumulate3U
 data SyncState = SyncState# Float Float Float
@@ -5377,24 +5354,61 @@ oscTest f =
 --     ikedaSize = NatVal2
 --     ikedaFn (Vector2D# x y) s = (#s + ((abs x + abs y) * recipSampleRate * 0.05), 0.25 * (sine s + sine x + sine ((y * 2) + (sine (x * 0.0001) * 5)))#)
 --     a =
---       ikedaAttractor ikedaSize ikedaFn 0.99925 (stereo 40 80)
+--       ikedaAttractor ikedaSize ikedaFn 0.99925 (stereo 120 80)
 --       |> perc 10 20 -1
 --       |> mul 0.5
---       |> mixStereo
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     size :: NatVal2 4 4
+--     size = NatVal2
+--     ifn i (Vector2D# x y)   = (#Vector2D# (x * 0.1) (y * 0.1), fromUInt i#)
+--     mfn i (Vector2D# x y) s = (#s, 0.25 * (sine (x * 0.1) + sine ((y * 0.2) + (sine (x * 0.0001) * 5)))#)
+--     a =
+--       ikedaAttractor size ifn mfn 0.1 (stereo 5 10)
+--       |> perc 10 20 -1
+--       |> mul 0.4
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     size :: NatVal2 8 8
+--     size = NatVal2
+--     ifn i (Vector2D# x y)   = (#Vector2D# (x * 1) (y * 1), fromUInt i#)
+--     mfn i (Vector2D# x y) s = (#s, sine (((x + ((s * 10)) + 1) * 200) + (sine (y * 0.4) * -200)) + sine ((y * 200) + (sine (x * 0.4) * 200))#)
+--     a =
+--       duffingAttractor size ifn mfn 0.27 0.3 1 (stereo 10 20)
+--       |> perc 10 20 -1
+--       |> mul 0.5
 
 testJit :: *World -> *World
 testJit w =
   outAudio 0 a w
   where
-    lorenzSize :: NatVal3 5 5 5
-    lorenzSize = NatVal3
-    lorenzFn (Vector3D# x y z) s = (#s + ((abs x + abs y + abs z) * recipSampleRate * 10000), sine ((x * 10000) + (sine (y * 100) * 10000)) + sine (z * 10000) |> mul 0.25#)
+    size :: NatVal3 3 3 3
+    size = NatVal3
+    ifn i (Vector3D# x y z)   = (#Vector3D# (x * 0.0001) (y * 0.0001) (z * 0.0001), fromUInt i#)
+    mfn i (Vector3D# x y z) s = (#s, sine (x * 100)#)
     a =
-      lorenzAttractor lorenzSize lorenzFn 0.0001 10 28 (8 / 3) (stereo 100 50)
+      lorenzAttractor size ifn mfn 1 10 28 (8/3) (stereo 1 2)
       |> perc 10 20 -1
-      |> mul 0.5
-      |> mixStereo
+      |> mul 0.2
 
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     size :: NatVal3 3 3 3
+--     size = NatVal3
+--     ifn i (Vector3D# x y z)   = (#Vector3D# (x * 0.0001) (y * 0.0001) (z * 0.0001), fromUInt i#)
+--     mfn i (Vector3D# x y z) s = (#s, sine (x * 100)#)
+--     a =
+--       rabinovichFabrikantAttractor size ifn mfn 0.87 1.1 (stereo 2 4)
+--       |> perc 10 20 -1
+--       |> mul 0.2
 
 -- testJit :: *World -> *World
 -- testJit w =

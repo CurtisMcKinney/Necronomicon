@@ -102,6 +102,7 @@ void necro_arena_chain_table_grow(NecroArenaChainTable* table)
             table->count++;
         }
     }
+    UNUSED(prev_count);
     assert(table->count == prev_count);
     free(prev_buckets);
 }

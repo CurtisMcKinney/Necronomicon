@@ -62,11 +62,11 @@ thd3 :: (.a, .b, .c) -> .c
 thd3 (_, _, z) = z
 
 -- We're uh....hitting stack overflow...
--- fst3' :: (#.a, .b, .c#) -> .a
--- fst3' (#x, _, _#) = x
+fst3' :: (#.a, .b, .c#) -> .a
+fst3' (#x, _, _#) = x
 
--- snd3' :: (#.a, .b, .c#) -> .b
--- snd3' (#_, y, _#) = y
+snd3' :: (#.a, .b, .c#) -> .b
+snd3' (#_, y, _#) = y
 
 thd3' :: (#.a, .b, .c#) -> .c
 thd3' (#_, _, z#) = z
@@ -89,6 +89,10 @@ max x y =
     x
   else
     y
+
+clamp :: Ord a => a -> a -> a -> a
+clamp x low high =
+  max (min x high) low
 
 uncurry :: .(.a -> .b -> .c) -> (.a, .b) -> .c
 uncurry f (x, y) = f x y
@@ -227,8 +231,11 @@ traceLn x y =
 
 data File = File
 
-arrayLength :: Array n Char -> NatVal n -> UInt
-arrayLength _ n = natVal n
+arrayLength :: NatVal n -> Array n a -> UInt
+arrayLength n _ = natVal n
+
+-- arrayLengthU :: NatVal n -> Array n .a -> (#UInt, Array n .a#)
+arrayLengthU n arr = (#natVal n, arr#)
 
 unsafeArrayToPtr :: Array n .a -> Ptr .a
 unsafeArrayToPtr a = primUndefined
@@ -238,7 +245,7 @@ unsafeOpenFile fileName fileNameLength = primUndefined
 
 openFile :: Array n Char -> *World -> (*File, *World)
 openFile fileName w =
-  (unsafeOpenFile (unsafeArrayToPtr fileName) (arrayLength fileName NatVal), w)
+  (unsafeOpenFile (unsafeArrayToPtr fileName) (arrayLength NatVal fileName), w)
 
 closeFile :: *File -> ()
 closeFile f = primUndefined
@@ -1614,6 +1621,13 @@ readArrayU i a = primUndefined
 writeArray :: Index n -> a -> *Array n a -> *Array n a
 writeArray i x a = primUndefined
 
+lookupArray :: UInt -> Array n a -> Maybe a
+lookupArray i a =
+  if i < arrayLength NatVal a then
+    Just (readArray (unsafeUIntToIndex i) a)
+  else
+    Nothing
+
 -- writeArrayChecked :: Array n Char -> UInt -> Index n -> a -> *Array n a -> *Array n a
 -- writeArrayChecked str capacity (Index i) x a =
 --   writeArray (Index (boundsCheck str capacity i)) x a
@@ -1716,6 +1730,17 @@ audioSampleDelta = 1 // fromUInt audioSampleRate
 audioSampleOffset :: UInt
 audioSampleOffset = 0
 
+currBlockTime :: Rational
+currBlockTime =
+  t
+  where
+    t ~ 0 = t + audioBlockDelta
+
+currBlockCount :: UInt
+currBlockCount =
+  t
+  where
+    t ~ 0 = t + 1
 
 --------------------
 -- Audio
@@ -2417,6 +2442,7 @@ class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
   mixMono      :: Num a => f a -> Mono a
   mixStereo    :: Num a => f a -> Stereo a
   outAudio     :: UInt -> f Audio -> *World -> *World
+  numChannels  :: f Audio -> UInt
 
 stereo :: Mono a -> Mono a -> Stereo a
 stereo (Mono l) (Mono r) = Stereo# l r
@@ -2457,6 +2483,7 @@ instance AudioFormat Mono where
   pan (Mono amount) (Mono input)                         = Stereo# (input * (1 - amount)) (input * amount)
   mixMono x                                              = x
   mixStereo (Mono x)                                     = Stereo# x x
+  numChannels _                                          = 1
 
 instance Functor Stereo where
   map f (Stereo# x y) = Stereo# (f x) (f y)
@@ -2485,6 +2512,7 @@ instance AudioFormat Stereo where
   pan (Mono amount) (Stereo# l r)                                             = Stereo# (l * (1 - amount)) (r * amount)
   mixMono (Stereo# l r)                                                       = Mono (l + r)
   mixStereo x                                                                 = x
+  numChannels _                                                               = 2
 
 -- Mono
 instance Eq a => Eq (Mono a) where
@@ -2576,6 +2604,62 @@ instance Semigroup a => Semigroup (Stereo a) where
 instance Monoid a => Monoid (Stereo a) where
   mempty = Stereo# mempty mempty
 
+
+--------------------
+-- Audio IO
+--------------------
+
+-- data AudioFile = AudioFile# UInt UInt UInt .(Ptr Float)
+--
+-- openAudioFile :: Array n Char -> Maybe AudioFile
+-- openAudioFile =
+--   primUndefined
+--
+-- playAudioFile :: AudioFormat f => AudioFile -> f Audio -> f Audio
+-- playAudioFile buffer freq =
+--   primUndefined
+--
+-- hello :: AudioFile
+-- hello =
+--   openAudioFile "HelloMotherFucker.wav"
+--   |> fromMaybe silence
+--
+-- myCoolSynth :: Mono Audio
+-- myCoolSynth =
+--   openAudioFile "HelloMotherFucker.wav"
+--   |> fromMaybe silence
+--   |> playAudioBuffer 1 hello
+
+-- TODO: Sprinkle World around a bit more in here!
+data ScratchBuffer = ScratchBuffer (Ptr (.Ptr ()))
+
+recordAudioBlock :: UInt -> UInt -> Array BlockSize Float -> *ScratchBuffer -> *ScratchBuffer
+recordAudioBlock channelIndex channelCount audio scratchBuffer =
+  primUndefined
+
+recordAudioBlockFinalize :: Ptr Char -> UInt -> UInt -> *ScratchBuffer -> *ScratchBuffer
+recordAudioBlockFinalize name nameLength channelCount scratchBuffer =
+  primUndefined
+
+recordAudioChannel :: Array n Char -> UInt -> UInt -> (#UInt, *ScratchBuffer#) -> Audio -> (#UInt, *ScratchBuffer#)
+recordAudioChannel name nameLength channelCount (#i, sbuffer#) channel =
+  case channel of
+    AudioRate abuffer -> (#i + 1, recordAudioBlock i channelCount abuffer sbuffer#)
+    BlockRate _       -> (#i + 1, sbuffer#)
+    AudioEnd          -> (#i + 1, recordAudioBlockFinalize (unsafeArrayToPtr name) nameLength channelCount sbuffer#)
+
+recordAudio :: AudioFormat f => Array n Char -> f Audio -> *World -> *World
+recordAudio name audio world =
+  case mutRefTake (\_ -> ScratchBuffer (unsafePtrPoke 0 primUndefined (ptrMalloc 1))) of
+    (#scratchBuffer0, mref#) ->
+      let
+        nameLength            = arrayLength NatVal name
+        channelCount          = numChannels audio
+        (#_, scratchBuffer1#) =
+          foldl (recordAudioChannel name nameLength channelCount) (#0, scratchBuffer0#) audio
+      in
+        case mutRefPut scratchBuffer1 mref of
+          _ -> world
 
 --------------------
 -- UGens
@@ -3329,6 +3413,19 @@ perc attackTime decayTime curve input =
     update    = accumulatePerc (#attackTime, decayTime, totalTime, curve#)
     isRunning = percIsRunning totalTime
 
+-- TODO: adsr ads adr, etc
+
+-----------
+-- playFor
+playFor :: AudioFormat f => Float -> f Audio -> f Audio
+playFor length audio =
+  if rationalToFloat t >= length then
+    pure AudioEnd
+  else
+    audio
+  where
+    t ~ 0 = t + audioBlockDelta
+
 -----------
 -- Wave tables
 
@@ -3512,21 +3609,51 @@ mkAttractorState3D wv hv dv mkArrayFn _ =
         in
           writeArray i (#v, s#) a0
 
+-- -- Euler method
+-- accumulateAttractor3D :: (p -> Float -> Vector3D -> Vector3D) ->
+--                          (UInt -> Vector3D -> s -> (#s, Float#)) ->
+--                          Float -> p -> Float ->
+--                          *AttractorState3D w h d s -> (#*AttractorState3D w h d s, Float#)
+-- accumulateAttractor3D attractorF mapF recipSize param speed (AttractorState3D# a0 phase0) =
+--   (#AttractorState3D# a3 phase1, out#)
+--   where
+--     delta       = speed * recipSampleRate
+--     phase1      = phase0 + delta
+--     (#a3, out#) =
+--       loop (#a1, out0#) = (#a0, 0#) for i <- each do
+--         let
+--           ui                 = indexToUInt i
+--           (#(#v0, s0#), a2#) = readArrayU i a1
+--           v1                 = v0 + (Vector3D# delta delta delta * attractorF param phase0 v0)
+--           (#s1, x#)          = mapF ui v1 s0
+--           out1               = out0 + (x * recipSize)
+--         in
+--           (#writeArray i (#v1, s1#) a2, x#)
+
+
+-- TODO: 4th order Runge-Kutta method
 accumulateAttractor3D :: (p -> Float -> Vector3D -> Vector3D) ->
                          (UInt -> Vector3D -> s -> (#s, Float#)) ->
                          Float -> p -> Float ->
                          *AttractorState3D w h d s -> (#*AttractorState3D w h d s, Float#)
-accumulateAttractor3D attractorF mapF recipSize param speed (AttractorState3D# a0 phase0) =
-  (#AttractorState3D# a3 phase1, out#)
+accumulateAttractor3D attractorF mapF recipSize param speed (AttractorState3D# a0 time0) =
+  (#AttractorState3D# a3 time1, out#)
   where
     delta       = speed * recipSampleRate
-    phase1      = phase0 + delta
+    hdelta      = delta / 2
+    deltav      = Vector3D# delta delta delta
+    time1       = time0 + delta
+    oneSixth    = Vector3D# (1/6) (1/6) (1/6)
     (#a3, out#) =
       loop (#a1, out0#) = (#a0, 0#) for i <- each do
         let
           ui                 = indexToUInt i
           (#(#v0, s0#), a2#) = readArrayU i a1
-          v1                 = v0 + (Vector3D# delta delta delta * attractorF param phase0 v0)
+          k1                 = deltav * attractorF param time0 v0
+          k2                 = deltav * attractorF param (time0 + hdelta) (v0 + (k1 * 0.5))
+          k3                 = deltav * attractorF param (time0 + hdelta) (v0 + (k2 * 0.5))
+          k4                 = deltav * attractorF param time1 (v0 + k3)
+          v1                 = v0 + (oneSixth * (k1 + (2 * k2) + (2 * k3) + k4))
           (#s1, x#)          = mapF ui v1 s0
           out1               = out0 + (x * recipSize)
         in
@@ -3542,7 +3669,7 @@ attractor3D size initF attractorF mapF p speed =
 ----------------------
 -- Lorenz Attractor
 
--- lorenz 1 10 28 (8/3) (Vector3D# 0.0001 0.0001 0.0001)
+-- lorenz 10 28 (8/3) (Vector3D# 0.0001 0.0001 0.0001)
 lorenz :: (#Float, Float, Float#) -> Float -> Vector3D -> Vector3D
 lorenz (#a, b, c#) t (Vector3D# x y z) =
   Vector3D# dx dy dz
@@ -3570,6 +3697,23 @@ rabinovichFabrikant (#a, g#) t (Vector3D# x y z) =
 rabinovichFabrikantAttractor :: (AudioFormat f) => NatVal3 w h d -> (UInt -> Vector3D -> (#Vector3D, s#)) -> (UInt -> Vector3D -> s -> (#s, Float#)) -> Float -> Float -> f Audio -> f Audio
 rabinovichFabrikantAttractor size initF mapF a g speed =
   attractor3D size initF rabinovichFabrikant mapF (#a, g#) speed
+
+----------------------
+-- Lu Chen Attractor
+
+-- luChen 36 3 20 -15.5
+-- initV: 0.1 0.3 -0.6
+luChen :: (#Float, Float, Float, Float#) -> Float -> Vector3D -> Vector3D
+luChen (#a, b, c, u#) t (Vector3D# x y z) =
+  Vector3D# dx dy dz
+  where
+    dx = a * (y - x)
+    dy = x - (x * z) + (c * y) + u
+    dz = (x * y) - (b * z)
+
+luChenAttractor :: (AudioFormat f) => NatVal3 w h d -> (UInt -> Vector3D -> (#Vector3D, s#)) -> (UInt -> Vector3D -> s -> (#s, Float#)) -> Float -> Float -> Float -> Float -> f Audio -> f Audio
+luChenAttractor size initF mapF a b c u speed =
+  attractor3D size initF luChen mapF (#a, b, c, u#) speed
 
 
 -----------
@@ -3910,6 +4054,282 @@ fiveSec :: Seconds 5
 fiveSec = Seconds
 
 
+-----------
+-- Pluck: Karplus Strong
+
+data PluckState n = PluckState# (.Array (NatMul BlockSize n) Float) UInt UInt
+
+accumulatePluck :: UInt -> Float -> Float -> *PluckState s -> (#*PluckState s, Float#)
+accumulatePluck bufferSizeMinus1 freq damping (PluckState# buffer0 index0 count) =
+  (#PluckState# buffer3 index1 count, out#)
+  where
+    delaySamples     = min (floatToUInt (audioSampleRateF / freq)) bufferSizeMinus1
+    delayIndex1      = (index0 + delaySamples) % delaySamples
+    delayIndex2      = (delayIndex1 + 1) % delaySamples
+    (#d1, buffer1#)  = readArrayU (Index delayIndex1) buffer0
+    (#d2, buffer2#)  = readArrayU (Index delayIndex2) buffer1
+    out              = (d1 + d2) * 0.5 * damping
+    buffer3          = writeArray (Index index0) out buffer2
+    index1           = (index0 + 1) % delaySamples
+
+-- This is quick'n'dirty linear congruential randomness. Replace with something higher quality!
+noiseF :: UInt -> Float -> Float -> Float
+noiseF iseed mn mx =
+  r2
+  where
+    seed = 123456789
+    s    = seed + iseed
+    a    = 1664525
+    c    = 1013904223
+    m    = 4294967296
+    r0   = fromUInt ((a * s + c) % m)
+    r1   = (r0 / fromUInt m) * (mx - mn)
+    r2   = r1 + mn
+
+randOnceF :: UInt -> Float -> Float -> Float
+randOnceF iseed mn mx =
+  result |> fromMaybe 0
+  where
+    result ~ Nothing =
+      case result of
+        Nothing -> Just (noiseF iseed mn mx)
+        Just r  -> Just r
+
+tnoiseF :: UInt -> Float -> Float -> Float
+tnoiseF iseed mn mx =
+  noiseF tseed mn mx
+  where
+    tseed = bitShiftLeft (bitOr (currBlockCount * 37) (iseed * 37)) 1
+
+trandOnceF :: UInt -> Float -> Float -> Float
+trandOnceF iseed mn mx =
+  result |> fromMaybe 0
+  where
+    result ~ Nothing =
+      case result of
+        Nothing -> Just (tnoiseF iseed mn mx)
+        Just r  -> Just r
+
+-- Note: Fill Buffer with quick'n'dirty random noise
+mkPluckState :: NatVal n -> () -> *PluckState n
+mkPluckState _ _ =
+  PluckState# arr 0 0
+  where
+    seed       = 123456789
+    a          = 1664525
+    c          = 1013904223
+    m          = 4294967296
+    (#arr, _#) =
+      loop (#arr, s#) = (#unsafeEmptyArray (), seed#) for i <- each do
+        let
+          s'   = (a * s + c) % m
+          arr' = writeArray i (((fromUInt s' / 1000000) % 2) - 1) arr
+        in
+          (#arr', s'#)
+
+pluck :: AudioFormat f => NatVal n -> f Audio -> f Audio -> f Audio
+pluck maxDelayInBlocks freq damping =
+  accumulate2U (mkPluckState maxDelayInBlocks) (accumulatePluck (natVal maxDelayInBlocks * audioBlockSize - 1)) (\s -> (#s, True#)) freq damping
+
+
+-----------
+-- Waveguide Synthesis: Pluck
+
+data WaveGuideDelay      n = WaveGuideDelay# (.Array n Float) Int
+data WaveGuidePluckState n = WaveGuidePluckState# (.WaveGuideDelay (NatMul BlockSize n)) (.WaveGuideDelay (NatMul BlockSize n)) Float
+
+waveGuideDelayUpdateLeft :: Float -> Int -> *WaveGuideDelay n -> *WaveGuideDelay n
+waveGuideDelayUpdateLeft sample length (WaveGuideDelay# arr0 cursor0) =
+  WaveGuideDelay# arr1 cursor1
+  where
+    cursor1 = (cursor0 + 1) % length
+    arr1    = writeArray (unsafeUIntToIndex (fromInt cursor1)) sample arr0
+
+waveGuideDelayUpdateRight :: Float -> Int -> *WaveGuideDelay n -> *WaveGuideDelay n
+waveGuideDelayUpdateRight sample length (WaveGuideDelay# arr0 cursor0) =
+  WaveGuideDelay# arr1 cursor1
+  where
+    arr1    = writeArray (unsafeUIntToIndex (fromInt cursor1)) sample arr0
+    cursor1 =
+      if cursor0 == 0 then
+        length - 1
+      else
+        cursor0 - 1
+
+waveGuideDelayRead :: Int -> Int -> *WaveGuideDelay n -> (#Float, *WaveGuideDelay n#)
+waveGuideDelayRead position length (WaveGuideDelay# arr0 cursor) =
+  (#x, WaveGuideDelay# arr1 cursor#)
+  where
+    (#x, arr1#) = readArrayU (unsafeUIntToIndex (fromInt index)) arr0
+    index0      = (cursor + position) % length
+    index       =
+      if index0 < 0 then
+        index0 + length
+      else
+        index0
+
+waveGuideBridgeReflection :: Float -> Float -> Float -> (#Float, Float#)
+waveGuideBridgeReflection sustain sample state0 =
+  (#negate state1, state1#)
+  where
+    state1 = sample * sustain + state0 * (1 - sustain)
+
+accumulateWaveGuidePluck :: UInt -> Float -> Float -> Float -> *WaveGuidePluckState n -> (#*WaveGuidePluckState n, Float#)
+accumulateWaveGuidePluck bufferSizeMinus1 pickupLocation sustain freq (WaveGuidePluckState# leftBuffer0 rightBuffer0 bridgeReflectionState0) =
+  (#WaveGuidePluckState# leftBuffer3 rightBuffer3 bridgeReflectionState1, out#)
+  where
+    stringLength                                 = min (floatToUInt (audioSampleRateF / freq / 2 + 1)) bufferSizeMinus1 |> fromUInt
+    pickupIndex                                  = floorToInt (pickupLocation * fromInt stringLength)
+    (#pickupSampleLeft,  leftBuffer1#)           = waveGuideDelayRead pickupIndex stringLength leftBuffer0
+    (#pickupSampleRight, rightBuffer1#)          = waveGuideDelayRead pickupIndex stringLength rightBuffer0
+    (#bridgeSample, leftBuffer2#)                = waveGuideDelayRead 1 stringLength leftBuffer1
+    (#nutSample, rightBuffer2#)                  = waveGuideDelayRead (stringLength - 2) stringLength rightBuffer1
+    invertedNutReflection                        = negate nutSample
+    (#bridgeReflection, bridgeReflectionState1#) = waveGuideBridgeReflection sustain bridgeSample bridgeReflectionState0
+    leftBuffer3                                  = waveGuideDelayUpdateLeft invertedNutReflection stringLength leftBuffer2
+    rightBuffer3                                 = waveGuideDelayUpdateRight bridgeReflection stringLength rightBuffer2
+    out                                          = pickupSampleLeft + pickupSampleRight
+
+mkWaveGuidePluckState :: NatVal n -> Float -> Float -> () -> *WaveGuidePluckState n
+mkWaveGuidePluckState n pickLocation pickAmplitude _ =
+  WaveGuidePluckState# (WaveGuideDelay# leftBuffer (floorToInt pickSample)) (WaveGuideDelay# rightBuffer (floorToInt pickSample)) 0.5
+  where
+    fullLength  = natVal n * audioBlockSize |> fromUInt
+    pickSample  = max (fullLength * pickLocation) 1
+    pickIndex   = pickSample |> floatToUInt
+    upSlope     = 1 / pickSample
+    downSlope   = 1 / (fullLength - pickSample - 1)
+    (#leftBuffer, rightBuffer#)  =
+      loop (#leftBuffer0, rightBuffer0#) = (#unsafeEmptyArray (), unsafeEmptyArray ()#) for i <- each do
+        let
+          sample =
+            if indexToUInt i < pickIndex then
+              (upSlope * fromUInt (indexToUInt i)) * pickAmplitude
+            else
+              (downSlope * (fullLength - 1 - fromUInt (indexToUInt i))) * pickAmplitude
+        in
+          (#writeArray i sample leftBuffer0, writeArray i sample rightBuffer0#)
+
+waveGuidePluck :: NatVal n -> Float -> Float -> Float -> Float -> Mono Audio -> Mono Audio
+waveGuidePluck maxDelayInBlocks pickLocation pickAmplitude pickupLocation sustain freq =
+  accumulate1U (mkWaveGuidePluckState maxDelayInBlocks pickLocation pickAmplitude) (accumulateWaveGuidePluck (natVal maxDelayInBlocks * audioBlockSize - 1) pickupLocation (clamp sustain 0 1)) (\s -> (#s, True#)) freq
+
+
+-----------
+-- Waveguide Synthesis: Bow
+
+data WaveGuideBowState n =
+  WaveGuideBowState#
+    (.WaveGuideDelay (NatMul BlockSize n)) -- Bridge to Bow delay
+    (.WaveGuideDelay (NatMul BlockSize n)) -- Bow to Nut delay
+    (.WaveGuideDelay (NatMul BlockSize n)) -- Nut to Bow delay
+    (.WaveGuideDelay (NatMul BlockSize n)) -- Bow to bridge
+    Float
+
+-- TODO: Start at bow location???
+mkWaveGuideBowState :: NatVal n -> Float -> () -> *WaveGuideBowState n
+mkWaveGuideBowState n bowLocation _ =
+  WaveGuideBowState#
+    (WaveGuideDelay# bridgeToBowBuffer 0)
+    (WaveGuideDelay# bowToNutBuffer    0)
+    (WaveGuideDelay# nutToBowBuffer    0)
+    (WaveGuideDelay# bowToBridgeBuffer 0)
+    0
+  where
+    fullLength        = natVal n * audioBlockSize |> fromUInt
+    bowLocationSample = max (fullLength * bowLocation) 1 |> floorToInt
+    (#bridgeToBowBuffer, bowToNutBuffer, nutToBowBuffer, bowToBridgeBuffer#)  =
+      loop (#bridgeToBowBuffer0, bowToNutBuffer0, nutToBowBuffer0, bowToBridgeBuffer0#) = (#unsafeEmptyArray (), unsafeEmptyArray (), unsafeEmptyArray (), unsafeEmptyArray ()#) for i <- each do
+        (#writeArray i 0 bridgeToBowBuffer0, writeArray i 0 bowToNutBuffer0, writeArray i 0 nutToBowBuffer0, writeArray i 0 bowToBridgeBuffer0#)
+
+accumulateWaveGuideBow :: UInt -> Float -> Float -> Float -> Float -> *WaveGuideBowState n -> (#*WaveGuideBowState n, Float#)
+accumulateWaveGuideBow bufferSizeMinus1 bowLocation sustain bowSignal freq (WaveGuideBowState# bridgeToBow0 bowToNut0 nutToBow0 bowToBridge0 bridgeReflectionState0) =
+  (#stateOut, out#)
+  where
+    fullStringLength                             = audioSampleRateF / freq / 2 + 1
+    bowToNutLength                               = min (floatToUInt (fullStringLength * (1 - bowLocation))) bufferSizeMinus1 |> fromUInt
+    bridgeToBowLength                            = min (floatToUInt (fullStringLength * bowLocation)) bufferSizeMinus1 |> fromUInt
+    -- Determine string lengths
+    -- TODO: Maybe bow location should be based on FULL string length
+    -- (in other words, you don't move the bow around when you change pitches, normally)
+    -- Read outputs from delays
+    -- Do we really need the distinction in how we traverse these delay lines?
+    -- Isn't interpreting their inputs and outputs sufficient?
+    (#bridgeToBowSample, bridgeToBow1#)          = waveGuideDelayRead 1 bridgeToBowLength bridgeToBow0
+    (#bowToNutSample,    bowToNut1#)             = waveGuideDelayRead 1 bowToNutLength bowToNut0
+    (#nutToBowSample,    nutToBow1#)             = waveGuideDelayRead 1 bowToNutLength nutToBow0
+    (#bowToBridgeSample, bowToBridge1#)          = waveGuideDelayRead 1 bridgeToBowLength bowToBridge0
+    -- Values
+    invertedNutReflection                        = negate bowToNutSample
+    (#bridgeReflection, bridgeReflectionState1#) = waveGuideBridgeReflection sustain bowToBridgeSample bridgeReflectionState0
+    -- bowSignal'                                   = bowSignal * 0.9 + nutToBowSample * (negate 0.1) + bridgeToBowSample * (negate 0.1)
+    -- bowToNutInput                                = bridgeToBowSample * 1.0 + bowSignal' * 0.01
+    -- bowToBridgeInput                             = nutToBowSample * 1.0 + bowSignal' * 0.01
+    bowToBridgeInput                             = nutToBowSample * 1.0 + bowSignal
+    bowToNutInput                                = bridgeToBowSample * 1.0 + bowSignal
+    -- Write inputs to delays
+    bridgeToBow2                                 = waveGuideDelayUpdateLeft bridgeReflection bridgeToBowLength bridgeToBow1
+    bowToNut2                                    = waveGuideDelayUpdateLeft bowToNutInput bowToNutLength bowToNut1
+    nutToBow2                                    = waveGuideDelayUpdateLeft invertedNutReflection bowToNutLength nutToBow1
+    bowToBridge2                                 = waveGuideDelayUpdateLeft bowToBridgeInput bridgeToBowLength bowToBridge1
+    -- Out
+    out                                          = bridgeToBowSample
+    stateOut                                     = WaveGuideBowState# bridgeToBow2 bowToNut2 nutToBow2 bowToBridge2 bridgeReflectionState1
+
+waveGuideBow :: NatVal n -> Float -> Float -> Mono Audio -> Mono Audio -> Mono Audio
+waveGuideBow maxDelayInBlocks bowLocation sustain bowSignal freq =
+  accumulate2U
+    (mkWaveGuideBowState maxDelayInBlocks bowLocation)
+    (accumulateWaveGuideBow (natVal maxDelayInBlocks * audioBlockSize - 1) (clamp bowLocation 0 1) (clamp sustain 0 1))
+    (\s -> (#s, True#))
+    bowSignal
+    freq
+
+-- TODO: https://ccrma.stanford.edu/~jos/pasp/Digital_Waveguide_Bowed_String.html
+
+
+natOne :: NatVal 1
+natOne = NatVal
+
+natTwo :: NatVal 2
+natTwo = NatVal
+
+natThree :: NatVal 3
+natThree = NatVal
+
+natFour :: NatVal 4
+natFour = NatVal
+
+natFive :: NatVal 5
+natFive = NatVal
+
+natSix :: NatVal 6
+natSix = NatVal
+
+natSeven :: NatVal 7
+natSeven = NatVal
+
+natEight :: NatVal 8
+natEight = NatVal
+
+natSixteen :: NatVal 16
+natSixteen = NatVal
+
+clip :: AudioFormat f => f Audio -> f Audio
+clip cs =
+  map f cs
+  where
+    f ia =
+      case ia of
+        AudioEnd    -> AudioEnd
+        BlockRate x -> BlockRate (clamp x -1 1)
+        AudioRate c ->
+          AudioRate <|
+            freezeArray <|
+              loop oa = audioInitArray () for i <- each do
+                writeArray i (clamp (readArray i c) -1 1) oa
+
+
 ----------------------
 -- RBJ Filters, Audio EQ Cookbook
 ----------------------
@@ -4065,6 +4485,7 @@ lag lagTime input =
 -- TODO: mapAudio3, mapAudio3Vec
 -- mapRange3 :: Float -> Float
 -- mapRange3 x =
+
 
 --------------------
 -- Seq
@@ -4428,6 +4849,7 @@ leftConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 leftC
 rightConstSeqOnBoth :: Seq a -> Seq b -> Seq b
 rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 rightConst l r)
 
+
 -- addSeqOnLeftTest :: Seq Int
 -- addSeqOnLeftTest =
 --   [1 _ <2 3>] @+ [4 <5 6> <7 8 9>] *@ [1 2 _ 5] @- <3 4 5> @> fromInt mouseX
@@ -4489,6 +4911,23 @@ tupleTick slot maxSlot sv =
 interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 interleaveTick slot maxSlot sv =
   slotTick slot maxSlot SeqLoopEnd sv
+
+repeat :: UInt -> Seq a -> Seq a
+repeat repetitions s = Seq go
+  where
+    go _ =
+      case runSeq s () of
+        SeqValue# dur control value ->
+          case control of
+            SeqLoopEnd ->
+              let
+                currentRepetition ~ 0 = (currentRepetition + 1) % repetitions
+              in
+                if currentRepetition == 0 then
+                  SeqValue# dur SeqLoopEnd value
+                else
+                  SeqValue# dur SeqNormal value
+            _  -> SeqValue# dur control value
 
 
 --------------------
@@ -5384,31 +5823,126 @@ oscTest f =
 --       |> perc 10 20 -1
 --       |> mul 0.5
 
+    -- mfn i (Vector3D# x y z) s = (#s, sine (x * 400) + sine (y * 400) + sine (z * 400)#)
+
+-- -- TODO: Use dot product vs forward/up vector for oscillator frequency
+-- -- Doom Bubbles
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     size :: NatVal3 5 5 5
+--     size = NatVal3
+--     ifn i (Vector3D# x y z)   = (#Vector3D# (x * 0.1) (y * 0.1) (z * 0.1), fromUInt i#)
+--     mfn i (Vector3D# x y z) s = (#s + ((magnitude3D (Vector3D# x y z)) * 30 * recipSampleRate), ((sine s + sine (s * 0.5)) * 0.5) + (sine (x * 4.00) * 0.5) + sine (z * 1)#)
+--     a =
+--       lorenzAttractor size ifn mfn 10 38 (8/3) (perc 15 15 1 11 + stereo 6 6.01)
+--       |> lpf (perc 20 10 1 4000 + 50) 0.5
+--       |> delay twoSec (stereo 1 2) 0.3
+--       |> perc 10 20 -1
+--       |> mul 0.15
+
+data Scale (t :: Nat) (d :: Nat) = Scale (Array t Rational) (Array d UInt) Float
+
+-- equalTuning :: A.Array Int Rational
+-- equalTuning =
+
+-- equalTuning :: Array 12 Rational
+-- equalTuning =
+--   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+--   |> map (\x -> pow 2 (x / 12))
+
+-- arrayFromList $ map (\x -> toRational $ 2 ** (x / 12)) [0.0..11.0 :: Double]
+
+justTuning :: Array 12 Rational
+justTuning =
+  {1, 16//15, 9//8, 6//5, 5//4, 4//3, 45//32, 3//2, 8//5, 5//3, 9//5, 15//8}
+
+partch43Tuning :: Array 43 Rational
+partch43Tuning =
+  {
+    1, 81//80, 33/32, 21//20, 16//15, 12//11, 11//10, 10//9, 9//8, 8//7,
+    7//6, 32//27, 6//5, 11//9, 5//4, 14//11, 9//7, 21//16, 4//3, 27//20,
+    11//8, 7//5, 10//7, 16//11, 40//27, 3//2, 32//21, 14//9, 11//7, 8//5,
+    18//11, 5//3, 27//16, 12//7, 7//4, 16//9, 9//5, 20//11, 11//6, 15//8,
+    40//21, 64//33, 160//81
+  }
+
+egyptianTuning :: Array 12 Rational
+egyptianTuning =
+  {1//2, 107//96, 9//8, 11//9, 59//48, 4//3, 1//1, 3//2, 5//3, 121//72, 11//6, 133//72}
+
+justMajor :: Scale 12 7
+justMajor =
+  Scale justTuning {0, 2, 4, 5, 7, 9, 11} 261.6255653006
+
+justChromatic :: Scale 12 12
+justChromatic =
+  Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 330
+  -- Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 200
+
+coleJI :: Scale 12 12
+coleJI =
+  Scale {1,10//9,9//8,8//7,6//5,4//3,11//8,3//2,8//5,7//4,16//9,9//5} {0,1,2,3,4,5,6,7,8,9,10,11} 261.6255653006
+
+partch43 :: Scale 43 43
+partch43 =
+  -- Scale partch43Tuning {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42} 250
+  Scale partch43Tuning {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42} 300
+  -- Scale partch43Tuning {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42} 261.6255653006
+
+degreeToFrequency :: Scale t d -> Int -> Float
+degreeToFrequency (Scale tuning degrees rootFreq) degree =
+  pitch * octave * rootFreq
+  where
+    numDegrees = arrayLength NatVal degrees |> fromUInt
+    octave     = fromInt (max (div degree numDegrees) 0) |> pow 2.0
+    degree'    = lookupArray (fromInt (rem degree numDegrees)) degrees |> fromMaybe 0
+    pitch      = lookupArray degree' tuning |> fromMaybe 0 |> rationalToFloat
+
+d2f :: Scale t d -> Int -> Float
+d2f = degreeToFrequency
+
 testJit :: *World -> *World
 testJit w =
-  outAudio 0 a w
+  outAudio 0 p w
   where
-    size :: NatVal3 3 3 3
-    size = NatVal3
-    ifn i (Vector3D# x y z)   = (#Vector3D# (x * 0.0001) (y * 0.0001) (z * 0.0001), fromUInt i#)
-    mfn i (Vector3D# x y z) s = (#s, sine (x * 100)#)
-    a =
-      lorenzAttractor size ifn mfn 10 28 (8/3) (stereo 1 2)
-      |> perc 10 20 -1
-      |> mul 0.2
+    p =
+      pluck natEight 50 1.0 +
+      pluck natFour 100 1.0
+      |> pan 0.5
+      |> mul 0.1
+
+-- -- Look into alternative to euler method...
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 a w
+--   where
+--     size :: NatVal3 4 4 4
+--     size = NatVal3
+--     ifn i (Vector3D# x y z)   = (#Vector3D# (x * 0.1) (y * 0.3) (z * -0.6), fromUInt i#)
+--     mfn i (Vector3D# x y z) s = (#s, sine (x * 200)#)
+--     a =
+--       luChenAttractor size ifn mfn 36 3 20 -15.5 1
+--       |> perc 10 20 -1
+--       |> mul 0.2
 
 -- testJit :: *World -> *World
 -- testJit w =
 --   outAudio 0 a w
 --   where
---     size :: NatVal3 3 3 3
+--     size :: NatVal3 1 1 1
 --     size = NatVal3
---     ifn i (Vector3D# x y z)   = (#Vector3D# (x * 0.0001) (y * 0.0001) (z * 0.0001), fromUInt i#)
---     mfn i (Vector3D# x y z) s = (#s, sine (x * 100)#)
+--     ifn i (Vector3D# x y z)   = (#Vector3D# -1 0 0.5 + Vector3D# (x * 0.05) (y * 0.05) (z * 0.05), fromUInt i#)
+--     mfn i (Vector3D# x y z) s = (#s, sine ((x * 4000) + sine (y * 4000) + sine (z * 4000))#)
 --     a =
---       rabinovichFabrikantAttractor size ifn mfn 0.87 1.1 (stereo 2 4)
+--       rabinovichFabrikantAttractor size ifn mfn 1.1 0.87 (stereo 0.5 0.75) +
+--       rabinovichFabrikantAttractor size ifn mfn 1.1 0.87 (stereo 0.6 0.7) +
+--       rabinovichFabrikantAttractor size ifn mfn 1.1 0.87 (stereo 0.4 0.8) +
+--       rabinovichFabrikantAttractor size ifn mfn 1.1 0.87 (stereo 0.3 0.85)
+--       |> delay oneSec 0.125 0.25
 --       |> perc 10 20 -1
---       |> mul 0.2
+--       |> mul 0.05
 
 -- testJit :: *World -> *World
 -- testJit w =

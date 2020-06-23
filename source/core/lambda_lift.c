@@ -159,6 +159,7 @@ static inline void necro_core_scope_grow(NecroPagedArena* arena, NecroCoreScope*
         scope->data[slot].necro_type         = necro_type;
         scope->count++;
     }
+    UNUSED(prev_count);
     assert(scope->count == prev_count);
 }
 
@@ -593,7 +594,6 @@ void necro_core_lambda_lift_go(NecroLambdaLift* ll, NecroCoreAst* ast)
 ///////////////////////////////////////////////////////
 // Testing
 ///////////////////////////////////////////////////////
-#define NECRO_CORE_LAMBDA_LIFT_VERBOSE 0
 void necro_core_lambda_lift_test_result(const char* test_name, const char* str)
 {
     // Set up
@@ -606,6 +606,7 @@ void necro_core_lambda_lift_test_result(const char* test_name, const char* str)
     NecroAstArena       ast             = necro_ast_arena_empty();
     NecroCoreAstArena   core_ast        = necro_core_ast_arena_empty();
     NecroCompileInfo    info            = necro_test_compile_info();
+    info.verbosity                      = 0;
 
     // Compile
     unwrap(void, necro_lex(info, &intern, str, strlen(str), &tokens));
@@ -624,12 +625,16 @@ void necro_core_lambda_lift_test_result(const char* test_name, const char* str)
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
 
     // Print
-#if NECRO_CORE_LAMBDA_LIFT_VERBOSE
-    printf("\n");
-    necro_core_ast_pretty_print(core_ast.root);
-#endif
-    printf("Core %s test: Passed\n", test_name);
-    fflush(stdout);
+    if (info.verbosity > 0)
+    {
+        printf("\n");
+        necro_core_ast_pretty_print(core_ast.root);
+    }
+    else
+    {
+        printf("Core %s test: Passed\n", test_name);
+        fflush(stdout);
+    }
 
     // Clean up
     necro_core_ast_arena_destroy(&core_ast);

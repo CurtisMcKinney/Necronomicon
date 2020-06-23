@@ -1686,6 +1686,8 @@ void necro_ast_assert_ast_symbol_name_eq(NecroAstSymbol* ast_symbol1, NecroAstSy
 	assert(strcmp(ast_symbol1->source_name->str, ast_symbol2->source_name->str) == 0);
 	// assert(strcmp(ast_symbol1->name->str, ast_symbol2->name->str) == 0);
 	assert(strcmp(ast_symbol1->module_name->str, ast_symbol2->module_name->str) == 0);
+    UNUSED(ast_symbol1);
+    UNUSED(ast_symbol2);
 }
 
 void necro_ast_assert_eq_constant(NecroAst* ast1, NecroAst* ast2)
@@ -1713,6 +1715,8 @@ void necro_ast_assert_eq_constant(NecroAst* ast1, NecroAst* ast2)
         const char* str1 = ast1->constant.symbol->str;
         const char* str2 = ast2->constant.symbol->str;
         assert(strcmp(str1, str2) == 0);
+        UNUSED(str1);
+        UNUSED(str2);
         break;
     }
     default:

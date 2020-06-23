@@ -145,6 +145,7 @@ int main(int32_t argc, char** argv)
         length = fread(str, 1, length, file);
         str[length]     = '\n';
         str[length + 1] = '\0';
+        fclose(file);
 
         if (argc > 2 && strcmp(argv[2], "-lex") == 0)
         {
@@ -225,7 +226,6 @@ int main(int32_t argc, char** argv)
         }
 
         // Cleanup
-        fclose(file);
         free(str);
     }
     else

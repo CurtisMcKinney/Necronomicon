@@ -363,6 +363,7 @@ NecroCoreAst* necro_core_ast_pre_simplify_var(NecroCorePreSimplify* context, Nec
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_VAR);
+
     if (ast->var.ast_symbol->inline_ast != NULL)
     {
         return necro_core_ast_pre_simplify_inline_wrapper_types(context, necro_core_ast_deep_copy(context->arena, ast->var.ast_symbol->inline_ast));
@@ -722,6 +723,7 @@ NecroCoreAst* necro_core_ast_pre_simplify_data_decl(NecroCorePreSimplify* contex
 // Rewrite: \x -> x ==> x
 NecroCoreAst* necro_core_ast_inline_id(NecroCorePreSimplify* context, NecroCoreAst* ast, NecroCoreAst* fn, NecroCoreAst* param)
 {
+    UNUSED(context);
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
     if (fn->ast_type == NECRO_CORE_AST_VAR)
@@ -861,6 +863,7 @@ NecroCoreAst* necro_ast_inline_app_const_1(NecroCorePreSimplify* context, NecroC
         return ast;
     NecroCoreAst* arg1 = fn->lambda.arg;
     NecroCoreAst* expr = fn->lambda.expr;
+
     if (!arg1->var.ast_symbol->is_wildcard)
         return ast;
     if (expr->ast_type == NECRO_CORE_AST_LAM)
@@ -999,6 +1002,7 @@ NecroCoreAst* necro_ast_inline_app_const_3(NecroCorePreSimplify* context, NecroC
 // Rewrite: proj wrappedcon index ==> con
 NecroCoreAst* necro_ast_inline_wrapper_proj(NecroCorePreSimplify* context, NecroCoreAst* ast, NecroCoreAst* fn, NecroCoreAst* left, NecroCoreAst* right)
 {
+    UNUSED(right);
     assert(ast->ast_type == NECRO_CORE_AST_APP);
     if (fn->ast_type != NECRO_CORE_AST_VAR)
         return ast;

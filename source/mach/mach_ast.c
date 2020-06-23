@@ -431,6 +431,7 @@ NecroMachAst* necro_mach_build_gep(NecroMachProgram* program, NecroMachAst* fn_d
         else if (necro_machine_type->type == NECRO_MACH_TYPE_ARRAY)
         {
             const size_t index = a_indices[i];
+            UNUSED(index);
             assert(index < necro_machine_type->array_type.element_count);
             necro_machine_type = necro_machine_type->array_type.element_type;
         }
@@ -565,6 +566,8 @@ NecroMachAst* necro_mach_build_up_cast(NecroMachProgram* program, NecroMachAst* 
     assert(to_type->type == NECRO_MACH_TYPE_PTR);
     NecroMachType* from_type_struct = from_type->ptr_type.element_type;
     NecroMachType* to_type_struct   = to_type->ptr_type.element_type;
+    UNUSED(to_type_struct);
+    UNUSED(from_type_struct);
     assert(from_type_struct->type == NECRO_MACH_TYPE_STRUCT);
     assert(to_type_struct->type == NECRO_MACH_TYPE_STRUCT);
     assert(from_type_struct->struct_type.sum_type_symbol == to_type_struct->struct_type.symbol);
@@ -583,6 +586,8 @@ NecroMachAst* necro_mach_build_down_cast(NecroMachProgram* program, NecroMachAst
     assert(to_type->type == NECRO_MACH_TYPE_PTR);
     NecroMachType* from_type_struct = from_type->ptr_type.element_type;
     NecroMachType* to_type_struct   = to_type->ptr_type.element_type;
+    UNUSED(from_type_struct);
+    UNUSED(to_type_struct);
     assert(from_type_struct->type == NECRO_MACH_TYPE_STRUCT);
     assert(to_type_struct->type == NECRO_MACH_TYPE_STRUCT);
     assert(from_type_struct->struct_type.symbol == to_type_struct->struct_type.sum_type_symbol);
@@ -1684,6 +1689,34 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         NecroMachType*      audio_block_type           = necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_array(&program->arena, program->type_cache.f64_type, necro_runtime_get_block_size()));
         NecroMachType*      fn_type                    = necro_mach_type_create_fn(&program->arena, program->type_cache.word_uint_type, (NecroMachType*[]) { program->type_cache.word_uint_type, audio_block_type, program->type_cache.word_uint_type }, 3);
         program->runtime.necro_runtime_out_audio_block = necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_out_audio_block, NECRO_STATE_STATEFUL)->fn_def.symbol;
+    }
+
+    // recordAudioBlock
+    {
+        NecroAstSymbol*     ast_symbol                 = program->base->record_audio_block;
+        ast_symbol->is_primitive                       = true;
+        ast_symbol->core_ast_symbol->is_primitive      = true;
+        NecroMachAstSymbol* mach_symbol                = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                      = true;
+        NecroMachType*      audio_block_type           = necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_array(&program->arena, program->type_cache.f64_type, necro_runtime_get_block_size()));
+        NecroMachType*      scratch_buffer_type        = necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_ptr(&program->arena, program->type_cache.word_uint_type));
+        NecroMachType*      fn_type                    =
+            necro_mach_type_create_fn(&program->arena, scratch_buffer_type, (NecroMachType*[]) { program->type_cache.uint64_type, program->type_cache.uint64_type, audio_block_type, scratch_buffer_type }, 4);
+        necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_record_audio_block, NECRO_STATE_STATEFUL)->fn_def.symbol;
+    }
+
+    // recordAudioBlockFinalize
+    {
+        NecroAstSymbol*     ast_symbol                 = program->base->record_audio_block_finalize;
+        ast_symbol->is_primitive                       = true;
+        ast_symbol->core_ast_symbol->is_primitive      = true;
+        NecroMachAstSymbol* mach_symbol                = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
+        mach_symbol->is_primitive                      = true;
+        NecroMachType*      scratch_buffer_type        = necro_mach_type_create_ptr(&program->arena, necro_mach_type_create_ptr(&program->arena, program->type_cache.word_uint_type));
+        NecroMachType*      string_type                = necro_mach_type_create_ptr(&program->arena, program->type_cache.word_uint_type);
+        NecroMachType*      fn_type                    =
+            necro_mach_type_create_fn(&program->arena, scratch_buffer_type, (NecroMachType*[]) { string_type, program->type_cache.uint64_type, program->type_cache.uint64_type, scratch_buffer_type }, 4);
+        necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) necro_runtime_record_audio_block_finalize, NECRO_STATE_STATEFUL)->fn_def.symbol;
     }
 
     // // printAudioBlock

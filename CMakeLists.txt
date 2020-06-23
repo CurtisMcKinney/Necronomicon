@@ -1,7 +1,7 @@
 # =============================================================================
 # NOTE from Curtis:
-# Please read ALL instructions before attempting to build Necronomicon
-# Step 1: Install Python
+# Step 0: READ ALL instructions before attempting to build Necronomicon
+# Step 1: Install Python 2
 #     - NOTE: LLVM seems to want Python 2, not 3!
 # Step 2: Build LLVM
 #     - Use cmake
@@ -13,7 +13,11 @@
 #     - Consult: http://www.portaudio.com/
 #     - Tested with PortAudio 19
 #     - Make note of where the include directory and static library is.
-# Step 5:
+# Step 5: Build libsndfile
+#     - Consult: https://github.com/erikd/libsndfile/
+#     - Tested with libsndfile version 1.0.29
+#     - Make note of where the include directory and static library is.
+# Step 6:
 #     - Generate project files for Necronomicon using cmake-gui
 #     - When configuring/generating project files for Necronomicon with cmake-gui set LLVM_DIR to point to where you installed LLVM: <LLVM_Install_Folder>\lib\cmake\llvm
 #     - Configure the portaudio_include and portaudio_lib variables.
@@ -39,8 +43,11 @@ add_definitions(${LLVM_DEFINITIONS})
 if (MSVC)
     set(PORTAUDIO_INCLUDE "./portaudio/include/" CACHE PATH "portaudio include files")
     set(PORTAUDIO_LIB "./portaudio/build/Debug/portaudio_static.lib" CACHE FILEPATH "portaudio static library")
+	set(SNDFILE_INCLUDE "./libsndfile/include/" CACHE PATH "libsndfile include files")
+    set(SNDFILE_LIB "./libsndfile/build/Debug/sndfile.lib" CACHE FILEPATH "libsndfile static library")
 else()
     find_package(portaudio)
+	# TODO: Chad you need to suss this out for Linux
 endif()
 
 if (CMAKE_COMPILER_IS_GNUCC)
@@ -74,6 +81,7 @@ set(INCLUDE_DIR
     source/mach
     source/codegen
 	${PORTAUDIO_INCLUDE}
+	${SNDFILE_INCLUDE}
     )
 
 include_directories(${INCLUDE_DIR})
@@ -163,6 +171,7 @@ set(project_HEADERS
     source/utility/unicode_properties.h
     source/utility/result.h
 
+    source/runtime/runtime_common.h
     source/runtime/runtime.h
     source/runtime/runtime_audio.h
 
@@ -196,7 +205,7 @@ ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})
 # that we wish to use
 # llvm_map_components_to_libnames(llvm_libs support core irreader analysis target ScalarOpts native passes mcjit)
 llvm_map_components_to_libnames(llvm_libs core native passes ScalarOpts analysis mcjit target)
-TARGET_LINK_LIBRARIES(necro ${llvm_libs} ${PORTAUDIO_LIB})
+TARGET_LINK_LIBRARIES(necro ${llvm_libs} ${PORTAUDIO_LIB} ${SNDFILE_LIB})
 
 execute_process (
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

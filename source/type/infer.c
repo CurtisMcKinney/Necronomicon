@@ -2106,6 +2106,8 @@ NecroResult(NecroType) necro_infer_let_expression(NecroInfer* infer, NecroAst* a
 //=====================================================
 NecroResult(NecroType) necro_infer_arithmetic_sequence(NecroInfer* infer, NecroAst* ast)
 {
+    UNUSED(infer);
+    UNUSED(ast);
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_ARITHMETIC_SEQUENCE);
@@ -2181,6 +2183,8 @@ NecroResult(NecroType) necro_infer_do_statement(NecroInfer* infer, NecroAst* ast
 
 NecroResult(NecroType) necro_infer_do(NecroInfer* infer, NecroAst* ast)
 {
+    UNUSED(infer);
+    UNUSED(ast);
     assert(infer != NULL);
     assert(ast != NULL);
     assert(ast->type == NECRO_AST_DO);

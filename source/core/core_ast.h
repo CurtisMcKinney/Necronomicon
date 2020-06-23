@@ -309,6 +309,7 @@ NecroCoreAst* necro_core_ast_create_for_loop(NecroPagedArena* arena, size_t max_
 NecroCoreAst* necro_core_ast_create_while_loop(NecroPagedArena* arena, NecroCoreAst* value_pat, NecroCoreAst* value_init, NecroCoreAst* while_expression, NecroCoreAst* do_expression);
 void          necro_core_ast_swap(NecroCoreAst* ast1, NecroCoreAst* ast2);
 void          necro_core_ast_pretty_print(NecroCoreAst* ast);
+void          necro_core_ast_pretty_print_go(NecroCoreAst* ast, size_t depth);
 // TODO: Finish deep copy
 NecroCoreAst* necro_core_ast_deep_copy(NecroPagedArena* arena, NecroCoreAst* ast);
 size_t        necro_core_ast_num_args(NecroCoreAst* bind_ast);

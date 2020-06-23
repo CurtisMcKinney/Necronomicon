@@ -25,7 +25,7 @@
 ///////////////////////////////////////////////////////
 // Core Ast Creation
 ///////////////////////////////////////////////////////
-inline NecroCoreAst* necro_core_ast_alloc(NecroPagedArena* arena, NECRO_CORE_AST_TYPE ast_type)
+NecroCoreAst* necro_core_ast_alloc(NecroPagedArena* arena, NECRO_CORE_AST_TYPE ast_type)
 {
     NecroCoreAst* ast    = necro_paged_arena_alloc(arena, sizeof(NecroCoreAst));
     ast->ast_type        = ast_type;

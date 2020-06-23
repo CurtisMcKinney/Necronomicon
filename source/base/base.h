@@ -149,6 +149,8 @@ typedef struct NecroBase
     NecroAstSymbol* print_float;
     NecroAstSymbol* print_char;
     NecroAstSymbol* out_audio_block;
+    NecroAstSymbol* record_audio_block;
+    NecroAstSymbol* record_audio_block_finalize;
 
     NecroAstSymbol* close_file;
     NecroAstSymbol* write_int_to_file;

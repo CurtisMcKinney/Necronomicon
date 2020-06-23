@@ -98,6 +98,7 @@ void _necro_mach_type_cache_grow(NecroMachTypeCache* cache)
             bucket_index = (bucket_index + 1) & (cache->capacity - 1);
         }
     }
+    UNUSED(old_count);
     assert(cache->count >= old_count);
     // TODO: Look at this...
     // if (cache->count > old_count);
@@ -698,6 +699,7 @@ void necro_mach_type_check(NecroMachProgram* program, NecroMachType* type1, Necr
 
 void necro_mach_type_check_is_int_type(NecroMachType* type1)
 {
+    UNUSED(type1);
     assert(
         type1->type == NECRO_MACH_TYPE_INT32 ||
         type1->type == NECRO_MACH_TYPE_INT64
@@ -706,6 +708,7 @@ void necro_mach_type_check_is_int_type(NecroMachType* type1)
 
 void necro_mach_type_check_is_uint_type(NecroMachType* type1)
 {
+    UNUSED(type1);
     assert(
         type1->type == NECRO_MACH_TYPE_UINT1  ||
         type1->type == NECRO_MACH_TYPE_UINT8  ||
@@ -717,6 +720,7 @@ void necro_mach_type_check_is_uint_type(NecroMachType* type1)
 
 void necro_mach_type_check_is_float_type(NecroMachType* type1)
 {
+    UNUSED(type1);
     assert(
         type1->type == NECRO_MACH_TYPE_F32 ||
         type1->type == NECRO_MACH_TYPE_F64
@@ -878,6 +882,8 @@ void necro_mach_ast_type_check_zext(NecroMachProgram* program, NecroMachAst* ast
     necro_mach_ast_type_check(program, ast->zext.to_value);
     NecroMachAst*  value   = ast->zext.from_value;
     NecroMachType* to_type = ast->zext.to_value->necro_machine_type;
+    UNUSED(value);
+    UNUSED(to_type);
     assert(
         value->necro_machine_type->type == NECRO_MACH_TYPE_UINT1  ||
         value->necro_machine_type->type == NECRO_MACH_TYPE_UINT8  ||
@@ -903,6 +909,7 @@ void necro_mach_ast_type_check_gep(NecroMachProgram* program, NecroMachAst* ast)
     assert(program != NULL);
     NecroMachAst* source_value = ast->gep.source_value;
     NecroMachAst* dest_value   = ast->gep.dest_value;
+    UNUSED(dest_value);
     necro_mach_ast_type_check(program, ast->gep.source_value);
     necro_mach_ast_type_check(program, ast->gep.dest_value);
     assert(source_value->type == NECRO_MACH_VALUE);
@@ -952,6 +959,9 @@ void necro_mach_ast_type_check_insert_value(NecroMachProgram* program, NecroMach
     NecroMachAst* inserted_value  = ast->insert_value.inserted_value;
     size_t        index           = ast->insert_value.index;
     NecroMachAst* dest_value      = ast->insert_value.dest_value;
+    UNUSED(inserted_value);
+    UNUSED(index);
+    UNUSED(dest_value);
     assert(program != NULL);
     assert(aggregate_value->type == NECRO_MACH_VALUE);
     assert(aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT ||
@@ -979,6 +989,8 @@ void necro_mach_ast_type_check_extract_value(NecroMachProgram* program, NecroMac
     NecroMachAst* aggregate_value = ast->extract_value.aggregate_value;
     size_t        index           = ast->extract_value.index;
     NecroMachAst* dest_value      = ast->extract_value.dest_value;
+    UNUSED(index);
+    UNUSED(dest_value);
     assert(program != NULL);
     assert(aggregate_value->type == NECRO_MACH_VALUE);
     assert(aggregate_value->necro_machine_type->type == NECRO_MACH_TYPE_STRUCT ||

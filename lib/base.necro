@@ -1885,8 +1885,8 @@ mapAudio2Vec f ff cx cy =
 constTrue :: a -> Bool
 constTrue _ = True
 
-constTrue' :: .a -> (#.a, Bool#)
-constTrue' state = (#state, True#)
+constTrueU :: .a -> (#.a, Bool#)
+constTrueU state = (#state, True#)
 
 accumulateAudio1 :: Default s => (Float -> s -> (#s, Float#)) -> (s -> Bool) -> Audio -> Audio
 accumulateAudio1 f isRunningFunc input1 =
@@ -2818,7 +2818,7 @@ nuttallBlackmanWindowFunction i windowSize =
 --
 -- sawFIR :: AudioFormat f => f Audio -> f Audio
 -- sawFIR freq =
---   accumulate1U mkOverSampleSawState accumulateSawFIR constTrue' freq
+--   accumulate1U mkOverSampleSawState accumulateSawFIR constTrueU freq
 
 -- data OverSampleSawStateIIR = OverSampleSawStateIIR# Float Float Float Float Float
 
@@ -3121,7 +3121,7 @@ accumulateMinBlepSaw freq (MinBlepState# phase0 cIndex0 cBuffer0) =
 
 saw :: AudioFormat f => f Audio -> f Audio
 saw freq =
-  accumulate1U mkMinBlepState accumulateMinBlepSaw constTrue' freq
+  accumulate1U mkMinBlepState accumulateMinBlepSaw constTrueU freq
 
 
 -----------
@@ -3307,7 +3307,7 @@ accumulateMinBlepPulse width freq (MinBlepState# phase0 indexAndMode0 cBuffer0) 
 
 pulse :: AudioFormat f => f Audio -> f Audio -> f Audio
 pulse width freq =
-  accumulate2U mkMinBlepState accumulateMinBlepPulse constTrue' width freq
+  accumulate2U mkMinBlepState accumulateMinBlepPulse constTrueU width freq
 
 -----------
 -- lfPulse
@@ -3565,7 +3565,7 @@ accumulateAttractor2D attractorF mapF recipSize param speed (AttractorState2D# a
 
 attractor2D :: (AudioFormat f) => NatVal2 w h -> (UInt -> Vector2D -> (#Vector2D, s#)) -> (p -> Float -> Vector2D -> Vector2D) -> (UInt -> Vector2D -> s -> (#s, Float#)) -> p -> f Audio -> f Audio
 attractor2D size initF attractorF mapF p speed =
-  accumulate1U (mkAttractorState2D wv hv initF) (accumulateAttractor2D attractorF mapF recipSize p) constTrue' speed
+  accumulate1U (mkAttractorState2D wv hv initF) (accumulateAttractor2D attractorF mapF recipSize p) constTrueU speed
   where
     (#wv, hv#) = natVal2ToNatVals size
     recipSize  = 1 / (fromUInt (natVal wv) * fromUInt (natVal hv))
@@ -3676,7 +3676,7 @@ accumulateAttractor3D attractorF mapF recipSize param speed (AttractorState3D# a
 
 attractor3D :: (AudioFormat f) => NatVal3 w h d -> (UInt -> Vector3D -> (#Vector3D, s#)) -> (p -> Float -> Vector3D -> Vector3D) -> (UInt -> Vector3D -> s -> (#s, Float#)) -> p -> f Audio -> f Audio
 attractor3D size initF attractorF mapF p speed =
-  accumulate1U (mkAttractorState3D wv hv dv initF) (accumulateAttractor3D attractorF mapF recipSize p) constTrue' speed
+  accumulate1U (mkAttractorState3D wv hv dv initF) (accumulateAttractor3D attractorF mapF recipSize p) constTrueU speed
   where
     (#wv, hv, dv#) = natVal3ToNatVals size
     recipSize      = 1 / (fromUInt (natVal wv) * fromUInt (natVal hv) * fromUInt (natVal dv))
@@ -3756,7 +3756,7 @@ accumulateSyncSaw sync kick freq (SyncState# phase0 direction0 prevSync) =
 
 syncSaw :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 syncSaw sync kickAmount freq =
-  accumulate3U mkSyncState accumulateSyncSaw constTrue' sync kickAmount freq
+  accumulate3U mkSyncState accumulateSyncSaw constTrueU sync kickAmount freq
 
 -- Reverse sync
 accumulateSyncTri :: Float -> Float -> *SyncState -> (#*SyncState, Float#)
@@ -3772,7 +3772,7 @@ accumulateSyncTri sync freq (SyncState# phase0 direction0 prevSync) =
 
 syncTri :: AudioFormat f => f Audio -> f Audio -> f Audio
 syncTri sync freq =
-  accumulate2U mkSyncState accumulateSyncTri constTrue' sync freq
+  accumulate2U mkSyncState accumulateSyncTri constTrueU sync freq
 
 -- TODO: Branchless
 -- Hard Sync
@@ -3792,7 +3792,7 @@ accumulateSyncPulse sync width freq (SyncState# phase0 direction0 prevSync) =
 
 syncPulse :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 syncPulse sync width freq =
-  accumulate3U mkSyncState accumulateSyncPulse constTrue' sync width freq
+  accumulate3U mkSyncState accumulateSyncPulse constTrueU sync width freq
 
 -- Reverse Sync
 accumulateSyncWave :: WaveTable -> Float -> Float -> *SyncState -> (#*SyncState, Float#)
@@ -3812,7 +3812,7 @@ accumulateSyncWave (WaveTable buffer) sync freq (SyncState# phase0 direction0 pr
 
 syncWave :: AudioFormat f => WaveTable -> f Audio -> f Audio -> f Audio
 syncWave buffer sync freq =
-  accumulate2U mkSyncState (accumulateSyncWave buffer) constTrue' sync freq
+  accumulate2U mkSyncState (accumulateSyncWave buffer) constTrueU sync freq
 
 syncSin :: AudioFormat f => f Audio -> f Audio -> f Audio
 syncSin sync freq = syncWave sinTable sync freq
@@ -3851,7 +3851,7 @@ accumulateMinBlepSawHardSync sync freq (MinBlepState# phase0 state0 cBuffer0) =
 
 hardSyncSaw :: AudioFormat f => f Audio -> f Audio -> f Audio
 hardSyncSaw sync freq =
-  accumulate2U mkMinBlepState accumulateMinBlepSawHardSync constTrue' sync freq
+  accumulate2U mkMinBlepState accumulateMinBlepSawHardSync constTrueU sync freq
 
 -----------
 -- minBLEP hard sync pulse
@@ -3907,7 +3907,7 @@ accumulateMinBlepPulseHardSync sync width freq (MinBlepState# phase0 state0 cBuf
 
 hardSyncPulse :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 hardSyncPulse sync width freq =
-  accumulate3U mkMinBlepState accumulateMinBlepPulseHardSync constTrue' sync width freq
+  accumulate3U mkMinBlepState accumulateMinBlepPulseHardSync constTrueU sync width freq
 
 -----------
 -- Super Osc
@@ -3952,7 +3952,7 @@ accumulateSuperSaw freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD
 -- NOTE: We don't currently support more complicated contexts in the parser (but we do in type checking)...
 -- superSaw :: (AudioFormat f, Num (f Audio)) => f Audio -> f Audio -> f Audio -> f Audio
 superSaw freq depth mix =
-  accumulate3U mkSuperSawState accumulateSuperSaw constTrue' freq depth mix
+  accumulate3U mkSuperSawState accumulateSuperSaw constTrueU freq depth mix
   |> hpf freq 6
 
 accumulateSuperPulse :: Float -> Float -> Float -> *SuperSawState -> (#*SuperSawState, Float#)
@@ -3987,7 +3987,7 @@ accumulateSuperPulse freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phas
 -- NOTE: We don't currently support more complicated contexts in the parser (but we do in type checking)...
 -- superPulse :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 superPulse freq depth mix =
-  accumulate3U mkSuperSawState accumulateSuperPulse constTrue' freq depth mix
+  accumulate3U mkSuperSawState accumulateSuperPulse constTrueU freq depth mix
   |> hpf freq 6
 
 accumulateSuperTri :: Float -> Float -> Float -> *SuperSawState -> (#*SuperSawState, Float#)
@@ -4021,7 +4021,7 @@ accumulateSuperTri freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD
 -- NOTE: We don't currently support more complicated contexts in the parser (but we do in type checking)...
 -- superTri :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 superTri freq depth mix =
-  accumulate3U mkSuperSawState accumulateSuperTri constTrue' freq depth mix
+  accumulate3U mkSuperSawState accumulateSuperTri constTrueU freq depth mix
   |> hpf freq 6
 
 
@@ -4173,7 +4173,7 @@ onePoleTick pole gain input (OnePole z0) =
   (#z1, OnePole z1#)
   where
     a  = 0 - pole
-    b  = 1 - pole
+    b  = if pole < 0 then 1 + pole else 1 - pole
     x  = input * gain
     z1 = b * x - a * z0
 
@@ -4367,9 +4367,40 @@ larangeInterpolation4 s0 s1 s2 s3 s4 delta =
     h4  = (delta * dm1 * dm2 * dm3) / 24
 
 -----------
+-- Fixed Delay Line
+-- Note: This is a non-fractional delay line which can only perform integral delay lengths
+data Delay n = Delay# (.Array (NatNextPowerOfTwo n) Float) UInt UInt UInt
+
+nextPowerOfTwoNatVal :: NatVal n -> NatVal (NatNextPowerOfTwo n)
+nextPowerOfTwoNatVal _ = NatVal
+
+mkDelay :: UInt -> NatVal n -> *Delay n
+mkDelay delayLength n =
+  Delay# arr sizeMask 0 outCursor
+  where
+    pow2n        = nextPowerOfTwoNatVal n
+    sizeMask     = natVal pow2n - 1
+    arr          = arrayFrom 0
+    outCursor    = bitAnd (0 - delayLength) sizeMask
+
+delayReadOutput :: *Delay n -> (#Float, *Delay n#)
+delayReadOutput (Delay# arr0 sizeMask inCursor outCursor) =
+  (#out, Delay# arr1 sizeMask inCursor outCursor#)
+  where
+    (#out, arr1#) = readArrayU (unsafeUIntToIndex outCursor) arr0
+
+delayTick :: Float -> *Delay n -> *Delay n
+delayTick sample (Delay# arr0 sizeMask inCursor0 outCursor0) =
+  Delay# arr1 sizeMask inCursor1 outCursor1
+  where
+    inCursor1  = bitAnd (inCursor0 + 1) sizeMask
+    outCursor1 = bitAnd (outCursor0 + 1) sizeMask
+    arr1       = writeArray (unsafeUIntToIndex inCursor1) sample arr0
+
+
+-----------
 -- Fractional Delay Line
--- Note: Assumes that n is a power of 2!
-data FractionalDelay n = FractionalDelay# (.Array n Float) UInt Float Float UInt UInt
+data FractionalDelay n = FractionalDelay# (.Array (NatNextPowerOfTwo n) Float) UInt Float Float UInt UInt
 
 mkFractionalDelay :: NatVal n -> *FractionalDelay n
 mkFractionalDelay n =
@@ -4455,8 +4486,8 @@ waveGuideBridgeReflection sustain sample state0 =
   where
     state1 = sample * sustain + state0 * (1 - sustain)
 
-accumulateWaveGuidePluck :: Float -> Float -> Float -> *WaveGuidePluckState n -> (#*WaveGuidePluckState n, Float#)
-accumulateWaveGuidePluck sustain freq pickupLocation (WaveGuidePluckState# leftBuffer0 rightBuffer0 bridgeReflectionState0) =
+accumulateWaveGuidePluck :: Float -> Float -> Float -> Float -> *WaveGuidePluckState n -> (#*WaveGuidePluckState n, Float#)
+accumulateWaveGuidePluck brightness sustain freq pickupLocation (WaveGuidePluckState# leftBuffer0 rightBuffer0 bridgeReflectionState0) =
   (#WaveGuidePluckState# leftBuffer4 rightBuffer4 bridgeReflectionState1, out#)
   where
     leftBuffer1                                  = fracDelaySetDelayFromFreq freq leftBuffer0 -- Set Freq
@@ -4468,9 +4499,8 @@ accumulateWaveGuidePluck sustain freq pickupLocation (WaveGuidePluckState# leftB
     (#nutSample, rightBuffer3#)                  = fracDelayReadOutput rightBuffer2
     -- Nut and Bridge
     invertedNutReflection                        = negate nutSample
-    -- TODO: Need brightness and sustain inputs
-    pole                                          = 0.55 - (0.99 * 48000 * 0.5 * recipSampleRate)
-    (#bridgeReflection0, bridgeReflectionState1#) = onePoleTick pole 0.9995 bridgeSample bridgeReflectionState0
+    pole                                          = 0.65 - (brightness * 48000 * 0.5 * recipSampleRate)
+    (#bridgeReflection0, bridgeReflectionState1#) = onePoleTick brightness sustain bridgeSample bridgeReflectionState0
     bridgeReflection                              = negate bridgeReflection0
 
     -- Tick Delays
@@ -4510,9 +4540,9 @@ mkWaveGuidePluckState n pickLocation pickAmplitude freq _ =
     left2  = fracDelaySetPos (1 - pickLocation) left1
     right2 = fracDelaySetPos (1 - pickLocation) right1
 
-waveGuidePluck :: NatVal n -> Float -> Float -> Float -> Float -> Mono Audio -> Mono Audio
-waveGuidePluck maxDelayInBlocks pickLocation pickAmplitude sustain freq pickupLocation =
-  accumulate1U (mkWaveGuidePluckState maxDelayInBlocks pickLocation pickAmplitude freq) (accumulateWaveGuidePluck (clamp sustain 0 1) freq) (\s -> (#s, True#)) pickupLocation
+waveGuidePluck :: NatVal n -> Float -> Float -> Float -> Float -> Float -> Mono Audio -> Mono Audio
+waveGuidePluck maxDelayInBlocks pickLocation pickAmplitude brightness sustain freq pickupLocation =
+  accumulate1U (mkWaveGuidePluckState maxDelayInBlocks pickLocation pickAmplitude freq) (accumulateWaveGuidePluck (clamp brightness 0 1) (clamp sustain 0 1) freq) (\s -> (#s, True#)) pickupLocation
 
 -----------
 -- Waveguide Synthesis: Bow
@@ -4669,6 +4699,100 @@ clip cs =
               loop oa = audioInitArray () for i <- each do
                 writeArray i (clamp (readArray i c) -1 1) oa
 
+
+----------------------
+-- Freeverb
+----------------------
+
+-- TODO / HACK / CRASH: Preset Nat values in data constructors is causing the compiler to crash!!!!!
+-- We SHOULD be able to do:
+-- data FreeVerbCombFilter = FreeVerbCombFilter# (.FractionalDelay 2048) Float
+-- TODO: Non-Fractional Delay line!
+
+-- A Lowpass Feedback Combfilter
+data FreeVerbCombFilter n = FreeVerbCombFilter# (.Delay n) Float
+data FreeVerbAllPass    n = FreeVerbAllPass (.Delay n)
+data FreeVerb c a         =
+  FreeVerb#
+    (.FreeVerbCombFilter c)
+    (.FreeVerbCombFilter c)
+    (.FreeVerbCombFilter c)
+    (.FreeVerbCombFilter c)
+    (.FreeVerbCombFilter c)
+    (.FreeVerbCombFilter c)
+    (.FreeVerbCombFilter c)
+    (.FreeVerbCombFilter c)
+    (.FreeVerbAllPass a)
+    (.FreeVerbAllPass a)
+    (.FreeVerbAllPass a)
+    (.FreeVerbAllPass a)
+
+mkFreeVerb :: UInt -> () -> *FreeVerb 2048 1024
+mkFreeVerb stereoSpread _ =
+  FreeVerb# c0 c1 c2 c3 c4 c5 c6 c7 a0 a1 a2 a3
+  where
+    c0 = FreeVerbCombFilter# (mkDelay (1557 + stereoSpread) NatVal) 0
+    c1 = FreeVerbCombFilter# (mkDelay (1617 + stereoSpread) NatVal) 0
+    c2 = FreeVerbCombFilter# (mkDelay (1491 + stereoSpread) NatVal) 0
+    c3 = FreeVerbCombFilter# (mkDelay (1422 + stereoSpread) NatVal) 0
+    c4 = FreeVerbCombFilter# (mkDelay (1277 + stereoSpread) NatVal) 0
+    c5 = FreeVerbCombFilter# (mkDelay (1356 + stereoSpread) NatVal) 0
+    c6 = FreeVerbCombFilter# (mkDelay (1188 + stereoSpread) NatVal) 0
+    c7 = FreeVerbCombFilter# (mkDelay (1116 + stereoSpread) NatVal) 0
+    a0 = FreeVerbAllPass (mkDelay (225 + stereoSpread) NatVal)
+    a1 = FreeVerbAllPass (mkDelay (556 + stereoSpread) NatVal)
+    a2 = FreeVerbAllPass (mkDelay (441 + stereoSpread) NatVal)
+    a3 = FreeVerbAllPass (mkDelay (341 + stereoSpread) NatVal)
+
+freeVerbCombFilterTick :: Float -> Float -> Float -> *FreeVerbCombFilter 2048 -> (#*FreeVerbCombFilter 2048, Float#)
+freeVerbCombFilterTick roomSize damp x (FreeVerbCombFilter# delay0 zs0) =
+  (#FreeVerbCombFilter# delay2 zs1, y0#)
+  where
+    damp1          = damp * 0.4
+    damp2          = 1 - damp1
+    feedback       = roomSize * 0.28 + 0.7
+    (#y0, delay1#) = delayReadOutput delay0
+    zs1            = y0 * damp2 + zs0 * damp1
+    y1             = x * 0.015 + zs1 * feedback
+    delay2         = delayTick y1 delay1
+
+freeVerbAllPassTick :: Float -> Float -> *FreeVerbAllPass 1024 -> (#*FreeVerbAllPass 1024, Float#)
+freeVerbAllPassTick feedback x (FreeVerbAllPass delay0) =
+  (#FreeVerbAllPass delay2, y0#)
+  where
+    (#delayOut, delay1#) = delayReadOutput delay0
+    y0                   = negate x + delayOut
+    y1                   = x + delayOut * feedback
+    delay2               = delayTick y1 delay1
+
+freeVerbTick :: Float -> Float -> Float -> Float -> *FreeVerb 2048 1024 -> (#*FreeVerb 2048 1024, Float#)
+freeVerbTick mix roomSize damp x (FreeVerb# c0 c1 c2 c3 c4 c5 c6 c7 a0 a1 a2 a3) =
+  (#FreeVerb# c0' c1' c2' c3' c4' c5' c6' c7' a0' a1' a2' a3', y#)
+  where
+    (#c0', sc0#) = freeVerbCombFilterTick roomSize damp x c0 -- Comb Filters, in parallel
+    (#c1', sc1#) = freeVerbCombFilterTick roomSize damp x c1
+    (#c2', sc2#) = freeVerbCombFilterTick roomSize damp x c2
+    (#c3', sc3#) = freeVerbCombFilterTick roomSize damp x c3
+    (#c4', sc4#) = freeVerbCombFilterTick roomSize damp x c4
+    (#c5', sc5#) = freeVerbCombFilterTick roomSize damp x c5
+    (#c6', sc6#) = freeVerbCombFilterTick roomSize damp x c6
+    (#c7', sc7#) = freeVerbCombFilterTick roomSize damp x c7
+    combsOut     = sc0 + sc1 + sc2 + sc3 + sc4 + sc5 + sc6 + sc7
+    (#a0', sa0#) = freeVerbAllPassTick 0.5 combsOut a0 -- Allpass filters, in series
+    (#a1', sa1#) = freeVerbAllPassTick 0.5 sa0 a1
+    (#a2', sa2#) = freeVerbAllPassTick 0.5 sa1 a2
+    (#a3', sa3#) = freeVerbAllPassTick 0.5 sa2 a3
+    y            = x * (1 - mix) + sa3 * mix
+
+-- mix: 0 - 1
+-- roomSize: 0 - 1
+-- damp: 0 - 1
+freeVerb :: Float -> Float -> Float -> Stereo Audio -> Stereo Audio
+freeVerb mix roomSize damp (Stereo# l0 r0) =
+  Stereo# l1 r1
+  where
+    l1 = accumulateAudio1U (mkFreeVerb 0) (freeVerbTick mix roomSize damp) constTrueU l0
+    r1 = accumulateAudio1U (mkFreeVerb 23) (freeVerbTick mix roomSize damp) constTrueU r0
 
 
 --------------------

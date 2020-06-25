@@ -224,6 +224,12 @@ traceLn x y =
   case printLn x primUndefined of
     _ -> y
 
+traceLn2 :: (Print a, Print b) => a -> b -> b
+traceLn2 x y =
+  case print x primUndefined of
+    w ->
+      case printLn y w of
+        _ -> y
 
 ----------------------
 -- File IO
@@ -1746,6 +1752,15 @@ currBlockCount =
 -- Audio
 --------------------
 data Audio = AudioEnd | BlockRate Float | AudioRate (Array BlockSize Float)
+
+silenceAtEnd :: AudioFormat f => f Audio -> f Audio
+silenceAtEnd cs =
+  map f cs
+  where
+    f c =
+      case c of
+        AudioEnd -> BlockRate 0
+        _        -> c
 
 outAudioBlock :: UInt -> Array BlockSize Float -> *World -> *World
 outAudioBlock c a w = primUndefined
@@ -4009,326 +4024,6 @@ superTri freq depth mix =
   accumulate3U mkSuperSawState accumulateSuperTri constTrue' freq depth mix
   |> hpf freq 6
 
------------
--- delay
-data DelayState s = DelayState# (.AudioBuffer s) UInt Float
-
-natSecondsToNatBufferSamples :: Seconds n -> NatVal (NatNextPowerOfTwo (NatMul SampleRate (NatMax n 1)))
-natSecondsToNatBufferSamples _ = NatVal
-
--- TODO: Interpolate delayTime!
--- TODO: delay playback speed? Reverse delay? delay bank etc?
--- TODO: initialDelayTime, maxDelayTime, audioBufferSize, etc
-
-accumulateDelay :: UInt -> Float -> Float -> Float -> *DelayState s -> (#*DelayState s, Float#)
-accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState# (AudioBuffer buffer0) index delayTime) =
-  (#DelayState# (AudioBuffer buffer2) index' delayTime', out#)
-  where
-    delayTime'       = targetDelayTime
-    delayIndex       = bitAnd (index + floatToUInt (delayTime' * audioSampleRateF)) bufferSizeMinus1
-    (#del, buffer1#) = readArrayU (Index index) buffer0
-    out              = input * (1 - mix) + del * mix
-    buffer2          = writeArray (Index delayIndex) out buffer1
-    index'           = bitAnd (index + 1) bufferSizeMinus1
-
-mkDelayState :: Seconds s -> () -> *DelayState s
-mkDelayState _ _ = DelayState# (AudioBuffer (arrayFrom 0)) 0 1
-
-delay :: AudioFormat f => Seconds n -> f Audio -> f Audio -> f Audio -> f Audio
-delay maxDelayTime delayTime mix input =
-  accumulate3U (mkDelayState maxDelayTime) (accumulateDelay (natVal (natSecondsToNatBufferSamples maxDelayTime) - 1)) (\s -> (#s, True#)) delayTime mix input
-
-oneSec :: Seconds 1
-oneSec = Seconds
-
-twoSec :: Seconds 2
-twoSec = Seconds
-
-threeSec :: Seconds 3
-threeSec = Seconds
-
-fourSec :: Seconds 4
-fourSec = Seconds
-
-fiveSec :: Seconds 5
-fiveSec = Seconds
-
-
------------
--- Pluck: Karplus Strong
-
-data PluckState n = PluckState# (.Array (NatMul BlockSize n) Float) UInt UInt
-
-accumulatePluck :: UInt -> Float -> Float -> *PluckState s -> (#*PluckState s, Float#)
-accumulatePluck bufferSizeMinus1 freq damping (PluckState# buffer0 index0 count) =
-  (#PluckState# buffer3 index1 count, out#)
-  where
-    delaySamples     = min (floatToUInt (audioSampleRateF / freq)) bufferSizeMinus1
-    delayIndex1      = (index0 + delaySamples) % delaySamples
-    delayIndex2      = (delayIndex1 + 1) % delaySamples
-    (#d1, buffer1#)  = readArrayU (Index delayIndex1) buffer0
-    (#d2, buffer2#)  = readArrayU (Index delayIndex2) buffer1
-    out              = (d1 + d2) * 0.5 * damping
-    buffer3          = writeArray (Index index0) out buffer2
-    index1           = (index0 + 1) % delaySamples
-
--- This is quick'n'dirty linear congruential randomness. Replace with something higher quality!
-noiseF :: UInt -> Float -> Float -> Float
-noiseF iseed mn mx =
-  r2
-  where
-    seed = 123456789
-    s    = seed + iseed
-    a    = 1664525
-    c    = 1013904223
-    m    = 4294967296
-    r0   = fromUInt ((a * s + c) % m)
-    r1   = (r0 / fromUInt m) * (mx - mn)
-    r2   = r1 + mn
-
-randOnceF :: UInt -> Float -> Float -> Float
-randOnceF iseed mn mx =
-  result |> fromMaybe 0
-  where
-    result ~ Nothing =
-      case result of
-        Nothing -> Just (noiseF iseed mn mx)
-        Just r  -> Just r
-
-tnoiseF :: UInt -> Float -> Float -> Float
-tnoiseF iseed mn mx =
-  noiseF tseed mn mx
-  where
-    tseed = bitShiftLeft (bitOr (currBlockCount * 37) (iseed * 37)) 1
-
-trandOnceF :: UInt -> Float -> Float -> Float
-trandOnceF iseed mn mx =
-  result |> fromMaybe 0
-  where
-    result ~ Nothing =
-      case result of
-        Nothing -> Just (tnoiseF iseed mn mx)
-        Just r  -> Just r
-
--- Note: Fill Buffer with quick'n'dirty random noise
-mkPluckState :: NatVal n -> () -> *PluckState n
-mkPluckState _ _ =
-  PluckState# arr 0 0
-  where
-    seed       = 123456789
-    a          = 1664525
-    c          = 1013904223
-    m          = 4294967296
-    (#arr, _#) =
-      loop (#arr, s#) = (#unsafeEmptyArray (), seed#) for i <- each do
-        let
-          s'   = (a * s + c) % m
-          arr' = writeArray i (((fromUInt s' / 1000000) % 2) - 1) arr
-        in
-          (#arr', s'#)
-
-pluck :: AudioFormat f => NatVal n -> f Audio -> f Audio -> f Audio
-pluck maxDelayInBlocks freq damping =
-  accumulate2U (mkPluckState maxDelayInBlocks) (accumulatePluck (natVal maxDelayInBlocks * audioBlockSize - 1)) (\s -> (#s, True#)) freq damping
-
-
------------
--- Waveguide Synthesis: Pluck
-
-data WaveGuideDelay      n = WaveGuideDelay# (.Array n Float) Int
-data WaveGuidePluckState n = WaveGuidePluckState# (.WaveGuideDelay (NatMul BlockSize n)) (.WaveGuideDelay (NatMul BlockSize n)) Float
-
-waveGuideDelayUpdateLeft :: Float -> Int -> *WaveGuideDelay n -> *WaveGuideDelay n
-waveGuideDelayUpdateLeft sample length (WaveGuideDelay# arr0 cursor0) =
-  WaveGuideDelay# arr1 cursor1
-  where
-    cursor1 = (cursor0 + 1) % length
-    arr1    = writeArray (unsafeUIntToIndex (fromInt cursor1)) sample arr0
-
-waveGuideDelayUpdateRight :: Float -> Int -> *WaveGuideDelay n -> *WaveGuideDelay n
-waveGuideDelayUpdateRight sample length (WaveGuideDelay# arr0 cursor0) =
-  WaveGuideDelay# arr1 cursor1
-  where
-    arr1    = writeArray (unsafeUIntToIndex (fromInt cursor1)) sample arr0
-    cursor1 =
-      if cursor0 == 0 then
-        length - 1
-      else
-        cursor0 - 1
-
-waveGuideDelayRead :: Int -> Int -> *WaveGuideDelay n -> (#Float, *WaveGuideDelay n#)
-waveGuideDelayRead position length (WaveGuideDelay# arr0 cursor) =
-  (#x, WaveGuideDelay# arr1 cursor#)
-  where
-    (#x, arr1#) = readArrayU (unsafeUIntToIndex (fromInt index)) arr0
-    index0      = (cursor + position) % length
-    index       =
-      if index0 < 0 then
-        index0 + length
-      else
-        index0
-
-waveGuideBridgeReflection :: Float -> Float -> Float -> (#Float, Float#)
-waveGuideBridgeReflection sustain sample state0 =
-  (#negate state1, state1#)
-  where
-    state1 = sample * sustain + state0 * (1 - sustain)
-
-accumulateWaveGuidePluck :: UInt -> Float -> Float -> Float -> *WaveGuidePluckState n -> (#*WaveGuidePluckState n, Float#)
-accumulateWaveGuidePluck bufferSizeMinus1 pickupLocation sustain freq (WaveGuidePluckState# leftBuffer0 rightBuffer0 bridgeReflectionState0) =
-  (#WaveGuidePluckState# leftBuffer3 rightBuffer3 bridgeReflectionState1, out#)
-  where
-    stringLength                                 = min (floatToUInt (audioSampleRateF / freq / 2 + 1)) bufferSizeMinus1 |> fromUInt
-    pickupIndex                                  = floorToInt (pickupLocation * fromInt stringLength)
-    (#pickupSampleLeft,  leftBuffer1#)           = waveGuideDelayRead pickupIndex stringLength leftBuffer0
-    (#pickupSampleRight, rightBuffer1#)          = waveGuideDelayRead pickupIndex stringLength rightBuffer0
-    (#bridgeSample, leftBuffer2#)                = waveGuideDelayRead 1 stringLength leftBuffer1
-    (#nutSample, rightBuffer2#)                  = waveGuideDelayRead (stringLength - 2) stringLength rightBuffer1
-    invertedNutReflection                        = negate nutSample
-    (#bridgeReflection, bridgeReflectionState1#) = waveGuideBridgeReflection sustain bridgeSample bridgeReflectionState0
-    leftBuffer3                                  = waveGuideDelayUpdateLeft invertedNutReflection stringLength leftBuffer2
-    rightBuffer3                                 = waveGuideDelayUpdateRight bridgeReflection stringLength rightBuffer2
-    out                                          = pickupSampleLeft + pickupSampleRight
-
-mkWaveGuidePluckState :: NatVal n -> Float -> Float -> () -> *WaveGuidePluckState n
-mkWaveGuidePluckState n pickLocation pickAmplitude _ =
-  WaveGuidePluckState# (WaveGuideDelay# leftBuffer (floorToInt pickSample)) (WaveGuideDelay# rightBuffer (floorToInt pickSample)) 0.5
-  where
-    fullLength  = natVal n * audioBlockSize |> fromUInt
-    pickSample  = max (fullLength * pickLocation) 1
-    pickIndex   = pickSample |> floatToUInt
-    upSlope     = 1 / pickSample
-    downSlope   = 1 / (fullLength - pickSample - 1)
-    (#leftBuffer, rightBuffer#)  =
-      loop (#leftBuffer0, rightBuffer0#) = (#unsafeEmptyArray (), unsafeEmptyArray ()#) for i <- each do
-        let
-          sample =
-            if indexToUInt i < pickIndex then
-              (upSlope * fromUInt (indexToUInt i)) * pickAmplitude
-            else
-              (downSlope * (fullLength - 1 - fromUInt (indexToUInt i))) * pickAmplitude
-        in
-          (#writeArray i sample leftBuffer0, writeArray i sample rightBuffer0#)
-
-waveGuidePluck :: NatVal n -> Float -> Float -> Float -> Float -> Mono Audio -> Mono Audio
-waveGuidePluck maxDelayInBlocks pickLocation pickAmplitude pickupLocation sustain freq =
-  accumulate1U (mkWaveGuidePluckState maxDelayInBlocks pickLocation pickAmplitude) (accumulateWaveGuidePluck (natVal maxDelayInBlocks * audioBlockSize - 1) pickupLocation (clamp sustain 0 1)) (\s -> (#s, True#)) freq
-
-
------------
--- Waveguide Synthesis: Bow
-
-data WaveGuideBowState n =
-  WaveGuideBowState#
-    (.WaveGuideDelay (NatMul BlockSize n)) -- Bridge to Bow delay
-    (.WaveGuideDelay (NatMul BlockSize n)) -- Bow to Nut delay
-    (.WaveGuideDelay (NatMul BlockSize n)) -- Nut to Bow delay
-    (.WaveGuideDelay (NatMul BlockSize n)) -- Bow to bridge
-    Float
-
--- TODO: Start at bow location???
-mkWaveGuideBowState :: NatVal n -> Float -> () -> *WaveGuideBowState n
-mkWaveGuideBowState n bowLocation _ =
-  WaveGuideBowState#
-    (WaveGuideDelay# bridgeToBowBuffer 0)
-    (WaveGuideDelay# bowToNutBuffer    0)
-    (WaveGuideDelay# nutToBowBuffer    0)
-    (WaveGuideDelay# bowToBridgeBuffer 0)
-    0
-  where
-    fullLength        = natVal n * audioBlockSize |> fromUInt
-    bowLocationSample = max (fullLength * bowLocation) 1 |> floorToInt
-    (#bridgeToBowBuffer, bowToNutBuffer, nutToBowBuffer, bowToBridgeBuffer#)  =
-      loop (#bridgeToBowBuffer0, bowToNutBuffer0, nutToBowBuffer0, bowToBridgeBuffer0#) = (#unsafeEmptyArray (), unsafeEmptyArray (), unsafeEmptyArray (), unsafeEmptyArray ()#) for i <- each do
-        (#writeArray i 0 bridgeToBowBuffer0, writeArray i 0 bowToNutBuffer0, writeArray i 0 nutToBowBuffer0, writeArray i 0 bowToBridgeBuffer0#)
-
-accumulateWaveGuideBow :: UInt -> Float -> Float -> Float -> Float -> *WaveGuideBowState n -> (#*WaveGuideBowState n, Float#)
-accumulateWaveGuideBow bufferSizeMinus1 bowLocation sustain bowSignal freq (WaveGuideBowState# bridgeToBow0 bowToNut0 nutToBow0 bowToBridge0 bridgeReflectionState0) =
-  (#stateOut, out#)
-  where
-    fullStringLength                             = audioSampleRateF / freq / 2 + 1
-    bowToNutLength                               = min (floatToUInt (fullStringLength * (1 - bowLocation))) bufferSizeMinus1 |> fromUInt
-    bridgeToBowLength                            = min (floatToUInt (fullStringLength * bowLocation)) bufferSizeMinus1 |> fromUInt
-    -- Determine string lengths
-    -- TODO: Maybe bow location should be based on FULL string length
-    -- (in other words, you don't move the bow around when you change pitches, normally)
-    -- Read outputs from delays
-    -- Do we really need the distinction in how we traverse these delay lines?
-    -- Isn't interpreting their inputs and outputs sufficient?
-    (#bridgeToBowSample, bridgeToBow1#)          = waveGuideDelayRead 1 bridgeToBowLength bridgeToBow0
-    (#bowToNutSample,    bowToNut1#)             = waveGuideDelayRead 1 bowToNutLength bowToNut0
-    (#nutToBowSample,    nutToBow1#)             = waveGuideDelayRead 1 bowToNutLength nutToBow0
-    (#bowToBridgeSample, bowToBridge1#)          = waveGuideDelayRead 1 bridgeToBowLength bowToBridge0
-    -- Values
-    invertedNutReflection                        = negate bowToNutSample
-    (#bridgeReflection, bridgeReflectionState1#) = waveGuideBridgeReflection sustain bowToBridgeSample bridgeReflectionState0
-    -- bowSignal'                                   = bowSignal * 0.9 + nutToBowSample * (negate 0.1) + bridgeToBowSample * (negate 0.1)
-    -- bowToNutInput                                = bridgeToBowSample * 1.0 + bowSignal' * 0.01
-    -- bowToBridgeInput                             = nutToBowSample * 1.0 + bowSignal' * 0.01
-    bowToBridgeInput                             = nutToBowSample * 1.0 + bowSignal
-    bowToNutInput                                = bridgeToBowSample * 1.0 + bowSignal
-    -- Write inputs to delays
-    bridgeToBow2                                 = waveGuideDelayUpdateLeft bridgeReflection bridgeToBowLength bridgeToBow1
-    bowToNut2                                    = waveGuideDelayUpdateLeft bowToNutInput bowToNutLength bowToNut1
-    nutToBow2                                    = waveGuideDelayUpdateLeft invertedNutReflection bowToNutLength nutToBow1
-    bowToBridge2                                 = waveGuideDelayUpdateLeft bowToBridgeInput bridgeToBowLength bowToBridge1
-    -- Out
-    out                                          = bridgeToBowSample
-    stateOut                                     = WaveGuideBowState# bridgeToBow2 bowToNut2 nutToBow2 bowToBridge2 bridgeReflectionState1
-
-waveGuideBow :: NatVal n -> Float -> Float -> Mono Audio -> Mono Audio -> Mono Audio
-waveGuideBow maxDelayInBlocks bowLocation sustain bowSignal freq =
-  accumulate2U
-    (mkWaveGuideBowState maxDelayInBlocks bowLocation)
-    (accumulateWaveGuideBow (natVal maxDelayInBlocks * audioBlockSize - 1) (clamp bowLocation 0 1) (clamp sustain 0 1))
-    (\s -> (#s, True#))
-    bowSignal
-    freq
-
--- TODO: https://ccrma.stanford.edu/~jos/pasp/Digital_Waveguide_Bowed_String.html
-
-
-natOne :: NatVal 1
-natOne = NatVal
-
-natTwo :: NatVal 2
-natTwo = NatVal
-
-natThree :: NatVal 3
-natThree = NatVal
-
-natFour :: NatVal 4
-natFour = NatVal
-
-natFive :: NatVal 5
-natFive = NatVal
-
-natSix :: NatVal 6
-natSix = NatVal
-
-natSeven :: NatVal 7
-natSeven = NatVal
-
-natEight :: NatVal 8
-natEight = NatVal
-
-natSixteen :: NatVal 16
-natSixteen = NatVal
-
-clip :: AudioFormat f => f Audio -> f Audio
-clip cs =
-  map f cs
-  where
-    f ia =
-      case ia of
-        AudioEnd    -> AudioEnd
-        BlockRate x -> BlockRate (clamp x -1 1)
-        AudioRate c ->
-          AudioRate <|
-            freezeArray <|
-              loop oa = audioInitArray () for i <- each do
-                writeArray i (clamp (readArray i c) -1 1) oa
-
 
 ----------------------
 -- RBJ Filters, Audio EQ Cookbook
@@ -4465,6 +4160,23 @@ highShelf :: AudioFormat f => f Audio -> f Audio -> Float -> f Audio -> f Audio
 highShelf freq gain slope input =
   accumulate3 (accumulateHighShelf slope) constTrue freq gain input
 
+----------
+-- OnePole
+data OnePole = OnePole Float
+
+instance Default OnePole where
+  default = OnePole 0
+
+-- Note: expected pole range: 0 - 1
+onePoleTick :: Float -> Float -> Float -> OnePole -> (#Float, OnePole#)
+onePoleTick pole gain input (OnePole z0) =
+  (#z1, OnePole z1#)
+  where
+    a  = 0 - pole
+    b  = 1 - pole
+    x  = input * gain
+    z1 = b * x - a * z0
+
 -----------
 -- lag
 accumulateLag :: Float -> Float -> Float -> (#Float, Float#)
@@ -4485,6 +4197,478 @@ lag lagTime input =
 -- TODO: mapAudio3, mapAudio3Vec
 -- mapRange3 :: Float -> Float
 -- mapRange3 x =
+
+
+-----------
+-- delay
+data DelayState s = DelayState# (.AudioBuffer s) UInt Float
+
+natSecondsToNatBufferSamples :: Seconds n -> NatVal (NatNextPowerOfTwo (NatMul SampleRate (NatMax n 1)))
+natSecondsToNatBufferSamples _ = NatVal
+
+-- TODO: Interpolate delayTime!
+-- TODO: delay playback speed? Reverse delay? delay bank etc?
+-- TODO: initialDelayTime, maxDelayTime, audioBufferSize, etc
+
+accumulateDelay :: UInt -> Float -> Float -> Float -> *DelayState s -> (#*DelayState s, Float#)
+accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState# (AudioBuffer buffer0) index delayTime) =
+  (#DelayState# (AudioBuffer buffer2) index' delayTime', out#)
+  where
+    delayTime'       = targetDelayTime
+    delayIndex       = bitAnd (index + floatToUInt (delayTime' * audioSampleRateF)) bufferSizeMinus1
+    (#del, buffer1#) = readArrayU (Index index) buffer0
+    out              = input * (1 - mix) + del * mix
+    buffer2          = writeArray (Index delayIndex) out buffer1
+    index'           = bitAnd (index + 1) bufferSizeMinus1
+
+mkDelayState :: Seconds s -> () -> *DelayState s
+mkDelayState _ _ = DelayState# (AudioBuffer (arrayFrom 0)) 0 1
+
+delay :: AudioFormat f => Seconds n -> f Audio -> f Audio -> f Audio -> f Audio
+delay maxDelayTime delayTime mix input =
+  accumulate3U (mkDelayState maxDelayTime) (accumulateDelay (natVal (natSecondsToNatBufferSamples maxDelayTime) - 1)) (\s -> (#s, True#)) delayTime mix input
+
+oneSec :: Seconds 1
+oneSec = Seconds
+
+twoSec :: Seconds 2
+twoSec = Seconds
+
+threeSec :: Seconds 3
+threeSec = Seconds
+
+fourSec :: Seconds 4
+fourSec = Seconds
+
+fiveSec :: Seconds 5
+fiveSec = Seconds
+
+
+-----------
+-- Pluck: Karplus Strong
+
+data PluckState n = PluckState# (.Array (NatMul BlockSize n) Float) UInt UInt
+
+accumulatePluck :: UInt -> Float -> Float -> *PluckState s -> (#*PluckState s, Float#)
+accumulatePluck bufferSizeMinus1 freq damping (PluckState# buffer0 index0 count) =
+  (#PluckState# buffer3 index1 count, out#)
+  where
+    delaySamples     = min (floatToUInt (audioSampleRateF / freq)) bufferSizeMinus1
+    delayIndex1      = (index0 + delaySamples) % delaySamples
+    delayIndex2      = (delayIndex1 + 1) % delaySamples
+    (#d1, buffer1#)  = readArrayU (Index delayIndex1) buffer0
+    (#d2, buffer2#)  = readArrayU (Index delayIndex2) buffer1
+    out              = (d1 + d2) * 0.5 * damping
+    buffer3          = writeArray (Index index0) out buffer2
+    index1           = (index0 + 1) % delaySamples
+
+-- This is quick'n'dirty linear congruential randomness. Replace with something higher quality!
+noiseF :: UInt -> Float -> Float -> Float
+noiseF iseed mn mx =
+  r2
+  where
+    seed = 123456789
+    s    = seed + iseed
+    a    = 1664525
+    c    = 1013904223
+    m    = 4294967296
+    r0   = fromUInt ((a * s + c) % m)
+    r1   = (r0 / fromUInt m) * (mx - mn)
+    r2   = r1 + mn
+
+randOnceF :: UInt -> Float -> Float -> Float
+randOnceF iseed mn mx =
+  result |> fromMaybe 0
+  where
+    result ~ Nothing =
+      case result of
+        Nothing -> Just (noiseF iseed mn mx)
+        Just r  -> Just r
+
+tnoiseF :: UInt -> Float -> Float -> Float
+tnoiseF iseed mn mx =
+  noiseF tseed mn mx
+  where
+    tseed = bitShiftLeft (bitOr (currBlockCount * 37) (iseed * 37)) 1
+
+trandOnceF :: UInt -> Float -> Float -> Float
+trandOnceF iseed mn mx =
+  result |> fromMaybe 0
+  where
+    result ~ Nothing =
+      case result of
+        Nothing -> Just (tnoiseF iseed mn mx)
+        Just r  -> Just r
+
+-- Note: Fill Buffer with quick'n'dirty random noise
+mkPluckState :: NatVal n -> () -> *PluckState n
+mkPluckState _ _ =
+  PluckState# arr 0 0
+  where
+    seed       = 123456789
+    a          = 1664525
+    c          = 1013904223
+    m          = 4294967296
+    (#arr, _#) =
+      loop (#arr, s#) = (#unsafeEmptyArray (), seed#) for i <- each do
+        let
+          s'   = (a * s + c) % m
+          arr' = writeArray i (((fromUInt s' / 1000000) % 2) - 1) arr
+        in
+          (#arr', s'#)
+
+pluck :: AudioFormat f => NatVal n -> f Audio -> f Audio -> f Audio
+pluck maxDelayInBlocks freq damping =
+  accumulate2U (mkPluckState maxDelayInBlocks) (accumulatePluck (natVal maxDelayInBlocks * audioBlockSize - 1)) (\s -> (#s, True#)) freq damping
+
+-----------
+-- Interlude: Interpolation
+
+cubicInterpolation :: Float -> Float -> Float -> Float -> Float -> Float
+cubicInterpolation p0 p1 p2 p3 mu =
+  a0 * mu * mewTwo + a1 * mewTwo + a2 * mu + a3
+  where
+    a0     = p3 - p2 - p0 + p1
+    a1     = p0 - p1 - a0
+    a2     = p2 - p0
+    a3     = p1
+    mewTwo = mu * mu -- Get it?
+
+cosineInterpolation :: Float -> Float -> Float -> Float
+cosineInterpolation y1 y2 mu =
+  y1 * (1 - mu2) + y2 * mu2
+  where
+    mu2 = (1 - cosine (mu * pi)) / 2
+
+-- Larange interpolation for Fractional Delay lines
+-- https://ccrma.stanford.edu/~jos/pasp/Larange_Interpolation.html
+-- Thanks ccrma for the great info!
+larangeInterpolation3 :: Float -> Float -> Float -> Float -> Float -> Float
+larangeInterpolation3 s0 s1 s2 s3 delta =
+  s0 * h0 + s1 * h1 + s2 * h2 + s3 * h3
+  where
+    h0 = -1 * (((delta - 1) * (delta - 2) * (delta - 3)) / 6)
+    h1 = (delta * (delta - 2) * (delta - 3)) / 2
+    h2 = -1 * ((delta * (delta - 1) * (delta - 3)) / 2)
+    h3 = (delta * (delta - 1) * (delta - 2)) / 6
+
+larangeInterpolation4 :: Float -> Float -> Float -> Float -> Float -> Float -> Float
+larangeInterpolation4 s0 s1 s2 s3 s4 delta =
+  s0 * h0 + s1 * h1 + s2 * h2 + s3 * h3 + s4 * h4
+  where
+    dm1 = delta - 1
+    dm2 = delta - 2
+    dm3 = delta - 3
+    dm4 = delta - 4
+    h0  = (dm1 * dm2 * dm3 * dm4) / 24
+    h1  = (0 - delta * dm2 * dm3 * dm4) / 6
+    h2  = (delta * dm1 * dm3 * dm4) / 4
+    h3  = (0 - delta * dm1 * dm2 * dm4) / 6
+    h4  = (delta * dm1 * dm2 * dm3) / 24
+
+-----------
+-- Fractional Delay Line
+-- Note: Assumes that n is a power of 2!
+data FractionalDelay n = FractionalDelay# (.Array n Float) UInt Float Float UInt UInt
+
+mkFractionalDelay :: NatVal n -> *FractionalDelay n
+mkFractionalDelay n =
+  FractionalDelay# arr sizeMask stringLength 0 0 0
+  where
+    sizeMask     = natVal n - 1
+    stringLength = fromUInt sizeMask
+    arr          = arrayFrom 0
+
+fracDelaySetDelay :: Float -> *FractionalDelay n -> *FractionalDelay n
+fracDelaySetDelay delayLength (FractionalDelay# arr sizeMask _ _ inCursor _) =
+  FractionalDelay# arr sizeMask delayLength delta inCursor outCursor
+  where
+    outCursor        = bitAnd (inCursor - (floatToUInt delayLength)) sizeMask
+    delta            = 1 - (delayLength - floor delayLength)
+
+-- Do we need the + 1 or not?
+fracDelaySetDelayFromFreq :: Float -> *FractionalDelay n -> *FractionalDelay n
+fracDelaySetDelayFromFreq freq (FractionalDelay# arr sizeMask _ _ inCursor _) =
+  FractionalDelay# arr sizeMask stringLength delta inCursor outCursor
+  where
+    stringLength     = ((audioSampleRateF / freq) / 2)
+    outCursor        = bitAnd (inCursor - (floatToUInt stringLength)) sizeMask
+    delta            = 1 - (stringLength - floor stringLength)
+
+fracDelayReadOutput :: *FractionalDelay n -> (#Float, *FractionalDelay n#)
+fracDelayReadOutput (FractionalDelay# arr0 sizeMask stringLength delta inCursor outCursor) =
+  (#out, FractionalDelay# arr5 sizeMask stringLength delta inCursor outCursor#)
+  where
+    index0       = outCursor
+    indexM1      = bitAnd (index0 - 1) sizeMask
+    indexM2      = bitAnd (index0 - 2) sizeMask
+    index1       = bitAnd (index0 + 1) sizeMask
+    index2       = bitAnd (index0 + 2) sizeMask
+    (#s0, arr1#) = readArrayU (unsafeUIntToIndex indexM2) arr0
+    (#s1, arr2#) = readArrayU (unsafeUIntToIndex indexM1) arr1
+    (#s2, arr3#) = readArrayU (unsafeUIntToIndex index0) arr2
+    (#s3, arr4#) = readArrayU (unsafeUIntToIndex index1) arr3
+    (#s4, arr5#) = readArrayU (unsafeUIntToIndex index2) arr4
+    out          = larangeInterpolation4 s0 s1 s2 s3 s4 (1.5 + delta)
+
+fracDelayReadFromPos :: Float -> *FractionalDelay n -> (#Float, *FractionalDelay n#)
+fracDelayReadFromPos readPos (FractionalDelay# arr0 sizeMask stringLength delta inCursor outCursor) =
+  (#out, FractionalDelay# arr5 sizeMask stringLength delta inCursor outCursor#)
+  where
+    readOffset   = floatToUInt (readPos * stringLength)
+    index0       = bitAnd (outCursor - readOffset) sizeMask
+    indexM1      = bitAnd (index0 - 1) sizeMask
+    indexM2      = bitAnd (index0 - 2) sizeMask
+    index1       = bitAnd (index0 + 1) sizeMask
+    index2       = bitAnd (index0 + 2) sizeMask
+    (#s0, arr1#) = readArrayU (unsafeUIntToIndex indexM2) arr0
+    (#s1, arr2#) = readArrayU (unsafeUIntToIndex indexM1) arr1
+    (#s2, arr3#) = readArrayU (unsafeUIntToIndex index0) arr2
+    (#s3, arr4#) = readArrayU (unsafeUIntToIndex index1) arr3
+    (#s4, arr5#) = readArrayU (unsafeUIntToIndex index2) arr4
+    out          = larangeInterpolation4 s0 s1 s2 s3 s4 (1.5 + delta)
+
+fracDelaySetPos :: Float -> *FractionalDelay n -> *FractionalDelay n
+fracDelaySetPos inCursorPos (FractionalDelay# arr0 sizeMask stringLength delta _ _) =
+  FractionalDelay# arr0 sizeMask stringLength delta inCursor outCursor
+  where
+    inCursor  = bitAnd (floatToUInt (inCursorPos * stringLength)) sizeMask
+    outCursor = bitAnd (inCursor - (floatToUInt stringLength)) sizeMask
+
+fracDelayTick :: Float -> *FractionalDelay n -> *FractionalDelay n
+fracDelayTick sample (FractionalDelay# arr0 sizeMask stringLength delta inCursor0 outCursor0) =
+  FractionalDelay# arr1 sizeMask stringLength delta inCursor1 outCursor1
+  where
+    inCursor1  = bitAnd (inCursor0 + 1) sizeMask
+    outCursor1 = bitAnd (outCursor0 + 1) sizeMask
+    arr1       = writeArray (unsafeUIntToIndex inCursor1) sample arr0
+
+
+-----------
+-- Waveguide Synthesis: Pluck
+
+data WaveGuidePluckState n = WaveGuidePluckState# (.FractionalDelay (NatMul BlockSize n)) (.FractionalDelay (NatMul BlockSize n)) OnePole
+
+waveGuideBridgeReflection :: Float -> Float -> Float -> (#Float, Float#)
+waveGuideBridgeReflection sustain sample state0 =
+  (#negate state1, state1#)
+  where
+    state1 = sample * sustain + state0 * (1 - sustain)
+
+accumulateWaveGuidePluck :: Float -> Float -> Float -> *WaveGuidePluckState n -> (#*WaveGuidePluckState n, Float#)
+accumulateWaveGuidePluck sustain freq pickupLocation (WaveGuidePluckState# leftBuffer0 rightBuffer0 bridgeReflectionState0) =
+  (#WaveGuidePluckState# leftBuffer4 rightBuffer4 bridgeReflectionState1, out#)
+  where
+    leftBuffer1                                  = fracDelaySetDelayFromFreq freq leftBuffer0 -- Set Freq
+    rightBuffer1                                 = fracDelaySetDelayFromFreq freq rightBuffer0
+    -- Read Outputs
+    (#pickupSampleLeft,  leftBuffer2#)           = fracDelayReadFromPos pickupLocation leftBuffer1
+    (#pickupSampleRight, rightBuffer2#)          = fracDelayReadFromPos (1 - pickupLocation) rightBuffer1
+    (#bridgeSample, leftBuffer3#)                = fracDelayReadOutput leftBuffer2
+    (#nutSample, rightBuffer3#)                  = fracDelayReadOutput rightBuffer2
+    -- Nut and Bridge
+    invertedNutReflection                        = negate nutSample
+    -- TODO: Need brightness and sustain inputs
+    pole                                          = 0.55 - (0.99 * 48000 * 0.5 * recipSampleRate)
+    (#bridgeReflection0, bridgeReflectionState1#) = onePoleTick pole 0.9995 bridgeSample bridgeReflectionState0
+    bridgeReflection                              = negate bridgeReflection0
+
+    -- Tick Delays
+    leftBuffer4                                  = fracDelayTick invertedNutReflection leftBuffer3
+    rightBuffer4                                 = fracDelayTick bridgeReflection rightBuffer3
+    -- Out
+    out                                          = pickupSampleLeft + pickupSampleRight
+
+mkWaveGuidePluckState :: NatVal n -> Float -> Float -> Float -> () -> *WaveGuidePluckState n
+mkWaveGuidePluckState n pickLocation pickAmplitude freq _ =
+  WaveGuidePluckState# left2 right2 default
+  where
+    fullLength  = ((audioSampleRateF / freq) / 2)
+    delaySize   = min (floatToUInt fullLength) (natVal n * audioBlockSize)
+    pickSample  = max (fullLength * pickLocation) 1
+    pickIndex   = pickSample |> floatToUInt
+    upSlope     = 1 / pickSample
+    downSlope   = 1 / (fullLength - pickSample - 1)
+    left00      = mkFractionalDelay NatVal |> fracDelaySetDelayFromFreq freq
+    right00     = mkFractionalDelay NatVal |> fracDelaySetDelayFromFreq freq
+    (#_, left1, right1#) =
+      loop (#i, left0, right0#) = (#0, left00, right00#) while i < delaySize do
+        let
+          ri          = (delaySize - 1) - i
+          rightSample =
+            if i < pickIndex then
+              (upSlope * fromUInt i) * pickAmplitude
+            else
+              (downSlope * (fullLength - 1 - fromUInt i)) * pickAmplitude
+          leftSample =
+            if ri < pickIndex then
+              (upSlope * fromUInt ri) * pickAmplitude
+            else
+              (downSlope * (fullLength - 1 - fromUInt ri)) * pickAmplitude
+        in
+          (#i + 1, fracDelayTick (leftSample * 2 - 1) left0, fracDelayTick ((rightSample * 2 - 1) * -1) right0#)
+    left2  = fracDelaySetPos (1 - pickLocation) left1
+    right2 = fracDelaySetPos (1 - pickLocation) right1
+
+waveGuidePluck :: NatVal n -> Float -> Float -> Float -> Float -> Mono Audio -> Mono Audio
+waveGuidePluck maxDelayInBlocks pickLocation pickAmplitude sustain freq pickupLocation =
+  accumulate1U (mkWaveGuidePluckState maxDelayInBlocks pickLocation pickAmplitude freq) (accumulateWaveGuidePluck (clamp sustain 0 1) freq) (\s -> (#s, True#)) pickupLocation
+
+-----------
+-- Waveguide Synthesis: Bow
+-- based on:
+--   https://ccrma.stanford.edu/~jos/pasp/Digital_Waveguide_Bowed_String.html
+
+-- Collapse this into only 2 fractional delays
+data WaveGuideBowState n =
+  WaveGuideBowState#
+    (.FractionalDelay (NatMul BlockSize n)) -- Neck Delay
+    (.FractionalDelay (NatMul BlockSize n)) -- Bridge Delay
+    OnePole
+    ViolinBodyFilter
+
+-- TODO: Start at bow location???
+mkWaveGuideBowState :: NatVal n -> () -> *WaveGuideBowState n
+mkWaveGuideBowState _ _ =
+  WaveGuideBowState#
+    (mkFractionalDelay NatVal)
+    (mkFractionalDelay NatVal)
+    default
+    default
+
+bowTable :: Float -> Float -> Float -> Float -> Float -> Float
+bowTable diffVelocity offset slope minOut maxOut =
+  x4
+  where
+    x0 = diffVelocity + offset
+    x1 = x0 * slope
+    x2 = abs x1 + 0.75
+    x3 = pow x2 -4
+    x4 = clamp x3 minOut maxOut
+
+accumulateWaveGuideBow :: Float -> Float -> Float -> Float -> Float -> Float -> *WaveGuideBowState n -> (#*WaveGuideBowState n, Float#)
+accumulateWaveGuideBow bowLocation brightness sustain bowSlope bowVelocity freq (WaveGuideBowState# neckDelay0 bridgeDelay0 bridgeReflectionState0 bodyState0) =
+  (#stateOut, out#)
+  where
+    fullStringLength                              = (audioSampleRateF / freq) - 2
+    bowToNutLength                                = fullStringLength * (1 - bowLocation)
+    bridgeToBowLength                             = fullStringLength * bowLocation
+
+    -- Update delay lengths
+    neckDelay1                                    = fracDelaySetDelay bowToNutLength neckDelay0
+    bridgeDelay1                                  = fracDelaySetDelay bridgeToBowLength bridgeDelay0
+
+    -- Read outputs from delays
+    (#neckSample,   neckDelay2#)                  = fracDelayReadOutput neckDelay1
+    (#bridgeSample, bridgeDelay2#)                = fracDelayReadOutput bridgeDelay1
+
+    -- Values
+    invertedNutReflection                         = negate neckSample
+    pole                                          = 0.65 - (brightness * 48000 * 0.5 * recipSampleRate)
+    (#bridgeReflection0, bridgeReflectionState1#) = onePoleTick pole sustain bridgeSample bridgeReflectionState0
+    bridgeReflection1                             = negate bridgeReflection0
+    (#bodyState1, bodyResonance#)                 = violinBodyfilterAccumulate (bridgeSample * 0.8 * sustain) bodyState0
+    bridgeReflection                              = bridgeReflection1 * 0.75 + bodyResonance * 0.25
+
+    -- Nonlinear scattering junction
+    stringVelocity                                = bridgeReflection + invertedNutReflection
+    differentialVelocity                          = bowVelocity - stringVelocity
+    newVelocity                                   = bowTable differentialVelocity 0 bowSlope 0 1 * differentialVelocity
+    neckDelayInput                                = bridgeReflection + newVelocity
+    bridgeDelayInput                              = invertedNutReflection + newVelocity
+
+    -- Write inputs to delays
+    neckDelay3                                    = fracDelayTick neckDelayInput neckDelay2
+    bridgeDelay3                                  = fracDelayTick bridgeDelayInput bridgeDelay2
+
+    -- Out
+    -- out                                           = (bowToBridgeSample + bridgeReflection) * 0.5
+    -- out                                           = bridgeReflection
+    -- out                                           = bridgeSample * 0.75 + bridgeReflection * 0.25
+    out                                           = bodyResonance
+    -- out                                           = bridgeSample
+    stateOut                                      = WaveGuideBowState# neckDelay3 bridgeDelay3 bridgeReflectionState1 bodyState1
+
+waveGuideBow :: NatVal n -> Float -> Float -> Float -> Float -> Mono Audio -> Mono Audio -> Mono Audio
+waveGuideBow maxDelayInBlocks bowLocation brightness sustain bowSlope bowVelocity freq =
+  accumulate2U
+    (mkWaveGuideBowState maxDelayInBlocks)
+    (accumulateWaveGuideBow (clamp bowLocation 0 1) (clamp brightness 0 1) (clamp sustain 0 1) (max bowSlope 0))
+    (\s -> (#s, True#))
+    bowVelocity
+    freq
+
+-- Cascaded second order sections via Esteban Maestre
+data ViolinBodyFilter =
+  ViolinBodyFilter# BiquadState BiquadState BiquadState BiquadState BiquadState BiquadState
+
+instance Default ViolinBodyFilter where
+  default = ViolinBodyFilter# default default default default default default
+
+violinBodyFilterTick :: Float -> Float -> Float -> Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
+violinBodyFilterTick b0 b1 b2 a1 a2 x0 (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 y0 y1, y0#)
+  where
+    y0 =
+      (b0 * x0 + b1 * x1 + b2 * x2) -
+      (a2 * y2 + a1 * y1)
+
+violinBodyfilterAccumulate :: Float -> ViolinBodyFilter -> (#ViolinBodyFilter, Float#)
+violinBodyfilterAccumulate input (ViolinBodyFilter# bq0 bq1 bq2 bq3 bq4 bq5) =
+  (#ViolinBodyFilter# bq0' bq1' bq2' bq3' bq4' bq5', output5 * 0.1248#)
+  where
+    (#bq0', output0#) = violinBodyFilterTick 1  1.5667 0.3133 -0.5509 -0.3925 input   bq0
+    (#bq1', output1#) = violinBodyFilterTick 1 -1.9537 0.9542 -1.6357  0.8697 output0 bq1
+    (#bq2', output2#) = violinBodyFilterTick 1 -1.6683 0.8852 -1.7674  0.8735 output1 bq2
+    (#bq3', output3#) = violinBodyFilterTick 1 -1.8585 0.9653 -1.8498  0.9516 output2 bq3
+    (#bq4', output4#) = violinBodyFilterTick 1 -1.9299 0.9621 -1.9354  0.9590 output3 bq4
+    (#bq5', output5#) = violinBodyFilterTick 1 -1.9800 0.9888 -1.9867  0.9923 output4 bq5
+
+violinBodyFilter :: AudioFormat f => f Audio -> f Audio
+violinBodyFilter input =
+  accumulate1 violinBodyfilterAccumulate constTrue input
+
+natOne :: NatVal 1
+natOne = NatVal
+
+natTwo :: NatVal 2
+natTwo = NatVal
+
+natThree :: NatVal 3
+natThree = NatVal
+
+natFour :: NatVal 4
+natFour = NatVal
+
+natFive :: NatVal 5
+natFive = NatVal
+
+natSix :: NatVal 6
+natSix = NatVal
+
+natSeven :: NatVal 7
+natSeven = NatVal
+
+natEight :: NatVal 8
+natEight = NatVal
+
+natSixteen :: NatVal 16
+natSixteen = NatVal
+
+clip :: AudioFormat f => f Audio -> f Audio
+clip cs =
+  map f cs
+  where
+    f ia =
+      case ia of
+        AudioEnd    -> AudioEnd
+        BlockRate x -> BlockRate (clamp x -1 1)
+        AudioRate c ->
+          AudioRate <|
+            freezeArray <|
+              loop oa = audioInitArray () for i <- each do
+                writeArray i (clamp (readArray i c) -1 1) oa
+
 
 
 --------------------
@@ -5878,7 +6062,7 @@ justMajor =
 
 justChromatic :: Scale 12 12
 justChromatic =
-  Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 330
+  Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 200
   -- Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 200
 
 coleJI :: Scale 12 12

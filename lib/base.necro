@@ -2450,51 +2450,6 @@ uintToInt x = primUndefined
 fromUInt :: Ring a => UInt -> a
 fromUInt x = fromInt (uintToInt x)
 
-pi :: Floating a => a
-pi = 3.1415926535897932384626433
-
-twoPi :: Floating a => a
-twoPi = pi * 2
-
-twoOverPi :: Floating a => a
-twoOverPi = 2 / pi
-
-halfPi :: Floating a => a
-halfPi = pi * 0.5
-
-threeHalfPi :: Floating a => a
-threeHalfPi = 3 * halfPi
-
-fourOverPi :: Floating a => a
-fourOverPi = 4 / pi
-
-quarterPi :: Floating a => a
-quarterPi = pi * 0.25
-
-sixthPi :: Floating a => a
-sixthPi = pi / 6
-
-twelthPi :: Floating a => a
-twelthPi = pi / 12
-
-tanSixthPi :: Float
-tanSixthPi = tanF64 sixthPi
-
-tanTwelthPi :: Float
-tanTwelthPi = tanF64 twelthPi
-
-tau :: Floating a => a
-tau = 2 * pi
-
-recipPi :: Floating a => a
-recipPi = 1 / pi
-
-recipTau :: Floating a => a
-recipTau = 1 / tau
-
-recipTwoPi :: Floating a => a
-recipTwoPi = recipTau
-
 lerp :: Floating a => a -> a -> Float -> a
 lerp x y deltaF =
   (x * (1 - delta)) + (y * delta)
@@ -6639,63 +6594,63 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
       (a, b) -> f a b
 
 -- Chad Test!
-testJit :: *World -> *World
-testJit w =
-	print "fmouse: " w
-    |> printLn fMouse
-    |> print "tan: "
-    |> mathTestFloat tanF64
-    |> print "atan: "
-    |> mathTestFloat atanF64
-    |> print "atan2: "
-    |> mathTest2D atan2
-    |> print "sineh: "
-    |> mathTestFloat sineh
-    |> print "cosineh: "
-    |> mathTestFloat cosineh
-    |> print "testComplexArray: "
-    |> print testComplexArray |> printNewline
-    |> print "cis<complex>: "
-    |> complexCisTest
-    |> print "polar<complex>: "
-    |> printTupleArraySpaced (map polar testComplexArray)
-    |> print "sqrMagnitude<complex>: "
-    |> complexToPrintableTest sqrMagnitude
-    |> print "magnitude<complex>: "
-    |> complexToPrintableTest magnitude
-    |> print "conjugate<complex>: "
-    |> complexToPrintableTest conjugate
-    |> print "phase<complex>: "
-    |> complexToPrintableTest phase
-    |> print "sine<complex>: "
-    |> complexToPrintableTest sine
-    |> print "cosine<complex>: "
-    |> complexToPrintableTest cosine
-    |> print "sineh<complex>: "
-    |> complexToPrintableTest sineh
-    |> print "cosineh<complex>: "
-    |> complexToPrintableTest cosineh
-    |> print "exp<complex>: "
-    |> complexToPrintableTest exp
-    |> print "exp2<complex>: "
-    |> complexToPrintableTest exp2
-    |> print "log<complex>: "
-    |> complexToPrintableTest log
-    |> print "log2<complex>: "
-    |> complexToPrintableTest log2
-    |> print "log10<complex>: "
-    |> complexToPrintableTest log10
-    |> print "sqrt<complex>: "
-    |> complexToPrintableTest sqrt
-    |> print "testComplexTupleArray"
-    |> printTupleArraySpaced testComplexTupleArray |> printNewline
-    |> print "pow<complex>: "
-    |> complexByComplexTest pow
-    |> print "atan2<complex>: "
-    |> complexByComplexTest atan2
-    |> testAssertion True
-  where
-    fMouse = fromInt mouseX
+-- testJit :: *World -> *World
+-- testJit w =
+-- 	print "fmouse: " w
+--     |> printLn fMouse
+--     |> print "tan: "
+--     |> mathTestFloat tanF64
+--     |> print "atan: "
+--     |> mathTestFloat atanF64
+--     |> print "atan2: "
+--     |> mathTest2D atan2
+--     |> print "sineh: "
+--     |> mathTestFloat sineh
+--     |> print "cosineh: "
+--     |> mathTestFloat cosineh
+--     |> print "testComplexArray: "
+--     |> print testComplexArray |> printNewline
+--     |> print "cis<complex>: "
+--     |> complexCisTest
+--     |> print "polar<complex>: "
+--     |> printTupleArraySpaced (map polar testComplexArray)
+--     |> print "sqrMagnitude<complex>: "
+--     |> complexToPrintableTest sqrMagnitude
+--     |> print "magnitude<complex>: "
+--     |> complexToPrintableTest magnitude
+--     |> print "conjugate<complex>: "
+--     |> complexToPrintableTest conjugate
+--     |> print "phase<complex>: "
+--     |> complexToPrintableTest phase
+--     |> print "sine<complex>: "
+--     |> complexToPrintableTest sine
+--     |> print "cosine<complex>: "
+--     |> complexToPrintableTest cosine
+--     |> print "sineh<complex>: "
+--     |> complexToPrintableTest sineh
+--     |> print "cosineh<complex>: "
+--     |> complexToPrintableTest cosineh
+--     |> print "exp<complex>: "
+--     |> complexToPrintableTest exp
+--     |> print "exp2<complex>: "
+--     |> complexToPrintableTest exp2
+--     |> print "log<complex>: "
+--     |> complexToPrintableTest log
+--     |> print "log2<complex>: "
+--     |> complexToPrintableTest log2
+--     |> print "log10<complex>: "
+--     |> complexToPrintableTest log10
+--     |> print "sqrt<complex>: "
+--     |> complexToPrintableTest sqrt
+--     |> print "testComplexTupleArray"
+--     |> printTupleArraySpaced testComplexTupleArray |> printNewline
+--     |> print "pow<complex>: "
+--     |> complexByComplexTest pow
+--     |> print "atan2<complex>: "
+--     |> complexByComplexTest atan2
+--     |> testAssertion True
+--   where
+--     fMouse = fromInt mouseX
 
 -- testJit :: *World -> *World
 -- testJit w =

@@ -47,7 +47,7 @@ if (MSVC)
     set(SNDFILE_LIB "./libsndfile/build/Debug/sndfile.lib" CACHE FILEPATH "libsndfile static library")
 else()
     find_package(portaudio)
-	# TODO: Chad you need to suss this out for Linux
+    find_package(libsndfile)
 endif()
 
 if (CMAKE_COMPILER_IS_GNUCC)

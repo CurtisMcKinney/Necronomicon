@@ -15,7 +15,7 @@ in
         separateDebugInfo = true;
         });
 
-    buildInputs = [ llvm_7 valgrind bear portaudio ];
+    buildInputs = [ llvm_7 valgrind bear portaudio libsndfile ];
     propagatedBuildInputs = with pkgs; [ xorg.xlibsWrapper ];
     nativeBuildInputs = [ bear cmake ];
     debugVersion = true;
@@ -25,7 +25,7 @@ in
     hardeningDisable = [ "all" ];
 
     preConfigure = ''
-      export LDFLAGS="-lX11 -lportaudio"
+      export LDFLAGS="-lX11 -lportaudio -lsndfile"
       export NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -fdebug-prefix-map=/build/Necronomicon=." LD=$CC
       '';
 

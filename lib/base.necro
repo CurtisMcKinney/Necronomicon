@@ -2,6 +2,53 @@
 -- Necro.Base
 --------------------
 
+
+-- Math constants
+pi :: Floating a => a
+pi = 3.1415926535897932384626433
+
+twoPi :: Floating a => a
+twoPi = pi * 2
+
+twoOverPi :: Floating a => a
+twoOverPi = 2 / pi
+
+halfPi :: Floating a => a
+halfPi = pi * 0.5
+
+threeHalfPi :: Floating a => a
+threeHalfPi = 3 * halfPi
+
+fourOverPi :: Floating a => a
+fourOverPi = 4 / pi
+
+quarterPi :: Floating a => a
+quarterPi = pi * 0.25
+
+sixthPi :: Floating a => a
+sixthPi = pi / 6
+
+twelthPi :: Floating a => a
+twelthPi = pi / 12
+
+tanSixthPi :: Float
+tanSixthPi = tanF64 sixthPi
+
+tanTwelthPi :: Float
+tanTwelthPi = tanF64 twelthPi
+
+tau :: Floating a => a
+tau = 2 * pi
+
+recipPi :: Floating a => a
+recipPi = 1 / pi
+
+recipTau :: Floating a => a
+recipTau = 1 / tau
+
+recipTwoPi :: Floating a => a
+recipTwoPi = recipTau
+
 -- -- TODO: Move into tests!
 -- data ETest1 a     = ETest1 (Maybe a)
 -- data ETest2 a     = ETest2 (Bool, Maybe a)
@@ -195,6 +242,10 @@ printFloat i w = w
 printChar :: Char -> *World -> *World
 printChar c w = w
 
+printTuple :: (Print a, Print b) => (a, b) -> *World -> *World
+printTuple t w = case t of
+  (a, b) -> print '(' w |> print a |> print ", " |> print b |> print ')'
+
 printNewline :: *World -> *World
 printNewline w = printChar '\n' w
 
@@ -353,9 +404,9 @@ class Floating a => Trig a where
   -- asine    :: a -> a
   -- acosine  :: a -> a
   -- atan     :: a -> a
-  -- atan2    :: a -> a -> a
-  sinh     :: a -> a
-  -- cosineh  :: a -> a
+  atan2    :: a -> a -> a
+  sineh    :: a -> a
+  cosineh  :: a -> a
   -- tanh     :: a -> a
   -- asineh   :: a -> a
   -- acosineh :: a -> a
@@ -375,157 +426,6 @@ class Floating a => Trig a where
 -- toFloating :: (Num' a, Floating b) => a -> b
 -- toFloating = fromRational' <. toRational
 
-
-----------------------------------------
--- Trig Approximation Functions
-----------------------------------------
-
--- -- How to deal with Float maybe 64 vs 32 bit?
--- tanF32 :: Float -> Float
--- tanF32 n = tanResult
---   where
---     x = rem n twoPi
---     octant = floor <| (x * fourOverPi)
---     -- HACK -> Need to be able to convert from Float to
---     octantInt = if octant < 1 then 0
---       else if octant < 2 then 1
---       else if octant < 3 then 2
---       else if octant < 4 then 3
---       else if octant < 5 then 4
---       else if octant < 6 then 5
---       else if octant < 7 then 6
---       else 7
---     -- Accurate to about 8.2 decimal digits over the range (0, pi/4)
---     -- This computes tan (pi * x/4), range reduction must be used before input
---     tan82 x = (x * (c1 + c2 * x2) / (c3 + x2 * (c4 + x2)))
---       where
---         c1 = 211.849369664121
---         c2 = -12.5288887278448
---         c3 = 269.7350131214121
---         c4 = -71.4145309347748
---         x2 = (x * x)
---     tanResult = case octantInt of
---       0 -> tan82 (x * fourOverPi)
---       1 -> 1 / (tan82 ((halfPi - x) * fourOverPi))
---       2 -> -1 / (tan82 ((x - halfPi) * fourOverPi))
---       3 -> negate <| tan82 ((pi - x) * fourOverPi)
---       4 -> tan82 ((x - pi) * fourOverPi)
---       5 -> 1 / (tan82 ((threeHalfPi - x) * fourOverPi))
---       6 -> -1 / (tan82 ((x - threeHalfPi) * fourOverPi))
---       7 -> negate <| tan82 ((twoPi - x) * fourOverPi)
---       _ -> 0 -- ?!?
-
-tanF64 :: Float -> Float
-tanF64 n = tanResult
-  where
-    wrappedN = rem n twoPi
-    twoPiN = twoPi + wrappedN
-    x = if wrappedN < 0 then twoPiN else wrappedN
-    -- TODO: investigate alternatives like masking etc..
-    -- signMask = bitShiftRightA wrappedN 63
-    -- x = wrappedN + (bitAnd (twoPi - wrappedN - wrappedN) signMask)
-    -- x = rem wrappedN twoPi
-    octant = truncateToInt <| (x * fourOverPi)
-    -- Accurate to about 14 decimal digits over the range (0, pi/4)
-    -- This computes tan (pi * x/4), range reduction must be used before input
-    tan14s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
-      where
-        c1 = -34287.4662577359568109624
-        c2 = 2566.7175462315050423295
-        c3 = -26.5366371951731325438
-        c4 = -43656.1579281292375769579
-        c5 = 12244.4839556747426927793
-        c6 = -336.611376245464339493
-        x2 = (x * x)
-    tanResult = case octant of
-      0 -> tan14s (x * fourOverPi)
-      1 -> 1 / (tan14s ((halfPi - x) * fourOverPi))
-      2 -> -1 / (tan14s ((x - halfPi) * fourOverPi))
-      3 -> negate <| tan14s ((pi - x) * fourOverPi)
-      4 -> tan14s ((x - pi) * fourOverPi)
-      5 -> 1 / (tan14s ((threeHalfPi - x) * fourOverPi))
-      6 -> -1 / (tan14s ((x - threeHalfPi) * fourOverPi))
-      7 -> negate <| tan14s ((twoPi - x) * fourOverPi)
-      _ -> 0 -- ?!?
-
-
--- create a scalar for branchless selection if x > y
-scalarIfGreaterThan :: Float -> Float -> Float
-scalarIfGreaterThan x y = bitAnd subtractionMask 1
-  where
-    subtraction = y - (x + f64Epsilon)
-    subtractionSign = bitAnd subtraction iEEESignMaskF
-    subtractionMask = bitShiftRightA subtractionSign 63
-
--- create a mask (0xFFFFFFFFFFFFFFFF or 0x0000000000000000) for branchless masking if x > y
-maskIfGreaterThan :: Float -> Float -> Float
-maskIfGreaterThan x y = bitShiftRightA subtractionSign 63
-  where
-    subtraction = y - (x + f64Epsilon)
-    subtractionSign = bitAnd subtraction iEEESignMaskF
-
--- branchless 64 bit atan
-atanF64 :: Float -> Float
-atanF64 n = copysign z n
-  where
-    absN = bitAnd n (bitNot iEEESignMaskF)
-    -- absN = abs n
-    -- complement = absN > 1
-    -- complementCon = if complement then allBitsF else 0
-    -- Set sign bit if absN > 1
-    complement = bitAnd (1 - (absN + f64Epsilon)) iEEESignMaskF
-    -- right fill to get mask
-    complementCon = bitShiftRightA complement 63
-    -- x = if complement then 1 / absN else absN
-    x = (bitAnd complementCon (1 / absN)) + (bitAnd absN (bitNot complementCon))
-    -- region = x > tanTwelthPi
-    -- regionCon = if region then 1 else 0
-    -- Set sign bit if x > tanTwelthPi
-    region = bitAnd (tanTwelthPi - (x + f64Epsilon)) iEEESignMaskF
-    -- right fill to get mask
-    regionMask = bitShiftRightA region 63
-    -- create scalar from mask for selection
-    regionCon = bitAnd regionMask 1
-    -- x' = if region then (x - tanSixthPi) / (1 + tanSixthPi * x) else x
-    x' = (x - (tanSixthPi * regionCon)) / (1 + (tanSixthPi * x * regionCon))
-    -- y = if region then atan137s + sixthPi else atan137s
-    y = atan137s + (sixthPi * regionCon)
-    -- z = if complement then halfPi - y else y
-    z = y + (bitAnd complementCon (halfPi - y - y))
-    -- Accurate to about 13.7 decimal digits over the range [0, pi/12].
-    atan137s = (x' * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
-      where
-        c1 = 48.70107004404898384
-        c2 = 49.5326263772254345
-        c3 = 9.40604244231624
-        c4 = 48.70107004404996166
-        c5 = 65.7663163908956299
-        c6 = 21.587934067020262
-        x2 = x' * x'
-
-slowAtanF64 :: Float -> Float
-slowAtanF64 n = if sign then negate z else z
-  where
-    sign = n < 0
-    absN = abs n
-    complement = absN > 1
-    x = if complement then 1 / absN else absN
-    region = x > tanTwelthPi
-    x' = if region then (x - tanSixthPi) / (1 + tanSixthPi * x) else x
-    y = if region then atanX + sixthPi else atanX
-    z = if complement then halfPi - y else y
-    atanX = atan137s x'
-    -- Accurate to about 13.7 decimal digits over the range [0, pi/12].
-    atan137s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
-      where
-        c1 = 48.70107004404898384
-        c2 = 49.5326263772254345
-        c3 = 9.40604244231624
-        c4 = 48.70107004404996166
-        c5 = 65.7663163908956299
-        c6 = 21.587934067020262
-        x2 = x * x
-----------------------------------------
 
 class Bits a where
   bitAnd         :: a -> a -> a
@@ -736,16 +636,216 @@ instance Floating Float where
   -- fmin      x y = primUndefined
   -- fmax      x y = primUndefined
 
-instance Trig Float where
-  sine   x = primUndefined
-  cosine x = primUndefined
-  sinh   x = primUndefined
-  exp    x = primUndefined
-  exp2   x = primUndefined
-  log    x = primUndefined
-  log10  x = primUndefined
-  log2   x = primUndefined
-  pow  x y = primUndefined
+----------------------------------------
+-- Trig Approximation Functions
+----------------------------------------
+
+-- -- How to deal with Float maybe 64 vs 32 bit?
+-- tanF32 :: Float -> Float
+-- tanF32 n = tanResult
+--   where
+--     x = rem n twoPi
+--     octant = floor <| (x * fourOverPi)
+--     -- HACK -> Need to be able to convert from Float to
+--     octantInt = if octant < 1 then 0
+--       else if octant < 2 then 1
+--       else if octant < 3 then 2
+--       else if octant < 4 then 3
+--       else if octant < 5 then 4
+--       else if octant < 6 then 5
+--       else if octant < 7 then 6
+--       else 7
+--     -- Accurate to about 8.2 decimal digits over the range (0, pi/4)
+--     -- This computes tan (pi * x/4), range reduction must be used before input
+--     tan82 x = (x * (c1 + c2 * x2) / (c3 + x2 * (c4 + x2)))
+--       where
+--         c1 = 211.849369664121
+--         c2 = -12.5288887278448
+--         c3 = 269.7350131214121
+--         c4 = -71.4145309347748
+--         x2 = (x * x)
+--     tanResult = case octantInt of
+--       0 -> tan82 (x * fourOverPi)
+--       1 -> 1 / (tan82 ((halfPi - x) * fourOverPi))
+--       2 -> -1 / (tan82 ((x - halfPi) * fourOverPi))
+--       3 -> negate <| tan82 ((pi - x) * fourOverPi)
+--       4 -> tan82 ((x - pi) * fourOverPi)
+--       5 -> 1 / (tan82 ((threeHalfPi - x) * fourOverPi))
+--       6 -> -1 / (tan82 ((x - threeHalfPi) * fourOverPi))
+--       7 -> negate <| tan82 ((twoPi - x) * fourOverPi)
+--       _ -> 0 -- ?!?
+
+tanF64 :: Float -> Float
+tanF64 n = tanResult
+  where
+    wrappedN = rem n twoPi
+    twoPiN = twoPi + wrappedN
+    x = if wrappedN < 0 then twoPiN else wrappedN
+    -- TODO: investigate alternatives like masking etc..
+    -- signMask = bitShiftRightA wrappedN 63
+    -- x = wrappedN + (bitAnd (twoPi - wrappedN - wrappedN) signMask)
+    -- x = rem wrappedN twoPi
+    octant = truncateToInt <| (x * fourOverPi)
+    -- Accurate to about 14 decimal digits over the range (0, pi/4)
+    -- This computes tan (pi * x/4), range reduction must be used before input
+    tan14s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
+      where
+        c1 = -34287.4662577359568109624
+        c2 = 2566.7175462315050423295
+        c3 = -26.5366371951731325438
+        c4 = -43656.1579281292375769579
+        c5 = 12244.4839556747426927793
+        c6 = -336.611376245464339493
+        x2 = (x * x)
+    tanResult = case octant of
+      0 -> tan14s (x * fourOverPi)
+      1 -> 1 / (tan14s ((halfPi - x) * fourOverPi))
+      2 -> -1 / (tan14s ((x - halfPi) * fourOverPi))
+      3 -> negate <| tan14s ((pi - x) * fourOverPi)
+      4 -> tan14s ((x - pi) * fourOverPi)
+      5 -> 1 / (tan14s ((threeHalfPi - x) * fourOverPi))
+      6 -> -1 / (tan14s ((x - threeHalfPi) * fourOverPi))
+      7 -> negate <| tan14s ((twoPi - x) * fourOverPi)
+      _ -> 0 -- ?!?
+
+
+-- create a scalar for branchless selection if x > y
+scalarIfGreaterThan :: Float -> Float -> Float
+scalarIfGreaterThan x y = bitAnd subtractionMask 1
+  where
+    subtraction = y - (x + f64Epsilon)
+    subtractionSign = bitAnd subtraction iEEESignMaskF
+    subtractionMask = bitShiftRightA subtractionSign 63
+
+-- create a mask (0xFFFFFFFFFFFFFFFF or 0x0000000000000000) for branchless masking if x > y
+maskIfGreaterThan :: Float -> Float -> Float
+maskIfGreaterThan x y = bitShiftRightA subtractionSign 63
+  where
+    subtraction = y - (x + f64Epsilon)
+    subtractionSign = bitAnd subtraction iEEESignMaskF
+
+-- Various resources for chebyshev approximation of functions:
+-- http://www.ganssle.com/approx.htm
+-- Computer Approximations by John Hart
+-- Constrained Chebyshev Approximations to Some Elementary Functions Suitable for Evaluation with Floating-point Arithmetic
+-- *** ^ note the coefficients tables starting on page 18 ***
+-- For general approximation this is a useful resource
+-- https://github.com/chebfun/chebfun
+-- https://people.maths.ox.ac.uk/trefethen/ATAP/ATAPfirst6chapters.pdf
+
+sinhConstant = log ((1 + (sqrt 5)) / 2)
+
+-- More accurate at extremes of ranges?
+sinh64_accurate :: Float -> Float
+sinh64_accurate n = copysign z n
+  where
+    y = (abs n) - sinhConstant
+    z = expY + ((expV / 2 - 1) * expY) - ((expNegV / 2) * expNegY)
+    expV = exp sinhConstant
+    expNegV = exp (negate sinhConstant)
+    expY = exp y
+    expNegY = exp (negate y)
+
+-- sinh64_broken :: Float -> Float
+-- sinh64_broken n = sinh_193s
+--   where
+--     l = log ((1 + sqrt 5) / 2)
+--     -- l = log (1 + sqrt 2)
+--     -- remN = rem n l
+--     -- x = if remN < 0 then l + remN else remN
+--     -- x = remN
+--     -- x = remN
+--     -- x = remN
+--     -- x = rem n twoPi
+--     wrappedN = rem n twoPi
+--     twoPiN = twoPi + wrappedN
+--     x = if wrappedN < 0 then twoPiN else wrappedN
+--     -- sinh_193s = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
+--     x2 = x * x
+--     x3 = x2 * x
+--     sinh_193s = x + (x3 / q)
+--     -- q = c1 + (c2 * x2) + (c3 * pow x 4) + (c4 * pow x 6) + (c5 * pow x 8) + (c6 * pow x 10)
+--     q = c1 + x2 * (c2 + x2 * (c3 + x2 * (c4 + x2 * (c5 + x2 * c6))))
+--       where
+--         c1 = 6.0000000000000000007
+--         c2 = -0.30000000000000008212
+--         c3 = 0.0078571428571458936741
+--         c4 = -0.00013492063497385892777
+--         c5 = 0.0000014507323068404717765
+--         c6 = -0.0000000025198955964371314936
+--         c7 = -0.00000000028298256368337042599
+--     -- q = c1 + x2 * (c2 + x2 * (c3 + x2 * (c4 + x2 * (c5 + x2 * c6))))
+--     --   where
+--     --     c1 = 6.0000000000000003884
+--     --     c2 = -0.30000000000002227888
+--     --     c3 = 0.0078571428580357722224
+--     --     c4 = -0.0003492064627800558812
+--     --     c5 = 0.000004508048887469666981
+--     --     c6 = -0.0000000027491054512754144867
+
+
+-- branchless 64 bit atan
+atanF64 :: Float -> Float
+atanF64 n = copysign z n
+  where
+    absN = bitAnd n (bitNot iEEESignMaskF)
+    -- absN = abs n
+    -- complement = absN > 1
+    -- complementCon = if complement then allBitsF else 0
+    -- Set sign bit if absN > 1
+    complement = bitAnd (1 - (absN + f64Epsilon)) iEEESignMaskF
+    -- right fill to get mask
+    complementCon = bitShiftRightA complement 63
+    -- x = if complement then 1 / absN else absN
+    x = (bitAnd complementCon (1 / absN)) + (bitAnd absN (bitNot complementCon))
+    -- region = x > tanTwelthPi
+    -- regionCon = if region then 1 else 0
+    -- Set sign bit if x > tanTwelthPi
+    region = bitAnd (tanTwelthPi - (x + f64Epsilon)) iEEESignMaskF
+    -- right fill to get mask
+    regionMask = bitShiftRightA region 63
+    -- create scalar from mask for selection
+    regionCon = bitAnd regionMask 1
+    -- x' = if region then (x - tanSixthPi) / (1 + tanSixthPi * x) else x
+    x' = (x - (tanSixthPi * regionCon)) / (1 + (tanSixthPi * x * regionCon))
+    -- y = if region then atan137s + sixthPi else atan137s
+    y = atan137s + (sixthPi * regionCon)
+    -- z = if complement then halfPi - y else y
+    z = y + (bitAnd complementCon (halfPi - y - y))
+    -- Accurate to about 13.7 decimal digits over the range [0, pi/12].
+    atan137s = (x' * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
+      where
+        c1 = 48.70107004404898384
+        c2 = 49.5326263772254345
+        c3 = 9.40604244231624
+        c4 = 48.70107004404996166
+        c5 = 65.7663163908956299
+        c6 = 21.587934067020262
+        x2 = x' * x'
+
+slowAtanF64 :: Float -> Float
+slowAtanF64 n = if sign then negate z else z
+  where
+    sign = n < 0
+    absN = abs n
+    complement = absN > 1
+    x = if complement then 1 / absN else absN
+    region = x > tanTwelthPi
+    x' = if region then (x - tanSixthPi) / (1 + tanSixthPi * x) else x
+    y = if region then atanX + sixthPi else atanX
+    z = if complement then halfPi - y else y
+    atanX = atan137s x'
+    -- Accurate to about 13.7 decimal digits over the range [0, pi/12].
+    atan137s x = (x * (c1 + x2 * (c2 + x2 * c3)) / (c4 + x2 * (c5 + x2 * (c6 + x2))))
+      where
+        c1 = 48.70107004404898384
+        c2 = 49.5326263772254345
+        c3 = 9.40604244231624
+        c4 = 48.70107004404996166
+        c5 = 65.7663163908956299
+        c6 = 21.587934067020262
+        x2 = x * x
+----------------------------------------
 
 instance Bits Float where
   bitAnd         x y = primUndefined
@@ -935,6 +1035,28 @@ f64EpsilonU = 4372995238176751616
 f64Epsilon :: Float
 f64Epsilon = fromBits f64EpsilonU
 
+instance Trig Float where
+  sine    x = primUndefined
+  cosine  x = primUndefined
+  exp     x = primUndefined
+  exp2    x = primUndefined
+  log     x = primUndefined
+  log10   x = primUndefined
+  log2    x = primUndefined
+  pow   x y = primUndefined
+  sineh   x = (exp x - exp (negate x)) * 0.5
+  cosineh x = (exp x + exp (negate x)) * 0.5
+  atan2 y x =
+    let
+      halfPiSignY = copysign halfPi y
+      atan20Y = if y == 0 then 0 else halfPiSignY -- TODO: use fselect!
+      atan2XY =
+        if (abs x) > (abs y) then
+          (atanF64 (y / x)) + (if x > 0 then 0 else (copysign pi y))
+        else
+          (negate <| atanF64 (x / y)) + halfPiSignY
+    in
+      if x == 0 then atan20Y else atan2XY
 
 --------------------
 -- FloatVec
@@ -1143,9 +1265,7 @@ conjugate :: Complex -> Complex
 conjugate (Complex# r i) = Complex# r (negate i)
 
 phase :: Complex -> Float
-phase c = primUndefined
--- TODO: ADD ATAN2!
--- phase (Complex# r i) = atan2 r i
+phase (Complex# r i) = atan2 i r
 
 instance Eq Complex where
   eq  (Complex# rx ix) (Complex# ry iy) = rx == ry && ix == iy
@@ -1194,41 +1314,40 @@ instance Floating Complex where
   fromFloat f = Complex# (fromFloat f) 0
   sqrt z = case z of
     Complex# r i ->
-      if r == 0 then
         let
-          u = sqrt ((abs i) / r)
-          v = if i < 0 then negate u else u
+            halfSqrt2 = (sqrt 2) / 2
+            magZ = (magnitude z)
+            u = sqrt (magZ + r)
+            v = (signum i) * (sqrt (magZ - r))
         in
-          Complex# u v
-      else
-        let
-          u = sqrt (2 * (magnitude z + abs r))
-          v = u / 2
-        in
-          if r > 0 then
-            Complex# v (i / u)
-          else
-            let
-              vByI = if i < 0 then negate v else v
-            in
-              Complex# ((abs i) / u) vByI
+            Complex# (halfSqrt2 * u) (halfSqrt2 * v)
   floor     (Complex# r i) = Complex# (floor r) (floor i)
   ceil      (Complex# r i) = Complex# (ceil r) (ceil i)
   truncate  (Complex# r i) = Complex# (truncate r) (truncate i)
   round     (Complex# r i) = Complex# (round r) (round i)
-  -- fmin      x y = if (magnitude x < magnitude y) then x else y -- TODO: brancless versions?
+  -- fmin      x y = if (magnitude x < magnitude y) then x else y -- TODO: branchless versions?
   -- fmax      x y = if (magnitude x > magnitude y) then x else y
 
--- TODO - ADD SINEH and COSINEH
--- instance Trig Complex where
---   sine (Complex# r, i) = Complex# (sine r * cosineh i) (cosine r * sineh i)
---   cosine (Complex# r i) = Complex# (cosine r * cosineh i) (negate (sine r) * sineh i)
---   exp    :: a -> a
---   exp2   :: a -> a
---   log    :: a -> a
---   log10  :: a -> a
---   log2   :: a -> a
---   pow    :: a -> a -> a
+instance Trig Complex where
+  sine (Complex# r i) = Complex# (sine r * cosineh i) (cosine r * sineh i)
+  cosine (Complex# r i) = Complex# (cosine r * cosineh i) (negate (sine r * sineh i))
+  sineh (Complex# r i) = Complex# (sineh r * cosine i) (cosineh r * sine i)
+  cosineh (Complex# r i) = Complex# (cosineh r * cosine i) (negate (sineh r * sine i))
+  exp (Complex# r i) = Complex# (expR * cosine i) (expR * sine i)
+    where
+      expR = exp r
+  exp2 c = case c of
+    (Complex# _ i) -> let
+        magC = magnitude c
+        logTwo = log 2
+        iLogTwo = i * log 2
+      in
+        Complex# (magC * cosine iLogTwo) (magC * sine iLogTwo) 
+  log c = Complex# (log <| magnitude c) (phase c)
+  log2 c = Complex# (log2 <| magnitude c) (phase c)
+  log10 c = Complex# (log10 <| magnitude c) (phase c)
+  pow n c = exp (c * log n)
+  atan2 y x = (Complex# 0 -1) * (log ((x + ((Complex# 0 1) * y)) / (sqrt ((x * x) + (y * y)))))
 
 
 --------------------
@@ -1671,6 +1790,13 @@ instance Foldable (Array n) where
         (#y, a2#) ->
           (#f x y, a2#)
 
+instance Functor (Array n) where
+  map f a = freezeArray b
+    where
+      b =
+        loop a' = unsafeEmptyArray () for i <- each do
+          writeArray i (f (readArray i a)) a'
+
 --------------------
 -- Index
 --------------------
@@ -1681,6 +1807,9 @@ unsafeUIntToIndex i = Index i
 
 indexToUInt :: Index n -> UInt
 indexToUInt (Index i) = i
+
+indexToFloat :: Index n -> Float
+indexToFloat (Index i) = fromUInt i
 
 bitReverseIndex :: Index n -> Index n
 bitReverseIndex (Index i) = Index (bitReverse i)
@@ -2320,51 +2449,6 @@ uintToInt x = primUndefined
 
 fromUInt :: Ring a => UInt -> a
 fromUInt x = fromInt (uintToInt x)
-
-pi :: Floating a => a
-pi = 3.1415926535897932384626433
-
-twoPi :: Floating a => a
-twoPi = pi * 2
-
-twoOverPi :: Floating a => a
-twoOverPi = 2 / pi
-
-halfPi :: Floating a => a
-halfPi = pi * 0.5
-
-threeHalfPi :: Floating a => a
-threeHalfPi = 3 * halfPi
-
-fourOverPi :: Floating a => a
-fourOverPi = 4 / pi
-
-quarterPi :: Floating a => a
-quarterPi = pi * 0.25
-
-sixthPi :: Floating a => a
-sixthPi = pi / 6
-
-twelthPi :: Floating a => a
-twelthPi = pi / 12
-
-tanSixthPi :: Float
-tanSixthPi = tanF64 sixthPi
-
-tanTwelthPi :: Float
-tanTwelthPi = tanF64 twelthPi
-
-tau :: Floating a => a
-tau = 2 * pi
-
-recipPi :: Floating a => a
-recipPi = 1 / pi
-
-recipTau :: Floating a => a
-recipTau = 1 / tau
-
-recipTwoPi :: Floating a => a
-recipTwoPi = recipTau
 
 lerp :: Floating a => a -> a -> Float -> a
 lerp x y deltaF =
@@ -5334,6 +5418,14 @@ repeat repetitions s = Seq go
 -- Print
 --------------------
 
+instance Print Complex where
+  print (Complex# r i) w =
+    print '(' w
+    |> print r
+    |> print ' ' |> print '+' |> print ' ' |> print 'i' -- hack for array print dependency :(
+    |> print i
+    |> print ')'
+
 instance Print a => Print (Array n a) where
   print a w =
     loop w' = w for i <- each do
@@ -5400,14 +5492,6 @@ instance Print a => Print (Mono a) where
 instance Print a => Print (Stereo a) where
   print (Stereo# l r) w = print l (print ',' (print r w))
 
-instance Print Complex where
-  print (Complex# r i) w =
-    print '(' w
-    |> print r
-    |> print " + i"
-    |> print i
-    |> print ')'
-
 instance Print (FFT k) where
   print (FFT c) w =
     print "FFT [" w
@@ -5417,7 +5501,7 @@ instance Print (FFT k) where
     |> print ']'
     |> printNewline
 
-  -- foldp :: (b -> a -> b) -> f a -> b
+-- foldp :: (b -> a -> b) -> f a -> b
 
 -- -- Switch to case expressions!
 -- Looks like we have a nested case statement bug going on here, probably happening in mach_transform.c or mach_case.c???
@@ -6525,15 +6609,150 @@ testJit w =
 --     f64 :: F64
 --     f64 = 5
 
+
+-----------------------------------------
+-- Trig and Complex numbers testing
+
+printArraySpaced :: Print a => Array n a -> *World -> *World
+printArraySpaced a w = print "[" w |> printNewline |> printLoop |> printChar ']' |> printNewline
+  where
+    printLoop lw = loop w' = lw for i <- each do
+      (print (readArray i a) w' |> printNewline)
+
+printTupleArraySpaced :: (Print a, Print b) => Array n (a, b) -> *World -> *World
+printTupleArraySpaced a w = print "[" w |> printNewline |> printLoop |> printChar ']' |> printNewline
+  where
+    printLoop lw = loop w' = lw for i <- each do
+      (printTuple (readArray i a) w' |> printNewline)
+
+mathTestFloat :: (Float -> Float) -> *World -> *World
+mathTestFloat f w = print "[" w |> printNewline |> printLoop |> printChar ']' |> printNewline
+  where
+    i2Fs i = (i', f i')
+      where
+        i' = (fromUInt i - 32) / 32
+    a :: Array 64 (Float, Float)
+    a = mkArray i2Fs
+    printLoop lw =
+      loop w' = lw for i <- each do
+        (printTuple (readArray i a) w' |> printNewline)
+
+mathTest2D :: (Float -> Float -> Float) -> *World -> *World
+mathTest2D f w = print "[" w |> printNewline |> printLoop |> printChar ']' |> printNewline
+  where
+    a :: Array 8 Float
+    a = mkArray (\i -> (fromUInt i - 4) / 4)
+    printLoop lw =
+      loop w' = lw for i <- each do
+        loop w'' = w' for j <- each do
+          let
+            fa = readArray i a
+            fb = readArray j a
+          in
+            printTuple (fa, fb) w''
+            |> print ' '
+            |> print (f fa fb)
+            |> printNewline
+
+testComplexArray :: Array 64 Complex
+testComplexArray = c
+  where
+    a :: Array 64 (UInt, Float)
+    a = mkArray (\i -> (i, (fromUInt i - 32) / 32))
+    c :: Array 64 Complex
+    c = map (\(u, f) -> Complex# f (rem (f + fromUInt (u * 2)) 1.0)) a
+
+testComplexTupleArray :: Array 64 (Complex, Complex)
+testComplexTupleArray = c
+  where
+    a :: Array 64 (UInt, Float)
+    a = mkArray (\i -> (i, (fromUInt i - 32) / 32))
+    ufToComplex u f = Complex# f (rem (f + fromUInt (u * 2)) 1.0)
+    c :: Array 64 (Complex, Complex)
+    c = map (\(u, f) -> (ufToComplex u f, ufToComplex (64 - u) (1 - f))) a
+
+complexCisTest :: *World -> *World
+complexCisTest w = print "[" w |> printNewline |> printLoop |> printChar ']' |> printNewline
+  where
+    a :: Array 64 Float
+    a = mkArray (\i -> ((fromUInt i - 32) / 32))
+    printLoop lw =
+      loop w' = lw for i <- each do
+        ((print (readArray i a) w') |> printChar ' ' |> (print (cis (readArray i a))) |> printNewline)
+
+complexToPrintableTest :: Print a => (Complex -> a) -> *World -> *World
+complexToPrintableTest f w = printArraySpaced (map f testComplexArray) w
+
+complexByComplexTest :: (Complex -> Complex -> Complex) -> *World -> *World
+complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTupleArray) w
+  where
+    complexByComplex :: (Complex, Complex) -> Complex
+    complexByComplex t = case t of
+      (a, b) -> f a b
+
 -- Chad Test!
 -- testJit :: *World -> *World
 -- testJit w =
 -- 	print "fmouse: " w
 --     |> printLn fMouse
---     |> print "fMask 1 fMouse: "
---     |> printLn fMask
---     |> print "fSelection 1 fMouse: "
---     |> printLn fSelection
+--     |> print "tan: "
+--     |> mathTestFloat tanF64
+--     |> print "atan: "
+--     |> mathTestFloat atanF64
+--     |> print "atan2: "
+--     |> mathTest2D atan2
+--     |> print "sineh: "
+--     |> mathTestFloat sineh
+--     |> print "cosineh: "
+--     |> mathTestFloat cosineh
+--     |> print "testComplexArray: "
+--     |> print testComplexArray |> printNewline
+--     |> print "cis<complex>: "
+--     |> complexCisTest
+--     |> print "polar<complex>: "
+--     |> printTupleArraySpaced (map polar testComplexArray)
+--     |> print "sqrMagnitude<complex>: "
+--     |> complexToPrintableTest sqrMagnitude
+--     |> print "magnitude<complex>: "
+--     |> complexToPrintableTest magnitude
+--     |> print "conjugate<complex>: "
+--     |> complexToPrintableTest conjugate
+--     |> print "phase<complex>: "
+--     |> complexToPrintableTest phase
+--     |> print "sine<complex>: "
+--     |> complexToPrintableTest sine
+--     |> print "cosine<complex>: "
+--     |> complexToPrintableTest cosine
+--     |> print "sineh<complex>: "
+--     |> complexToPrintableTest sineh
+--     |> print "cosineh<complex>: "
+--     |> complexToPrintableTest cosineh
+--     |> print "exp<complex>: "
+--     |> complexToPrintableTest exp
+--     |> print "exp2<complex>: "
+--     |> complexToPrintableTest exp2
+--     |> print "log<complex>: "
+--     |> complexToPrintableTest log
+--     |> print "log2<complex>: "
+--     |> complexToPrintableTest log2
+--     |> print "log10<complex>: "
+--     |> complexToPrintableTest log10
+--     |> print "sqrt<complex>: "
+--     |> complexToPrintableTest sqrt
+--     |> print "testComplexTupleArray"
+--     |> printTupleArraySpaced testComplexTupleArray |> printNewline
+--     |> print "pow<complex>: "
+--     |> complexByComplexTest pow
+--     |> print "atan2<complex>: "
+--     |> complexByComplexTest atan2
+--     |> testAssertion True
+--   where
+--     fMouse = fromInt mouseX
+
+-- testJit :: *World -> *World
+-- testJit w =
+-- 	print "fmouse: " w
+--     |> printLn fMouse
 --     |> print "tan -1.8125: "
 --     |> printLn (tanF64 -1.8125)
 --     |> print "tanF64: "
@@ -6548,12 +6767,48 @@ testJit w =
 --     |> printLn (slowAtanF64 -1.8125)
 --     |> print "tan -17000: "
 --     |> printLn (tanF64 -17000)
+--     |> print "sinh -0.0000266618125: "
+--     |> printLn (sineh -0.0000266618125)
+--     |> print "sinh -0.0266618125: "
+--     |> printLn (sineh -0.0266618125)
+--     |> print "sinh -0.166618125: "
+--     |> printLn (sineh -0.166618125)
+--     |> print "sinh -1.133718125: "
+--     |> printLn (sineh -1.133718125)
+--     |> print "sinh -3.1133718125: "
+--     |> printLn (sineh -3.1133718125)
+--     |> print "sinh -7: "
+--     |> printLn (sineh -7)
+--     |> print "sinh -13.9133718125: "
+--     |> printLn (sineh -13.9133718125)
+--     |> print "sineh: "
+--     |> printLn (sineh fMouse)
+--     |> print "cosh -0.0266618125: "
+--     |> printLn (cosineh -0.0266618125)
+--     |> print "cosh -0.166618125: "
+--     |> printLn (cosineh -0.166618125)
+--     |> print "cosh -1.133718125: "
+--     |> printLn (cosineh -1.133718125)
+--     |> print "cosh -3.1133718125: "
+--     |> printLn (cosineh -3.1133718125)
+--     |> print "cosh -7: "
+--     |> printLn (cosineh -7)
+--     |> print "cosh -13.9133718125: "
+--     |> printLn (cosineh -13.9133718125)
+--     |> print "cosineh: "
+--     |> printLn (cosineh fMouse)
+--     |> print "exp (2 + 3i): "
+--     |> printLn (exp (Complex# 2 3))
+--     |> print "exp2 (2 + 3i): "
+--     |> printLn (exp2 (Complex# 2 3))
+--     |> print "log (2 + 3i): "
+--     |> printLn (log (Complex# 2 3))
+--     |> print "log2 (2 + 3i): "
+--     |> printLn (log2 (Complex# 2 3))
+--     |> print "log10 (2 + 3i): "
+--     |> printLn (log10 (Complex# 2 3))
 --   where
---     fMouseRaw :: F64
---     fMouseRaw = fromInt mouseX
---     fMouse = ((fMouseRaw / 1920) - 0.5) * (4 * pi)
---     fSelection = scalarIfGreaterThan fMouse 1
---     fMask = maskIfGreaterThan fMouse 1
+--     fMouse = fromInt mouseX
 
 --
 -- testJit :: *World -> *World

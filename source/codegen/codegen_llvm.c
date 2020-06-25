@@ -1700,7 +1700,6 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_free);
     necro_llvm_map_check_symbol(context->base->panic->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_out_audio_block);
-    necro_llvm_map_check_symbol(context->base->sinh_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->test_assertion->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->open_file->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->close_file->core_ast_symbol->mach_symbol);
@@ -1790,7 +1789,6 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_free);
     necro_llvm_map_runtime_symbol(context->engine, context->base->panic->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_out_audio_block);
-    necro_llvm_map_runtime_symbol(context->engine, context->base->sinh_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->test_assertion->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->open_file->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->close_file->core_ast_symbol->mach_symbol);

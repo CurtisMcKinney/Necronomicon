@@ -3428,7 +3428,57 @@ perc attackTime decayTime curve input =
     update    = accumulatePerc (#attackTime, decayTime, totalTime, curve#)
     isRunning = percIsRunning totalTime
 
--- TODO: adsr ads adr, etc
+-----------
+-- asr
+data EnvState = EnvState# Float Float Float Float
+
+envMk :: Float -> Float -> Float -> Float -> Float -> () -> *EnvState
+envMk level endLevel length curve currTime _ =
+  EnvState# a2 b1 grow currTime
+  where
+    length' = length * audioSampleRateF
+    b1      = (endLevel - level) / (1 - exp curve)
+    a2      = level + b1
+    grow    = exp (curve / length')
+
+envIsRunning :: Float -> *EnvState -> (#*EnvState, Bool#)
+envIsRunning totalTime (EnvState# a2 b1 grow currTime) =
+  (#EnvState# a2 b1 grow currTime, currTime < totalTime#)
+
+asrTick :: Float -> Float -> Float -> Float -> Float -> Float -> *EnvState -> (#*EnvState, Float#)
+asrTick attackTime sustainTime decayTime totalTime curve input (EnvState# a20 b10 grow0 currTime0) =
+  (#EnvState# a2 b12 grow currTime, out#)
+  where
+    attackAndSustainTime          = attackTime + sustainTime
+    currTime1                     = currTime0 + recipSampleRate
+    EnvState# a2 b1 grow currTime =
+      -- Switch to sustain
+      if currTime1 > attackTime && currTime0 <= attackTime then
+        envMk (a20 - b10) 1.0 sustainTime curve currTime1 ()
+      -- Switch to decay
+      else if currTime1 > attackAndSustainTime && currTime0 <= attackAndSustainTime then
+        envMk (a20 - b10) 0 decayTime curve currTime1 ()
+      -- End
+      else if currTime1 > totalTime then
+        EnvState# 0 0 0 currTime1
+      -- Attack / decay
+      else
+        EnvState# a20 b10 grow0 currTime1
+    b12   = b1 * grow
+    level = a2 - b12
+    out   = level * input
+
+asr :: AudioFormat f => Float -> Float -> Float -> Float -> f Audio -> f Audio
+asr attackTime sustainTime decayTime curve input =
+  accumulate1U mk update isRunning input
+  where
+    totalTime = attackTime + sustainTime + decayTime
+    mk        = envMk 0 1 attackTime curve 0
+    update    = asrTick attackTime sustainTime decayTime totalTime curve
+    isRunning = envIsRunning totalTime
+
+
+-- TODO: adsr, as, sr, true env? etc
 
 -----------
 -- playFor
@@ -4262,6 +4312,20 @@ accumulatePluck bufferSizeMinus1 freq damping (PluckState# buffer0 index0 count)
     buffer3          = writeArray (Index index0) out buffer2
     index1           = (index0 + 1) % delaySamples
 
+linearCongruentialGenerator :: UInt -> UInt -> UInt -> UInt -> UInt
+linearCongruentialGenerator a c m seed =
+  (a * seed + c) % m
+
+randLCG :: Float -> Float -> UInt -> (#UInt, Float#)
+randLCG mn mx seed =
+  (#s, r#)
+  where
+    a = 1664525
+    c = 1013904223
+    m = 4294967296
+    s = linearCongruentialGenerator a c m seed
+    r = ((fromUInt s / fromUInt m) * (mx - mn)) + mn
+
 -- This is quick'n'dirty linear congruential randomness. Replace with something higher quality!
 noiseF :: UInt -> Float -> Float -> Float
 noiseF iseed mn mx =
@@ -4343,8 +4407,8 @@ cosineInterpolation y1 y2 mu =
 -- Larange interpolation for Fractional Delay lines
 -- https://ccrma.stanford.edu/~jos/pasp/Larange_Interpolation.html
 -- Thanks ccrma for the great info!
-larangeInterpolation3 :: Float -> Float -> Float -> Float -> Float -> Float
-larangeInterpolation3 s0 s1 s2 s3 delta =
+lagrangeInterpolation3 :: Float -> Float -> Float -> Float -> Float -> Float
+lagrangeInterpolation3 s0 s1 s2 s3 delta =
   s0 * h0 + s1 * h1 + s2 * h2 + s3 * h3
   where
     h0 = -1 * (((delta - 1) * (delta - 2) * (delta - 3)) / 6)
@@ -4352,8 +4416,8 @@ larangeInterpolation3 s0 s1 s2 s3 delta =
     h2 = -1 * ((delta * (delta - 1) * (delta - 3)) / 2)
     h3 = (delta * (delta - 1) * (delta - 2)) / 6
 
-larangeInterpolation4 :: Float -> Float -> Float -> Float -> Float -> Float -> Float
-larangeInterpolation4 s0 s1 s2 s3 s4 delta =
+lagrangeInterpolation4 :: Float -> Float -> Float -> Float -> Float -> Float -> Float
+lagrangeInterpolation4 s0 s1 s2 s3 s4 delta =
   s0 * h0 + s1 * h1 + s2 * h2 + s3 * h3 + s4 * h4
   where
     dm1 = delta - 1
@@ -4367,7 +4431,7 @@ larangeInterpolation4 s0 s1 s2 s3 s4 delta =
     h4  = (delta * dm1 * dm2 * dm3) / 24
 
 -----------
--- Fixed Delay Line
+-- Delay Line
 -- Note: This is a non-fractional delay line which can only perform integral delay lengths
 data Delay n = Delay# (.Array (NatNextPowerOfTwo n) Float) UInt UInt UInt
 
@@ -4440,7 +4504,7 @@ fracDelayReadOutput (FractionalDelay# arr0 sizeMask stringLength delta inCursor 
     (#s2, arr3#) = readArrayU (unsafeUIntToIndex index0) arr2
     (#s3, arr4#) = readArrayU (unsafeUIntToIndex index1) arr3
     (#s4, arr5#) = readArrayU (unsafeUIntToIndex index2) arr4
-    out          = larangeInterpolation4 s0 s1 s2 s3 s4 (1.5 + delta)
+    out          = lagrangeInterpolation4 s0 s1 s2 s3 s4 (2.0 + delta)
 
 fracDelayReadFromPos :: Float -> *FractionalDelay n -> (#Float, *FractionalDelay n#)
 fracDelayReadFromPos readPos (FractionalDelay# arr0 sizeMask stringLength delta inCursor outCursor) =
@@ -4457,7 +4521,7 @@ fracDelayReadFromPos readPos (FractionalDelay# arr0 sizeMask stringLength delta 
     (#s2, arr3#) = readArrayU (unsafeUIntToIndex index0) arr2
     (#s3, arr4#) = readArrayU (unsafeUIntToIndex index1) arr3
     (#s4, arr5#) = readArrayU (unsafeUIntToIndex index2) arr4
-    out          = larangeInterpolation4 s0 s1 s2 s3 s4 (1.5 + delta)
+    out          = lagrangeInterpolation4 s0 s1 s2 s3 s4 (2.0 + delta)
 
 fracDelaySetPos :: Float -> *FractionalDelay n -> *FractionalDelay n
 fracDelaySetPos inCursorPos (FractionalDelay# arr0 sizeMask stringLength delta _ _) =
@@ -4490,54 +4554,82 @@ accumulateWaveGuidePluck :: Float -> Float -> Float -> Float -> *WaveGuidePluckS
 accumulateWaveGuidePluck brightness sustain freq pickupLocation (WaveGuidePluckState# leftBuffer0 rightBuffer0 bridgeReflectionState0) =
   (#WaveGuidePluckState# leftBuffer4 rightBuffer4 bridgeReflectionState1, out#)
   where
-    leftBuffer1                                  = fracDelaySetDelayFromFreq freq leftBuffer0 -- Set Freq
-    rightBuffer1                                 = fracDelaySetDelayFromFreq freq rightBuffer0
+    leftBuffer1                                   = fracDelaySetDelayFromFreq freq leftBuffer0 -- Set Freq
+    rightBuffer1                                  = fracDelaySetDelayFromFreq freq rightBuffer0
     -- Read Outputs
-    (#pickupSampleLeft,  leftBuffer2#)           = fracDelayReadFromPos pickupLocation leftBuffer1
-    (#pickupSampleRight, rightBuffer2#)          = fracDelayReadFromPos (1 - pickupLocation) rightBuffer1
-    (#bridgeSample, leftBuffer3#)                = fracDelayReadOutput leftBuffer2
-    (#nutSample, rightBuffer3#)                  = fracDelayReadOutput rightBuffer2
+    (#pickupSampleLeft,  leftBuffer2#)            = fracDelayReadFromPos pickupLocation leftBuffer1
+    (#pickupSampleRight, rightBuffer2#)           = fracDelayReadFromPos pickupLocation rightBuffer1
+    (#bridgeSample, leftBuffer3#)                 = fracDelayReadOutput leftBuffer2
+    (#nutSample, rightBuffer3#)                   = fracDelayReadOutput rightBuffer2
     -- Nut and Bridge
-    invertedNutReflection                        = negate nutSample
-    pole                                          = 0.65 - (brightness * 48000 * 0.5 * recipSampleRate)
+    invertedNutReflection                         = negate nutSample
     (#bridgeReflection0, bridgeReflectionState1#) = onePoleTick brightness sustain bridgeSample bridgeReflectionState0
     bridgeReflection                              = negate bridgeReflection0
 
     -- Tick Delays
-    leftBuffer4                                  = fracDelayTick invertedNutReflection leftBuffer3
-    rightBuffer4                                 = fracDelayTick bridgeReflection rightBuffer3
+    leftBuffer4                                   = fracDelayTick invertedNutReflection leftBuffer3
+    rightBuffer4                                  = fracDelayTick bridgeReflection rightBuffer3
     -- Out
-    out                                          = pickupSampleLeft + pickupSampleRight
+    out                                           = (pickupSampleLeft + pickupSampleRight) + (bridgeReflection + invertedNutReflection) * 0.125
+    -- out                                          = pickupSampleLeft
 
+-- -- Option for either somehow? pizz vs pluck?
+-- -- randLCG pluck init
+-- mkWaveGuidePluckState :: NatVal n -> Float -> Float -> Float -> () -> *WaveGuidePluckState n
+-- mkWaveGuidePluckState n pickLocation pickAmplitude freq _ =
+--   WaveGuidePluckState# left3 right3 default
+--   where
+--     delaySize      = natVal n * audioBlockSize
+--     pickAmplitudeN = negate pickAmplitude
+--     left0  = mkFractionalDelay NatVal |> fracDelaySetDelayFromFreq freq -- TODO: put freq argument into mkFractionalDelay so that we don't have to set it after we mk it
+--     right0 = mkFractionalDelay NatVal |> fracDelaySetDelayFromFreq freq
+--     (#_, _, left2, right2#) =
+--       loop (#i, seed0, left1, right1#) = (#0, 1337, left0, right0#) while i < delaySize do
+--         let
+--           (#seed1, randL#) = randLCG -1 1 seed0
+--           (#seed2, randR#) = randLCG -1 1 seed1
+--         in
+--           (#i + 1, seed2, fracDelayTick (randL * pickAmplitude) left1, fracDelayTick (randR * pickAmplitudeN) right1#)
+--     left3  = fracDelaySetPos pickLocation left2
+--     right3 = fracDelaySetPos pickLocation right2
+
+-- Original pluck waveform init
 mkWaveGuidePluckState :: NatVal n -> Float -> Float -> Float -> () -> *WaveGuidePluckState n
 mkWaveGuidePluckState n pickLocation pickAmplitude freq _ =
   WaveGuidePluckState# left2 right2 default
   where
-    fullLength  = ((audioSampleRateF / freq) / 2)
-    delaySize   = min (floatToUInt fullLength) (natVal n * audioBlockSize)
-    pickSample  = max (fullLength * pickLocation) 1
-    pickIndex   = pickSample |> floatToUInt
-    upSlope     = 1 / pickSample
-    downSlope   = 1 / (fullLength - pickSample - 1)
-    left00      = mkFractionalDelay NatVal |> fracDelaySetDelayFromFreq freq
-    right00     = mkFractionalDelay NatVal |> fracDelaySetDelayFromFreq freq
-    (#_, left1, right1#) =
-      loop (#i, left0, right0#) = (#0, left00, right00#) while i < delaySize do
+    pickAmplitudeN = negate pickAmplitude
+    fullLength     = ((audioSampleRateF / freq) / 2)
+    delaySize      = min (floatToUInt fullLength) (natVal n * audioBlockSize)
+    pickSample     = max (fullLength * pickLocation) 1
+    pickIndex      = pickSample |> floatToUInt
+    upSlope        = 1 / pickSample
+    downSlope      = 1 / (fullLength - pickSample - 1)
+    left00         = mkFractionalDelay NatVal |> fracDelaySetDelayFromFreq freq
+    right00        = mkFractionalDelay NatVal |> fracDelaySetDelayFromFreq freq
+    (#_, _, left1, right1#) =
+      loop (#i, seed0, left0, right0#) = (#0, 1337, left00, right00#) while i < delaySize do
         let
+          (#seed1, randL#) = randLCG -1 1 seed0
+          (#seed2, randR#) = randLCG -1 1 seed1
           ri          = (delaySize - 1) - i
           rightSample =
             if i < pickIndex then
               (upSlope * fromUInt i) * pickAmplitude
             else
-              (downSlope * (fullLength - 1 - fromUInt i)) * pickAmplitude
+              (downSlope * (fullLength - 1 - fromUInt i))
           leftSample =
             if ri < pickIndex then
-              (upSlope * fromUInt ri) * pickAmplitude
+              (upSlope * fromUInt ri)
             else
-              (downSlope * (fullLength - 1 - fromUInt ri)) * pickAmplitude
+              (downSlope * (fullLength - 1 - fromUInt ri))
+          leftSample2  = lerp randL (leftSample * 2 - 1) 0.9 * pickAmplitude
+          rightSample2 = lerp (randR * -1) ((rightSample * 2 - 1) * -1) 0.9 * pickAmplitude
+          -- leftSample2  = (leftSample * 2 - 1)
+          -- rightSample2 = ((rightSample * 2 - 1) * -1)
         in
-          (#i + 1, fracDelayTick (leftSample * 2 - 1) left0, fracDelayTick ((rightSample * 2 - 1) * -1) right0#)
-    left2  = fracDelaySetPos (1 - pickLocation) left1
+          (#i + 1, seed2, fracDelayTick leftSample2 left0, fracDelayTick rightSample2 right0#)
+    left2  = fracDelaySetPos pickLocation left1
     right2 = fracDelaySetPos (1 - pickLocation) right1
 
 waveGuidePluck :: NatVal n -> Float -> Float -> Float -> Float -> Float -> Mono Audio -> Mono Audio
@@ -6186,8 +6278,13 @@ justMajor =
 
 justChromatic :: Scale 12 12
 justChromatic =
+  -- Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 150
   Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 200
   -- Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 200
+
+-- justChromaticTest :: Scale 12 12
+-- justChromaticTest =
+--   Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 266.668
 
 coleJI :: Scale 12 12
 coleJI =

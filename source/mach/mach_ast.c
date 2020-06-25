@@ -1716,17 +1716,6 @@ void necro_mach_program_init_base_and_runtime(NecroMachProgram* program)
         mach_symbol->is_primitive                 = true;
     }
 
-    // sinh_float
-    {
-        NecroAstSymbol*     ast_symbol            = program->base->sinh_float;
-        ast_symbol->is_primitive                  = true;
-        ast_symbol->core_ast_symbol->is_primitive = true;
-        NecroMachAstSymbol* mach_symbol           = necro_mach_ast_symbol_create_from_core_ast_symbol(&program->arena, ast_symbol->core_ast_symbol);
-        mach_symbol->is_primitive                 = true;
-        NecroMachType*      fn_type               = necro_mach_type_create_fn(&program->arena, program->type_cache.f64_type, (NecroMachType*[]) { program->type_cache.f64_type }, 1);
-        necro_mach_create_runtime_fn(program, mach_symbol, fn_type, (NecroMachFnPtr) sinh, NECRO_STATE_POINTWISE);
-    }
-
     // close_file
     {
         NecroAstSymbol*     ast_symbol            = program->base->close_file;

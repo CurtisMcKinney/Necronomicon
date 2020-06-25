@@ -186,7 +186,6 @@ typedef struct NecroBase
     NecroAstSymbol* abs_float;
     NecroAstSymbol* sine_float;
     NecroAstSymbol* cosine_float;
-    NecroAstSymbol* sinh_float;
     NecroAstSymbol* exp_float;
     NecroAstSymbol* exp2_float;
     NecroAstSymbol* log_float;

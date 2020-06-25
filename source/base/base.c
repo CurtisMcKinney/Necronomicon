@@ -1227,7 +1227,6 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
 
     necro_base_setup_primitive(scoped_symtable, intern, "sine<Float>",           &base.sine_float,              NECRO_PRIMOP_INTR_SIN);
     necro_base_setup_primitive(scoped_symtable, intern, "cosine<Float>",         &base.cosine_float,            NECRO_PRIMOP_INTR_COS);
-    necro_base_setup_primitive(scoped_symtable, intern, "sinh<Float>",           &base.sinh_float,              NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "exp<Float>",            &base.exp_float,               NECRO_PRIMOP_INTR_EXP);
     necro_base_setup_primitive(scoped_symtable, intern, "exp2<Float>",           &base.exp2_float,              NECRO_PRIMOP_INTR_EXP2);
     necro_base_setup_primitive(scoped_symtable, intern, "log<Float>",            &base.log_float,               NECRO_PRIMOP_INTR_LOG);

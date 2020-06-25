@@ -1,3 +1,39 @@
+=================================================================================================================
+-- Chad To Do 3/21/2020
+Where expressions in a case expression case aren't parsing correctly
+Possibly some issue with binary operators (need to track down repro)
+
+Test math operations:
+Complex trig ->
+    exp2
+    log2
+    log10
+
+tested already:
+atanF64
+atan2
+tanF64
+sinh64
+sineh
+cosineh
+cis<complex>
+polar<complex>
+sqrMagnitude<complex>
+magnitude<complex>
+conjugate<complex>
+phase<complex>
+Complex ->
+    sine
+    cosine
+    sineh
+    cosineh
+    exp
+    log
+    pow
+    atan2
+
+
+
 
 =================================================================================================================
 -- Chad To Do 10/20/2019

@@ -102,6 +102,7 @@ static void necro_##SNAKE_NAME##_dequeue_grow(Necro##CAMEL_NAME##Dequeue* dequeu
         necro_##SNAKE_NAME##_dequeue_push_back(&new_dequeue, element);\
     }\
     assert(new_dequeue.count == initial_count);\
+    UNUSED(initial_count);\
     necro_##SNAKE_NAME##_dequeue_destroy(dequeue);\
     *dequeue = new_dequeue;\
 }

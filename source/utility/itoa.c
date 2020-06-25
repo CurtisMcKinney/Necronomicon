@@ -35,6 +35,7 @@
 #include <stdlib.h>
 char* necro_itoa(int num, char* str, size_t len, int base)
 {
+    (void)(len); // HACK: UNUSED macro without needing utility.h
     assert(len > 0 && base > 2 && base < 37);
     return itoa(num, str, base);
 }
@@ -53,7 +54,7 @@ char* strrev(char* str)
         return str;
 
     char* p1;
-    char* p2; 
+    char* p2;
     for (p1 = str, p2 = str + strlen(str) - 1; p2 > p1; ++p1, --p2)
     {
         char temp = *p1;

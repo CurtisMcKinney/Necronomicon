@@ -439,6 +439,7 @@ NECRO_RETURN_CODE necro_unicode_property_parse_file(NecroUnicodePropertyParser* 
         {
             necro_parse_whitespace_unicode_property_parser(uparser);
             char semi_colon = necro_next_char_unicode_property_parser(uparser);
+            UNUSED(semi_colon);
             assert(semi_colon == ';');
             necro_parse_whitespace_unicode_property_parser(uparser);
             bool matched =
@@ -465,6 +466,7 @@ NECRO_RETURN_CODE necro_unicode_property_parse_file(NecroUnicodePropertyParser* 
                 necro_parse_property_unicode_property_parser(uparser, "Decimal", NECRO_UNICODE_DECIMAL, code_point) ||
                 necro_consume_line(uparser);
             // TODO: Force eat until next line!
+            UNUSED(matched);
             assert(matched);
         }
         necro_parse_whitespace_unicode_property_parser(uparser);

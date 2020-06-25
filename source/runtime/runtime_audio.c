@@ -11,6 +11,8 @@
 #include <string.h>
 #include <math.h>
 #include "runtime_audio.h"
+#include "sndfile.h"
+#include "utility/utility.h"
 
 
 ///////////////////////////////////////////////////////
@@ -63,7 +65,7 @@ double bessel(double x)
 // Refer to site iowahills.com for more information on windowing.
 NecroDownsample* necro_downsample_create(const double freq_cutoff, const double sample_rate)
 {
-    NecroDownsample* downsample = malloc(sizeof(NecroDownsample));
+    NecroDownsample* downsample = emalloc(sizeof(NecroDownsample));
 
     //--------------------
     // Init Sample Buffer
@@ -184,5 +186,179 @@ void necro_downsample(NecroDownsample* downsample, const size_t output_channel, 
         output_buffer[out_i] = (float)fir_result;
         out_i               += num_output_channels;
     }
+}
+
+/*
+    Note: AudioFiles opened in the manner are READ ONLY,
+    thus we're dynamically allocating memory and then simply never cleaning them up as they are expected to live for the life of the program.
+    This is to maximize their ease of usage in a typical necro program (load some immutable audio files to be used for samples and fun audio processing).
+    A different API is required for write or read/write audio files which can be mutated and which can be manually cleaned up
+*/
+const double* necro_runtime_open_audio_file(const size_t* a_name, const uint64_t a_name_length)
+{
+    if (a_name == NULL || a_name_length == 0)
+        return NULL;
+
+    // Create ascii string
+    char* file_name = emalloc(a_name_length + 1);
+    for (size_t i = 0; i < a_name_length; ++i)
+    {
+        // TODO: Unicode handling
+        file_name[i] = (char) a_name[i];
+    }
+    file_name[a_name_length] = '\0';
+
+    SF_INFO	sf_info;
+	memset (&sf_info, 0, sizeof(sf_info)); // Yes, this is in fact the way in which libsndfile wants you to initialize the SF_INFO struct...
+
+    SNDFILE* snd_file = sf_open(file_name, SFM_READ, &sf_info);
+
+    if (snd_file == NULL)
+    {
+        printf("Unable to open audio file: %s\n", file_name);
+        puts(sf_strerror(NULL));
+        return NULL;
+    }
+    const size_t buffer_size = sf_info.channels * sf_info.frames;
+    double*      audio_file  = emalloc(buffer_size * sizeof(double));
+    size_t       read_count  = 0;
+    do
+    {
+        read_count = sf_read_double(snd_file, audio_file, buffer_size);
+    }
+    while (read_count > 0);
+    sf_close(snd_file);
+
+    // Clean up and return
+    free(file_name);
+    return audio_file;
+}
+
+typedef struct NecroScratchBuffer
+{
+    double*                    audio_buffer;
+    size_t                     buffer_index;
+    struct NecroScratchBuffer* head;
+    struct NecroScratchBuffer* next;
+} NecroScratchBuffer;
+
+extern DLLEXPORT const size_t** necro_runtime_record_audio_block_finalize(const size_t* a_name, const uint64_t a_name_length, const uint64_t a_num_channels, size_t** a_scratch_buffer)
+{
+    if (a_scratch_buffer == NULL)
+        return NULL;
+    if (a_name == NULL || a_name_length == 0)
+    {
+        printf("Null audio file name in necro_runtime_record_audio!\n");
+        return NULL;
+    }
+
+    // We're done, Open File and write contents of scratch buffer into it
+    NecroScratchBuffer* curr_buffer = (NecroScratchBuffer*)*a_scratch_buffer;
+    assert(curr_buffer != NULL);
+
+    // Create ascii string
+    char* file_name = emalloc(a_name_length + 1);
+    for (size_t i = 0; i < a_name_length; ++i)
+    {
+        // TODO: Unicode handling
+        file_name[i] = (char)a_name[i];
+    }
+    file_name[a_name_length] = '\0';
+
+    // Set up sf_info
+    SF_INFO	sf_info;
+    memset(&sf_info, 0, sizeof(sf_info)); // Yes, this is in fact the way in which libsndfile wants you to initialize the SF_INFO struct...
+    sf_info.format     = SF_FORMAT_WAV | SF_FORMAT_DOUBLE;
+    sf_info.channels   = (int) a_num_channels;
+    sf_info.samplerate = (int) necro_runtime_audio_sample_rate;
+    sf_info.sections   = 1;
+    sf_info.seekable   = SF_TRUE;
+    sf_info.frames     = 0;
+
+    curr_buffer = curr_buffer->head;
+    while (curr_buffer != NULL)
+    {
+        sf_info.frames += curr_buffer->buffer_index / a_num_channels;
+        curr_buffer     = curr_buffer->next;
+    }
+    curr_buffer = ((NecroScratchBuffer*)* a_scratch_buffer)->head;
+
+    // Open file
+    SNDFILE* snd_file = sf_open(file_name, SFM_WRITE, &sf_info);
+    if (snd_file == NULL)
+    {
+        printf("Unable to open audio file: %s\n", file_name);
+        puts(sf_strerror(NULL));
+        return NULL;
+    }
+
+    // Write scratch buffer(s) to contiguous scratch buffer (it seems libsndfile doesn't allow you to write chunks of data to the file, but instead wants one contiguous buffer)
+    while (curr_buffer != NULL)
+    {
+        // Write buffer
+        sf_write_double(snd_file, curr_buffer->audio_buffer, curr_buffer->buffer_index);
+
+        // Clean up block
+        NecroScratchBuffer* prev_buffer = curr_buffer;
+        curr_buffer                     = curr_buffer->next;
+        free(prev_buffer->audio_buffer);
+        free(prev_buffer);
+        prev_buffer                     = NULL;
+    }
+
+    // Clean up
+    // NOTE: The scratch buffer is handed to us and is allocated via the necrolang memory system, so we don't free it here!
+    sf_close(snd_file);
+    *a_scratch_buffer = NULL;
+    free(file_name);
+    return NULL;
+}
+
+extern DLLEXPORT const size_t** necro_runtime_record_audio_block(const uint64_t a_channel_num, const uint64_t a_num_channels, const double* a_audio_block, size_t** a_scratch_buffer)
+{
+    if (a_scratch_buffer == NULL)
+        return NULL;
+
+    const size_t        scratch_buffer_num_blocks = 5000;
+    const size_t        scratch_buffer_size       = necro_runtime_audio_block_size * scratch_buffer_num_blocks * a_num_channels;
+    NecroScratchBuffer* curr_buffer               = (NecroScratchBuffer*)*a_scratch_buffer;
+
+    // Fresh scratch buffer
+    if (curr_buffer == NULL)
+    {
+        curr_buffer               = emalloc(sizeof(NecroScratchBuffer));
+        curr_buffer->audio_buffer = emalloc(scratch_buffer_size * sizeof(double));
+        curr_buffer->buffer_index = 0;
+        curr_buffer->head         = curr_buffer;
+        curr_buffer->next         = NULL;
+        *a_scratch_buffer         = (size_t*)curr_buffer;
+    }
+    // New scratch buffer block
+    else if (curr_buffer->buffer_index >= scratch_buffer_size)
+    {
+        NecroScratchBuffer* new_buffer = emalloc(sizeof(NecroScratchBuffer));
+        new_buffer->audio_buffer       = emalloc(scratch_buffer_size * sizeof(double));
+        new_buffer->buffer_index       = 0;
+        new_buffer->head               = curr_buffer->head;
+        new_buffer->next               = NULL;
+        curr_buffer->next              = new_buffer;
+        curr_buffer                    = new_buffer;
+        *a_scratch_buffer              = (size_t*)curr_buffer;
+    }
+
+    // Write audio into scratch buffer
+    // for (size_t i = a_channel_num; i < necro_runtime_audio_block_size * a_num_channels; i += (size_t) a_num_channels)
+    for (size_t i = 0; i < necro_runtime_audio_block_size; i++)
+    {
+        /*
+            Note: audio channel are written interleaved as such:
+            l0, r0, l1, r1, l2, r2...lN, rN
+            libsnd file expects interleaved channels, so we might as well do it up front in the scratch buffer
+        */
+        curr_buffer->audio_buffer[curr_buffer->buffer_index + (i * a_num_channels) + a_channel_num] = a_audio_block[i];
+    }
+    if (a_channel_num >= a_num_channels - 1)
+        curr_buffer->buffer_index += necro_runtime_audio_block_size * a_num_channels;
+    return a_scratch_buffer;
 }
 

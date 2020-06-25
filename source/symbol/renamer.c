@@ -872,6 +872,7 @@ void necro_rename_internal_scope_and_rename(NecroAstArena* ast_arena, NecroScope
 ///////////////////////////////////////////////////////
 void necro_rename_test_error(const char* test_name, const char* str, NECRO_RESULT_ERROR_TYPE error_type)
 {
+    UNUSED(error_type);
     // Set up
     NecroIntern         intern = necro_intern_create();
     NecroScopedSymTable scoped_symtable = necro_scoped_symtable_create();

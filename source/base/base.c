@@ -1103,17 +1103,19 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.float_vec->is_primitive      = true;
 
     // Runtime Functions/Values
-    necro_base_setup_primitive(scoped_symtable, intern, "panic",            &base.panic,             NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "testAssertion",    &base.test_assertion,    NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "getMouseX",        &base.mouse_x_fn,        NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "getMouseY",        &base.mouse_y_fn,        NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "sampleRate",       &base.sample_rate,       NECRO_PRIMOP_PRIM_VAL);
-    necro_base_setup_primitive(scoped_symtable, intern, "recipSampleRate",  &base.recip_sample_rate, NECRO_PRIMOP_PRIM_VAL);
-    necro_base_setup_primitive(scoped_symtable, intern, "printInt",         &base.print_int,         NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "printUInt",        &base.print_uint,        NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "printFloat",       &base.print_float,       NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "printChar",        &base.print_char,        NECRO_PRIMOP_PRIM_FN);
-    necro_base_setup_primitive(scoped_symtable, intern, "outAudioBlock",    &base.out_audio_block,   NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "panic",                    &base.panic,                       NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "testAssertion",            &base.test_assertion,              NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "getMouseX",                &base.mouse_x_fn,                  NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "getMouseY",                &base.mouse_y_fn,                  NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "sampleRate",               &base.sample_rate,                 NECRO_PRIMOP_PRIM_VAL);
+    necro_base_setup_primitive(scoped_symtable, intern, "recipSampleRate",          &base.recip_sample_rate,           NECRO_PRIMOP_PRIM_VAL);
+    necro_base_setup_primitive(scoped_symtable, intern, "printInt",                 &base.print_int,                   NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "printUInt",                &base.print_uint,                  NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "printFloat",               &base.print_float,                 NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "printChar",                &base.print_char,                  NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "outAudioBlock",            &base.out_audio_block,             NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "recordAudioBlock",         &base.record_audio_block,          NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "recordAudioBlockFinalize", &base.record_audio_block_finalize, NECRO_PRIMOP_PRIM_FN);
 
     // File IO
     necro_base_setup_primitive(scoped_symtable, intern, "closeFile",        &base.close_file,          NECRO_PRIMOP_PRIM_FN);
@@ -1178,6 +1180,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "signum<UInt>",         NULL, NECRO_PRIMOP_UOP_USGN);
     necro_base_setup_primitive(scoped_symtable, intern, "fromInt<UInt>",        NULL, NECRO_PRIMOP_UOP_ITOU);
     necro_base_setup_primitive(scoped_symtable, intern, "div<UInt>",            NULL, NECRO_PRIMOP_BINOP_UDIV);
+    necro_base_setup_primitive(scoped_symtable, intern, "rem<UInt>",            NULL, NECRO_PRIMOP_BINOP_UREM);
     necro_base_setup_primitive(scoped_symtable, intern, "eq<UInt>",             NULL, NECRO_PRIMOP_CMP_EQ);
     necro_base_setup_primitive(scoped_symtable, intern, "neq<UInt>",            NULL, NECRO_PRIMOP_CMP_NE);
     necro_base_setup_primitive(scoped_symtable, intern, "gt<UInt>",             NULL, NECRO_PRIMOP_CMP_GT);

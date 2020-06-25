@@ -405,6 +405,7 @@ NecroStaticValue* necro_defunctionalize_var(NecroDefunctionalizeContext* context
 {
     assert(context != NULL);
     assert(ast->ast_type == NECRO_CORE_AST_VAR);
+
     // _primUndefined
     if (ast->var.ast_symbol == context->base->prim_undefined->core_ast_symbol)
     {
@@ -955,7 +956,10 @@ NecroStaticValue* necro_defunctionalize_app_fun(NecroDefunctionalizeContext* con
             NecroCoreAstSymbolSubList* subs = NULL;
             necro_defunctionalize_gen_subs_from_args(context, var_ast->var.ast_symbol->ast->bind.expr, app_ast, &subs);
             // Specialize/Defunctionalize function
-            NecroCoreAst* new_bind    = necro_hof_cache_get(&context->hof_cache, var_ast->var.ast_symbol, subs);
+            // NecroCoreAst* new_bind    = necro_hof_cache_get(&context->hof_cache, var_ast->var.ast_symbol, subs);
+            // TODO: Faster compilation and smaller binaries if we can figure this out! ^^^^
+            // Previous versions was fucking things up by sharing things which were actually different!
+            NecroCoreAst* new_bind    = NULL;
             const bool    should_lift = new_bind == NULL;
             if (new_bind == NULL)
             {
@@ -1348,6 +1352,7 @@ void necro_hof_cache_grow(NecroHOFCache* cache)
         cache->buckets[index] = old_buckets[i];
         cache->count++;
     }
+    UNUSED(old_count);
     assert(cache->count == old_count);
     free(old_buckets);
 }
@@ -1438,9 +1443,8 @@ void necro_defunctionalize_test_result(const char* test_name, const char* str)
     unwrap(void, necro_core_infer(&intern, &base, &core_ast));
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
 
-    // necro_core_ast_pretty_print(core_ast.root);
-
     // Print
+    necro_core_ast_pretty_print(core_ast.root);
     printf("Core %s test: Passed\n", test_name);
 
     // Clean up

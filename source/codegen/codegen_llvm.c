@@ -730,14 +730,19 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         */
 
         const LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        UNUSED(arg_type);
         assert(arg_type != NULL);
         const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
+        UNUSED(uint32_type);
         assert(uint32_type != NULL);
         const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);
+        UNUSED(f32_type);
         assert(f32_type != NULL);
         const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);
+        UNUSED(uint64_type);
         assert(uint64_type != NULL);
         const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);
+        UNUSED(f64_type);
         assert(f64_type != NULL);
 
         LLVMTypeRef bitrev_type = NULL;
@@ -814,10 +819,13 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
 		*/
 
 		const LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        UNUSED(arg_type);
 		assert(arg_type != NULL);
 		const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);
+        UNUSED(f32_type);
 		assert(f32_type != NULL);
 		const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);
+        UNUSED(f64_type);
 		assert(f64_type != NULL);
 		// if (arg_type == f32_type)
 		// {
@@ -851,10 +859,13 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         */
 
         const LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        UNUSED(arg_type);
         assert(arg_type != NULL);
         const LLVMTypeRef f32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f32_type);
+        UNUSED(f32_type);
         assert(f32_type != NULL);
         const LLVMTypeRef f64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.f64_type);
+        UNUSED(f64_type);
         assert(f64_type != NULL);
 
         // if (arg_type == f32_type)
@@ -885,10 +896,13 @@ LLVMValueRef necro_llvm_codegen_uop(NecroLLVM* context, NecroMachAst* ast)
         */
 
         const LLVMTypeRef arg_type = necro_llvm_type_from_mach_type(context, ast->uop.param->necro_machine_type);
+        UNUSED(arg_type);
         assert(arg_type != NULL);
 		const LLVMTypeRef uint32_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint32_type);
+        UNUSED(uint32_type);
 		assert(uint32_type != NULL);
 		const LLVMTypeRef uint64_type = necro_llvm_type_from_mach_type(context, context->program->type_cache.uint64_type);
+        UNUSED(uint64_type);
 		assert(uint64_type != NULL);
 
         // if (arg_type == uint32_type)
@@ -1693,14 +1707,16 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->base->write_uint_to_file->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->write_float_to_file->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->write_char_to_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->record_audio_block->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->record_audio_block_finalize->core_ast_symbol->mach_symbol);
 
     // assert(context->delayed_phi_node_values.length == 0);
     if (context->should_optimize)
         LLVMRunPassManager(context->mod_pass_manager, context->mod);
     // verify and print
-    necro_llvm_verify_and_dump(context);
     if ((info.compilation_phase == NECRO_PHASE_CODEGEN && info.verbosity > 0) || info.verbosity > 1)
     {
+        necro_llvm_verify_and_dump(context);
         necro_llvm_print(context);
     }
 
@@ -1780,6 +1796,8 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->base->write_uint_to_file->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->write_float_to_file->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->write_char_to_file->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->record_audio_block->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->record_audio_block_finalize->core_ast_symbol->mach_symbol);
 
 #ifdef _WIN32
     system("cls");

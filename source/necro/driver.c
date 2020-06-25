@@ -173,6 +173,7 @@ NecroResult(void) necro_compile_go(
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_TRANSFORM_TO_CORE);
     necro_try(void, necro_ast_transform_to_core(info, intern, base, ast, core_ast_arena))
+    necro_try(void, necro_core_infer(intern, base, core_ast_arena));
     if (necro_compile_end_phase(info, NECRO_PHASE_TRANSFORM_TO_CORE))
         return ok_void();
 
@@ -185,15 +186,11 @@ NecroResult(void) necro_compile_go(
         return ok_void();
 
     //--------------------
-    // Core Infer
-    //--------------------
-    unwrap(void, necro_core_infer(intern, base, core_ast_arena));
-
-    //--------------------
     // Lambda Lift
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_LAMBDA_LIFT);
     necro_core_lambda_lift(info, intern, base, core_ast_arena);
+    necro_try(void, necro_core_infer(intern, base, core_ast_arena));
     if (necro_compile_end_phase(info, NECRO_PHASE_LAMBDA_LIFT))
         return ok_void();
 
@@ -202,6 +199,7 @@ NecroResult(void) necro_compile_go(
     //--------------------
     necro_compile_begin_phase(info, NECRO_PHASE_DEFUNCTIONALIZATION);
     necro_core_defunctionalize(info, intern, base, core_ast_arena);
+    necro_try(void, necro_core_infer(intern, base, core_ast_arena));
     necro_core_ast_pre_simplify(info, intern, base, core_ast_arena);
     if (necro_compile_end_phase(info, NECRO_PHASE_DEFUNCTIONALIZATION))
         return ok_void();

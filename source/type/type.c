@@ -1755,6 +1755,7 @@ void necro_type_normalize_type_var_names(NecroIntern* intern, NecroBase* base, N
                         const size_t       buf_size    = str_len + 32;
                         char*              unique_str  = necro_snapshot_arena_alloc(&intern->snapshot_arena, buf_size);
                         char*              itoa_result = necro_itoa((uint32_t)intern->clash_suffix, itoa_buf, NECRO_ITOA_BUF_LENGTH, 10);
+                        UNUSED(itoa_result);
                         assert(itoa_result != NULL);
                         snprintf(unique_str, buf_size, "%s%s", var_symbol->source_name->str, itoa_buf);
                         var_symbol->source_name        = necro_intern_string(intern, unique_str);
@@ -2182,6 +2183,7 @@ size_t necro_type_mangled_string_length(const NecroType* type)
         char buffer[NECRO_ITOA_BUF_LENGTH];
         assert(type->nat.value < INT32_MAX);
         char* itoa_result = necro_itoa((int) type->nat.value, buffer, NECRO_ITOA_BUF_LENGTH, 10);
+        UNUSED(itoa_result);
         assert(itoa_result != NULL);
         return strlen(buffer);
     }
@@ -3089,6 +3091,7 @@ NecroResult(NecroType) necro_uniqueness_propagate_data_con(NecroPagedArena* aren
             app = necro_type_find(app->app.type1);
         }
         NecroType* app_var_ownership = necro_try_result(NecroType, necro_uniqueness_propagate_data_con(arena, con_env, base, intern, app, scope, NULL, source_loc, end_loc, data_type_symbol, data_type_uvar));
+        UNUSED(app_var_ownership);
         assert(necro_type_is_ownership_share(base, app_var_ownership));
         if (type->ownership == NULL)
             type->ownership = base->ownership_share->type;

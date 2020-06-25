@@ -573,6 +573,8 @@ void necro_parse_ast_assert_eq_constant(NecroParseAstArena* ast1, NecroParseAst*
     {
         const char* str1 = node1->constant.symbol->str;
         const char* str2 = node2->constant.symbol->str;
+        UNUSED(str1);
+        UNUSED(str2);
         assert(strcmp(str1, str2) == 0);
         break;
     }
@@ -794,12 +796,14 @@ void necro_parse_ast_assert_eq_case_alternative(NecroParseAstArena* ast1, NecroP
 
 void necro_parse_ast_assert_eq_conid(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
+    UNUSED(node1);
+    UNUSED(node2);
+    UNUSED(ast1);
+    UNUSED(ast2);
     assert(node1->type == NECRO_AST_CONID);
     assert(node2->type == NECRO_AST_CONID);
     assert(strcmp(node1->conid.symbol->str, node2->conid.symbol->str) == 0);
     assert(node1->conid.con_type == node2->conid.con_type);
-    UNUSED(ast1);
-    UNUSED(ast2);
 }
 
 void necro_parse_ast_assert_eq_type_app(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)

@@ -756,6 +756,7 @@ void necro_constraint_list_apply(NecroPagedArena* arena, NecroType* type, NecroC
         if (constrained_type->type == NECRO_TYPE_VAR)
         {
             const bool is_type_class_var = constraints->data->type == NECRO_CONSTRAINT_CLASS && constraints->data->cls.type1->var.var_symbol == constraints->data->cls.type_class->type_var;
+            UNUSED(is_type_class_var);
             assert(!is_type_class_var);
             constrained_type->var.var_symbol->constraints = necro_cons_constraint_list(arena, constraints->data, constrained_type->var.var_symbol->constraints);
         }

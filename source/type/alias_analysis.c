@@ -181,6 +181,7 @@ void necro_alias_set_grow(NecroAliasSet* set)
         set->data[hash].usage  = usage;
         set->count++;
     }
+    UNUSED(old_count);
     assert(set->count == old_count);
 }
 

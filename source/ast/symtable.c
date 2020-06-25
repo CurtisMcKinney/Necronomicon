@@ -89,6 +89,7 @@ static inline void necro_scope_grow(NecroScope* scope, NecroPagedArena* arena)
     NecroScopeNode* prev_buckets = scope->buckets;
     size_t          prev_size    = scope->size;
     size_t          prev_count   = scope->count;
+    UNUSED(prev_count);
     scope->size                 *= 2;
     scope->buckets               = necro_paged_arena_alloc(arena, scope->size * sizeof(NecroScopeNode));
     scope->count                 = 0;

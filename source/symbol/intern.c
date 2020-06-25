@@ -298,6 +298,7 @@ NecroSymbol necro_intern_unique_string(NecroIntern* intern, const char* str)
         char* itoa_result = necro_itoa((uint32_t)intern->clash_suffix, itoa_buf, NECRO_ITOA_BUF_LENGTH, 24);
         // char* itoa_result = necro_itoa((uint32_t)intern->clash_suffix, itoa_buf, NECRO_ITOA_BUF_LENGTH, 10);
         assert(itoa_result != NULL);
+        UNUSED(itoa_result);
         intern->clash_suffix++;
         snprintf(unique_str, buf_size, "%s%s", str, itoa_buf);
         probe_result = necro_intern_prob(intern, unique_str);
@@ -439,10 +440,14 @@ void necro_intern_print(NecroIntern* intern)
 //=====================================================
 void necro_test_intern_id(NecroIntern* intern, NecroSymbol symbol, const char* compare_str)
 {
+    UNUSED(intern);
+    UNUSED(symbol);
+    UNUSED(compare_str);
     assert(symbol->str != NULL);
     puts("Intern id test:         passed");
 
     size_t length = 0;
+    UNUSED(length);
     assert(symbol->hash == necro_hash_string(compare_str, &length));
     puts("Intern hash test:       passed");
 

@@ -11,12 +11,8 @@
 #include <assert.h>
 #include <stdbool.h>
 #include "result.h"
-
-#ifdef _WIN32
-#define DLLEXPORT __declspec(dllexport)
-#else
-#define DLLEXPORT
-#endif
+#include "runtime_common.h"
+#include "runtime_audio.h"
 
 //--------------------
 // Runtime Management

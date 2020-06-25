@@ -121,6 +121,7 @@ void necro_core_transform_to_mach_1_data_con_constructor(NecroMachProgram* progr
     NecroMachAst*  mk_fn_body = necro_mach_block_create(program, "entry", NULL);
     NecroMachAst*  mk_fn_def  = necro_mach_create_fn(program, con_symbol, mk_fn_body, mk_fn_type);
     const size_t   slots_used = arg_count + 1;
+    UNUSED(slots_used);
     assert(slots_used <= UINT32_MAX);
     NecroMachAst*  data_ptr   = necro_mach_value_get_state_ptr(mk_fn_def);
     NecroMachAst*  tag_ptr    = necro_mach_build_gep(program, mk_fn_def, data_ptr, (size_t[]) { 0, 0 }, 2, "tag");
@@ -333,6 +334,9 @@ void necro_core_transform_to_mach_1_bind(NecroMachProgram* program, NecroCoreAst
 
 void necro_core_transform_to_mach_1_bind_rec(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
 {
+    UNUSED(program);
+    UNUSED(core_ast);
+    UNUSED(outer);
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_BIND_REC);
@@ -504,6 +508,8 @@ NecroMachSlot necro_mach_add_member(NecroMachProgram* program, NecroMachDef* mac
 
 void necro_mach_remove_only_self_recursive_member(NecroMachProgram* program, NecroMachAst* ast)
 {
+    UNUSED(program);
+    UNUSED(ast);
     assert(program != NULL);
     assert(ast->type == NECRO_MACH_DEF);
     // TODO:  eexamine this
@@ -514,6 +520,8 @@ void necro_mach_remove_only_self_recursive_member(NecroMachProgram* program, Nec
 
 void necro_mach_calculate_statefulness(NecroMachProgram* program, NecroMachAst* ast)
 {
+    UNUSED(program);
+    UNUSED(ast);
     assert(program != NULL);
     assert(ast->type == NECRO_MACH_DEF);
     ast->machine_def.state_type = ast->machine_def.machine_name->state_type;
@@ -680,6 +688,9 @@ void necro_core_transform_to_mach_2_bind(NecroMachProgram* program, NecroCoreAst
 
 void necro_core_transform_to_mach_2_bind_rec(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
 {
+    UNUSED(program);
+    UNUSED(core_ast);
+    UNUSED(outer);
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_BIND_REC);
@@ -1266,6 +1277,7 @@ NecroMachAst* necro_core_transform_to_mach_3_poly_eval(NecroMachProgram* program
 
 NecroMachAst* necro_core_transform_to_mach_3_dyn_deep_copy(NecroMachProgram* program, NecroCoreAst* app_ast, size_t arg_count, NecroMachAst* outer, NECRO_PRIMOP_TYPE primop_type)
 {
+    UNUSED(arg_count);
     NecroType*     value_necro_type = necro_type_strip_for_all(necro_type_find(app_ast->app.expr2->necro_type));
     assert(value_necro_type->type == NECRO_TYPE_CON);
     NecroCoreAstSymbol* deep_copy_fn_symbol = value_necro_type->con.con_symbol->core_ast_symbol->deep_copy_fn;
@@ -2000,6 +2012,9 @@ NecroMachAst* necro_core_transform_to_mach_3_bind(NecroMachProgram* program, Nec
 
 NecroMachAst* necro_core_transform_to_mach_3_bind_rec(NecroMachProgram* program, NecroCoreAst* core_ast, NecroMachAst* outer)
 {
+    UNUSED(program);
+    UNUSED(core_ast);
+    UNUSED(outer);
     assert(program != NULL);
     assert(core_ast != NULL);
     assert(core_ast->ast_type == NECRO_CORE_AST_BIND_REC);

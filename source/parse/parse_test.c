@@ -15,6 +15,7 @@
 
 void necro_parse_ast_test_error(const char* test_name, const char* str, NECRO_RESULT_ERROR_TYPE error_type)
 {
+    UNUSED(error_type);
     // Set up
     NecroIntern         intern = necro_intern_create();
     NecroLexTokenVector tokens = necro_empty_lex_token_vector();

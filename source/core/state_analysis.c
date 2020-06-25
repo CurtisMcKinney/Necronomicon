@@ -461,6 +461,7 @@ void necro_core_ast_symbol_table_grow(NecroCoreAstSymbolTable* symtable)
             bucket_index = (bucket_index + 1) & (symtable->capacity - 1);
         }
     }
+    UNUSED(old_count);
     assert(symtable->count == old_count);
     assert(symtable->count > 0);
     assert(symtable->capacity >= symtable->count);

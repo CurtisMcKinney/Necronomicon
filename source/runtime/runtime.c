@@ -22,7 +22,6 @@
 #include "portaudio.h"
 #include "runtime.h"
 #include "utility.h"
-#include "runtime_audio.h"
 
 
 ///////////////////////////////////////////////////////
@@ -170,9 +169,12 @@ bool necro_runtime_was_test_successful()
 
 extern DLLEXPORT size_t necro_runtime_panic(size_t world)
 {
+    UNUSED(world);
     fprintf(stderr, "****panic!\n");
     necro_exit(-1);
+#if defined(_DEBUG)
     return world;
+#endif
 }
 
 
@@ -188,6 +190,8 @@ extern DLLEXPORT size_t necro_runtime_open_file(size_t* str, uint64_t str_length
     // Create ascii string
     char* file_name = malloc(str_length + 1);
     assert(file_name != NULL);
+    if (file_name == NULL)
+        return 0;
     for (size_t i = 0; i < str_length; ++i)
     {
         // TODO: Unicode handling
@@ -322,11 +326,6 @@ static NecroLangCallback* necro_runtime_audio_lang_callback       = NULL;
 // static float**            necro_runtime_audio_output_buffer       = NULL;
 static float*             necro_runtime_audio_output_buffer       = NULL;
 static size_t             necro_runtime_audio_num_input_channels  = 0;
-#define                   necro_runtime_audio_num_output_channels 2
-static size_t             necro_runtime_audio_sample_rate         = 48000;
-static size_t             necro_runtime_audio_block_size          = 256;
-// #define                   necro_runtime_audio_oversample_amt      2
-// static double             necro_runtime_audio_brick_wall_cutoff   = 20000.0;
 static double             necro_runtime_audio_start_time          = 0.0;
 static double             necro_runtime_audio_curr_time           = 0.0;
 static PaStream*          necro_runtime_audio_pa_stream           = NULL;
@@ -353,6 +352,7 @@ extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double
 
 static int necro_runtime_audio_pa_callback(const void* input_buffer, void* output_buffer, unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo* time_info, PaStreamCallbackFlags status_flags, void* user_data)
 {
+    UNUSED(frames_per_buffer);
     UNUSED(input_buffer);
     UNUSED(user_data);
     if (necro_runtime_audio_lang_callback == NULL || necro_runtime_is_done())
@@ -391,6 +391,7 @@ NecroResult(void) necro_runtime_audio_init()
 
 NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, NecroLangCallback* necro_main, NecroLangCallback* necro_shutdown)
 {
+    UNUSED(necro_shutdown);
     assert(necro_init != NULL);
     assert(necro_main != NULL);
     assert(necro_shutdown != NULL);
@@ -415,7 +416,7 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
         double cpu_load = Pa_GetStreamCpuLoad(necro_runtime_audio_pa_stream);
         if (cpu_check > 9)
         {
-            printf("  cpu: %.2f%%  mem: %.2fmb\r", cpu_load * 100.0, (((double)necro_heap.bump) / 1000000.0));
+            printf("  cpu: %.2f%%  mem: %.2fmb        \r", cpu_load * 100.0, (((double)necro_heap.bump) / 1000000.0));
             cpu_check = 0;
         }
         cpu_check++;

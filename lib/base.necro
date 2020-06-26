@@ -1877,6 +1877,12 @@ currBlockCount =
   where
     t ~ 0 = t + 1
 
+currSampleCount :: UInt
+currSampleCount =
+  t
+  where
+    t ~ 0 = t + audioBlockSize
+
 --------------------
 -- Audio
 --------------------
@@ -3513,7 +3519,8 @@ perc attackTime decayTime curve input =
     isRunning = percIsRunning totalTime
 
 -----------
--- asr
+-- Env
+
 data EnvState = EnvState# Float Float Float Float
 
 envMk :: Float -> Float -> Float -> Float -> Float -> () -> *EnvState
@@ -3528,6 +3535,9 @@ envMk level endLevel length curve currTime _ =
 envIsRunning :: Float -> *EnvState -> (#*EnvState, Bool#)
 envIsRunning totalTime (EnvState# a2 b1 grow currTime) =
   (#EnvState# a2 b1 grow currTime, currTime < totalTime#)
+
+-----------
+-- asr
 
 asrTick :: Float -> Float -> Float -> Float -> Float -> Float -> *EnvState -> (#*EnvState, Float#)
 asrTick attackTime sustainTime decayTime totalTime curve input (EnvState# a20 b10 grow0 currTime0) =
@@ -3561,8 +3571,67 @@ asr attackTime sustainTime decayTime curve input =
     update    = asrTick attackTime sustainTime decayTime totalTime curve
     isRunning = envIsRunning totalTime
 
+-----------
+-- sustainRelease
+sustainReleaseTick :: Float -> Float -> Float -> Float -> Float -> *EnvState -> (#*EnvState, Float#)
+sustainReleaseTick sustainTime decayTime totalTime curve input (EnvState# a20 b10 grow0 currTime0) =
+  (#EnvState# a2 b12 grow currTime, out#)
+  where
+    currTime1                     = currTime0 + recipSampleRate
+    EnvState# a2 b1 grow currTime =
+      -- Switch to decay
+      if currTime1 > sustainTime && currTime0 <= sustainTime then
+        envMk (a20 - b10) 0 decayTime curve currTime1 ()
+      -- End
+      else if currTime1 > totalTime then
+        EnvState# 0 0 0 currTime1
+      -- Attack / decay
+      else
+        EnvState# a20 b10 grow0 currTime1
+    b12   = b1 * grow
+    level = a2 - b12
+    out   = level * input
 
--- TODO: adsr, as, sr, true env? etc
+sustainRelease :: AudioFormat f => Float -> Float -> Float -> f Audio -> f Audio
+sustainRelease sustainTime decayTime curve input =
+  accumulate1U mk update isRunning input
+  where
+    totalTime = sustainTime + decayTime
+    mk        = envMk 1 1 sustainTime curve 0
+    update    = sustainReleaseTick sustainTime decayTime totalTime curve
+    isRunning = envIsRunning totalTime
+
+-----------
+-- attackSustain
+
+attackSustainTick :: Float -> Float -> Float -> Float -> Float -> *EnvState -> (#*EnvState, Float#)
+attackSustainTick attackTime sustainTime totalTime curve input (EnvState# a20 b10 grow0 currTime0) =
+  (#EnvState# a2 b12 grow currTime, out#)
+  where
+    currTime1                     = currTime0 + recipSampleRate
+    EnvState# a2 b1 grow currTime =
+      -- Switch to sustain
+      if currTime1 > attackTime && currTime0 <= attackTime then
+        envMk (a20 - b10) 1 sustainTime curve currTime1 ()
+      -- End
+      else if currTime1 > totalTime then
+        EnvState# 0 0 0 currTime1
+      -- Attack / decay
+      else
+        EnvState# a20 b10 grow0 currTime1
+    b12   = b1 * grow
+    level = a2 - b12
+    out   = level * input
+
+attackSustain :: AudioFormat f => Float -> Float -> Float -> f Audio -> f Audio
+attackSustain attackTime sustainTime curve input =
+  accumulate1U mk update isRunning input
+  where
+    totalTime = attackTime + sustainTime
+    mk        = envMk 0 1 attackTime curve 0
+    update    = attackSustainTick attackTime sustainTime totalTime curve
+    isRunning = envIsRunning totalTime
+
 
 -----------
 -- playFor
@@ -4437,7 +4506,8 @@ tnoiseF :: UInt -> Float -> Float -> Float
 tnoiseF iseed mn mx =
   noiseF tseed mn mx
   where
-    tseed = bitShiftLeft (bitOr (currBlockCount * 37) (iseed * 37)) 1
+    tseed = bitShiftLeft (bitOr (t * 37) (iseed * 37)) 1
+    t     = currSampleCount + audioSampleOffset
 
 trandOnceF :: UInt -> Float -> Float -> Float
 trandOnceF iseed mn mx =
@@ -4447,6 +4517,10 @@ trandOnceF iseed mn mx =
       case result of
         Nothing -> Just (tnoiseF iseed mn mx)
         Just r  -> Just r
+
+trandOnce :: UInt -> Float -> Float -> Mono Audio
+trandOnce iseed mn mx =
+  fromFloat(trandOnceF iseed mn mx)
 
 -- Note: Fill Buffer with quick'n'dirty random noise
 mkPluckState :: NatVal n -> () -> *PluckState n
@@ -4883,7 +4957,6 @@ clip cs =
 -- TODO / HACK / CRASH: Preset Nat values in data constructors is causing the compiler to crash!!!!!
 -- We SHOULD be able to do:
 -- data FreeVerbCombFilter = FreeVerbCombFilter# (.FractionalDelay 2048) Float
--- TODO: Non-Fractional Delay line!
 
 -- A Lowpass Feedback Combfilter
 data FreeVerbCombFilter n = FreeVerbCombFilter# (.Delay n) Float

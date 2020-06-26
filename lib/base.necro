@@ -2,7 +2,6 @@
 -- Necro.Base
 --------------------
 
-
 -- Math constants
 pi :: Floating a => a
 pi = 3.1415926535897932384626433
@@ -108,7 +107,6 @@ snd3 (_, y, _) = y
 thd3 :: (.a, .b, .c) -> .c
 thd3 (_, _, z) = z
 
--- We're uh....hitting stack overflow...
 fst3' :: (#.a, .b, .c#) -> .a
 fst3' (#x, _, _#) = x
 
@@ -158,6 +156,9 @@ mouseX = getMouseX ()
 
 mouseY :: Int
 mouseY = getMouseY ()
+
+asTypeOf :: a -> a -> a
+asTypeOf x _ = x
 
 
 ----------------------
@@ -342,19 +343,6 @@ writePlot2DToFileOnce name dat w0 =
         _ -> printLn "Done writing file" w1
   where
     epoch ~ 0 = epoch + 1
-
--- writeMyCoolPlot :: *World -> *World
--- writeMyCoolPlot w =
---   writePlot2DToFileOnce ".\Test.txt" a w
---   where
---     a :: Array 1024 Float
---     a =
---       mkArray (\i -> sine ((fromUInt i / 1024) * tau * 4))
-
--- testJit :: *World -> *World
--- testJit w =
---   writeMyCoolPlot w
-
 
 ----------------------
 -- Numeric Hierarchy
@@ -2446,8 +2434,8 @@ instance Default Audio where
 --------------------
 -- https://www.dspguide.com/ch12/1.htm
 -- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
-data FFT k   = FFT (Array (NatMul BlockSize (NatMax k 1)) Complex)
-data FFTWindow = FFTWindow (Array BlockSize Float)
+data FFT k       = FFT (Array (NatMul BlockSize (NatMax k 1)) Complex) | FFTNone | FFTEnd
+data FFTWindow k = FFTWindow (Array (NatMul BlockSize (NatMax k 1)) Float)
 -- TODO: FFT windowing!
 
 uintToInt :: UInt -> Int
@@ -2473,15 +2461,27 @@ cerp x0 x1 x2 x3 deltaF =
     a2     = x2 - x0
     a3     = x1
 
--- hanning :: FFTWindow
--- hanning =
---   FFTWindow <| freezeArray <| loop a = unsafeEmptyArray () for i <- each do
---     writeArray i (0.5 - 0.5 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt sampleRate)) a
+natValFrom :: NatVal k -> f k -> UInt
+natValFrom n _ =
+  natVal n
 
--- hamming :: FFTWindow
--- hamming =
---   FFTWindow <| freezeArray <| loop a = unsafeEmptyArray () for i <- each do
---     writeArray i (0.54 - 0.46 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt sampleRate)) a
+windowNone :: FFTWindow k
+windowNone =
+  FFTWindow (arrayFrom 1)
+
+windowHann :: FFTWindow k
+windowHann =
+  FFTWindow
+  <| freezeArray
+  <| loop a = unsafeEmptyArray () for i <- each do
+    writeArray i (0.5 - 0.5 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt (natValFrom NatVal i))) a
+
+windowHamming :: FFTWindow k
+windowHamming =
+  FFTWindow
+  <| freezeArray
+  <| loop a = unsafeEmptyArray () for i <- each do
+    writeArray i (0.54 - 0.46 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt (natValFrom NatVal i))) a
 
 -- -- TODO: Look more into this...
 -- -- TODO: Shift right after bit reverse?
@@ -2525,22 +2525,158 @@ cerp x0 x1 x2 x3 deltaF =
 --       in
 --         (#i + 1, aout1#)
 
-fftAudio :: Array BlockSize Float -> FFT k
-fftAudio a = aout |> freezeArray |> FFT
-    where
-        numSamples = bitShiftLeft 1024 1 -- How to make this use k above somehow or below?
-        (#_, _, _, aout#) =
-            loop (#i, j, m, a0#) = (#1, 1, 0, unsafeEmptyArray ()#) while i < numSamples do
-                let
-                    a1 = if j > 1 then
-                        a0 --!!!!!!!!!!!!!!!!!!!!!!!!
-                        -- writeArray (Index (j - 1)) (readArray (Index (i - 1) a0)) a0
-                        else a0
-                    (#j', m'#) =
-                        loop (#jj, mm#) = (#j, m#) while (m >= 2 && j > m) do
-                            (#jj - mm, bitShiftRight mm 1#)
-                in
-                    (#i + 2, j' + m', m', a1#)
+-- fftAudio :: Array BlockSize Float -> FFT k
+-- fftAudio a = aout |> freezeArray |> FFT
+--     where
+--         numSamples = bitShiftLeft 1024 1 -- How to make this use k above somehow or below?
+--         (#_, _, _, aout#) =
+--             loop (#i, j, m, a0#) = (#1, 1, 0, unsafeEmptyArray ()#) while i < numSamples do
+--                 let
+--                     a1 = if j > 1 then
+--                         a0 --!!!!!!!!!!!!!!!!!!!!!!!!
+--                         -- writeArray (Index (j - 1)) (readArray (Index (i - 1) a0)) a0
+--                         else a0
+--                     (#j', m'#) =
+--                         loop (#jj, mm#) = (#j, m#) while (m >= 2 && j > m) do
+--                             (#jj - mm, bitShiftRight mm 1#)
+--                 in
+--                     (#i + 2, j' + m', m', a1#)
+
+
+----------------------
+-- audioToTimeDomain
+-- This preps audio data for FFT analysis
+-- First it buffers the audio data to the FFT buffer size (which is a multiple of the audio block size)
+-- Then it multiplies this buffer by the supplied window function
+-- And lastly it stores this in a Complex valued array for the FFT algorithm
+-- NOTE: Really need to get stateful unique objects working, mutRef is such a hack :(
+audioToTimeDomain :: Array BlockSize Float -> Array (NatMul BlockSize (NatMax k 1)) Float -> Array (NatMul BlockSize (NatMax k 1)) Complex
+audioToTimeDomain a0 w =
+  -- Create stateful audio buffer
+  case mutRefTake (\_ -> (#unsafeEmptyArray (), 0#)) of
+    (#(#buffer0, i0#), mref#) ->
+      let
+        (#buffer2, i2#) =
+          -- Copy audio into audio buffer
+          loop (#buffer1, i1#) = (#buffer0, i0#) for ai <- each do
+            let
+              aSample = readArray ai a0
+              buffer2 = writeArray (unsafeUIntToIndex i1) aSample buffer1
+            in
+              (#buffer2, bitAnd (i1 + 1) fftSizeMask#)
+        (#buffer5, outBuffer, _#) =
+          -- Window buffered audio
+          loop (#buffer3, outBuffer0, bi#) = (#buffer2, unsafeEmptyArray (), i2#) for wi <- each do
+            let
+              bIndex                    = asTypeOf (unsafeUIntToIndex bi) wi
+              (#bufferSample, buffer4#) = readArrayU bIndex buffer3
+              windowSample              = readArray wi w
+              windowedTimDomain         = Complex# (bufferSample * windowSample) 0
+              outBuffer1                = writeArray wi windowedTimDomain outBuffer0
+            in
+              (#buffer4, outBuffer1, bitAnd (bi + 1) fftSizeMask#)
+      in
+        -- Stash stateful audio buffer
+        case mutRefPut (#buffer5, i2#) mref of
+          _ ->
+            freezeArray outBuffer
+  where
+    fftSize     = arrayLength NatVal w
+    fftSizeMask = fftSize - 1
+
+----------------------
+-- FFT
+-- Naive implementation, for now
+-- TODO: Chad make this fast (ez game)
+-- TODO: Overlap-Add method: dspguide.com/ch18/1.htm
+
+fftAudio :: Array BlockSize Float -> FFTWindow k -> FFT k
+fftAudio audio (FFTWindow window) =
+  FFT (freezeArray bins1)
+  where
+    numSamples   = arrayLength NatVal window
+    numSamplesF  = fromUInt numSamples
+    timeDomain   = audioToTimeDomain audio window
+    bins1        =
+      loop bins0 = unsafeEmptyArray () for k <- each do
+        let
+          kr  = fromUInt (indexToUInt k)
+          bin =
+            loop (Complex# fr0 fi0) = Complex# 0 0 for i <- each do
+              let
+                ir             = fromUInt (indexToUInt i)
+                p              = 2 * pi * kr * ir / numSamplesF
+                c              = cosine p
+                s              = 0 - sine p
+                Complex# tr ti = readArray i timeDomain
+                fr1            = fr0 + (tr * c - ti * s)
+                fi1            = fi0 + (tr * s + ti * c)
+              in
+                Complex# fr1 fi1
+        in
+          writeArray k bin bins0
+
+ifftAudio :: Array (NatMul BlockSize (NatMax k 1)) Complex -> Audio
+ifftAudio freqDomain =
+  AudioRate (freezeArray bins1)
+  where
+    numSamples   = arrayLength NatVal freqDomain
+    numSamplesF  = fromUInt numSamples
+    bins1        =
+      loop bins0 = unsafeEmptyArray () for k <- each do
+        let
+          kr  = fromUInt (indexToUInt k)
+          bin =
+            loop (Complex# tr0 ti0) = Complex# 0 0 for i <- each do
+              let
+                ir             = fromUInt (indexToUInt i)
+                p              = 2 * pi * kr * ir / numSamplesF
+                c              = cosine p
+                s              = 0 - sine p
+                Complex# fr fi = readArray i freqDomain
+                tr1            = tr0 + (fr * c + fi * s)
+                ti1            = ti0 + (fr * s - fi * c)
+              in
+                Complex# tr1 ti1
+        in
+          writeArray k (realPart bin) bins0
+
+fft :: AudioFormat f => FFTWindow k -> f Audio -> f (FFT k)
+fft w cs =
+  map f cs
+  where
+    f c =
+      case c of
+        AudioEnd    -> FFTEnd
+        BlockRate _ -> FFTNone
+        AudioRate a -> fftAudio a w
+
+ifft :: AudioFormat f => f (FFT k) -> f Audio
+ifft cs =
+  map f cs
+  where
+    f c =
+      case c of
+        FFTEnd   -> AudioEnd
+        FFTNone  -> BlockRate 0
+        FFT bins -> ifftAudio bins
+
+plotFFTChannelOnce :: Array n Char -> FFT k -> *World -> *World
+plotFFTChannelOnce name f w =
+  case f of
+    FFT fftBuffer ->
+      let
+        realBuffer =
+          freezeArray
+          <| loop realBuffer0 = unsafeEmptyArray () for i <- each do
+            writeArray i (magnitude (readArray i fftBuffer)) realBuffer0
+      in
+        writePlot2DToFileOnce name realBuffer w
+    _ -> w
+
+plotFFTOnce :: Array n Char -> Mono (FFT k) -> *World -> *World
+plotFFTOnce name (Mono fftBuffer) w =
+  plotFFTChannelOnce name fftBuffer w
 
 
 --------------------
@@ -3008,11 +3144,9 @@ minBlepFFT :: UInt -> MinBlepFFT z o -> *MinBlepFFT z o
 minBlepFFT n (MinBlepFFT timeDomain) =
   MinBlepFFT bins1
   where
-    rn    = fromUInt n
-    bins0 =
-      loop b = unsafeEmptyArray () for i <- each do
-        writeArray i (Complex# 0 0) b
-    bins1 = snd' <|
+    rn           = fromUInt n
+    bins0        = arrayFrom (Complex# 0 0)
+    (#_, bins1#) =
       loop (#k, b1#) = (#0, bins0#) while k < n do
         let
           b4 = snd' <|

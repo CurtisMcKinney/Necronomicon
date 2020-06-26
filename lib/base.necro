@@ -1342,7 +1342,7 @@ instance Trig Complex where
         logTwo = log 2
         iLogTwo = i * log 2
       in
-        Complex# (magC * cosine iLogTwo) (magC * sine iLogTwo) 
+        Complex# (magC * cosine iLogTwo) (magC * sine iLogTwo)
   log c = Complex# (log <| magnitude c) (phase c)
   log2 c = Complex# (log2 <| magnitude c) (phase c)
   log10 c = Complex# (log10 <| magnitude c) (phase c)
@@ -4707,8 +4707,8 @@ mkWaveGuidePluckState n pickLocation pickAmplitude freq _ =
               (upSlope * fromUInt ri)
             else
               (downSlope * (fullLength - 1 - fromUInt ri))
-          leftSample2  = lerp randL (leftSample * 2 - 1) 0.9 * pickAmplitude
-          rightSample2 = lerp (randR * -1) ((rightSample * 2 - 1) * -1) 0.9 * pickAmplitude
+          leftSample2  = lerp randL (leftSample * 2 - 1) 0.8 * pickAmplitude
+          rightSample2 = lerp (randR * -1) ((rightSample * 2 - 1) * -1) 0.8 * pickAmplitude
           -- leftSample2  = (leftSample * 2 - 1)
           -- rightSample2 = ((rightSample * 2 - 1) * -1)
         in

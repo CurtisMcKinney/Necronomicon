@@ -2525,6 +2525,24 @@ cerp x0 x1 x2 x3 deltaF =
 --       in
 --         (#i + 1, aout1#)
 
+fftAudio :: Array BlockSize Float -> FFT k
+fftAudio a = aout |> freezeArray |> FFT
+    where
+        numSamples = bitShiftLeft 1024 1 -- How to make this use k above somehow or below?
+        (#_, _, _, aout#) =
+            loop (#i, j, m, a0#) = (#1, 1, 0, unsafeEmptyArray ()#) while i < numSamples do
+                let
+                    a1 = if j > 1 then
+                        a0 --!!!!!!!!!!!!!!!!!!!!!!!!
+                        -- writeArray (Index (j - 1)) (readArray (Index (i - 1) a0)) a0
+                        else a0
+                    (#j', m'#) =
+                        loop (#jj, mm#) = (#j, m#) while (m >= 2 && j > m) do
+                            (#jj - mm, bitShiftRight mm 1#)
+                in
+                    (#i + 2, j' + m', m', a1#)
+
+
 --------------------
 -- AudioFormat
 --------------------

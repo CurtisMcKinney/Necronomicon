@@ -2434,9 +2434,8 @@ instance Default Audio where
 --------------------
 -- https://www.dspguide.com/ch12/1.htm
 -- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
-data FFT k       = FFT (Array (NatMul BlockSize (NatMax k 1)) Complex) | FFTNone | FFTEnd
-data FFTWindow k = FFTWindow (Array (NatMul BlockSize (NatMax k 1)) Float)
--- TODO: FFT windowing!
+data FFT k     = FFT (Array (NatMul BlockSize (NatMax k 1)) Complex) | FFTNone | FFTEnd
+data FFTWindow = FFTWindow (Array BlockSize Float)
 
 uintToInt :: UInt -> Int
 uintToInt x = primUndefined
@@ -2465,18 +2464,18 @@ natValFrom :: NatVal k -> f k -> UInt
 natValFrom n _ =
   natVal n
 
-windowNone :: FFTWindow k
+windowNone :: FFTWindow
 windowNone =
   FFTWindow (arrayFrom 1)
 
-windowHann :: FFTWindow k
+windowHann :: FFTWindow
 windowHann =
   FFTWindow
   <| freezeArray
   <| loop a = unsafeEmptyArray () for i <- each do
     writeArray i (0.5 - 0.5 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt (natValFrom NatVal i))) a
 
-windowHamming :: FFTWindow k
+windowHamming :: FFTWindow
 windowHamming =
   FFTWindow
   <| freezeArray
@@ -2546,43 +2545,35 @@ windowHamming =
 ----------------------
 -- audioToTimeDomain
 -- This preps audio data for FFT analysis
--- First it buffers the audio data to the FFT buffer size (which is a multiple of the audio block size)
--- Then it multiplies this buffer by the supplied window function
+-- First it performs zero-phase zero padding to the fft buffer size
+-- Then it multiplies the audio by the supplied window function
 -- And lastly it stores this in a Complex valued array for the FFT algorithm
--- NOTE: Really need to get stateful unique objects working, mutRef is such a hack :(
-audioToTimeDomain :: Array BlockSize Float -> Array (NatMul BlockSize (NatMax k 1)) Float -> Array (NatMul BlockSize (NatMax k 1)) Complex
-audioToTimeDomain a0 w =
-  -- Create stateful audio buffer
-  case mutRefTake (\_ -> (#unsafeEmptyArray (), 0#)) of
-    (#(#buffer0, i0#), mref#) ->
-      let
-        (#buffer2, i2#) =
-          -- Copy audio into audio buffer
-          loop (#buffer1, i1#) = (#buffer0, i0#) for ai <- each do
-            let
-              aSample = readArray ai a0
-              buffer2 = writeArray (unsafeUIntToIndex i1) aSample buffer1
-            in
-              (#buffer2, bitAnd (i1 + 1) fftSizeMask#)
-        (#buffer5, outBuffer, _#) =
-          -- Window buffered audio
-          loop (#buffer3, outBuffer0, bi#) = (#buffer2, unsafeEmptyArray (), i2#) for wi <- each do
-            let
-              bIndex                    = asTypeOf (unsafeUIntToIndex bi) wi
-              (#bufferSample, buffer4#) = readArrayU bIndex buffer3
-              windowSample              = readArray wi w
-              windowedTimDomain         = Complex# (bufferSample * windowSample) 0
-              outBuffer1                = writeArray wi windowedTimDomain outBuffer0
-            in
-              (#buffer4, outBuffer1, bitAnd (bi + 1) fftSizeMask#)
-      in
-        -- Stash stateful audio buffer
-        case mutRefPut (#buffer5, i2#) mref of
-          _ ->
-            freezeArray outBuffer
+audioToTimeDomain :: UInt -> Array BlockSize Float -> Array BlockSize Float -> Array (NatMul BlockSize (NatMax k 1)) Complex
+audioToTimeDomain fftSize a w =
+  freezeArray timeDomain
   where
-    fftSize     = arrayLength NatVal w
-    fftSizeMask = fftSize - 1
+    halfBlockSize = arrayLength NatVal a / 2
+    halfFFTSize   = fftSize / 2
+    timeDomain    =
+      loop timeDomain0 = unsafeEmptyArray () for fftIndex <- each do
+        let
+          fftIndexU  = indexToUInt fftIndex
+          timeSample =
+            -- Zero-phase Zero padding
+            if fftIndexU < halfBlockSize then
+              let
+                ai = unsafeUIntToIndex (fftIndexU + halfBlockSize)
+              in
+                Complex# (readArray ai a * readArray ai w) 0
+            else if fftIndexU >= fftSize - halfBlockSize then
+              let
+                ai = unsafeUIntToIndex (fftIndexU - (fftSize - halfBlockSize))
+              in
+                Complex# (readArray ai a * readArray ai w) 0
+            else
+              0
+        in
+          writeArray fftIndex timeSample timeDomain0
 
 ----------------------
 -- FFT
@@ -2590,13 +2581,13 @@ audioToTimeDomain a0 w =
 -- TODO: Chad make this fast (ez game)
 -- TODO: Overlap-Add method: dspguide.com/ch18/1.htm
 
-fftAudio :: Array BlockSize Float -> FFTWindow k -> FFT k
-fftAudio audio (FFTWindow window) =
+fftAudio :: NatVal (NatMul BlockSize (NatMax k 1)) -> Array BlockSize Float -> FFTWindow -> FFT k
+fftAudio n audio (FFTWindow window) =
   FFT (freezeArray bins1)
   where
-    numSamples   = arrayLength NatVal window
+    numSamples   = natVal n
     numSamplesF  = fromUInt numSamples
-    timeDomain   = audioToTimeDomain audio window
+    timeDomain   = audioToTimeDomain numSamples audio window
     bins1        =
       loop bins0 = unsafeEmptyArray () for k <- each do
         let
@@ -2608,7 +2599,7 @@ fftAudio audio (FFTWindow window) =
                 p              = 2 * pi * kr * ir / numSamplesF
                 c              = cosine p
                 s              = 0 - sine p
-                Complex# tr ti = readArray i timeDomain
+                Complex# tr ti = readArray (asTypeOf i k) timeDomain
                 fr1            = fr0 + (tr * c - ti * s)
                 fi1            = fi0 + (tr * s + ti * c)
               in
@@ -2639,9 +2630,9 @@ ifftAudio freqDomain =
               in
                 Complex# tr1 ti1
         in
-          writeArray k (realPart bin) bins0
+          writeArray k (realPart bin / numSamplesF) bins0
 
-fft :: AudioFormat f => FFTWindow k -> f Audio -> f (FFT k)
+fft :: AudioFormat f => FFTWindow -> f Audio -> f (FFT k)
 fft w cs =
   map f cs
   where
@@ -2649,7 +2640,7 @@ fft w cs =
       case c of
         AudioEnd    -> FFTEnd
         BlockRate _ -> FFTNone
-        AudioRate a -> fftAudio a w
+        AudioRate a -> fftAudio NatVal a w
 
 ifft :: AudioFormat f => f (FFT k) -> f Audio
 ifft cs =

@@ -2524,23 +2524,6 @@ windowHamming =
 --       in
 --         (#i + 1, aout1#)
 
--- fftAudio :: Array BlockSize Float -> FFT k
--- fftAudio a = aout |> freezeArray |> FFT
---     where
---         numSamples = bitShiftLeft 1024 1 -- How to make this use k above somehow or below?
---         (#_, _, _, aout#) =
---             loop (#i, j, m, a0#) = (#1, 1, 0, unsafeEmptyArray ()#) while i < numSamples do
---                 let
---                     a1 = if j > 1 then
---                         a0 --!!!!!!!!!!!!!!!!!!!!!!!!
---                         -- writeArray (Index (j - 1)) (readArray (Index (i - 1) a0)) a0
---                         else a0
---                     (#j', m'#) =
---                         loop (#jj, mm#) = (#j, m#) while (m >= 2 && j > m) do
---                             (#jj - mm, bitShiftRight mm 1#)
---                 in
---                     (#i + 2, j' + m', m', a1#)
-
 
 ----------------------
 -- audioToTimeDomain
@@ -2548,7 +2531,7 @@ windowHamming =
 -- First it performs zero-phase zero padding to the fft buffer size
 -- Then it multiplies the audio by the supplied window function
 -- And lastly it stores this in a Complex valued array for the FFT algorithm
-audioToTimeDomain :: UInt -> Array BlockSize Float -> Array BlockSize Float -> Array (NatMul BlockSize (NatMax k 1)) Complex
+audioToTimeDomain :: UInt -> Array BlockSize Float -> Array BlockSize Float -> *Array (NatMul BlockSize (NatMax k 1)) Complex
 audioToTimeDomain fftSize a w =
   freezeArray timeDomain
   where
@@ -2587,7 +2570,7 @@ fftAudio n audio (FFTWindow window) =
   where
     numSamples   = natVal n
     numSamplesF  = fromUInt numSamples
-    timeDomain   = audioToTimeDomain numSamples audio window
+    timeDomain   = audioToTimeDomain numSamples audio window |> freezeArray
     bins1        =
       loop bins0 = unsafeEmptyArray () for k <- each do
         let
@@ -2606,6 +2589,104 @@ fftAudio n audio (FFTWindow window) =
                 Complex# fr1 fi1
         in
           writeArray k bin bins0
+
+-- ----------------------
+-- -- audioToTimeDomain
+-- -- This preps audio data for FFT analysis
+-- -- First it performs zero-phase zero padding to the fft buffer size
+-- -- Then it multiplies the audio by the supplied window function
+-- -- And lastly it stores this in a Complex valued array for the FFT algorithm
+-- audioToTimeDomain' :: UInt -> Array BlockSize Float -> Array BlockSize Float -> *Array (NatMul 2 (NatMul BlockSize (NatMax k 1))) Float
+-- audioToTimeDomain' fftSize a w =
+--   freezeArray timeDomain
+--   where
+--     size = natVal 
+--     halfBlockSize = arrayLength NatVal a / 2
+--     halfFFTSize   = fftSize / 2
+--     timeDomain    =
+--       loop (#timeDomain0, sampleIndex#) = unsafeEmptyArray () while sampleIndex < 
+--         let
+--           fftRealIndex = sampleIndex * 2
+--           fftImagIndex = fftRealIndex + 1
+--           sampleIndex  = indexToUInt fftIndex
+--           timeSample =
+--             -- Zero-phase Zero padding
+--             if sampleIndex < halfBlockSize then
+--               let
+--                 ai = unsafeUIntToIndex (sampleIndex + halfBlockSize)
+--               in
+--                 readArray ai a * readArray ai w
+--             else if sampleIndex >= fftSize - halfBlockSize then
+--               let
+--                 ai = unsafeUIntToIndex (sampleIndex - (fftSize - halfBlockSize))
+--               in
+--                 readArray ai a * readArray ai w
+--             else
+--               0
+--           timeDomain1 = 
+--             writeArray fftRealIndex timeSample timeDomain0 |>
+--             writeArray fftImagIndex timeSample 0
+--         in
+--           (#timeDomain1, sampleIndex + 1#)
+
+fftAudio' :: NatVal (NatMul BlockSize (NatMax k 1)) -> Array BlockSize Float -> FFTWindow -> FFT k
+fftAudio' n audio (FFTWindow window) = aout |> freezeArray |> FFT
+  where
+    numSamples   = natVal n
+    halfSamples  = numSamples / 2
+    shiftN       = bitShiftLeft numSamples 1
+    timeDomain   = audioToTimeDomain numSamples audio window
+    (#_, _, ar#) =
+      loop (#i, j, a0#) = (#0, 0, timeDomain#) while i < shiftN do
+        let
+          a1 = if j > i then
+            let
+              (#ci, a01#) = readArrayU (unsafeUIntToIndex i) a0 
+              (#cj, a02#) = readArrayU (unsafeUIntToIndex j) a01 
+            in
+              writeArray (unsafeUIntToIndex j) ci a02 |> writeArray (unsafeUIntToIndex i) cj 
+            else
+              a0
+          (#j', m#) =
+            loop (#jj, mm#) = (#j, shiftN#) while (mm >= 2 && jj > mm) do
+              (#jj - mm, bitShiftRight mm 1#)
+        in
+          (#i + 1, j' + m, a1#)
+    (#_, aout#) =
+      loop (#mmax, a0#) = (#1, ar#) while (mmax < halfSamples) do
+        let
+          istep  = bitShiftLeft mmax 1
+          theta  = negate (twoPi / fromUInt mmax)
+          wtemp0 = sine (0.5 * theta)
+          wpr    = negate <| 2.0 * wtemp0 * wtemp0
+          wpi    = sine theta
+          wr0    = 1.0
+          wi0    = 0.0
+          (#_, _, _, _, a1#) =
+            loop (#m, wtemp, wr, wi, a00#) = (#0, wtemp0, wr0, wi0, a0#) while (m < mmax) do
+              let
+                (#_, a01#) =
+                  loop (#i, a000#) = (#m, a00#) while (i <= halfSamples) do
+                    let
+                      j = i + mmax
+                      (#Complex# jReal jImag, ar#) = readArrayU (unsafeUIntToIndex j) a000
+                      (#Complex# iReal iImag, ar1#) = readArrayU (unsafeUIntToIndex i) ar
+                      tempr = wr * jReal - wi * jImag
+                      tempi = wr * jImag + wi * jReal
+                      cj = Complex# (iReal - tempr) (iImag - tempi)
+                      ci = Complex# (iReal + tempr) (iImag + tempi)
+                      aw = 
+                        writeArray (unsafeUIntToIndex j) cj ar1 |> 
+                        writeArray (unsafeUIntToIndex i) ci
+                    in
+                      (#i + istep, aw#)
+                wtemp' = wr
+                wr' = wr + (wr * wpr) - (wi * wpi)
+                wi' = wi + (wi * wpr) + (wtemp * wpi)
+              in
+                (#m + 1, wtemp', wr', wi', a01#)
+        in
+          (#istep, a1#)
 
 ifftAudio :: Array (NatMul BlockSize (NatMax k 1)) Complex -> Audio
 ifftAudio freqDomain =
@@ -2640,7 +2721,7 @@ fft w cs =
       case c of
         AudioEnd    -> FFTEnd
         BlockRate _ -> FFTNone
-        AudioRate a -> fftAudio NatVal a w
+        AudioRate a -> fftAudio' NatVal a w
 
 ifft :: AudioFormat f => f (FFT k) -> f Audio
 ifft cs =
@@ -6609,14 +6690,23 @@ d2f :: Scale t d -> Int -> Float
 d2f = degreeToFrequency
 
 testJit :: *World -> *World
-testJit w =
-  outAudio 0 p w
+testJit w = plotFFTOnce "fftOut.dat" fftOut w 
   where
+    fftOut :: Mono (FFT 1)
+    fftOut = fft windowNone p
     p =
       pluck natEight 50 1.0 +
       pluck natFour 100 1.0
-      |> pan 0.5
-      |> mul 0.1
+
+-- testJit :: *World -> *World
+-- testJit w =
+--   outAudio 0 p w
+--   where
+--     p =
+--       pluck natEight 50 1.0 +
+--       pluck natFour 100 1.0
+--       |> pan 0.5
+--       |> mul 0.1
 
 -- -- Look into alternative to euler method...
 -- testJit :: *World -> *World

@@ -1,19 +1,19 @@
 
 osc1 :: Mono Audio
 osc1 =
-  pulse 0.5 4096
+  pulse 0.5 2048
   -- sin 4096
   |> mul 0.1
 
-oscDFT :: Mono (FFT 16)
+oscDFT :: Mono (FFT 4)
 oscDFT =
   dft windowHann osc1
 
-oscFFT :: Mono (FFT 16)
+oscFFT :: Mono (FFT 4)
 oscFFT =
   fft windowHann osc1
 
-diffDFT2FFT :: Mono (FFT 16)
+diffDFT2FFT :: Mono (FFT 4)
 diffDFT2FFT = doDiff oscDFT oscFFT |> freezeArray |> FFT |> Mono
   where
     doDiff (Mono dftBuffer) (Mono fftBuffer) =

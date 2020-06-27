@@ -5,7 +5,7 @@ osc1 =
   -- sin 4096
   |> mul 0.1
 
-oscFFT :: Mono (FFT 16)
+oscFFT :: Mono (FFT 4)
 oscFFT =
   fft windowHann osc1
 

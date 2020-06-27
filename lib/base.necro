@@ -2473,14 +2473,14 @@ windowHann =
   FFTWindow
   <| freezeArray
   <| loop a = unsafeEmptyArray () for i <- each do
-    writeArray i (0.5 - 0.5 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt (natValFrom NatVal i))) a
+    writeArray i (0.5 - 0.5 * cosine (tau * fromUInt (indexToUInt i) / fromUInt (natValFrom NatVal i))) a
 
 windowHamming :: FFTWindow
 windowHamming =
   FFTWindow
   <| freezeArray
   <| loop a = unsafeEmptyArray () for i <- each do
-    writeArray i (0.54 - 0.46 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt (natValFrom NatVal i))) a
+    writeArray i (0.54 - 0.46 * cosine (tau * fromUInt (indexToUInt i) / fromUInt (natValFrom NatVal i))) a
 
 -- -- TODO: Look more into this...
 -- -- TODO: Shift right after bit reverse?

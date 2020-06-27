@@ -5,9 +5,32 @@ osc1 =
   -- sin 4096
   |> mul 0.1
 
+oscDFT :: Mono (FFT 16)
+oscDFT =
+  dft windowHann osc1
+
 oscFFT :: Mono (FFT 16)
 oscFFT =
   fft windowHann osc1
+
+diffDFT2FFT :: Mono (FFT 16)
+diffDFT2FFT = doDiff oscDFT oscFFT |> freezeArray |> FFT |> Mono
+  where
+    doDiff (Mono dftBuffer) (Mono fftBuffer) =
+      loop diff = unsafeEmptyArray () for i <- each do
+        let
+          (Complex# dr di) = readArray i d
+          (Complex# fr fi) = readArray i f
+          dc = Complex# (abs dr - abs fr) (abs di - abs fi)
+        in
+          writeArray i dc diff
+      where
+        d = case dftBuffer of
+          FFT b -> b
+          _ -> unsafeEmptyArray () |> freezeArray |> traceLn "failed d!"
+        f = case fftBuffer of
+          FFT b -> b
+          _ -> unsafeEmptyArray () |> freezeArray |> traceLn "failed f!"
 
 -- osc2 :: Mono Audio
 -- osc2 =

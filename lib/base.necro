@@ -1817,6 +1817,9 @@ audioSampleRate = 48000
 audioBlockSize :: UInt
 audioBlockSize = 256
 
+audioBlockSizeMask :: UInt
+audioBlockSizeMask = audioBlockSize - 1
+
 audioOverSampleAmount :: UInt
 audioOverSampleAmount = 24
 
@@ -2434,8 +2437,8 @@ instance Default Audio where
 --------------------
 -- https://www.dspguide.com/ch12/1.htm
 -- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
-data FFT k     = FFT (Array (NatMul BlockSize (NatMax k 1)) Complex) | FFTNone | FFTEnd
-data FFTWindow = FFTWindow (Array BlockSize Float)
+data FFT k     = FFT (Array (NatMul BlockSize (NatMax k 2)) Complex) | FFTNone | FFTEnd
+data FFTWindow = FFTWindow (Array (NatMul BlockSize 2) Float)
 
 uintToInt :: UInt -> Int
 uintToInt x = primUndefined
@@ -2484,7 +2487,7 @@ windowHamming =
 
 -- -- TODO: Look more into this...
 -- -- TODO: Shift right after bit reverse?
--- bitRevFFTArray :: Array BlockSize F64 -> FFTWindow -> *Array (NatMul BlockSize (NatMax k 1)) Complex
+-- bitRevFFTArray :: Array BlockSize F64 -> FFTWindow -> *Array (NatMul BlockSize (NatMax k 2)) Complex
 -- bitRevFFTArray audioBuffer (FFTWindow windowBuffer) =
 --   loop a' = unsafeEmptyArray () for i <- each do
 --     let
@@ -2498,7 +2501,7 @@ windowHamming =
 -- -- TODO: Finish!
 -- -- TODO: Compute log2n somehow
 -- -- TODO: Windowing function!
--- fftAudio :: Array BlockSize F64 -> FFTWindow -> Array (NatMul BlockSize (NatMax 1 1)) Complex
+-- fftAudio :: Array BlockSize F64 -> FFTWindow -> Array (NatMul BlockSize (NatMax 1 2)) Complex
 -- fftAudio a w =
 --   freezeArray <| snd' <|
 --     loop (#i, a0#) = (#0, bitRevFFTArray a w#) while i < audioBlockSizeLog2 do
@@ -2528,35 +2531,55 @@ windowHamming =
 ----------------------
 -- audioToTimeDomain
 -- This preps audio data for FFT analysis
--- First it performs zero-phase zero padding to the fft buffer size
+-- Currently uses a fixed hop size of 0.5
+-- First it copies the data into a circular buffer (fft needs past audio data to perform overlay-add in ifft)
+-- Next it performs zero-phase zero padding to the fft buffer size
 -- Then it multiplies the audio by the supplied window function
 -- And lastly it stores this in a Complex valued array for the FFT algorithm
-audioToTimeDomain :: UInt -> Array BlockSize Float -> Array BlockSize Float -> *Array (NatMul BlockSize (NatMax k 1)) Complex
+-- TODO: use NatNextPowerOfTwo for safer FFT sizes? It woudl mean even more hilariously large Array types
+audioToTimeDomain :: UInt -> Array BlockSize Float -> Array (NatMul BlockSize 2) Float -> *Array (NatMul BlockSize (NatMax k 2)) Complex
 audioToTimeDomain fftSize a w =
-  freezeArray timeDomain
-  where
-    halfBlockSize = arrayLength NatVal a / 2
-    halfFFTSize   = fftSize / 2
-    timeDomain    =
-      loop timeDomain0 = unsafeEmptyArray () for fftIndex <- each do
-        let
-          fftIndexU  = indexToUInt fftIndex
-          timeSample =
-            -- Zero-phase Zero padding
-            if fftIndexU < halfBlockSize then
-              let
-                ai = unsafeUIntToIndex (fftIndexU + halfBlockSize)
-              in
-                Complex# (readArray ai a * readArray ai w) 0
-            else if fftIndexU >= fftSize - halfBlockSize then
-              let
-                ai = unsafeUIntToIndex (fftIndexU - (fftSize - halfBlockSize))
-              in
-                Complex# (readArray ai a * readArray ai w) 0
-            else
-              0
-        in
-          writeArray fftIndex timeSample timeDomain0
+  case mutRefTake (\_ -> (#arrayFrom 0, 0#)) of
+    (#(#cBuffer0, cOffset0#), mref#) ->
+      let
+        a2SizeMask = audioBlockSize * 2 - 1
+        cOffset1   = bitAnd (cOffset0 + audioBlockSize) a2SizeMask
+        cBuffer2   =
+          -- Copy data into circular buffer
+          loop cBuffer1 = cBuffer0 for i <- each do
+            writeArray (unsafeUIntToIndex (bitAnd (indexToUInt i + cOffset0) a2SizeMask)) (readArray i a) cBuffer1
+        (#timeDomain, cBuffer5#) =
+          loop (#timeDomain0, cBuffer3#) = (#unsafeEmptyArray (), cBuffer2#) for fftIndex <- each do
+            let
+              fftIndexU  = indexToUInt fftIndex
+            in
+              -- Zero-phase Zero padding
+              if fftIndexU < audioBlockSize then
+                let
+                  ai               = fftIndexU + audioBlockSize
+                  wi               = unsafeUIntToIndex ai
+                  wx               = readArray wi w
+                  ci               = asTypeOf (unsafeUIntToIndex (bitAnd (ai + cOffset0 + audioBlockSize) a2SizeMask)) wi
+                  (#ax, cBuffer4#) = readArrayU ci cBuffer3
+                  tc               = Complex# (ax * wx) 0
+                in
+                  (#writeArray fftIndex tc timeDomain0, cBuffer4#)
+              else if fftIndexU >= fftSize - audioBlockSize then
+                let
+                  ai               = fftIndexU - (fftSize - audioBlockSize)
+                  wi               = unsafeUIntToIndex ai
+                  wx               = readArray wi w
+                  ci               = asTypeOf (unsafeUIntToIndex (bitAnd (ai + cOffset0 + audioBlockSize) a2SizeMask)) wi
+                  (#ax, cBuffer4#) = readArrayU ci cBuffer3
+                  tc               = Complex# (ax * wx) 0
+                in
+                  (#writeArray fftIndex tc timeDomain0, cBuffer4#)
+              else
+                (#writeArray fftIndex 0 timeDomain0, cBuffer3#)
+      in
+        case mutRefPut (#cBuffer5, cOffset1#) mref of
+          _ ->
+            freezeArray timeDomain
 
 ----------------------
 -- FFT
@@ -2564,7 +2587,7 @@ audioToTimeDomain fftSize a w =
 -- TODO: Chad make this fast (ez game)
 -- TODO: Overlap-Add method: dspguide.com/ch18/1.htm
 
-fftAudio :: NatVal (NatMul BlockSize (NatMax k 1)) -> Array BlockSize Float -> FFTWindow -> FFT k
+fftAudio :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow -> FFT k
 fftAudio n audio (FFTWindow window) =
   FFT (freezeArray bins1)
   where
@@ -2590,46 +2613,7 @@ fftAudio n audio (FFTWindow window) =
         in
           writeArray k bin bins0
 
--- ----------------------
--- -- audioToTimeDomain
--- -- This preps audio data for FFT analysis
--- -- First it performs zero-phase zero padding to the fft buffer size
--- -- Then it multiplies the audio by the supplied window function
--- -- And lastly it stores this in a Complex valued array for the FFT algorithm
--- audioToTimeDomain' :: UInt -> Array BlockSize Float -> Array BlockSize Float -> *Array (NatMul 2 (NatMul BlockSize (NatMax k 1))) Float
--- audioToTimeDomain' fftSize a w =
---   freezeArray timeDomain
---   where
---     size = natVal 
---     halfBlockSize = arrayLength NatVal a / 2
---     halfFFTSize   = fftSize / 2
---     timeDomain    =
---       loop (#timeDomain0, sampleIndex#) = unsafeEmptyArray () while sampleIndex < 
---         let
---           fftRealIndex = sampleIndex * 2
---           fftImagIndex = fftRealIndex + 1
---           sampleIndex  = indexToUInt fftIndex
---           timeSample =
---             -- Zero-phase Zero padding
---             if sampleIndex < halfBlockSize then
---               let
---                 ai = unsafeUIntToIndex (sampleIndex + halfBlockSize)
---               in
---                 readArray ai a * readArray ai w
---             else if sampleIndex >= fftSize - halfBlockSize then
---               let
---                 ai = unsafeUIntToIndex (sampleIndex - (fftSize - halfBlockSize))
---               in
---                 readArray ai a * readArray ai w
---             else
---               0
---           timeDomain1 = 
---             writeArray fftRealIndex timeSample timeDomain0 |>
---             writeArray fftImagIndex timeSample 0
---         in
---           (#timeDomain1, sampleIndex + 1#)
-
-fftAudio' :: NatVal (NatMul BlockSize (NatMax k 1)) -> Array BlockSize Float -> FFTWindow -> FFT k
+fftAudio' :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow -> FFT k
 fftAudio' n audio (FFTWindow window) = aout |> freezeArray |> FFT
   where
     numSamples   = natVal n
@@ -2688,7 +2672,7 @@ fftAudio' n audio (FFTWindow window) = aout |> freezeArray |> FFT
         in
           (#istep, a1#)
 
-ifftAudio :: Array (NatMul BlockSize (NatMax k 1)) Complex -> Audio
+ifftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
 ifftAudio freqDomain =
   AudioRate (freezeArray bins1)
   where

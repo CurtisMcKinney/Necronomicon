@@ -1,7 +1,7 @@
 
 osc1 :: Mono Audio
 osc1 =
-  pulse 0.5 4096
+  pulse 0.5 2048
   -- sin 4096
   |> mul 0.1
 

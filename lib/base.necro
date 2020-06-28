@@ -2497,49 +2497,6 @@ windowHamming =
   <| loop a = unsafeEmptyArray () for i <- each do
     writeArray i (0.54 - 0.46 * cosine (tau * fromUInt (indexToUInt i) / fromUInt (natValFrom NatVal i))) a
 
--- -- TODO: Look more into this...
--- -- TODO: Shift right after bit reverse?
--- bitRevFFTArray :: Array BlockSize F64 -> FFTWindow -> *Array (NatMul BlockSize (NatMax k 2)) Complex
--- bitRevFFTArray audioBuffer (FFTWindow windowBuffer) =
---   loop a' = unsafeEmptyArray () for i <- each do
---     let
---       sample = readArray (bitReverseIndex i) audioBuffer
---       winval = readArray i windowBuffer
---       c      = Complex# (sample * winval) 0
---     in
---       writeArray (toIndexMultiple i) c a'
-
--- -- NOTE: bitReverse Cooley-Tukey FFT algorithm
--- -- TODO: Finish!
--- -- TODO: Compute log2n somehow
--- -- TODO: Windowing function!
--- fftAudio :: Array BlockSize F64 -> FFTWindow -> Array (NatMul BlockSize (NatMax 1 2)) Complex
--- fftAudio a w =
---   freezeArray <| snd' <|
---     loop (#i, a0#) = (#0, bitRevFFTArray a w#) while i < audioBlockSizeLog2 do
---       let
---         m1              = bitShiftLeft  1  i
---         m2              = bitShiftRight m1 1
---         wm              = 0 -- Compute somehow
---         (#_, _, aout1#) =
---           loop (#j, w, a1#) = (#0, 1, a0#) while j < m2 do
---             let
---               (#_, aout0#) =
---                 loop (#k, a2#) = (#j, a1#) while k < audioBlockSize do
---                   let
---                     ki        = Index k
---                     km2i      = Index (k + m2)
---                     (#t, a3#) = readArrayU km2i a2
---                     (#u, a4#) = readArrayU ki a3
---                     t'        = t * w
---                   in
---                     (#k + 1, writeArray km2i (u - t') (writeArray ki (u + t') a4)#)
---             in
---               (#j + 1, w * wm, aout0#)
---       in
---         (#i + 1, aout1#)
-
-
 ----------------------
 -- audioToTimeDomain
 -- This preps audio data for FFT analysis
@@ -2639,13 +2596,12 @@ timeDomainToAudio fftSize (FFTWindow window) timeDomain =
             AudioRate (freezeArray audio)
 
 ----------------------
--- FFT
--- Naive implementation, for now
--- TODO: Chad make this fast (ez game)
+-- DFT
+-- Naive implementation
 -- TODO: Overlap-Add method: dspguide.com/ch18/1.htm
 
-fftAudio :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow -> FFT k
-fftAudio n audio (FFTWindow window) =
+dftAudio :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow -> FFT k
+dftAudio n audio (FFTWindow window) =
   FFT (freezeArray bins1)
   where
     numSamples   = natVal n
@@ -2670,64 +2626,61 @@ fftAudio n audio (FFTWindow window) =
         in
           writeArray k bin bins0
 
-fftAudio' :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow -> FFT k
-fftAudio' n audio (FFTWindow window) = aout |> freezeArray |> FFT
+fftAudio :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow -> FFT k
+fftAudio n audio (FFTWindow window) = aout |> freezeArray |> FFT
   where
     numSamples   = natVal n
+    numSamples1  = numSamples - 1
     halfSamples  = numSamples / 2
-    shiftN       = bitShiftLeft numSamples 1
+    shiftN       = bitShiftLeft halfSamples 1
     timeDomain   = audioToTimeDomain numSamples audio window
-    (#_, _, ar#) =
-      loop (#i, j, a0#) = (#0, 0, timeDomain#) while i < shiftN do
+    (#_, _, ar#) = -- bit reverse
+      loop (#i, j, ar#) = (#1, 0, timeDomain#) while i < numSamples1 do
         let
-          a1 = if j > i then
-            let
-              (#ci, a01#) = readArrayU (unsafeUIntToIndex i) a0 
-              (#cj, a02#) = readArrayU (unsafeUIntToIndex j) a01 
-            in
-              writeArray (unsafeUIntToIndex j) ci a02 |> writeArray (unsafeUIntToIndex i) cj 
-            else
-              a0
           (#j', m#) =
-            loop (#jj, mm#) = (#j, shiftN#) while (mm >= 2 && jj > mm) do
+            loop (#jj, mm#) = (#j, halfSamples#) while (jj >= mm) do
               (#jj - mm, bitShiftRight mm 1#)
+          j1  = j' + m
+          ar1 = if j1 > i then
+            let
+              (#ci, a1#) = readArrayU (unsafeUIntToIndex i) ar 
+              (#cj, a2#) = readArrayU (unsafeUIntToIndex j1) a1 
+            in
+              writeArray (unsafeUIntToIndex j1) ci a2 |> writeArray (unsafeUIntToIndex i) cj 
+            else
+              ar
         in
-          (#i + 1, j' + m, a1#)
-    (#_, aout#) =
-      loop (#mmax, a0#) = (#1, ar#) while (mmax < halfSamples) do
+          (#i + 1, j1, ar1#)
+    (#_, _, aout#) = -- FFT
+      loop (#i, n0, a0#) = (#1, 1, ar#) while (i < shiftN) do
         let
-          istep  = bitShiftLeft mmax 1
-          theta  = negate (twoPi / fromUInt mmax)
-          wtemp0 = sine (0.5 * theta)
-          wpr    = negate <| 2.0 * wtemp0 * wtemp0
-          wpi    = sine theta
-          wr0    = 1.0
-          wi0    = 0.0
-          (#_, _, _, _, a1#) =
-            loop (#m, wtemp, wr, wi, a00#) = (#0, wtemp0, wr0, wi0, a0#) while (m < mmax) do
+          n1 = n0
+          n2 = n1 + n1
+          e  = negate (twoPi / fromUInt n2)
+          (#_, _, a1#) =
+            loop (#j, theta, a1#) = (#0, 0, a0#) while (j < n1) do
               let
-                (#_, a01#) =
-                  loop (#i, a000#) = (#m, a00#) while (i <= halfSamples) do
+                c = cosine theta
+                s = sine theta
+                (#_, a2#) =
+                  loop (#k, a2#) = (#j, a1#) while (k < numSamples) do
                     let
-                      j = i + mmax
-                      (#Complex# jReal jImag, ar#) = readArrayU (unsafeUIntToIndex j) a000
-                      (#Complex# iReal iImag, ar1#) = readArrayU (unsafeUIntToIndex i) ar
-                      tempr = wr * jReal - wi * jImag
-                      tempi = wr * jImag + wi * jReal
-                      cj = Complex# (iReal - tempr) (iImag - tempi)
-                      ci = Complex# (iReal + tempr) (iImag + tempi)
+                      kN1 = k + n1
+                      (#Complex# kReal kImag, ar#) = readArrayU (unsafeUIntToIndex k) a2
+                      (#Complex# nReal nImag, ar1#) = readArrayU (unsafeUIntToIndex kN1) ar
+                      tempr = c * nReal - s * nImag
+                      tempi = s * nReal + c * nImag
+                      ck = Complex# (kReal + tempr) (kImag + tempi)
+                      cn = Complex# (kReal - tempr) (kImag - tempi)
                       aw = 
-                        writeArray (unsafeUIntToIndex j) cj ar1 |> 
-                        writeArray (unsafeUIntToIndex i) ci
+                        writeArray (unsafeUIntToIndex k) ck ar1 |> 
+                        writeArray (unsafeUIntToIndex kN1) cn
                     in
-                      (#i + istep, aw#)
-                wtemp' = wr
-                wr' = wr + (wr * wpr) - (wi * wpi)
-                wi' = wi + (wi * wpr) + (wtemp * wpi)
+                      (#k + n2, aw#)
               in
-                (#m + 1, wtemp', wr', wi', a01#)
+                (#j + 1, theta + e, a2#)
         in
-          (#istep, a1#)
+          (#bitShiftLeft i 1, n2, a1#)
 
 ifftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
 ifftAudio freqDomain =
@@ -2753,6 +2706,16 @@ ifftAudio freqDomain =
                 Complex# tr1 ti1
         in
           writeArray k (realPart bin / numSamplesF) bins0
+
+dft :: AudioFormat f => FFTWindow -> f Audio -> f (FFT k)
+dft w cs =
+  map f cs
+  where
+    f c =
+      case c of
+        AudioEnd    -> FFTEnd
+        BlockRate _ -> FFTNone
+        AudioRate a -> dftAudio NatVal a w
 
 fft :: AudioFormat f => FFTWindow -> f Audio -> f (FFT k)
 fft w cs =

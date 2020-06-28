@@ -90,4 +90,4 @@ compile_commands.json
 *.asm
 
 # Data Files
-.dat
+*.dat

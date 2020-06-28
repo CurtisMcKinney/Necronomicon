@@ -2611,7 +2611,7 @@ timeDomainToAudio fftSize (FFTWindow window) timeDomain =
           loop (#audio0, cBuffer2#) = asTypeOfU (unsafeEmptyArray ()) cBuffer0 for fftIndex0 <- each do
             let
               fftIndex       = indexBackwards NatVal fftIndex0
-              fftIndexU      = (fftSize - 1) - indexToUInt fftIndex
+              fftIndexU      = indexToUInt fftIndex
               lastBlockIndex = fftSize - audioBlockSize
             in
               if fftIndexU < audioBlockSize then

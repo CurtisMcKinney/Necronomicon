@@ -88,3 +88,6 @@ compile_commands.json
 
 # Assembly
 *.asm
+
+# Data Files
+*.dat

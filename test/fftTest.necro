@@ -40,6 +40,7 @@ osc2 =
 
 main :: *World -> *World
 main w =
-  outAudio 0 osc2 w
+  -- outAudio 0 osc2 w
   -- plotFFTOnce "./data/fftTest.dat" oscFFT w
+  plotAudioOnce "./data/fft2ifftTest.dat" ((abs osc1) - (abs osc2)) w
 

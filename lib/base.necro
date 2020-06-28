@@ -2804,6 +2804,13 @@ ifft cs =
         FFTNone  -> BlockRate 0
         FFT bins -> ifftAudio bins
 
+plotAudioOnce :: Array n Char -> Mono Audio -> *World -> *World
+plotAudioOnce name (Mono a) w =
+    case a of
+      AudioEnd    -> w
+      BlockRate _ -> w
+      AudioRate audioBuffer -> writePlot2DToFileOnce name audioBuffer w
+
 plotFFTChannelOnce :: Array n Char -> FFT k -> *World -> *World
 plotFFTChannelOnce name f w =
   case f of

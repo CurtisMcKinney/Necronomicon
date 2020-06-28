@@ -1,13 +1,13 @@
 
 osc1 :: Mono Audio
 osc1 =
-  pulse 0.5 2048
-  -- sin 4096
+  pulse 0.5 1024
+  -- sin 1024
   |> mul 0.1
 
 oscFFT :: Mono (FFT 4)
 oscFFT =
-  fft windowHann osc1
+  fft windowSine osc1
 
 -- osc2 :: Mono Audio
 -- osc2 =
@@ -17,3 +17,4 @@ main :: *World -> *World
 main w =
   plotFFTOnce "./data/fftTest.dat" oscFFT w
   -- outAudio 0 osc2 w
+

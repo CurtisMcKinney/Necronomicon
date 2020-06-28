@@ -160,6 +160,11 @@ mouseY = getMouseY ()
 asTypeOf :: a -> a -> a
 asTypeOf x _ = x
 
+asTypeOfU :: *a -> *a -> (#*a, *a#)
+asTypeOfU x y = (#x, y#)
+
+
+
 
 ----------------------
 -- Bool
@@ -216,7 +221,7 @@ class Enum a where
 
 class Foldable f where
   fold   :: Monoid m => f m -> m
-  foldl  :: (.b -> .a -> .b) -> .b -> f .a -> .b
+  foldl  :: (.b -> a -> .b) -> .b -> .f a -> .b
 
 class Eq a where
   eq  :: a -> a -> Bool
@@ -1728,7 +1733,7 @@ freezeArray a = primUndefined
 readArray :: Index n -> Array n a -> a
 readArray i a = primUndefined
 
-readArrayU :: Index n -> Array n .a -> (#.a, Array n .a#)
+readArrayU :: Index n -> .Array n a -> (#a, .Array n a#)
 readArrayU i a = primUndefined
 
 writeArray :: Index n -> a -> *Array n a -> *Array n a
@@ -2471,6 +2476,13 @@ windowNone :: FFTWindow
 windowNone =
   FFTWindow (arrayFrom 1)
 
+windowSine :: FFTWindow
+windowSine =
+  FFTWindow
+  <| freezeArray
+  <| loop a = unsafeEmptyArray () for i <- each do
+    writeArray i (sine (pi * fromUInt (indexToUInt i) / fromUInt (natValFrom NatVal i))) a
+
 windowHann :: FFTWindow
 windowHann =
   FFTWindow
@@ -2579,7 +2591,52 @@ audioToTimeDomain fftSize a w =
       in
         case mutRefPut (#cBuffer5, cOffset1#) mref of
           _ ->
-            freezeArray timeDomain
+            timeDomain
+
+indexBackwards :: NatVal n -> Index n -> Index n
+indexBackwards n i = 
+  unsafeUIntToIndex ((natVal n - 1) - (indexToUInt i))
+
+-- NOTE: This is not currently functional!!!!
+-- Use sine window for FFT and IFFT to combine for a Hann window?
+-- This is the inverse of audioToTimeDomain
+-- Performs overlay-add with a hop size of 2
+-- Undoes zero padding
+timeDomainToAudio :: UInt -> FFTWindow -> Array (NatMul BlockSize (NatMax k 2)) Float -> Audio
+timeDomainToAudio fftSize (FFTWindow window) timeDomain =
+  case mutRefTake (\_ -> arrayFrom 0) of
+    (#cBuffer0, mref#) ->
+      let
+        (#audio, cBuffer4#) =
+          loop (#audio0, cBuffer2#) = asTypeOfU (unsafeEmptyArray ()) cBuffer0 for fftIndex0 <- each do
+            let
+              fftIndex       = indexBackwards NatVal fftIndex0
+              fftIndexU      = (fftSize - 1) - indexToUInt fftIndex
+              lastBlockIndex = fftSize - audioBlockSize
+            in
+              if fftIndexU < audioBlockSize then
+                -- Write to circular buffer
+                (#audio0, writeArray (unsafeUIntToIndex fftIndexU) (readArray fftIndex timeDomain) cBuffer2#)
+              else if fftIndexU >= lastBlockIndex then
+                -- Resynthesize
+                let
+                  i0               = fftIndexU - lastBlockIndex -- Range: 0 - audioBlockSize
+                  i1               = i0 + audioBlockSize        -- Range: audioBlockSize - audioBlockSize * 2
+                  w0               = readArray (unsafeUIntToIndex i0) window
+                  w1               = readArray (unsafeUIntToIndex i1) window
+                  t0               = readArray fftIndex timeDomain
+                  (#t1, cBuffer3#) = readArrayU (unsafeUIntToIndex i0) cBuffer2
+                  sample           = t0
+                  audio1           = writeArray (unsafeUIntToIndex i0) sample audio0
+                in
+                  (#audio1, cBuffer3#)
+              else
+                -- Packed Zero
+                (#audio0, cBuffer2#)
+      in
+        case mutRefPut cBuffer4 mref of
+          _ ->
+            AudioRate (freezeArray audio)
 
 ----------------------
 -- FFT
@@ -2674,7 +2731,7 @@ fftAudio' n audio (FFTWindow window) = aout |> freezeArray |> FFT
 
 ifftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
 ifftAudio freqDomain =
-  AudioRate (freezeArray bins1)
+  timeDomainToAudio numSamples windowSine (freezeArray bins1)
   where
     numSamples   = arrayLength NatVal freqDomain
     numSamplesF  = fromUInt numSamples
@@ -2685,7 +2742,7 @@ ifftAudio freqDomain =
           bin =
             loop (Complex# tr0 ti0) = Complex# 0 0 for i <- each do
               let
-                ir             = fromUInt (indexToUInt i)
+                ir             = fromUInt (indexToUInt (asTypeOf i k))
                 p              = 2 * pi * kr * ir / numSamplesF
                 c              = cosine p
                 s              = 0 - sine p
@@ -2705,7 +2762,7 @@ fft w cs =
       case c of
         AudioEnd    -> FFTEnd
         BlockRate _ -> FFTNone
-        AudioRate a -> fftAudio' NatVal a w
+        AudioRate a -> fftAudio NatVal a w
 
 ifft :: AudioFormat f => f (FFT k) -> f Audio
 ifft cs =

@@ -303,6 +303,13 @@ arrayLengthU n arr = (#natVal n, arr#)
 unsafeArrayToPtr :: Array n .a -> Ptr .a
 unsafeArrayToPtr a = primUndefined
 
+deepCopyArray :: Array n a -> .Array n a
+deepCopyArray arr = freezeArray arr2
+  where
+    arr2 =
+      loop arr2 = unsafeEmptyArray () for i <- each do
+        writeArray i (readArray i arr) arr2
+
 unsafeOpenFile :: Ptr Char -> UInt -> *File
 unsafeOpenFile fileName fileNameLength = primUndefined
 
@@ -2686,19 +2693,62 @@ fftAudio n audio (FFTWindow window) = aout |> freezeArray |> FFT
         in
           (#bitShiftLeft i 1, n2, a1#)
 
--- ifftAudio' :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
--- ifftAudio' freqDomain = audioOut |> freezeArray |> AudioRate
---   where
---     numSamples   = audioBlockSize
---     numSamplesF  = fromUInt numSamples
---     (FFT fftOut) = fftAudio NatVal freqDomain windowHann
---     (#_, audioOut#) =
---       loop (#i, audioOut#) = (#0, unsafeEmptyArray ()#) while (i < numSamples) do
---         let
---           index = unsafeUIntToIndex i
---           (Complex# r _) = readArray index fftOut
---         in
---           (#i + 1, writeArray index r audioOut#)
+ifftAudio' :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
+ifftAudio' freqDomain = timeDomainToAudio numSamples windowSine ifftOut
+  where
+    numSamples   = arrayLength NatVal freqDomain
+    numSamplesF  = fromUInt numSamples
+    numSamples1  = numSamples - 1
+    halfSamples  = numSamples / 2
+    shiftN       = bitShiftLeft halfSamples 1
+    (#_, _, ar#) = -- bit reverse
+      loop (#i, j, ar#) = (#1, 0, deepCopyArray freqDomain#) while i < numSamples1 do
+        let
+          (#j', m#) =
+            loop (#jj, mm#) = (#j, halfSamples#) while (jj >= mm) do
+              (#jj - mm, bitShiftRight mm 1#)
+          j1  = j' + m
+          ar1 = if j1 > i then
+            let
+              (#ci, a1#) = readArrayU (unsafeUIntToIndex i) ar
+              (#cj, a2#) = readArrayU (unsafeUIntToIndex j1) a1
+            in
+              writeArray (unsafeUIntToIndex j1) ci a2 |> writeArray (unsafeUIntToIndex i) cj
+            else
+              ar
+        in
+          (#i + 1, j1, ar1#)
+    (#_, _, aout#) = -- IFFT
+      loop (#i, n0, a0#) = (#1, 1, ar#) while (i < shiftN) do
+        let
+          n1 = n0
+          n2 = n1 + n1
+          e  = negate (twoPi / fromUInt n2)
+          (#_, _, a1#) =
+            loop (#j, theta, a1#) = (#0, 0, a0#) while (j < n1) do
+              let
+                c = cosine theta
+                s = sine theta
+                (#_, a2#) =
+                  loop (#k, a2#) = (#j, a1#) while (k < numSamples) do
+                    let
+                      kN1 = k + n1
+                      (#Complex# kReal kImag, ar#) = readArrayU (unsafeUIntToIndex k) a2
+                      (#Complex# nReal nImag, ar1#) = readArrayU (unsafeUIntToIndex kN1) ar
+                      tempr = c * nReal - s * nImag
+                      tempi = s * nReal + c * nImag
+                      ck = Complex# (kReal + tempr) (kImag + tempi)
+                      cn = Complex# (kReal - tempr) (kImag - tempi)
+                      aw =
+                        writeArray (unsafeUIntToIndex k) ck ar1 |>
+                        writeArray (unsafeUIntToIndex kN1) cn
+                    in
+                      (#k + n2, aw#)
+              in
+                (#j + 1, theta + e, a2#)
+        in
+          (#bitShiftLeft i 1, n2, a1#)
+    ifftOut = map (\(Complex# r _) -> r) (freezeArray aout)
 
 ifftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
 ifftAudio freqDomain =

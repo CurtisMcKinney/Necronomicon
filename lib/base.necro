@@ -2692,8 +2692,8 @@ fftAudio n audio (FFTWindow window) = aout |> freezeArray |> FFT
         in
           (#bitShiftLeft i 1, n2, a1#)
 
-ifftAudio' :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
-ifftAudio' freqDomain = timeDomainToAudio numSamples windowSine ifftOut
+ifftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
+ifftAudio freqDomain = timeDomainToAudio numSamples windowSine ifftOut
   where
     numSamples   = arrayLength NatVal freqDomain
     numSamplesF  = fromUInt numSamples
@@ -2722,7 +2722,7 @@ ifftAudio' freqDomain = timeDomainToAudio numSamples windowSine ifftOut
         let
           n1 = n0
           n2 = n1 + n1
-          e  = negate (twoPi / fromUInt n2)
+          e  = (twoPi / fromUInt n2)
           (#_, _, a1#) =
             loop (#j, theta, a1#) = (#0, 0, a0#) while (j < n1) do
               let
@@ -2747,10 +2747,10 @@ ifftAudio' freqDomain = timeDomainToAudio numSamples windowSine ifftOut
                 (#j + 1, theta + e, a2#)
         in
           (#bitShiftLeft i 1, n2, a1#)
-    ifftOut = map (\(Complex# r _) -> r) (freezeArray aout)
+    ifftOut = map (\(Complex# r _) -> r / numSamplesF) (freezeArray aout)
 
-ifftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
-ifftAudio freqDomain =
+idftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
+idftAudio freqDomain =
   timeDomainToAudio numSamples windowSine (freezeArray bins1)
   where
     numSamples   = arrayLength NatVal freqDomain

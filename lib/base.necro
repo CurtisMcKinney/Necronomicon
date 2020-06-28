@@ -1731,6 +1731,10 @@ mkRange init inc end = Range# init inc (natVal end)
 each :: Range n
 each = mkRange 0 1 NatVal
 
+indexBackwards :: NatVal n -> Index n -> Index n
+indexBackwards n i = 
+  unsafeUIntToIndex ((natVal n - 1) - (indexToUInt i))
+
 unsafeEmptyArray :: () -> *Array n a
 unsafeEmptyArray u = primUndefined
 
@@ -2512,7 +2516,7 @@ windowHamming =
 -- Next it performs zero-phase zero padding to the fft buffer size
 -- Then it multiplies the audio by the supplied window function
 -- And lastly it stores this in a Complex valued array for the FFT algorithm
--- TODO: use NatNextPowerOfTwo for safer FFT sizes? It woudl mean even more hilariously large Array types
+-- TODO: use NatNextPowerOfTwo for safer FFT sizes? It would mean even more hilariously large Array types
 audioToTimeDomain :: UInt -> Array BlockSize Float -> Array (NatMul BlockSize 2) Float -> *Array (NatMul BlockSize (NatMax k 2)) Complex
 audioToTimeDomain fftSize a w =
   case mutRefTake (\_ -> (#arrayFrom 0, 0#)) of
@@ -2557,11 +2561,7 @@ audioToTimeDomain fftSize a w =
           _ ->
             timeDomain
 
-indexBackwards :: NatVal n -> Index n -> Index n
-indexBackwards n i = 
-  unsafeUIntToIndex ((natVal n - 1) - (indexToUInt i))
-
--- NOTE: This is not currently functional!!!!
+-- Overlap-Add method: dspguide.com/ch18/1.htm
 -- Use sine window for FFT and IFFT to combine for a Hann window?
 -- This is the inverse of audioToTimeDomain
 -- Performs overlay-add with a hop size of 2
@@ -2590,7 +2590,7 @@ timeDomainToAudio fftSize (FFTWindow window) timeDomain =
                   w1               = readArray (unsafeUIntToIndex i1) window
                   t0               = readArray fftIndex timeDomain
                   (#t1, cBuffer3#) = readArrayU (unsafeUIntToIndex i0) cBuffer2
-                  sample           = t0
+                  sample           = t0 * w0 + t1 * w1
                   audio1           = writeArray (unsafeUIntToIndex i0) sample audio0
                 in
                   (#audio1, cBuffer3#)
@@ -2605,7 +2605,6 @@ timeDomainToAudio fftSize (FFTWindow window) timeDomain =
 ----------------------
 -- DFT
 -- Naive implementation
--- TODO: Overlap-Add method: dspguide.com/ch18/1.htm
 
 dftAudio :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow -> FFT k
 dftAudio n audio (FFTWindow window) =

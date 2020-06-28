@@ -2569,6 +2569,10 @@ dftAudio n audio (FFTWindow window) =
         in
           writeArray k bin bins0
 
+----------------------
+-- FFT
+-- radix-2 with decimation in time
+
 fftAudio :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow -> FFT k
 fftAudio n audio (FFTWindow window) = aout |> freezeArray |> FFT
   where
@@ -2624,6 +2628,20 @@ fftAudio n audio (FFTWindow window) = aout |> freezeArray |> FFT
                 (#j + 1, theta + e, a2#)
         in
           (#bitShiftLeft i 1, n2, a1#)
+
+-- ifftAudio' :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
+-- ifftAudio' freqDomain = audioOut |> freezeArray |> AudioRate
+--   where
+--     numSamples   = audioBlockSize
+--     numSamplesF  = fromUInt numSamples
+--     (FFT fftOut) = fftAudio NatVal freqDomain windowHann
+--     (#_, audioOut#) =
+--       loop (#i, audioOut#) = (#0, unsafeEmptyArray ()#) while (i < numSamples) do
+--         let
+--           index = unsafeUIntToIndex i
+--           (Complex# r _) = readArray index fftOut
+--         in
+--           (#i + 1, writeArray index r audioOut#)
 
 ifftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
 ifftAudio freqDomain =

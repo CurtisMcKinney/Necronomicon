@@ -1,43 +1,45 @@
 
 osc1 :: Mono Audio
 osc1 =
-  pulse 0.5 1024
   -- sin 1024
+  sin (1024 + sin 0.125  * 512)
+  -- tri (1024 + sin 0.125  * 512)
+  -- pulse 0.5 1024 -- This is breaking things for some weird reason?
   |> mul 0.1
 
-oscDFT :: Mono (FFT 4)
-oscDFT =
-  dft windowHann osc1
+-- oscDFT :: Mono (FFT 4)
+-- oscDFT =
+--   dft windowSine osc1
 
-oscFFT :: Mono (FFT 4)
+oscFFT :: Mono (FFT 2)
 oscFFT =
   fft windowSine osc1
 
-diffDFT2FFT :: Mono (FFT 4)
-diffDFT2FFT = doDiff oscDFT oscFFT |> freezeArray |> FFT |> Mono
-  where
-    doDiff (Mono dftBuffer) (Mono fftBuffer) =
-      loop diff = unsafeEmptyArray () for i <- each do
-        let
-          (Complex# dr di) = readArray i d
-          (Complex# fr fi) = readArray i f
-          dc = Complex# (abs dr - abs fr) (abs di - abs fi)
-        in
-          writeArray i dc diff
-      where
-        d = case dftBuffer of
-          FFT b -> b
-          _ -> unsafeEmptyArray () |> freezeArray |> traceLn "failed d!"
-        f = case fftBuffer of
-          FFT b -> b
-          _ -> unsafeEmptyArray () |> freezeArray |> traceLn "failed f!"
+-- diffDFT2FFT :: Mono (FFT 4)
+-- diffDFT2FFT = doDiff oscDFT oscFFT |> freezeArray |> FFT |> Mono
+--   where
+--     doDiff (Mono dftBuffer) (Mono fftBuffer) =
+--       loop diff = unsafeEmptyArray () for i <- each do
+--         let
+--           (Complex# dr di) = readArray i d
+--           (Complex# fr fi) = readArray i f
+--           dc = Complex# (abs dr - abs fr) (abs di - abs fi)
+--         in
+--           writeArray i dc diff
+--       where
+--         d = case dftBuffer of
+--           FFT b -> b
+--           _ -> unsafeEmptyArray () |> freezeArray |> traceLn "failed d!"
+--         f = case fftBuffer of
+--           FFT b -> b
+--           _ -> unsafeEmptyArray () |> freezeArray |> traceLn "failed f!"
 
--- osc2 :: Mono Audio
--- osc2 =
---   ifft oscFFT
+osc2 :: Mono Audio
+osc2 =
+  ifft oscFFT
 
 main :: *World -> *World
 main w =
-  plotFFTOnce "./data/fftTest.dat" oscFFT w
-  -- outAudio 0 osc2 w
+  outAudio 0 osc2 w
+  -- plotFFTOnce "./data/fftTest.dat" oscFFT w
 

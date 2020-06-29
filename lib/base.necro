@@ -2877,6 +2877,12 @@ mapFFTAudio f c = map (\cc -> mapFFT f cc) c
 mapFFTAudio2 :: AudioFormat f => (Complex -> Complex -> Complex) -> f (FFT k) -> f (FFT k) -> f (FFT k)
 mapFFTAudio2 f a b = map2 (\ca cb -> mapFFT2 f ca cb) a b
 
+-- negate bins of fft
+fftNegate :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftNegate a = map (\ca -> mapFFT mImpl ca) a
+  where
+    mImpl (Complex# ar ai) = Complex# (negate ar) (negate ai)
+
 -- Map the supplied function onto the magnitude of the bins, but maintain phase
 fftMapMag :: AudioFormat f => (Float -> Float) -> f (FFT k) -> f (FFT k)
 fftMapMag f a = map (\ca -> mapFFT mImpl ca) a
@@ -2913,6 +2919,14 @@ fftMagMax a b = fftMapMag2 max a b
 -- min of magnitudes of a and b, but keep phase of a
 fftMagMin :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftMagMin a b = fftMapMag2 min a b
+
+-- square of magnitudes of fft
+fftMagSquared :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftMagSquared a = fftMapMag sqr a
+
+-- square root of magnitudes of fft
+fftMagSqrRoot :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftMagSqrRoot a = fftMapMag sqrt a
 
 -- Keeps the magnitudes of a, but takes the phase of b
 fftCopyPhase :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
@@ -2996,6 +3010,42 @@ fftMapPhase p f = mapFFTBuffer mapping f
           bin = mkPolar (magnitude c) (p (indexToUInt i) (phase c))
         in
           writeArray i bin b
+
+-- projection the complex bins of a onto b using the dot product
+fftBinProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftBinProjection a b = mapFFTAudio2 dot a b
+  where
+    dot (Complex# ar ai) (Complex# br bi) = Complex# (nbr * d) (nbi * d)
+      where
+        ma = magnitude (Complex# ar ai)
+        mb = magnitude (Complex# br bi)
+        (Complex# nar nai) = if ma > 0 then Complex# (ar / ma) (ai / ma) else Complex# 0 0
+        (Complex# nbr nbi) = if mb > 0 then Complex# (br / mb) (bi / mb) else Complex# 0 0
+        d = (nar * nbr + nai * nbi)
+
+-- parallel projection of the complex bins of a onto b
+fftBinParallelProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftBinParallelProjection a b = mapFFTAudio2 dot a b
+  where
+    dot (Complex# ar ai) (Complex# br bi) = Complex# (ar - nbr * d) (ai - nbi * d)
+      where
+        ma = magnitude (Complex# ar ai)
+        mb = magnitude (Complex# br bi)
+        (Complex# nar nai) = if ma > 0 then Complex# (ar / ma) (ai / ma) else Complex# 0 0
+        (Complex# nbr nbi) = if mb > 0 then Complex# (br / mb) (bi / mb) else Complex# 0 0
+        d = (nar * nbr + nai * nbi)
+
+-- projection the complex bins of a onto b using the dot product
+fftComplexProjection :: AudioFormat f => Complex -> f (FFT k) -> f (FFT k)
+fftComplexProjection (Complex# br bi) a = mapFFTAudio dot a
+  where
+    (Complex# nbr nbi) = if mb > 0 then Complex# (br / mb) (bi / mb) else Complex# 0 0
+    mb = magnitude (Complex# br bi)
+    dot (Complex# ar ai) = Complex# (nbr * d) (nbi * d)
+      where
+        ma = magnitude (Complex# ar ai)
+        (Complex# nar nai) = if ma > 0 then Complex# (ar / ma) (ai / ma) else Complex# 0 0
+        d = (nar * nbr + nai * nbi)
 
 -- rotate phases by radians
 fftPhaseRotate :: AudioFormat f => Float -> f (FFT k) -> f (FFT k)

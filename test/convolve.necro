@@ -22,7 +22,19 @@ oscFFT =
   fft windowSine osc1
 
 convolved :: Mono (FFT 2)
-convolved = fftComplexProjection (mkPolar 1 (negate threeHalfPi)) pulseFFT
+convolved =
+  fft windowSine osc |>
+  fftMagShift 7 |>
+  fftPhaseShift 6 |>
+  fftPhaseRotate f |>
+  convolve pulseFFT |>
+  fftMagMin pulseFFT |>
+  fftIsogonalMapB |>
+  fftMapMag (*4)
+  where
+    f ~ 0.1 = f * 1.125
+    r = fromInt <| floorToInt <| f
+    osc = sin (20 + sin 0.125  * 256) |> mul 0.1
 
 -- convolved :: Mono (FFT 2)
 -- convolved = fftNegate oscFFT |> fftMagMin oscFFT

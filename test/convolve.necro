@@ -22,7 +22,41 @@ oscFFT =
   fft windowSine osc1
 
 convolved :: Mono (FFT 2)
-convolved = fftMapMag2 max pulseFFT oscFFT
+convolved = fftPhaseRotate f oscFFT
+  where
+    f ~ 0 = f + 0.3
+    r = fromInt <| floorToInt <| f
+
+-- convolved :: Mono (FFT 2)
+-- convolved = fftMapPhase (\i p -> pi * 1.125 * fromUInt i) oscFFT
+
+-- convolved :: Mono (FFT 2)
+-- convolved = fftPhaseShift r oscFFT
+--   where
+--     f ~ 0 = f + 0.3
+--     r = fromInt <| floorToInt <| f
+
+-- convolved :: Mono (FFT 2)
+-- convolved = fftMagShift r oscFFT
+--   where
+--     f ~ 0 = f + 0.3
+--     r = fromInt <| floorToInt <| f
+
+-- convolved :: Mono (FFT 2)
+-- convolved = fftShift r oscFFT
+--   where
+--     f ~ 0 = f + 0.3
+--     r = fromInt <| floorToInt <| f
+
+-- convolved :: Mono (FFT 2)
+-- convolved = fftComplexPlaneAttack c oscFFT |> fftMagMax pulseFFT
+--   where
+--     c ~ (Complex# 0.5 0.5) = c + (Complex# 0.01 -0.01)
+
+-- convolved :: Mono (FFT 2)
+-- convolved = fftComplexPlaneAttack (Complex# 0.1 0.6) oscFFT
+
+-- convolved = fftMagMin pulseFFT oscFFT
 -- convolved = mapFFTAudio2 (copysign) oscFFT pulseFFT
 -- convolved = mapFFTAudio floor oscFFT
 -- convolved = fftMagMul oscFFT pulseFFT

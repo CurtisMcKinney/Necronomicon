@@ -2501,6 +2501,19 @@ mapFFT2 f cx cy =
           <| loop a = unsafeEmptyArray () for i <- each do
             writeArray i (f (readArray i x) (readArray i y)) a
 
+mapFFTBuffer ::
+  AudioFormat f =>
+  (Array (NatMul BlockSize (NatMax k 2)) Complex -> Array (NatMul BlockSize (NatMax k 2)) Complex) ->
+  f (FFT k) ->
+  f (FFT k)
+mapFFTBuffer f c = map mf c
+  where
+    mf fftChannel =
+      case fftChannel of
+        FFTEnd -> FFTEnd
+        FFTNone -> FFTNone
+        FFT b ->  FFT (f b)
+
 uintToInt :: UInt -> Int
 uintToInt x = primUndefined
 
@@ -2864,11 +2877,14 @@ mapFFTAudio f c = map (\cc -> mapFFT f cc) c
 mapFFTAudio2 :: AudioFormat f => (Complex -> Complex -> Complex) -> f (FFT k) -> f (FFT k) -> f (FFT k)
 mapFFTAudio2 f a b = map2 (\ca cb -> mapFFT2 f ca cb) a b
 
+-- Map the supplied function onto the magnitude of the bins, but maintain phase
 fftMapMag :: AudioFormat f => (Float -> Float) -> f (FFT k) -> f (FFT k)
 fftMapMag f a = map (\ca -> mapFFT mImpl ca) a
   where
     mImpl cma = mkPolar (f <| magnitude cma) (phase cma)
 
+-- Map the supplied function using the magnitude of the bins of the two inputs,
+-- while maintaining the phase of the first input
 fftMapMag2 :: AudioFormat f => (Float -> Float -> Float) -> f (FFT k) -> f (FFT k) -> f (FFT k)
 fftMapMag2 f a b = map2 (\ca cb -> mapFFT2 mImpl ca cb) a b
   where
@@ -2885,6 +2901,154 @@ fftMagMul a b = map2 (\ca cb -> mapFFT2 mImpl ca cb) a b
       where
         mA = magnitude cma
         mB = magnitude cmb
+
+-- Add magnitudes of a and b, but keep phase of a
+fftMagAdd :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftMagAdd a b = fftMapMag2 (+) a b
+
+-- max of magnitudes of a and b, but keep phase of a
+fftMagMax :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftMagMax a b = fftMapMag2 max a b
+
+-- min of magnitudes of a and b, but keep phase of a
+fftMagMin :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftMagMin a b = fftMapMag2 min a b
+
+-- Keeps the magnitudes of a, but takes the phase of b
+fftCopyPhase :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftCopyPhase a b = mapFFTAudio2 (copyphase) a b
+  where
+    copyphase cma cmb = Complex# (magnitude cma) (phase cmb)
+
+-- Map the supplied function using the phase of the bins of the two inputs,
+-- while maintaining the magnitude of the first input
+fftMapPhase2 :: AudioFormat f => (Float -> Float -> Float) -> f (FFT k) -> f (FFT k) -> f (FFT k)
+fftMapPhase2 f a b = map2 (\ca cb -> mapFFT2 mImpl ca cb) a b
+  where
+    mImpl cma cmb = mkPolar (magnitude cma) (f pA pB)
+      where
+        pA = phase cma
+        pB = phase cmb
+
+-- shifts bins by offset
+fftShift :: AudioFormat f => UInt -> f (FFT k) -> f (FFT k)
+fftShift n f = mapFFTBuffer shift f
+  where
+    shift a =
+      let
+        numSamples = arrayLength NatVal a
+        b =
+          loop b = unsafeEmptyArray () for i <- each do
+            let
+              index = unsafeUIntToIndex ((indexToUInt i + n) % numSamples)
+              bin = readArray index a
+            in
+              writeArray i bin b
+      in
+        freezeArray b
+
+-- shift magnitudes of bins
+fftMagShift :: AudioFormat f => UInt -> f (FFT k) -> f (FFT k)
+fftMagShift n f = mapFFTBuffer shift f
+  where
+    shift a =
+      let
+        numSamples = arrayLength NatVal a
+        b =
+          loop b = unsafeEmptyArray () for i <- each do
+            let
+              index = unsafeUIntToIndex ((indexToUInt i + n) % numSamples)
+              r = readArray index a
+              u = readArray i a
+              result     = mkPolar (magnitude r) (phase u)
+            in
+              writeArray i result b
+      in
+        freezeArray b
+
+-- shift phases of bins
+fftPhaseShift :: AudioFormat f => UInt -> f (FFT k) -> f (FFT k)
+fftPhaseShift n f = mapFFTBuffer shift f
+  where
+    shift a =
+      let
+        numSamples = arrayLength NatVal a
+        b =
+          loop b = unsafeEmptyArray () for i <- each do
+            let
+              index = unsafeUIntToIndex ((indexToUInt i + n) % numSamples)
+              r = readArray index a
+              u = readArray i a
+              result     = mkPolar (magnitude u) (phase r)
+            in
+              writeArray i result b
+      in
+        freezeArray b
+
+-- use a lambda to map phases (index -> phase -> new phase)
+fftMapPhase :: AudioFormat f => (UInt -> Float -> Float) -> f (FFT k) -> f (FFT k)
+fftMapPhase p f = mapFFTBuffer mapping f
+  where
+    mapping a = freezeArray <|
+      loop b = unsafeEmptyArray () for i <- each do
+        let
+          c = readArray i a
+          bin = mkPolar (magnitude c) (p (indexToUInt i) (phase c))
+        in
+          writeArray i bin b
+
+-- rotate phases by radians
+fftPhaseRotate :: AudioFormat f => Float -> f (FFT k) -> f (FFT k)
+fftPhaseRotate f a = map (\ca -> mapFFT mImpl ca) a
+  where
+    mImpl cma = mkPolar (magnitude cma) (phase cma |> add f)
+
+fftComplexPlaneAttack :: AudioFormat f => Complex -> f (FFT k) -> f (FFT k)
+fftComplexPlaneAttack z f = mapFFTAudio mapping f
+  where
+    mapping a = (z - a) / (1 - (z * conjugate a))
+
+fftIsogonalMapA :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftIsogonalMapA f = mapFFTAudio mapping f
+  where
+    sqrt2 = sqrt 2
+    mapping z = sqrt2 * (conjugate <| sqrt (1 / z))
+
+fftIsogonalMapB :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftIsogonalMapB f = mapFFTAudio mapping f
+  where
+    mapping z = (pow z 2) / 2
+
+fftIsogonalMapC :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftIsogonalMapC f = mapFFTAudio mapping f
+  where
+    sqrt2 = sqrt 2
+    mapping z = sqrt2 * sqrt z
+
+fftIsogonalMapD :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftIsogonalMapD f = mapFFTAudio mapping f
+  where
+    mapping z = 1 / z
+
+fftIsogonalMapE :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftIsogonalMapE f = mapFFTAudio mapping f
+  where
+    mapping z = exp z
+
+fftIsogonalMapF :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftIsogonalMapF f = mapFFTAudio mapping f
+  where
+    mapping z = sine z
+
+fftIsogonalMapG :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftIsogonalMapG f = mapFFTAudio mapping f
+  where
+    mapping z = cosine z
+
+fftIsogonalMapH :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftIsogonalMapH f = mapFFTAudio mapping f
+  where
+    mapping z = sqrt (2 / z)
 
 plotAudioOnce :: Array n Char -> Mono Audio -> *World -> *World
 plotAudioOnce name (Mono a) w =

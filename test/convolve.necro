@@ -22,7 +22,11 @@ oscFFT =
   fft windowSine osc1
 
 convolved :: Mono (FFT 2)
-convolved = convolve oscFFT pulseFFT
+convolved = fftMapMag2 max pulseFFT oscFFT
+-- convolved = mapFFTAudio2 (copysign) oscFFT pulseFFT
+-- convolved = mapFFTAudio floor oscFFT
+-- convolved = fftMagMul oscFFT pulseFFT
+-- convolved = fftMagMul oscFFT pulseFFT
 
 osc2 :: Stereo Audio
 osc2 =

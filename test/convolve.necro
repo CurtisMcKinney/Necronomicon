@@ -1,0 +1,40 @@
+
+osc1 :: Mono Audio
+osc1 =
+  -- sin 1024
+  sin (440 + sin 0.125  * 512)
+  -- tri (1024 + sin 0.125  * 512)
+  -- pulse 0.5 1024 -- This is breaking things for some weird reason?
+  |> mul 0.1
+
+
+pulse1 :: Mono Audio
+pulse1 =
+  pulse (sin 0.333 |> add 1 |> mul 0.5) 110
+  |> mul 0.1
+
+pulseFFT :: Mono (FFT 2)
+pulseFFT =
+  fft windowSine pulse1
+
+oscFFT :: Mono (FFT 2)
+oscFFT =
+  fft windowSine osc1
+
+convolved :: Mono (FFT 2)
+convolved = fftMapMag2 max pulseFFT oscFFT
+-- convolved = mapFFTAudio2 (copysign) oscFFT pulseFFT
+-- convolved = mapFFTAudio floor oscFFT
+-- convolved = fftMagMul oscFFT pulseFFT
+-- convolved = fftMagMul oscFFT pulseFFT
+
+osc2 :: Stereo Audio
+osc2 =
+  ifft convolved |> mixStereo
+
+main :: *World -> *World
+main w =
+  outAudio 0 osc2 w
+  -- plotFFTOnce "./data/fftTest.dat" oscFFT w
+  -- plotAudioOnce "./data/fft2ifftTest.dat" osc2 w
+

@@ -1765,6 +1765,25 @@ lookupArray i a =
 -- readArrayChecked str capacity (Index i) a =
 --   readArray (Index (boundsCheck str capacity i)) a
 
+zip :: Array n a -> Array n b -> Array n (a, b)
+zip a b = freezeArray <| 
+  loop c = unsafeEmptyArray () for i <- each do
+    let
+      va = readArray i a
+      vb = readArray i b
+    in
+      writeArray i (va, vb) c
+
+
+zipWith :: (a -> b -> c) -> Array n a -> Array n b -> Array n c
+zipWith f a b = freezeArray <| 
+  loop c = unsafeEmptyArray () for i <- each do
+    let
+      va = readArray i a
+      vb = readArray i b
+    in
+      writeArray i (f va vb) c
+
 instance Default a => Default (Array n a) where
   default = arrayFrom default
 
@@ -2456,6 +2475,32 @@ instance Default Audio where
 data FFT k     = FFT (Array (NatMul BlockSize (NatMax k 2)) Complex) | FFTNone | FFTEnd
 data FFTWindow = FFTWindow (Array (NatMul BlockSize 2) Float)
 
+mapFFT :: (Complex -> Complex) -> FFT k -> FFT k
+mapFFT f c =
+  case c of
+    FFTEnd -> FFTEnd
+    FFTNone -> FFTNone
+    FFT b ->
+      FFT
+      <| freezeArray
+      <| loop a = unsafeEmptyArray () for i <- each do
+        writeArray i (f (readArray i b)) a
+
+mapFFT2 :: (Complex -> Complex -> Complex) -> FFT k -> FFT k -> FFT k
+mapFFT2 f cx cy =
+  case cx of
+    FFTEnd -> FFTEnd
+    FFTNone -> FFTNone
+    FFT x ->
+      case cy of
+        FFTEnd -> FFTEnd
+        FFTNone -> FFTNone
+        FFT y ->
+          FFT
+          <| freezeArray
+          <| loop a = unsafeEmptyArray () for i <- each do
+            writeArray i (f (readArray i x) (readArray i y)) a
+
 uintToInt :: UInt -> Int
 uintToInt x = primUndefined
 
@@ -2803,6 +2848,43 @@ ifft cs =
         FFTEnd   -> AudioEnd
         FFTNone  -> BlockRate 0
         FFT bins -> ifftAudio bins
+
+--------------------------
+-- FFT Effects
+
+convolve :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+convolve a b = map2 (\ca cb -> mapFFT2 (*) ca cb) a b
+
+fftConj :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftConj c = mapFFTAudio conjugate c
+
+mapFFTAudio :: AudioFormat f => (Complex -> Complex) -> f (FFT k) -> f (FFT k)
+mapFFTAudio f c = map (\cc -> mapFFT f cc) c
+
+mapFFTAudio2 :: AudioFormat f => (Complex -> Complex -> Complex) -> f (FFT k) -> f (FFT k) -> f (FFT k)
+mapFFTAudio2 f a b = map2 (\ca cb -> mapFFT2 f ca cb) a b
+
+fftMapMag :: AudioFormat f => (Float -> Float) -> f (FFT k) -> f (FFT k)
+fftMapMag f a = map (\ca -> mapFFT mImpl ca) a
+  where
+    mImpl cma = mkPolar (f <| magnitude cma) (phase cma)
+
+fftMapMag2 :: AudioFormat f => (Float -> Float -> Float) -> f (FFT k) -> f (FFT k) -> f (FFT k)
+fftMapMag2 f a b = map2 (\ca cb -> mapFFT2 mImpl ca cb) a b
+  where
+    mImpl cma cmb = mkPolar (f mA mB) (phase cma)
+      where
+        mA = magnitude cma
+        mB = magnitude cmb
+
+-- Multiply magnitudes of a and b, but keep phase of a
+fftMagMul :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftMagMul a b = map2 (\ca cb -> mapFFT2 mImpl ca cb) a b
+  where
+    mImpl cma cmb = mkPolar (mA * mB) <| phase cma 
+      where
+        mA = magnitude cma
+        mB = magnitude cmb
 
 plotAudioOnce :: Array n Char -> Mono Audio -> *World -> *World
 plotAudioOnce name (Mono a) w =

@@ -1,0 +1,363 @@
+
+simpleTone :: Float -> Stereo Audio
+simpleTone h =
+  sin ((fromFloat h * 55 * 3) + (sin 220 * 110 |> e)) |>
+  add (sin ((fromFloat h * 27.5) + (sin 220 * 6.875 |> e))) |>
+  mul 0.5 |> e |> mixStereo
+  where
+    e = asr 0.01 0.1 4.0 -32
+    e2 = asr 0.01 0.05 0.1 -32
+
+rez :: Float -> Stereo Audio
+rez h =
+  sin ((fromFloat h * 55) + (sin 55 * 6.875 |> e)) |>
+  add (sin (fromFloat h * 110) + sin 27.5 * 6.875 |> e) |> 
+  mul 0.9 |> e |> mixStereo
+  where
+    e = asr 0.01 0.05 4.0 -8
+
+toneFFT :: Mono (FFT 2)
+toneFFT =
+  fftS |>
+  fftMapPhase (\i p -> p + pi * 1.125 * fromUInt i)
+    where
+      fftS = fft windowSine tone
+      tone = 
+        sin (440 + (sin 220 * 110)) |>
+        add (sin (220 + (sin 110 * 6.875))) |>
+        mul 0.5
+
+plvolve :: Float -> Stereo Audio
+plvolve h =
+  pluck natFour (fromFloat h * 27.5) 0.9 |>
+  add (pluck natEight 440 0.5) |>
+  mul 0.5 |> e |> fft windowSine |> convolve toneFFT |> ifft |> mixStereo
+  where
+    e = asr 0.1 0.5 8.0 -16
+
+plrez :: Float -> Stereo Audio
+plrez h =
+  pluck natEight (fromFloat h * 55) 0.1 |>
+  mul 4 |> e |> mixStereo |> add s |> 
+  freeVerb 0.9 0.1 0.9
+  where
+    e = asr 0.1 0.5 8.0 -4
+    e2 = asr 0.1 0.01 4 -16
+    s1 = saw (fromFloat h * 110 |> lpf (fromFloat h * 6.875 * 2 |> e) 0.1)
+      |> mul 0.5
+      |> e2
+    s2 = saw (fromFloat h * 111 |> lpf (fromFloat h * 6.875 * 2 |> e) 0.1)
+      |> mul 0.5
+      |> e2
+    s = stereo s1 s2
+
+resogun :: Float -> Stereo Audio
+resogun h =
+  pluck natEight (fromFloat h * 55) 0.9 |>
+  mul 8 |> e |> mixStereo |> add s |> 
+  freeVerb 0.99 0.95 0.9
+  where
+    e = asr 0.1 0.5 16.0 -4
+    e2 = asr 0.1 4 16 -16
+    s1 = saw (fromFloat h * 55 |> lpf (fromFloat h * 55 * 4 |> e) 0.5)
+      |> mul 0.5
+      |> e2
+    s2 = saw (fromFloat h * 56 |> lpf (fromFloat h * 56 * 4 |> e) 0.5)
+      |> mul 0.5
+      |> e2
+    s = stereo s1 s2
+
+resogun2 :: Float -> Stereo Audio
+resogun2 h =
+  pluck natEight (fromFloat h * 55) 0.9 |>
+  mul 8 |> e |> mixStereo |> add s |> 
+  freeVerb 0.99 0.95 0.9
+  where
+    e = asr 0.1 0.05 4 -4
+    e2 = asr 0.1 0.1 4 -16
+    s1 = saw (fromFloat h * 55 |> lpf (fromFloat h * 55 * 4 |> e) 0.5)
+      |> mul 0.5
+      |> e2
+    s2 = saw (fromFloat h * 56 |> lpf (fromFloat h * 56 * 4 |> e) 0.5)
+      |> mul 0.5
+      |> e2
+    s = stereo s1 s2
+
+spookyActionAtADistance :: Float -> Stereo Audio
+spookyActionAtADistance h =
+  pluck natEight (fromFloat h * 55 * 13) 0.9 |>
+  mul 8 |> e |> mixStereo |> add s |> 
+  freeVerb 0.99 0.95 0.9
+  where
+    e = asr 0.01 0.05 4 -64
+    e2 = asr 0.01 0.05 4 -64
+    s1 = saw (fromFloat h * 55 * 7 |> lpf (fromFloat h * 55 * 4 |> e) 0.5)
+      |> mul 0.5
+      |> e2
+    s2 = saw (fromFloat h * 56 * 5 |> lpf (fromFloat h * 56 * 4 |> e) 0.5)
+      |> mul 0.5
+      |> e2
+    s = stereo s1 s2
+
+spookyActionAtAnotherDistance :: Float -> Stereo Audio
+spookyActionAtAnotherDistance h =
+  pluck natEight (fromFloat h * 55 * 13) 0.9 +
+  pluck natEight (fromFloat h * 27.5 * 17) 0.9 |>
+  mul 8 |> e |> mixStereo |> add s |> 
+  freeVerb 0.99 0.95 0.9
+  where
+    e = asr 0.01 0.05 4 -64
+    e2 = asr 0.01 0.05 4 -64
+    s1 = saw (fromFloat h2 * 55 * 7 |> lpf (fromFloat h2 * 55 * 4 |> e) 0.5)
+      |> mul 0.5
+      |> e2
+    s2 = saw (fromFloat h2 * 56 * 5 |> lpf (fromFloat h2 * 56 * 4 |> e) 0.5)
+      |> mul 0.5
+      |> e2
+    s = stereo s1 s2
+    h2 = h * 4
+
+ghostNotes :: Float -> Stereo Audio
+ghostNotes h =
+  pluck natEight (fromFloat h2 * 55 / 4) 0.6 +
+  pluck natEight (fromFloat h2 * 27.5 / 2) 0.7 |>
+  lpf 1000 0.01 |>
+  mul 1 |> e |> mixStereo |> add s |> 
+  freeVerb 0.99 0.999 0.99
+  where
+    e = asr 0.01 0.01 16 -8
+    e2 = asr 1 1 16 -16
+    s1 = sin (fromFloat h * 55 * 8)
+      |> mul 0.1
+      |> e2
+    s2 = sin (fromFloat h * 55 * 8 + 13)
+      |> mul 0.1
+      |> e2
+    s = stereo s1 s2
+    h2 = h / 16
+
+decayingOrbit :: Float -> Stereo Audio
+decayingOrbit h =
+  sins |> mul 2 |>
+  freeVerb 0.99 0.99 0.9
+  where
+    e = asr 0.1 0.5 8 -16
+    e2 = asr 0.01 0.1 8 -32
+    s f = sin f + sin (f + e 13)
+      |> mul 0.1
+      |> e
+    s2 f = sin f + sin (f + e 13)
+      |> mul 0.1
+      |> e2
+    sins = stereo (s f1 + s2 (f1 * 2)) (s f2 + s2 (f2 * 2))
+    f1 = (fromFloat h * 55 * 2)
+    f2 = (fromFloat h * 55 * 2 + 13)
+
+waveSpiritGuide :: Float -> Stereo Audio
+waveSpiritGuide h =
+  s f1 |> mixStereo |> fft windowSine |> ffft |> ifft |>
+  freeVerb 0.75 0.5 0.9
+  where
+    e = asr 0.1 0.1 16 -4
+    s f = waveGuidePluck natSixteen 0.5 0.3 0.9 16 f (saw 1337)
+      |> mul 1
+      |> e
+    f1 = (fromFloat h * 55 * 0.25)
+    ffft :: AudioFormat f => f (FFT 4) -> f (FFT 4)
+    ffft t = fftConj t
+
+waveSpiritTrap :: Float -> Stereo Audio
+waveSpiritTrap h =
+  s f1 |> fft windowSine |> ffft |> ifft |> e |> mixStereo |>
+  freeVerb 0.3 0.8 0.5
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      fftMapPhase (\i _ -> pi * 0.25  * fromUInt i) f |>
+      fftIsogonalMapA |>
+      convolve toneFFT |>
+      fftMagShift 15 |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.1 1 16 -4
+    s f = waveGuidePluck natSixteen 0.5 0.9 0.9 16 f (e 0.9 + 0.1)
+      |> mul 4
+    f1 = (fromFloat h * 55 * 1)
+
+waveSpiritSnack :: Float -> Stereo Audio
+waveSpiritSnack h =
+  stereo
+    (s f1 |> fft windowSine |> ffft |> ifft |> e)
+    (s (f1 + 13) |> fft windowSine |> ffft |> ifft |> e) |>
+  freeVerb 0.7 0.5 0.9
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      f |>
+      fftMagShift 15 |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.1 0.5 8 -16
+    s f = waveGuidePluck natSixteen 0.3 0.3 0.5 16 f (0.1)
+      |> mul 4
+    f1 = (fromFloat (h + 4) * 55 * 4)
+
+hiddenVariables :: Float -> Stereo Audio
+hiddenVariables h =
+  s f1 |> fft windowSine |> ffft |> ifft |> e |> mixStereo
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      fftMapPhase (\i _ -> pi * 0.125  * fromUInt i) f |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.03 0.5 0.3 -16
+    s f = waveGuideBow natSixteen 0.5 0.5 1.0 0.9 0.3 f
+      |> mul 4
+    f1 = (fromFloat h * 55 * 0.125 * 0.5)
+
+waveFunctionCollapse :: Float -> Stereo Audio
+waveFunctionCollapse h =
+  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  lpf (e 1000 + 80) 0.1 |>
+  mixStereo
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      fftMapPhase (\i _ -> pi * 0.125  * fromUInt i) f |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.1 0.1 0.3 -4
+    s f = waveGuideBow natSixteen 0.5 0.5 1.0 0.9 0.3 f
+      |> mul 4
+    f1 = (fromFloat h * 55 * 0.125 * 0.125)
+
+deadCatAliveCat :: Float -> Stereo Audio
+deadCatAliveCat h =
+  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  lpf (e 1337 + 80) 0.03 |>
+  mixStereo
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      fftMapPhase (\i _ -> pi * 0.125  * fromUInt i) f |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.1 0.1 0.3 -4
+    s f = waveGuideBow natSixteen 0.5 0.5 0.333 0.3 0.3 f
+      |> mul 8
+    f1 = (fromFloat h * 55 * 0.125 * 0.125)
+
+copenhagenInterpretation :: Float -> Stereo Audio
+copenhagenInterpretation h =
+  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  lpf (e 13 + 666) 0.01 |>
+  mixStereo |>
+  freeVerb 0.3 0.5 0.9
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      fftMapPhase (\i _ -> pi * 0.125  * fromUInt i) f |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.1 0.1 4 -4
+    s f = waveGuideBow natSixteen 0.5 0.5 0.333 0.3 0.3 f
+      |> mul 8
+    f1 = (fromFloat h * 55 * 0.125 * 0.125)
+
+aliveCatDeadCat :: Float -> Stereo Audio
+aliveCatDeadCat h =
+  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  mul (sin (fromFloat <| h * 55 * 2)) |>
+  lpf (e 13 + 666) 0.01 |>
+  mixStereo |>
+  freeVerb 0.3 0.5 0.9
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      fftMapPhase (\i _ -> pi * 0.125  * fromUInt i) f |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.1 0.1 4 -4
+    s f = waveGuideBow natSixteen 0.5 0.5 0.333 0.3 0.3 f
+      |> mul 8
+    f1 = (fromFloat h * 55 * 0.125 * 0.125)
+
+frozenCats :: Float -> Stereo Audio
+frozenCats h =
+  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  mul (sin (fromFloat <| h * 55 * 0.5 * 5 / 4)) |>
+  lpf (e 13 + 333 * 5/4) 0.01 |>
+  mixStereo |>
+  freeVerb 0.3 0.5 0.9
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      fftMapPhase (\i _ -> pi * 0.125  * fromUInt i) f |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.1 0.5 8 -4
+    s f = waveGuideBow natSixteen 0.5 0.5 0.333 0.3 0.3 f
+      |> mul 8
+    f1 = (fromFloat h * 55 * 0.125)
+
+infiniteCats :: Float -> Stereo Audio
+infiniteCats h =
+  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  mul (sin (fromFloat <| h * 55 * 0.5 * 5 / 4 * 2)) |>
+  lpf (e 333 * 5/4 |> add 80) 0.01 |>
+  mixStereo |>
+  freeVerb 0.3 0.5 0.9
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      fftMapPhase (\i _ -> pi * 0.25  * fromUInt i) f |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.5 0.5 8 -4
+    s f = waveGuideBow natSixteen 0.5 0.5 0.6 0.3 0.3 f
+      |> mul 8
+    f1 = (fromFloat h * 55 * 0.125 * 0.25)
+
+countablyInfiniteCats :: Float -> Stereo Audio
+countablyInfiniteCats h =
+  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  mul (sin (fromFloat <| h * 55 * 0.125 * 5 / 4)) |>
+  lpf (e 999 * 5/4 |> add 80) 0.01 |>
+  mixStereo |>
+  freeVerb 0.7 0.9 0.9
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      fftMapPhase (\i _ -> pi * 0.25  * fromUInt i) f |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.01 0.01 4 -4
+    e2 = asr 0.01 0.1 4 -16
+    s f = waveGuideBow natSixteen 0.5 0.5 0.6 0.3 0.3 f
+      |> mul 8 |> e2
+    f1 = (fromFloat h * 55 * 0.125 * 0.25)
+
+uncountablyInfiniteCats :: Float -> Stereo Audio
+uncountablyInfiniteCats h =
+  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  mul (sin (fromFloat <| h * 55 * 0.125 * 5 / 4)) |>
+  hpf (fromFloat h * 111 * 5/4) 0.003 |> mixStereo |>
+  freeVerb 0.5 0.5 0.9
+  where
+    ffft :: Mono (FFT 2) -> Mono (FFT 2)
+    ffft f =
+      fftMapPhase (\i _ -> pi * 0.25  * fromUInt i) f |>
+      fftMagSqrRoot |>
+      convolve f
+    e = asr 0.01 0.01 2 -8
+    e2 = asr 0.01 0.1 2 -16
+    s f = waveGuideBow natSixteen 0.5 0.5 0.6 0.3 0.3 f
+      |> mul 8 |> e2
+    f1 = (fromFloat h * 55 * 0.125 * 0.25)
+
+main :: *World -> *World
+main w =
+  outAudio 0 p w
+  where
+    p = poly uncountablyInfiniteCats <| seqSpeed (2 // 8) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]

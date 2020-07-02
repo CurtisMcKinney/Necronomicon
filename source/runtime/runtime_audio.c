@@ -188,16 +188,28 @@ void necro_downsample(NecroDownsample* downsample, const size_t output_channel, 
     }
 }
 
+typedef struct NecroRuntimeAudioFile
+{
+    uint64_t num_channels;
+    uint64_t num_samples;
+    double*  audio_data;
+} NecroRuntimeAudioFile;
+
+static const NecroRuntimeAudioFile NULL_AUDIO_FILE = { 0, 0, NULL };
+
 /*
     Note: AudioFiles opened in the manner are READ ONLY,
     thus we're dynamically allocating memory and then simply never cleaning them up as they are expected to live for the life of the program.
     This is to maximize their ease of usage in a typical necro program (load some immutable audio files to be used for samples and fun audio processing).
     A different API is required for write or read/write audio files which can be mutated and which can be manually cleaned up
 */
-const double* necro_runtime_open_audio_file(const size_t* a_name, const uint64_t a_name_length)
+extern DLLEXPORT const size_t* necro_runtime_open_audio_file(const size_t* a_name, const uint64_t a_name_length)
 {
     if (a_name == NULL || a_name_length == 0)
-        return NULL;
+    {
+        fprintf(stderr, "Null audio file name in audioFileOpen\n");
+        return (size_t*) &NULL_AUDIO_FILE;
+    }
 
     // Create ascii string
     char* file_name = emalloc(a_name_length + 1);
@@ -208,30 +220,56 @@ const double* necro_runtime_open_audio_file(const size_t* a_name, const uint64_t
     }
     file_name[a_name_length] = '\0';
 
+    // Load file and file info
     SF_INFO	sf_info;
 	memset (&sf_info, 0, sizeof(sf_info)); // Yes, this is in fact the way in which libsndfile wants you to initialize the SF_INFO struct...
-
     SNDFILE* snd_file = sf_open(file_name, SFM_READ, &sf_info);
 
+    // Couldn't open audio file
     if (snd_file == NULL)
     {
-        printf("Unable to open audio file: %s\n", file_name);
+        fprintf(stderr, "Unable to open audio file: %s\n", file_name);
         puts(sf_strerror(NULL));
-        return NULL;
+        return (size_t*) &NULL_AUDIO_FILE;
     }
-    const size_t buffer_size = sf_info.channels * sf_info.frames;
-    double*      audio_file  = emalloc(buffer_size * sizeof(double));
-    size_t       read_count  = 0;
-    do
+
+    // TODO / HACK: We're not worrying about sample rate conversion for the time being. When we have more time fill it in here!
+    if ((size_t)sf_info.samplerate != necro_runtime_audio_sample_rate)
     {
-        read_count = sf_read_double(snd_file, audio_file, buffer_size);
+        fprintf(stderr, "Incorrect sample rate: %d\n", sf_info.samplerate);
+        return (size_t*) &NULL_AUDIO_FILE;
     }
-    while (read_count > 0);
+
+    // Read audio data
+    const uint64_t         num_channels   = sf_info.channels;
+    const uint64_t         num_samples    = sf_info.frames;
+    const size_t           buffer_size    = sf_info.channels * sf_info.frames;
+    NecroRuntimeAudioFile* audio_file_ptr = emalloc(sizeof(NecroRuntimeAudioFile) + (buffer_size * sizeof(double))); // Allocating in one contiguous block
+    double*                audio_data     = (double*)(audio_file_ptr + 1);
+    size_t                 read_count     = 0;
+    // do
+    // {
+        // NOTE: that audio data is interleaved when it arrives from libsndfile
+        read_count = sf_read_double(snd_file, audio_data, buffer_size);
+    // }
+    // while (read_count > 0);
     sf_close(snd_file);
 
+    if (read_count == 0)
+    {
+        fprintf(stderr, "Could not read audio data for audio file: %s\n", file_name);
+        return (size_t*) &NULL_AUDIO_FILE;
+    }
+
+    // Set audio file ptr
+    audio_file_ptr->num_channels = num_channels;
+    audio_file_ptr->num_samples  = num_samples;
+    audio_file_ptr->audio_data   = audio_data;
+
     // Clean up and return
+    printf("Loaded audio file: %s\n", file_name);
     free(file_name);
-    return audio_file;
+    return (size_t*) audio_file_ptr;
 }
 
 typedef struct NecroScratchBuffer

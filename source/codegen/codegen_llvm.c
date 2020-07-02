@@ -1709,6 +1709,7 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->base->write_char_to_file->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->record_audio_block->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->base->record_audio_block_finalize->core_ast_symbol->mach_symbol);
+    necro_llvm_map_check_symbol(context->base->audio_file_open->core_ast_symbol->mach_symbol);
 
     // assert(context->delayed_phi_node_values.length == 0);
     if (context->should_optimize)
@@ -1798,6 +1799,7 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->base->write_char_to_file->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->record_audio_block->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->base->record_audio_block_finalize->core_ast_symbol->mach_symbol);
+    necro_llvm_map_runtime_symbol(context->engine, context->base->audio_file_open->core_ast_symbol->mach_symbol);
 
 #ifdef _WIN32
     system("cls");

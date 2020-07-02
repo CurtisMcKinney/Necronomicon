@@ -2485,7 +2485,6 @@ instance Default Audio where
 --------------------
 -- FFT
 --------------------
--- https://www.dspguide.com/ch12/1.htm
 -- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
 data FFT k     = FFT (Array (NatMul BlockSize (NatMax k 2)) Complex) | FFTNone | FFTEnd
 data FFTWindow = FFTWindow (Array (NatMul BlockSize 2) Float)

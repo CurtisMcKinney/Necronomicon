@@ -1712,6 +1712,36 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         return con;
     }
 
+    case NECRO_PRIMOP_PTR_PEEK:
+    {
+        assert(arg_count == 2);
+        NecroMachAst*  index_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+        NecroMachAst*  ptr_value     = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        NecroMachType* elem_ptr_type = ptr_value->necro_machine_type;
+        NecroMachAst*  elem_ptr      = necro_mach_build_non_const_gep(program, outer->machine_def.update_fn, ptr_value, (NecroMachAst*[]) { index_value }, 1, "elem_ptr", elem_ptr_type);
+        NecroMachAst*  result        = necro_mach_build_load(program, outer->machine_def.update_fn, elem_ptr, "peek_value");
+        return result;
+    }
+
+    case NECRO_PRIMOP_PTR_CAST:
+    {
+        assert(arg_count == 1);
+        NecroMachAst*  ptr_value = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        NecroMachType* mach_type = necro_mach_type_from_necro_type(program, app_ast->necro_type);
+        NecroMachAst*  result    = necro_mach_build_bit_cast(program, outer->machine_def.update_fn, ptr_value, mach_type);
+        return result;
+    }
+
+    // case NECRO_PRIMOP_PTR_EQ:
+    // {
+    //     assert(arg_count == 2);
+    //     NecroMachAst* left   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+    //     NecroMachAst* right  = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+    //     NecroMachAst* cmp    = necro_mach_build_cmp(program, outer->machine_def.update_fn, NECRO_PRIMOP_CMP_EQ, left, right);
+    //     NecroMachAst* result = necro_mach_build_zext(program, outer->machine_def.update_fn, cmp, program->type_cache.word_uint_type);
+    //     return result;
+    // }
+
     case NECRO_PRIMOP_MREF:
     {
         assert(arg_count == 1);

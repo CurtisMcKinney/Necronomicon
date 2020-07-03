@@ -13,7 +13,7 @@ osc1 =
 
 oscFFT :: Mono (FFT 2)
 oscFFT =
-  fft windowSine osc1
+  fft osc1
 
 -- diffDFT2FFT :: Mono (FFT 4)
 -- diffDFT2FFT = doDiff oscDFT oscFFT |> freezeArray |> FFT |> Mono

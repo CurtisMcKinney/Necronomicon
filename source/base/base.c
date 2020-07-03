@@ -1116,6 +1116,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "outAudioBlock",            &base.out_audio_block,             NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "recordAudioBlock",         &base.record_audio_block,          NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "recordAudioBlockFinalize", &base.record_audio_block_finalize, NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "unsafeAudioFileOpen",      &base.audio_file_open,             NECRO_PRIMOP_PRIM_FN);
 
     // File IO
     necro_base_setup_primitive(scoped_symtable, intern, "closeFile",        &base.close_file,          NECRO_PRIMOP_PRIM_FN);
@@ -1146,7 +1147,9 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "ptrRealloc",           NULL, NECRO_PRIMOP_PTR_REALLOC);
     necro_base_setup_primitive(scoped_symtable, intern, "ptrFree",              NULL, NECRO_PRIMOP_PTR_FREE);
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrPoke",        NULL, NECRO_PRIMOP_PTR_POKE);
+    necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrPeek",        NULL, NECRO_PRIMOP_PTR_PEEK);
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrSwapElement", NULL, NECRO_PRIMOP_PTR_SWAP);
+    necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrCast",        NULL, NECRO_PRIMOP_PTR_CAST);
 
     necro_base_setup_primitive(scoped_symtable, intern, "mutRef", NULL, NECRO_PRIMOP_MREF);
     necro_base_setup_primitive(scoped_symtable, intern, "natVal", NULL, NECRO_PRIMOP_NAT_VAL);

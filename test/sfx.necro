@@ -21,7 +21,7 @@ toneFFT =
   fftS |>
   fftMapPhase (\i p -> p + pi * 1.125 * fromUInt i)
     where
-      fftS = fft windowSine tone
+      fftS = fft tone
       tone = 
         sin (440 + (sin 220 * 110)) |>
         add (sin (220 + (sin 110 * 6.875))) |>
@@ -31,7 +31,7 @@ plvolve :: Float -> Stereo Audio
 plvolve h =
   pluck natFour (fromFloat h * 27.5) 0.9 |>
   add (pluck natEight 440 0.5) |>
-  mul 0.5 |> e |> fft windowSine |> convolve toneFFT |> ifft |> mixStereo
+  mul 0.5 |> e |> fft |> convolve toneFFT |> ifft |> mixStereo
   where
     e = asr 0.1 0.5 8.0 -16
 
@@ -155,7 +155,7 @@ decayingOrbit h =
 
 waveSpiritGuide :: Float -> Stereo Audio
 waveSpiritGuide h =
-  s f1 |> mixStereo |> fft windowSine |> ffft |> ifft |>
+  s f1 |> mixStereo |> fft |> ffft |> ifft |>
   freeVerb 0.75 0.5 0.9
   where
     e = asr 0.1 0.1 16 -4
@@ -168,7 +168,7 @@ waveSpiritGuide h =
 
 waveSpiritTrap :: Float -> Stereo Audio
 waveSpiritTrap h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |> mixStereo |>
+  s f1 |> fft |> ffft |> ifft |> e |> mixStereo |>
   freeVerb 0.3 0.8 0.5
   where
     ffft :: Mono (FFT 2) -> Mono (FFT 2)
@@ -187,8 +187,8 @@ waveSpiritTrap h =
 waveSpiritSnack :: Float -> Stereo Audio
 waveSpiritSnack h =
   stereo
-    (s f1 |> fft windowSine |> ffft |> ifft |> e)
-    (s (f1 + 13) |> fft windowSine |> ffft |> ifft |> e) |>
+    (s f1 |> fft |> ffft |> ifft |> e)
+    (s (f1 + 13) |> fft |> ffft |> ifft |> e) |>
   freeVerb 0.7 0.5 0.9
   where
     ffft :: Mono (FFT 2) -> Mono (FFT 2)
@@ -204,7 +204,7 @@ waveSpiritSnack h =
 
 hiddenVariables :: Float -> Stereo Audio
 hiddenVariables h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |> mixStereo
+  s f1 |> fft |> ffft |> ifft |> e |> mixStereo
   where
     ffft :: Mono (FFT 2) -> Mono (FFT 2)
     ffft f =
@@ -218,7 +218,7 @@ hiddenVariables h =
 
 waveFunctionCollapse :: Float -> Stereo Audio
 waveFunctionCollapse h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  s f1 |> fft |> ffft |> ifft |> e |>
   lpf (e 1000 + 80) 0.1 |>
   mixStereo
   where
@@ -234,7 +234,7 @@ waveFunctionCollapse h =
 
 deadCatAliveCat :: Float -> Stereo Audio
 deadCatAliveCat h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  s f1 |> fft |> ffft |> ifft |> e |>
   lpf (e 1337 + 80) 0.03 |>
   mixStereo
   where
@@ -250,7 +250,7 @@ deadCatAliveCat h =
 
 copenhagenInterpretation :: Float -> Stereo Audio
 copenhagenInterpretation h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  s f1 |> fft |> ffft |> ifft |> e |>
   lpf (e 13 + 666) 0.01 |>
   mixStereo |>
   freeVerb 0.3 0.5 0.9
@@ -267,7 +267,7 @@ copenhagenInterpretation h =
 
 aliveCatDeadCat :: Float -> Stereo Audio
 aliveCatDeadCat h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  s f1 |> fft |> ffft |> ifft |> e |>
   mul (sin (fromFloat <| h * 55 * 2)) |>
   lpf (e 13 + 666) 0.01 |>
   mixStereo |>
@@ -285,7 +285,7 @@ aliveCatDeadCat h =
 
 frozenCats :: Float -> Stereo Audio
 frozenCats h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  s f1 |> fft |> ffft |> ifft |> e |>
   mul (sin (fromFloat <| h * 55 * 0.5 * 5 / 4)) |>
   lpf (e 13 + 333 * 5/4) 0.01 |>
   mixStereo |>
@@ -303,7 +303,7 @@ frozenCats h =
 
 infiniteCats :: Float -> Stereo Audio
 infiniteCats h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  s f1 |> fft |> ffft |> ifft |> e |>
   mul (sin (fromFloat <| h * 55 * 0.5 * 5 / 4 * 2)) |>
   lpf (e 333 * 5/4 |> add 80) 0.01 |>
   mixStereo |>
@@ -321,7 +321,7 @@ infiniteCats h =
 
 countablyInfiniteCats :: Float -> Stereo Audio
 countablyInfiniteCats h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  s f1 |> fft |> ffft |> ifft |> e |>
   mul (sin (fromFloat <| h * 55 * 0.125 * 5 / 4)) |>
   lpf (e 999 * 5/4 |> add 80) 0.01 |>
   mixStereo |>
@@ -340,7 +340,7 @@ countablyInfiniteCats h =
 
 uncountablyInfiniteCats :: Float -> Stereo Audio
 uncountablyInfiniteCats h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  s f1 |> fft |> ffft |> ifft |> e |>
   mul (sin (fromFloat <| h * 55 * 0.125 * 5 / 4)) |>
   hpf (fromFloat h * 111 * 5/4) 0.003 |> mixStereo |>
   freeVerb 0.5 0.5 0.9

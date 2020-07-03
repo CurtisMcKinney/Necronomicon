@@ -231,13 +231,31 @@ NecroResult(NecroType) necro_core_infer_bind(NecroCoreInfer* infer, NecroCoreAst
 // TODO: Non-Recursive style
 NecroResult(NecroType) necro_core_infer_let(NecroCoreInfer* infer, NecroCoreAst* ast)
 {
+    assert(infer != NULL);
     if (ast == NULL)
         return ok(NecroType, NULL);
     assert(ast->ast_type == NECRO_CORE_AST_LET);
-    necro_try(NecroType, necro_core_infer_go(infer, ast->let.bind));
-    ast->necro_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->let.expr));
-    // if (ast->let.expr != NULL)
-    //     assert(ast->necro_type != NULL);
+
+    // necro_try(NecroType, necro_core_infer_go(infer, ast->let.bind));
+    // ast->necro_type = necro_try_result(NecroType, necro_core_infer_go(infer, ast->let.expr));
+
+    // New Iterative style
+    NecroType*    let_type = necro_type_fresh_var(infer->arena, NULL);
+    let_type->kind         = infer->base->star_kind->type;
+    ast->necro_type        = let_type;
+    NecroCoreAst* go_ast   = ast;
+    while (go_ast != NULL && go_ast->ast_type == NECRO_CORE_AST_LET)
+    {
+        necro_try(NecroType, necro_core_infer_go(infer, go_ast->let.bind));
+        // go_ast->necro_type = necro_try_result(NecroType, necro_core_infer_go(infer, go_ast->let.expr));
+        go_ast->necro_type = let_type;
+        go_ast             = go_ast->let.expr;
+    }
+    if (go_ast == NULL)
+        return ok(NecroType, NULL);
+    NecroType* let_expr_type = necro_try_result(NecroType, necro_core_infer_go(infer, go_ast));
+    necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, let_expr_type, zero_loc, zero_loc));
+    necro_try(NecroType, necro_type_unify(infer->arena, NULL, infer->base, let_type, let_expr_type, NULL));
     return ok(NecroType, ast->necro_type);
 }
 

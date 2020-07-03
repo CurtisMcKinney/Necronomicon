@@ -1650,22 +1650,41 @@ either lf rf e =
 -- Ptr
 --------------------
 ptrMalloc :: UInt -> Ptr *a
-ptrMalloc capacity = primUndefined
+ptrMalloc capacity =
+  primUndefined
 
 ptrRealloc :: UInt -> Ptr *a -> Ptr *a
-ptrRealloc capacity ptr = primUndefined
+ptrRealloc capacity ptr =
+  primUndefined
 
 ptrFree :: Ptr .a -> *()
-ptrFree ptr = primUndefined
+ptrFree ptr =
+  primUndefined
 
--- unsafePtrPeek :: UInt -> *Ptr a -> (#a, *Ptr a#)
--- unsafePtrPeek index ptr = primUndefined
+unsafePtrPeek :: UInt -> Ptr a -> a
+unsafePtrPeek index ptr =
+  primUndefined
 
 unsafePtrPoke :: UInt -> *a -> Ptr *a -> Ptr *a
-unsafePtrPoke index value ptr = primUndefined
+unsafePtrPoke index value ptr =
+  primUndefined
 
 unsafePtrSwapElement :: UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
-unsafePtrSwapElement index element ptr = primUndefined
+unsafePtrSwapElement index element ptr =
+  primUndefined
+
+unsafePtrCast :: Ptr a -> Ptr b
+unsafePtrCast p =
+  primUndefined
+
+--TODO: This is causing strange non-exhaustive case statements at runtime somehow...
+ptrEq :: Ptr a -> Ptr a -> Bool
+ptrEq x y =
+  primUndefined
+
+ptrIsNull :: Ptr a -> Bool
+ptrIsNull x =
+  ptrEq x primUndefined
 
 -- unsafePtrPokeChecked :: Array n Char -> UInt -> UInt -> *a -> Ptr *a -> Ptr *a
 -- unsafePtrPokeChecked str capacity index value ptr =
@@ -1676,10 +1695,6 @@ unsafePtrSwapElement index element ptr = primUndefined
 --   unsafePtrSwapElement (boundsCheck str index capacity) element ptr
 
 -- TODO: Checked readArray and writeArray!
-
--- unsafeCastPtr :: *Ptr a -> *Ptr b
--- unsafeCastPtr = primUndefined
-
 
 ----------------------
 -- MutRef: A hack to allow for recursively owned types...
@@ -1732,7 +1747,7 @@ each :: Range n
 each = mkRange 0 1 NatVal
 
 indexBackwards :: NatVal n -> Index n -> Index n
-indexBackwards n i = 
+indexBackwards n i =
   unsafeUIntToIndex ((natVal n - 1) - (indexToUInt i))
 
 unsafeEmptyArray :: () -> *Array n a
@@ -1766,7 +1781,7 @@ lookupArray i a =
 --   readArray (Index (boundsCheck str capacity i)) a
 
 zip :: Array n a -> Array n b -> Array n (a, b)
-zip a b = freezeArray <| 
+zip a b = freezeArray <|
   loop c = unsafeEmptyArray () for i <- each do
     let
       va = readArray i a
@@ -1776,7 +1791,7 @@ zip a b = freezeArray <|
 
 
 zipWith :: (a -> b -> c) -> Array n a -> Array n b -> Array n c
-zipWith f a b = freezeArray <| 
+zipWith f a b = freezeArray <|
   loop c = unsafeEmptyArray () for i <- each do
     let
       va = readArray i a
@@ -2470,7 +2485,6 @@ instance Default Audio where
 --------------------
 -- FFT
 --------------------
--- https://www.dspguide.com/ch12/1.htm
 -- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
 data FFT k     = FFT (Array (NatMul BlockSize (NatMax k 2)) Complex) | FFTNone | FFTEnd
 data FFTWindow = FFTWindow (Array (NatMul BlockSize 2) Float)
@@ -2711,10 +2725,10 @@ fftAudio n audio (FFTWindow window) = aout |> freezeArray |> FFT
           j1  = j' + m
           ar1 = if j1 > i then
             let
-              (#ci, a1#) = readArrayU (unsafeUIntToIndex i) ar 
-              (#cj, a2#) = readArrayU (unsafeUIntToIndex j1) a1 
+              (#ci, a1#) = readArrayU (unsafeUIntToIndex i) ar
+              (#cj, a2#) = readArrayU (unsafeUIntToIndex j1) a1
             in
-              writeArray (unsafeUIntToIndex j1) ci a2 |> writeArray (unsafeUIntToIndex i) cj 
+              writeArray (unsafeUIntToIndex j1) ci a2 |> writeArray (unsafeUIntToIndex i) cj
             else
               ar
         in
@@ -2740,8 +2754,8 @@ fftAudio n audio (FFTWindow window) = aout |> freezeArray |> FFT
                       tempi = s * nReal + c * nImag
                       ck = Complex# (kReal + tempr) (kImag + tempi)
                       cn = Complex# (kReal - tempr) (kImag - tempi)
-                      aw = 
-                        writeArray (unsafeUIntToIndex k) ck ar1 |> 
+                      aw =
+                        writeArray (unsafeUIntToIndex k) ck ar1 |>
                         writeArray (unsafeUIntToIndex kN1) cn
                     in
                       (#k + n2, aw#)
@@ -2832,25 +2846,39 @@ idftAudio freqDomain =
         in
           writeArray k (realPart bin / numSamplesF) bins0
 
-dft :: AudioFormat f => FFTWindow -> f Audio -> f (FFT k)
-dft w cs =
+dft :: AudioFormat f => f Audio -> f (FFT k)
+dft cs =
   map f cs
   where
     f c =
       case c of
         AudioEnd    -> FFTEnd
         BlockRate _ -> FFTNone
-        AudioRate a -> dftAudio NatVal a w
+        AudioRate a -> dftAudio NatVal a windowSine
 
-fft :: AudioFormat f => FFTWindow -> f Audio -> f (FFT k)
-fft w cs =
+fft :: AudioFormat f => f Audio -> f (FFT k)
+fft cs =
   map f cs
   where
     f c =
       case c of
         AudioEnd    -> FFTEnd
         BlockRate _ -> FFTNone
-        AudioRate a -> fftAudio NatVal a w
+        AudioRate a -> fftAudio NatVal a windowSine
+
+fft' :: AudioFormat f => NatVal k -> f Audio -> f (FFT k)
+fft' _ cs =
+  fft cs
+
+idft :: AudioFormat f => f (FFT k) -> f Audio
+idft cs =
+  map f cs
+  where
+    f c =
+      case c of
+        FFTEnd   -> AudioEnd
+        FFTNone  -> BlockRate 0
+        FFT bins -> idftAudio bins
 
 ifft :: AudioFormat f => f (FFT k) -> f Audio
 ifft cs =
@@ -2862,6 +2890,7 @@ ifft cs =
         FFTNone  -> BlockRate 0
         FFT bins -> ifftAudio bins
 
+
 --------------------------
 -- FFT Effects
 
@@ -2871,6 +2900,7 @@ convolve a b = map2 (\ca cb -> mapFFT2 (*) ca cb) a b
 fftConj :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftConj c = mapFFTAudio conjugate c
 
+-- Question: Would this be better named as fftMapBins?
 mapFFTAudio :: AudioFormat f => (Complex -> Complex) -> f (FFT k) -> f (FFT k)
 mapFFTAudio f c = map (\cc -> mapFFT f cc) c
 
@@ -2903,7 +2933,7 @@ fftMapMag2 f a b = map2 (\ca cb -> mapFFT2 mImpl ca cb) a b
 fftMagMul :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftMagMul a b = map2 (\ca cb -> mapFFT2 mImpl ca cb) a b
   where
-    mImpl cma cmb = mkPolar (mA * mB) <| phase cma 
+    mImpl cma cmb = mkPolar (mA * mB) <| phase cma
       where
         mA = magnitude cma
         mB = magnitude cmb
@@ -3314,26 +3344,65 @@ instance Monoid a => Monoid (Stereo a) where
 -- Audio IO
 --------------------
 
--- data AudioFile = AudioFile# UInt UInt UInt .(Ptr Float)
---
--- openAudioFile :: Array n Char -> Maybe AudioFile
--- openAudioFile =
---   primUndefined
---
--- playAudioFile :: AudioFormat f => AudioFile -> f Audio -> f Audio
--- playAudioFile buffer freq =
---   primUndefined
---
--- hello :: AudioFile
--- hello =
---   openAudioFile "HelloMotherFucker.wav"
---   |> fromMaybe silence
---
--- myCoolSynth :: Mono Audio
--- myCoolSynth =
---   openAudioFile "HelloMotherFucker.wav"
---   |> fromMaybe silence
---   |> playAudioBuffer 1 hello
+data LoopType  = Loop | DontLoop
+data AudioFile =
+  AudioFile#
+    UInt        -- numChannels
+    UInt        -- numSamples
+    (Ptr Float) -- data
+
+silentAudioFile :: AudioFile
+silentAudioFile =
+  AudioFile# 0 0 primUndefined
+
+unsafeAudioFileOpen :: Ptr Char -> UInt -> Ptr ()
+unsafeAudioFileOpen fileNamePtr fileNameLength =
+  primUndefined
+
+audioFileOpen :: Array n Char -> Maybe AudioFile
+audioFileOpen fileName =
+  snd' maybeMaybeAudioFile
+  where
+    maybeMaybeAudioFile ~ (#0, Nothing#) =
+      if fst' maybeMaybeAudioFile > 0 then
+        maybeMaybeAudioFile
+      else
+        let
+          AudioFile# numChannels numSamples dataPtr =
+            unsafeAudioFileOpen (unsafeArrayToPtr fileName) (arrayLength NatVal fileName)
+            |> unsafePtrCast
+            |> unsafePtrPeek 0
+        in
+          if numSamples == 0 then
+            (#1, Nothing#)
+          else
+            (#1, Just (AudioFile# numChannels numSamples dataPtr)#)
+
+-- TODO: Loop type!
+-- TODO: For now we're just going to stick with plain linear interpolation
+audioFilePlayTick :: UInt -> LoopType -> UInt -> UInt -> Ptr Float -> Float -> Float -> (#Float, Float#)
+audioFilePlayTick channelNum loopType numChannels numSamples dataPtr freq phase0 =
+  (#phase1, out#)
+  where
+    numFrames = numChannels * numSamples
+    phase1    = fma freq recipSampleRate phase0
+    findex    = phase1 * audioSampleRateF
+    delta     = (floor findex + 1) - findex
+    index1    = (floatToUInt findex * numChannels + channelNum) % numFrames
+    index2    = (index1 + numChannels) % numFrames
+    sample1   = unsafePtrPeek index1 dataPtr
+    sample2   = unsafePtrPeek index2 dataPtr
+    out       = sample1 * delta + sample2 * (1 - delta)
+
+-- TODO: data folder?
+-- TODO: Sum type for AudioFile instead of manually checking against members for validity
+-- TODO / HACK: Punting and doing mono audio files for now. In the future figure out how to map audio files to AudioFormat (maybe stick in class definition?)
+audioFilePlay :: LoopType -> Mono Audio -> AudioFile -> Mono Audio
+audioFilePlay loopType freq (AudioFile# numChannels numSamples dataPtr) =
+  if numChannels == 0 || numSamples == 0 then
+    0
+  else
+    accumulate1 (audioFilePlayTick 0 loopType numChannels numSamples dataPtr) constTrue freq
 
 -- TODO: Sprinkle World around a bit more in here!
 data ScratchBuffer = ScratchBuffer (Ptr (.Ptr ()))
@@ -7064,10 +7133,10 @@ d2f :: Scale t d -> Int -> Float
 d2f = degreeToFrequency
 
 testJit :: *World -> *World
-testJit w = plotFFTOnce "fftOut.dat" fftOut w 
+testJit w = plotFFTOnce "fftOut.dat" fftOut w
   where
     fftOut :: Mono (FFT 1)
-    fftOut = fft windowNone p
+    fftOut = fft p
     p =
       pluck natEight 50 1.0 +
       pluck natFour 100 1.0
@@ -7571,30 +7640,32 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 --     y = 3
 --     z = fromInt mouseX * 100
 
+-- TODO: Nat valued constants where the number is applied as a Nat kind
+--       to a Type Constructor with a single Unit data constructor, such as NatlVal or Seconds,
+--       i.e.:
+--          1! :: NatVal 1
+--          2! :: Seconds 2
+--          3! :: NatVal 3
+--          etc
+-- TODO: Had to remove HOF caching because the current one over shared causing very bad issues. Find a correct fix
 -- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
 -- TODO: Test arg copying
--- TODO: Test shared beats, etc (NOTE: Known to assert false currently)
 
 -- TODO: Softsync Oscillators
 -- TODO: optimize perc?
 -- TODO: Waveterrain oscillators? Table based? Function Based? Both? Trajectory combinators, etc
 -- TODO: Sphereterrain oscillators? Table based? Function Base? Both?
 -- TODO: Cepstrum analysis / signal processing?
--- TODO: Karplus Strong
 -- TODO: Loading Audio Files
--- TODO: Writing Audio Files
 -- TODO: Comb Filters, All Pass Filters, etc
 -- TODO: mandelbulb + strange attractors + delauney triangulation
 -- TODO: phase distortion synthesis
--- TODO: https://ccrma.stanford.edu/~jos/pasp/Freeverb.html
 -- TODO: Looks like maybe the precedence between (+) and (*) and (|>) is a little wonky?
 -- TODO: Multiplication precedence is WRONG!!!!
--- TODO: Make JIT faster
 -- TODO: Generic env
 -- TODO: Clipping detection
 -- TODO: Set audioSampleOffset to NOT be constant and insure that it is never used at a global scope!!!!! (It is magical...)
 -- TODO: repeat combinator
--- TODO: FFT stuff
 -- TODO: Nested case literals seem broken!
 -- TODO: Out of order monomorphic instances (i.e. 'instance Ring Complex' textually appearing before 'instance Ring F64') can cause erroneous 'Not An Instance' errors. Maybe need a better dep analysis story to make this work since we don't figure this out until inference which is at that point too late to fix.
 -- TODO: Write to log file, perhaps class Log a similar to class Print a
@@ -7604,11 +7675,8 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- TODO: Memory access test audio stuff!
 -- TODO: type sig coerce constraint!
 -- TODO: Put constant check on initializers, not in type signatures. It doesn't need to be in the type system to be checked! Then we can nix Default for Monoid?
--- TODO: FFT generated signals, pure FFT
 -- TODO: Compiler breaks down when a Non-Type kinded type is used in a class declaration!
--- TODO: endAfterTick IO combinator: endAfterTick :: *World -> *World
 -- TODO: Immutable and Mutable (Unique) FFT API
--- TODO: Writing audio files
 
 -- TODO: Concept of Constant Values somehow being worked into the type system for things like default and mutRef
 -- TODO: Inline compose operators! .> and <.

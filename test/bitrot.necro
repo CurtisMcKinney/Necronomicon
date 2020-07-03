@@ -1,7 +1,7 @@
 
 uncountablyInfiniteCats :: Float -> Stereo Audio
 uncountablyInfiniteCats h =
-  s f1 |> fft windowSine |> ffft |> ifft |> e |>
+  s f1 |> fft |> ffft |> ifft |> e |>
   mul (sin (fromFloat <| h * 55 * 0.125 * 5 / 4)) |>
   hpf (fromFloat h * 55 * 5/4) 0.003 |> mixStereo |>
   freeVerb 0.5 0.5 0.9

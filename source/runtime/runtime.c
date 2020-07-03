@@ -172,9 +172,10 @@ extern DLLEXPORT size_t necro_runtime_panic(size_t world)
     UNUSED(world);
     fprintf(stderr, "****panic!\n");
     necro_exit(-1);
-#if defined(_DEBUG)
+    // @Curtis -> why the _DEBUG ifdef here?
+/* #if defined(_DEBUG) */
     return world;
-#endif
+/* #endif */
 }
 
 

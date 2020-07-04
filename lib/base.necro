@@ -1282,7 +1282,11 @@ instance Ring Complex where
   fromInt z                             = Complex# (fromInt z) 0
 
 instance EuclideanRing Complex where
-  div x y = Complex# (zx / yIntoConjugate) (zi / yIntoConjugate)
+  div x y = if yIntoConjugate /= 0
+    then
+      Complex# (zx / yIntoConjugate) (zi / yIntoConjugate)
+    else
+      Complex# 0 0
     where
       conjugateY     = conjugate y
       yIntoConjugate = y * conjugateY |> realPart
@@ -1317,8 +1321,10 @@ instance Floating Complex where
         let
             halfSqrt2 = (sqrt 2) / 2
             magZ = (magnitude z)
-            u = sqrt (magZ + r)
-            v = (signum i) * (sqrt (magZ - r))
+            magZR = r + magZ
+            magZNegR = magZ - r
+            u = if magZR /= 0 then sqrt magZR else 0
+            v = if magZNegR /= 0 then (signum i) * (sqrt magZNegR) else 0
         in
             Complex# (halfSqrt2 * u) (halfSqrt2 * v)
   floor     (Complex# r i) = Complex# (floor r) (floor i)
@@ -3076,14 +3082,13 @@ fftProjection a b = composeFFTBuffers compose a b
               uv = u * conjugate v
             in
               (#sqrNorm + (v * conjugate v), dot + uv#)
-        isNonZero = snr /= 0 && sni /= 0
-        norm = if isNonZero then sqrt (Complex# snr sni) else (Complex# 0 0)
+        norm = sqrt (Complex# snr sni)
         bc =
           loop bc = unsafeEmptyArray () for i <- each do
             let
               v = readArray i bb
             in
-              writeArray i (if isNonZero then v / norm * dot else norm) bc
+              writeArray i (v / norm * dot) bc
 
 -- project the entire buffer of A onto B,
 -- interpretting the buffers as higher dimensional vectors of complex numbers
@@ -3100,15 +3105,14 @@ fftParallelProjection a b = composeFFTBuffers compose a b
               uv = u * conjugate v
             in
               (#sqrNorm + (v * conjugate v), dot + uv#)
-        isNonZero = snr /= 0 && sni /= 0
-        norm = if isNonZero then sqrt (Complex# snr sni) else (Complex# 0 0)
+        norm = sqrt (Complex# snr sni)
         bc =
           loop bc = unsafeEmptyArray () for i <- each do
             let
               u = readArray i ba
               v = readArray i bb
             in
-              writeArray i (if isNonZero then u - (v / norm * dot) else norm) bc
+              writeArray i (u - (v / norm * dot)) bc
 
 -- projection of the complex bins of a onto b, interpretting each bin as real 2D vectors
 fftBinProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)

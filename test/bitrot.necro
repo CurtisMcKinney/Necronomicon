@@ -60,7 +60,7 @@ proj h = p2 |> mul 1 |> en |> mixStereo
     af = saw 440 |> fft
     wf :: Mono (FFT 2)
     wf = waveGuideBow natSixteen 0.5 0.5 0.6 0.3 0.3 fr |> mixMono |> fft
-    p2 = fftProjection wf sf |> ifft
+    p2 = fftBinPolarProjection wf sf |> ifft
     en = asr 0.1 1 8 -4
 
 main :: *World -> *World

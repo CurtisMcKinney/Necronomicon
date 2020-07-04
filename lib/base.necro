@@ -2552,7 +2552,7 @@ composeFFTBuffers f (Mono cx) (Mono cy) = Mono mcy
       case cy of
         FFTEnd -> FFTEnd
         FFTNone -> FFTNone
-        FFT b ->  FFT (f b mcx)
+        FFT b ->  FFT (f mcx b)
 
 uintToInt :: UInt -> Int
 uintToInt x = primUndefined

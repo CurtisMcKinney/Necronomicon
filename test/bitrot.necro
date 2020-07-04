@@ -55,12 +55,10 @@ proj h = p2 |> mul 1 |> en |> mixStereo
   where
     fr = fromFloat h * 55
     sf :: Mono (FFT 2)
-    sf = saw (fromFloat h * 55 |> mul (sin 1337)) |> fft
-    af :: Mono (FFT 2)
-    af = saw 440 |> fft
+    sf = sin (fromFloat h * 55 |> mul (sin 440)) |> fft
     wf :: Mono (FFT 2)
-    wf = waveGuideBow natSixteen 0.5 0.5 0.6 0.3 0.3 fr |> mixMono |> fft
-    p2 = fftBinPolarProjection wf sf |> ifft
+    wf = waveGuidePluck natSixteen 0.5 0.9 0.9 16 fr 0.5 |> mixMono |> fft
+    p2 = fftBinPolarParallelProjection wf sf |> ifft
     en = asr 0.1 1 8 -4
 
 main :: *World -> *World

@@ -391,6 +391,6 @@ extern DLLEXPORT const size_t** necro_runtime_record_audio_block(const uint64_t 
     }
     if (a_channel_num >= a_num_channels - 1)
         curr_buffer->buffer_index += necro_runtime_audio_block_size * a_num_channels;
-    return a_scratch_buffer;
+    return (const size_t**) a_scratch_buffer;
 }
 

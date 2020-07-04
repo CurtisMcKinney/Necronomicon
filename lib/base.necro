@@ -3074,7 +3074,7 @@ fftProjection a b = composeFFTBuffers compose a b
   where
     compose ba bb = bc |> freezeArray
       where
-        (#Complex# snr sni, dot#) =
+        (#sqrNorm, dot#) =
           loop (#sqrNorm, dot#) = (#Complex# 0 0, Complex# 0 0#) for i <- each do
             let
               u = readArray i ba
@@ -3082,7 +3082,7 @@ fftProjection a b = composeFFTBuffers compose a b
               uv = u * conjugate v
             in
               (#sqrNorm + (v * conjugate v), dot + uv#)
-        norm = sqrt (Complex# snr sni)
+        norm = sqrt sqrNorm
         bc =
           loop bc = unsafeEmptyArray () for i <- each do
             let
@@ -3097,7 +3097,7 @@ fftParallelProjection a b = composeFFTBuffers compose a b
   where
     compose ba bb = bc |> freezeArray
       where
-        (#Complex# snr sni, dot#) =
+        (#sqrNorm, dot#) =
           loop (#sqrNorm, dot#) = (#Complex# 0 0, Complex# 0 0#) for i <- each do
             let
               u = readArray i ba
@@ -3105,7 +3105,7 @@ fftParallelProjection a b = composeFFTBuffers compose a b
               uv = u * conjugate v
             in
               (#sqrNorm + (v * conjugate v), dot + uv#)
-        norm = sqrt (Complex# snr sni)
+        norm = sqrt sqrNorm
         bc =
           loop bc = unsafeEmptyArray () for i <- each do
             let

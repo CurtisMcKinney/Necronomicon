@@ -63,19 +63,19 @@ testAssertion b w = primUndefined
 panic :: UInt -> UInt
 panic x = primUndefined
 
--- boundsCheck :: Array n Char -> UInt -> UInt -> UInt
--- boundsCheck str index capacity =
---   if index < capacity then index else
---     index
---     |> traceLn "bounds check FAILED:"
---     |> trace "| "
---     |> traceLn str
---     |> trace "| index:    "
---     |> traceLn index
---     |> trace "| capacity: "
---     |> traceLn capacity
---     |> traceLn " "
---     |> panic
+boundsCheck :: Array n Char -> UInt -> UInt -> UInt
+boundsCheck str index capacity =
+  if index < capacity then index else
+    index
+    |> traceLn "bounds check FAILED:"
+    |> trace "| "
+    |> traceLn str
+    |> trace "| index:    "
+    |> traceLn index
+    |> trace "| capacity: "
+    |> traceLn capacity
+    |> traceLn " "
+    |> panic
 
 -- testAndPrintAssertion :: (Print a, Eq a) => a -> a -> *World -> *World
 -- testAndPrintAssertion x y w = testAssertion (x == y) <| printLn x w
@@ -214,6 +214,12 @@ class Applicative m => Monad m where
 class Applicative f => Alternative f where
   empty       :: f a
   alternative :: f a -> f a -> f a
+
+-- TODO: Implement Bifunctor
+-- class Bifunctor f where
+--   bimap :: (a -> c) -> (b -> d) -> f a b -> f c d
+--   mapFst
+--   mapSnd
 
 class Enum a where
   toEnum   :: Int -> a
@@ -588,6 +594,13 @@ instance Monoid UInt where
 instance Default UInt where
   default = 0
 
+uintToInt :: UInt -> Int
+uintToInt x = primUndefined
+
+fromUInt :: Ring a => UInt -> a
+fromUInt x = fromInt (uintToInt x)
+
+
 --------------------
 -- Float
 --------------------
@@ -635,6 +648,25 @@ instance Floating Float where
   round     x = primUndefined
   -- fmin      x y = primUndefined
   -- fmax      x y = primUndefined
+
+lerp :: Floating a => a -> a -> Float -> a
+lerp x y deltaF =
+  (x * (1 - delta)) + (y * delta)
+  where
+    delta = fromFloat deltaF
+
+cerp :: Floating a => a -> a -> a -> a -> Float -> a
+cerp x0 x1 x2 x3 deltaF =
+  (a0 * delta * delta2) + ((a1 * delta2) + (a2 * delta) + a3)
+  where
+    delta  = fromFloat deltaF
+    delta2 = delta * delta
+    a0     = x3 - x2 - x0 + x1
+    a1     = x0 - x1 - a0
+    a2     = x2 - x0
+    a3     = x1
+
+
 
 ----------------------------------------
 -- Trig Approximation Functions
@@ -1255,6 +1287,9 @@ cis theta = Complex# (cosine theta) (sine theta)
 polar :: Complex -> (Float, Float)
 polar c = (magnitude c, phase c)
 
+polar' :: Complex -> (#Float, Float#)
+polar' c = (#magnitude c, phase c#)
+
 sqrMagnitude :: Complex -> Float
 sqrMagnitude (Complex# r i) = (r * r) + (i * i)
 
@@ -1354,6 +1389,13 @@ instance Trig Complex where
   log10 c = Complex# (log10 <| magnitude c) (phase c)
   pow n c = exp (c * log n)
   atan2 y x = (Complex# 0 -1) * (log ((x + ((Complex# 0 1) * y)) / (sqrt ((x * x) + (y * y)))))
+
+lerpComplex :: Complex -> Complex -> Float -> Complex
+lerpComplex (Complex# rx ix) (Complex# ry iy) delta =
+  Complex# r i
+  where
+    r = rx * (1 - delta) + ry * delta
+    i = ix * (1 - delta) + iy * delta
 
 
 --------------------
@@ -1756,6 +1798,10 @@ indexBackwards :: NatVal n -> Index n -> Index n
 indexBackwards n i =
   unsafeUIntToIndex ((natVal n - 1) - (indexToUInt i))
 
+unsafeIndexToIndex :: Index n -> Index m
+unsafeIndexToIndex (Index i) =
+  Index i
+
 unsafeEmptyArray :: () -> *Array n a
 unsafeEmptyArray u = primUndefined
 
@@ -1778,13 +1824,17 @@ lookupArray i a =
   else
     Nothing
 
--- writeArrayChecked :: Array n Char -> UInt -> Index n -> a -> *Array n a -> *Array n a
--- writeArrayChecked str capacity (Index i) x a =
---   writeArray (Index (boundsCheck str capacity i)) x a
+writeArrayChecked :: Array c Char -> UInt -> Index n -> a -> *Array n a -> *Array n a
+writeArrayChecked str capacity (Index i) x a =
+  writeArray (Index (boundsCheck str i capacity)) x a
 
--- readArrayChecked :: Array n Char -> UInt -> Index n -> Array n a -> a
--- readArrayChecked str capacity (Index i) a =
---   readArray (Index (boundsCheck str capacity i)) a
+readArrayChecked :: Array c Char -> UInt -> Index n -> Array n a -> a
+readArrayChecked str capacity (Index i) a =
+  readArray (Index (boundsCheck str i capacity)) a
+
+readArrayUChecked :: Array c Char -> UInt -> Index n -> .Array n a -> (#a, .Array n a#)
+readArrayUChecked str capacity (Index i) a =
+  readArrayU (Index (boundsCheck str i capacity)) a
 
 zip :: Array n a -> Array n b -> Array n (a, b)
 zip a b = freezeArray <|
@@ -1858,8 +1908,8 @@ indexToFloat (Index i) = fromUInt i
 bitReverseIndex :: Index n -> Index n
 bitReverseIndex (Index i) = Index (bitReverse i)
 
-toIndexMultiple :: Index n -> Index (NatMul n (NatMax k 1))
-toIndexMultiple (Index i) = Index i
+-- toIndexMultiple :: Index n -> Index (NatMul n (NatMax k 1))
+-- toIndexMultiple (Index i) = Index i
 
 sampleRate :: UInt
 sampleRate = primUndefined
@@ -2492,15 +2542,25 @@ instance Default Audio where
 -- FFT
 --------------------
 -- FFT bins are represented as complex numbers wherein phase is encoded as the angle of a 2D vector and amplitude is encoded as the magnitude of the 2D vector.
-data FFT k     = FFT (Array (NatMul BlockSize (NatMax k 2)) Complex) | FFTNone | FFTEnd
-data FFTWindow = FFTWindow (Array (NatMul BlockSize 2) Float)
+data FFT k       = FFT (Array (NatMul BlockSize (NatMul k 4)) Complex) | FFTInterval | FFTNone | FFTEnd
+data FFTWindow k = FFTWindow (Array (NatMul BlockSize (NatMul k 2)) Float)
+
+-- TODO: rename all FFT stuff to be prepended by namespace fft
+-- TODO: Num instances for FFT or not?
+
+fftSilence :: AudioFormat f => f (FFT k)
+fftSilence =
+  arrayFrom 0
+  |> FFT
+  |> pure
 
 mapFFT :: (Complex -> Complex) -> FFT k -> FFT k
 mapFFT f c =
   case c of
-    FFTEnd -> FFTEnd
-    FFTNone -> FFTNone
-    FFT b ->
+    FFTEnd      -> FFTEnd
+    FFTNone     -> FFTNone
+    FFTInterval -> FFTInterval
+    FFT b       ->
       FFT
       <| freezeArray
       <| loop a = unsafeEmptyArray () for i <- each do
@@ -2509,13 +2569,15 @@ mapFFT f c =
 mapFFT2 :: (Complex -> Complex -> Complex) -> FFT k -> FFT k -> FFT k
 mapFFT2 f cx cy =
   case cx of
-    FFTEnd -> FFTEnd
-    FFTNone -> FFTNone
-    FFT x ->
+    FFTEnd      -> FFTEnd
+    FFTNone     -> FFTNone
+    FFTInterval -> FFTInterval
+    FFT x       ->
       case cy of
-        FFTEnd -> FFTEnd
-        FFTNone -> FFTNone
-        FFT y ->
+        FFTEnd      -> FFTEnd
+        FFTNone     -> FFTNone
+        FFTInterval -> FFTInterval
+        FFT y       ->
           FFT
           <| freezeArray
           <| loop a = unsafeEmptyArray () for i <- each do
@@ -2523,7 +2585,7 @@ mapFFT2 f cx cy =
 
 mapFFTBuffer ::
   AudioFormat f =>
-  (Array (NatMul BlockSize (NatMax k 2)) Complex -> Array (NatMul BlockSize (NatMax k 2)) Complex) ->
+  (Array (NatMul BlockSize (NatMul k 4)) Complex -> Array (NatMul BlockSize (NatMul k 4)) Complex) ->
   f (FFT k) ->
   f (FFT k)
 mapFFTBuffer f c = map mf c
@@ -2532,12 +2594,13 @@ mapFFTBuffer f c = map mf c
       case fftChannel of
         FFTEnd -> FFTEnd
         FFTNone -> FFTNone
+        FFTInterval -> FFTInterval
         FFT b ->  FFT (f b)
 
 composeFFTBuffers ::
-  (Array (NatMul BlockSize (NatMax k 2)) Complex ->
-    Array (NatMul BlockSize (NatMax k 2)) Complex ->
-    Array (NatMul BlockSize (NatMax k 2)) Complex) ->
+  (Array (NatMul BlockSize (NatMul k 4)) Complex ->
+    Array (NatMul BlockSize (NatMul k 4)) Complex ->
+    Array (NatMul BlockSize (NatMul k 4)) Complex) ->
   Mono (FFT k) ->
   Mono (FFT k) ->
   Mono (FFT k)
@@ -2547,59 +2610,45 @@ composeFFTBuffers f (Mono cx) (Mono cy) = Mono mcy
       case cx of
         FFTEnd -> arrayFrom (Complex# 0 0)
         FFTNone -> arrayFrom (Complex# 0 0)
+        FFTInterval -> arrayFrom (Complex# 0 0)
         FFT b ->  b
     mcy =
       case cy of
         FFTEnd -> FFTEnd
         FFTNone -> FFTNone
+        FFTInterval -> FFTInterval
         FFT b ->  FFT (f mcx b)
-
-uintToInt :: UInt -> Int
-uintToInt x = primUndefined
-
-fromUInt :: Ring a => UInt -> a
-fromUInt x = fromInt (uintToInt x)
-
-lerp :: Floating a => a -> a -> Float -> a
-lerp x y deltaF =
-  (x * (1 - delta)) + (y * delta)
-  where
-    delta = fromFloat deltaF
-
-cerp :: Floating a => a -> a -> a -> a -> Float -> a
-cerp x0 x1 x2 x3 deltaF =
-  (a0 * delta * delta2) + ((a1 * delta2) + (a2 * delta) + a3)
-  where
-    delta  = fromFloat deltaF
-    delta2 = delta * delta
-    a0     = x3 - x2 - x0 + x1
-    a1     = x0 - x1 - a0
-    a2     = x2 - x0
-    a3     = x1
 
 natValFrom :: NatVal k -> f k -> UInt
 natValFrom n _ =
   natVal n
 
-windowNone :: FFTWindow
+windowNone :: FFTWindow k
 windowNone =
   FFTWindow (arrayFrom 1)
 
-windowSine :: FFTWindow
+windowSine :: FFTWindow k
 windowSine =
   FFTWindow
   <| freezeArray
   <| loop a = unsafeEmptyArray () for i <- each do
-    writeArray i (sine (pi * fromUInt (indexToUInt i) / fromUInt (natValFrom NatVal i))) a
+    writeArray i (sine (pi * fromUInt (indexToUInt i) / fromUInt (natValFrom NatVal i - 1))) a
 
-windowHann :: FFTWindow
+-- windowSine :: FFTWindow k
+-- windowSine =
+--   FFTWindow
+--   <| freezeArray
+--   <| loop a = unsafeEmptyArray () for i <- each do
+--     writeArray i (sine ((fromUInt (indexToUInt i) + 0.5) * (pi / fromUInt (natValFrom NatVal i)))) a
+
+windowHann :: FFTWindow k
 windowHann =
   FFTWindow
   <| freezeArray
   <| loop a = unsafeEmptyArray () for i <- each do
-    writeArray i (0.5 - 0.5 * cosine (tau * fromUInt (indexToUInt i) / fromUInt (natValFrom NatVal i))) a
+    writeArray i (0.5 - 0.5 * cosine (tau * fromUInt (indexToUInt i + 1) / fromUInt (natValFrom NatVal i))) a
 
-windowHamming :: FFTWindow
+windowHamming :: FFTWindow k
 windowHamming =
   FFTWindow
   <| freezeArray
@@ -2611,137 +2660,259 @@ windowHamming =
 -- This preps audio data for FFT analysis
 -- Currently uses a fixed hop size of 0.5
 -- First it copies the data into a circular buffer (fft needs past audio data to perform overlay-add in ifft)
--- Next it performs zero-phase zero padding to the fft buffer size
+-- Next it performs zero-phase buffering
 -- Then it multiplies the audio by the supplied window function
 -- And lastly it stores this in a Complex valued array for the FFT algorithm
 -- TODO: use NatNextPowerOfTwo for safer FFT sizes? It would mean even more hilariously large Array types
-audioToTimeDomain :: UInt -> Array BlockSize Float -> Array (NatMul BlockSize 2) Float -> *Array (NatMul BlockSize (NatMax k 2)) Complex
-audioToTimeDomain fftSize a w =
-  case mutRefTake (\_ -> (#arrayFrom 0, 0#)) of
-    (#(#cBuffer0, cOffset0#), mref#) ->
-      let
-        a2SizeMask = audioBlockSize * 2 - 1
-        cOffset1   = bitAnd (cOffset0 + audioBlockSize) a2SizeMask
-        cBuffer2   =
-          -- Copy data into circular buffer
-          loop cBuffer1 = cBuffer0 for i <- each do
-            writeArray (unsafeUIntToIndex (bitAnd (indexToUInt i + cOffset0) a2SizeMask)) (readArray i a) cBuffer1
-        (#timeDomain, cBuffer5#) =
-          loop (#timeDomain0, cBuffer3#) = (#unsafeEmptyArray (), cBuffer2#) for fftIndex <- each do
-            let
-              fftIndexU  = indexToUInt fftIndex
-            in
-              -- Zero-phase Zero padding
-              if fftIndexU < audioBlockSize then
-                let
-                  ai               = fftIndexU + audioBlockSize
-                  wi               = unsafeUIntToIndex ai
-                  wx               = readArray wi w
-                  ci               = asTypeOf (unsafeUIntToIndex (bitAnd (ai + cOffset0 + audioBlockSize) a2SizeMask)) wi
-                  (#ax, cBuffer4#) = readArrayU ci cBuffer3
-                  tc               = Complex# (ax * wx) 0
-                in
-                  (#writeArray fftIndex tc timeDomain0, cBuffer4#)
-              else if fftIndexU >= fftSize - audioBlockSize then
-                let
-                  ai               = fftIndexU - (fftSize - audioBlockSize)
-                  wi               = unsafeUIntToIndex ai
-                  wx               = readArray wi w
-                  ci               = asTypeOf (unsafeUIntToIndex (bitAnd (ai + cOffset0 + audioBlockSize) a2SizeMask)) wi
-                  (#ax, cBuffer4#) = readArrayU ci cBuffer3
-                  tc               = Complex# (ax * wx) 0
-                in
-                  (#writeArray fftIndex tc timeDomain0, cBuffer4#)
-              else
-                (#writeArray fftIndex 0 timeDomain0, cBuffer3#)
-      in
-        case mutRefPut (#cBuffer5, cOffset1#) mref of
-          _ ->
-            timeDomain
+-- TODO: something is up, maybe with windowing?!?!?!?!?!?
+-- TODO: Insure next power of two!
 
+-- audioToTimeDomain :: UInt -> Array BlockSize Float -> Array (NatMul BlockSize 2) Float -> *Array (NatMul BlockSize (NatMax k 2)) Complex
+-- audioToTimeDomain fftSize a w =
+--   case mutRefTake (\_ -> (#arrayFrom 0, 0#)) of
+--     (#(#cBuffer0, cOffset0#), mref#) ->
+--       let
+--         a2SizeMask = audioBlockSize * 2 - 1
+--         cOffset1   = bitAnd (cOffset0 + audioBlockSize) a2SizeMask
+--         cBuffer2   =
+--           -- Copy data into circular buffer
+--           loop cBuffer1 = cBuffer0 for i <- each do
+--             writeArray (unsafeUIntToIndex (bitAnd (indexToUInt i + cOffset0) a2SizeMask)) (readArray i a) cBuffer1
+--         (#timeDomain, cBuffer5#) =
+--           loop (#timeDomain0, cBuffer3#) = (#unsafeEmptyArray (), cBuffer2#) for fftIndex <- each do
+--             let
+--               fftIndexU  = indexToUInt fftIndex
+--             in
+--               -- Zero-phase Zero padding
+--               if fftIndexU < audioBlockSize then
+--                 let
+--                   ai               = fftIndexU + audioBlockSize
+--                   wi               = unsafeUIntToIndex ai
+--                   wx               = readArray wi w
+--                   ci               = asTypeOf (unsafeUIntToIndex (bitAnd (ai + cOffset0 + audioBlockSize) a2SizeMask)) wi
+--                   (#ax, cBuffer4#) = readArrayU ci cBuffer3
+--                   tc               = Complex# (ax * wx) 0
+--                 in
+--                   (#writeArray fftIndex tc timeDomain0, cBuffer4#)
+--               else if fftIndexU >= fftSize - audioBlockSize then
+--                 let
+--                   ai               = fftIndexU - (fftSize - audioBlockSize)
+--                   wi               = unsafeUIntToIndex ai
+--                   wx               = readArray wi w
+--                   ci               = asTypeOf (unsafeUIntToIndex (bitAnd (ai + cOffset0 + audioBlockSize) a2SizeMask)) wi
+--                   (#ax, cBuffer4#) = readArrayU ci cBuffer3
+--                   tc               = Complex# (ax * wx) 0
+--                 in
+--                   (#writeArray fftIndex tc timeDomain0, cBuffer4#)
+--               else
+--                 (#writeArray fftIndex 0 timeDomain0, cBuffer3#)
+--       in
+--         case mutRefPut (#cBuffer5, cOffset1#) mref of
+--           _ ->
+--             timeDomain
+
+fftIndexIsZeroBin :: UInt -> UInt -> Index (NatMul BlockSize (NatMul k 4)) -> Bool
+fftIndexIsZeroBin bufferSize fftHalfSize (Index i) =
+  if i < fftHalfSize then
+    False
+  else if i >= (bufferSize - 0) - fftHalfSize then
+    False
+  else
+    True
+
+fftIndexToZeroPhaseIndex :: UInt -> UInt -> Index (NatMul BlockSize (NatMul k 4)) -> Index (NatMul BlockSize (NatMul k 2))
+fftIndexToZeroPhaseIndex bufferSize fftHalfSize (Index i) =
+  if i < fftHalfSize then
+    Index (i + fftHalfSize)
+  else if i >= (bufferSize - 0) - fftHalfSize then
+    Index (i - ((bufferSize - 0) - fftHalfSize))
+  else
+    Index i
+
+-- Useful values
+-- BufferSize     size: BufferSize
+-- FFTSize        size: BufferSize / 2
+-- timeDomain     size: BufferSize
+-- cBuffer        size: FFTSize
+-- prevTimeDomain size: FFTSize / 2
+-- overflowBuffer size: FFTSize / 2
+-- window buffer  size: FFTSize
+
+audioToTimeDomain :: NatVal (NatMul BlockSize (NatMul k 4)) -> FFTWindow k -> Array BlockSize Float -> Maybe (*Array (NatMul BlockSize (NatMul k 4)) Complex)
+audioToTimeDomain n (FFTWindow window) audio =
+  case mutRefPut (#cBufferEnd, cIndex1#) mref of
+    _ -> timeDomainEnd
+  where
+    (#(#cBuffer0, cIndex0#), mref#) = mutRefTake (\_ -> (#arrayFrom 0, 0#))
+    bufferSize                      = natVal n
+    fftSize                         = bufferSize / 2
+    fftHalfSize                     = fftSize / 2
+    fftSizeMask                     = fftSize - 1
+    cIndex1                         = bitAnd (cIndex0 + audioBlockSize) fftSizeMask
+    cBuffer2                        =
+      -- Copy data into circular buffer
+      loop cBuffer1 = cBuffer0 for i <- each do
+        writeArray (unsafeUIntToIndex (bitAnd (indexToUInt i + cIndex0) fftSizeMask)) (readArray i audio) cBuffer1
+    (#timeDomainEnd, cBufferEnd#) =
+      if cIndex1 == 0 || cIndex1 == fftHalfSize then
+        -- Zero-phase zero-padding for FFT analysis
+        let
+          (#timeDomain, cBuffer5#) =
+            loop (#timeDomain0, cBuffer3#) = (#unsafeEmptyArray (), cBuffer2#) for fftIndex <- each do
+              if fftIndexIsZeroBin bufferSize fftHalfSize fftIndex then
+                -- zero padding
+                (#writeArray fftIndex (Complex# 0 0) timeDomain0, cBuffer3#)
+              else
+                let
+                  windowIndex      = fftIndexToZeroPhaseIndex bufferSize fftHalfSize fftIndex
+                  wx               = readArray windowIndex window
+                  circularIndex    = asTypeOf (unsafeUIntToIndex (bitAnd (indexToUInt windowIndex + cIndex1) fftSizeMask)) windowIndex
+                  (#ax, cBuffer4#) = readArrayU circularIndex cBuffer3
+                  c                = Complex# (ax * wx) 0
+                  -- c                = Complex# (wx) 0
+                  timeDomain1      = writeArray fftIndex c timeDomain0
+                in
+                  (#timeDomain1, cBuffer4#)
+        in
+          (#Just timeDomain, cBuffer5#)
+          -- if currBlockCount == 2048 then
+          --   case plotFFTChannelOnce "./data/timeDomainTest.dat" (FFT (freezeArray timeDomain)) primUndefined of
+          --     _ -> primUndefined
+          -- else
+      else
+        -- In between FFT blocks
+        (#Nothing, cBuffer2#)
+
+
+----------------------
+-- timeDomainToAudio
 -- Overlap-Add method: dspguide.com/ch18/1.htm
 -- Use sine window for FFT and IFFT to combine for a Hann window?
 -- This is the inverse of audioToTimeDomain
 -- Performs overlay-add with a hop size of 2
--- Undoes zero padding
-timeDomainToAudio :: UInt -> FFTWindow -> Array (NatMul BlockSize (NatMax k 2)) Float -> Audio
-timeDomainToAudio fftSize (FFTWindow window) timeDomain =
-  case mutRefTake (\_ -> arrayFrom 0) of
-    (#cBuffer0, mref#) ->
-      let
-        (#audio, cBuffer4#) =
-          loop (#audio0, cBuffer2#) = asTypeOfU (unsafeEmptyArray ()) cBuffer0 for fftIndex0 <- each do
+-- Undoes zero phase buffering
+
+fftArraySizeGymnastics :: Index (NatMul BlockSize (NatMul k 4)) -> Index (NatMul BlockSize k) -> Index (NatMul BlockSize k)
+fftArraySizeGymnastics _ i = i
+
+timeDomainToAudio :: NatVal (NatMul BlockSize (NatMul k 4)) -> FFTWindow k -> Maybe (Array (NatMul BlockSize (NatMul k 4)) Float) -> Audio
+timeDomainToAudio n (FFTWindow window) maybeTimeDomain =
+  case mutRefPut (#overflowBuffer2, prevTimeDomain1, overflowIndex1#) mref of
+    _ -> AudioRate (freezeArray audio)
+  where
+    (#(#overflowBuffer0, prevTimeDomain0, overflowIndex0#), mref#) =
+      mutRefTake (\_ -> (#arrayFrom 0, arrayFrom 0, 0#))
+
+    bufferSize      = natVal n
+    fftSize         = bufferSize / 2
+    fftHalfSize     = fftSize / 2
+    fftSizeMask     = fftSize - 1
+    fftHalfSizeMask = fftHalfSize - 1
+    overflowIndex1  = bitAnd (overflowIndex0 + audioBlockSize) fftHalfSizeMask
+    -- TODO: statefulness in here is causing a crash....wtf???
+
+    -- Resynthesize and fill overflow buffer
+    (#overflowBuffer1, prevTimeDomain1#) =
+      case maybeTimeDomain of
+        Nothing         -> (#overflowBuffer0, prevTimeDomain0#)
+        Just timeDomain ->
+          loop (#overflowBuffer00, prevTimeDomain00#) = asTypeOfU overflowBuffer0 prevTimeDomain0 for fftIndex0 <- each do
             let
-              fftIndex       = indexBackwards NatVal fftIndex0
-              fftIndexU      = indexToUInt fftIndex
-              lastBlockIndex = fftSize - audioBlockSize
+              fftIndex  = indexBackwards NatVal fftIndex0
+              fftIndexU = indexToUInt fftIndex
             in
-              if fftIndexU < audioBlockSize then
-                -- Write to circular buffer
-                (#audio0, writeArray (unsafeUIntToIndex fftIndexU) (readArray fftIndex timeDomain) cBuffer2#)
-              else if fftIndexU >= lastBlockIndex then
-                -- Resynthesize
+              if fftIndexU < fftHalfSize then
+                -- write contents of first half of timeDomain buffer into prevTimeDomain buffer
                 let
-                  i0               = fftIndexU - lastBlockIndex -- Range: 0 - audioBlockSize
-                  i1               = i0 + audioBlockSize        -- Range: audioBlockSize - audioBlockSize * 2
-                  w0               = readArray (unsafeUIntToIndex i0) window
-                  w1               = readArray (unsafeUIntToIndex i1) window
-                  t0               = readArray fftIndex timeDomain
-                  (#t1, cBuffer3#) = readArrayU (unsafeUIntToIndex i0) cBuffer2
-                  sample           = t0 * w0 + t1 * w1
-                  audio1           = writeArray (unsafeUIntToIndex i0) sample audio0
+                  windowIndex      = fftIndexToZeroPhaseIndex bufferSize fftHalfSize fftIndex
+                  windowSample     = readArray windowIndex window
+                  timeDomainSample = readArray fftIndex timeDomain
+                  sample           = timeDomainSample * windowSample
+                  -- sample           = windowSample
+                  -- sample           = indexToFloat index
+                  -- sample           = timeDomainSample
+                  index            = fftArraySizeGymnastics fftIndex (unsafeUIntToIndex fftIndexU)
+                  prevTimeDomain01 = writeArray index sample prevTimeDomain00
                 in
-                  (#audio1, cBuffer3#)
+                  (#overflowBuffer00, prevTimeDomain01#)
+              else if fftIndexU >= (bufferSize - 0) - fftHalfSize then
+                -- use contents of second half of timeDomain buffer for resynthesis windowed against prevTimeDomain
+                let
+                  windowIndex              = fftIndexToZeroPhaseIndex bufferSize fftHalfSize fftIndex
+                  w0                       = readArray windowIndex window
+                  t0                       = readArray fftIndex timeDomain
+                  (#t1, prevTimeDomain01#) = readArrayU (unsafeIndexToIndex windowIndex) prevTimeDomain00
+                  sample                   = t0 * w0 + t1
+                  -- sample                   = w0 + t1
+                  overflowBuffer01         = writeArray (unsafeIndexToIndex windowIndex) sample overflowBuffer00
+                in
+                  (#overflowBuffer01, prevTimeDomain01#)
               else
-                -- Packed Zero
-                (#audio0, cBuffer2#)
-      in
-        case mutRefPut cBuffer4 mref of
-          _ ->
-            AudioRate (freezeArray audio)
+                -- zero padding
+                (#overflowBuffer00, prevTimeDomain00#)
+
+    -- Fill audio buffer from overflowBuffer
+    (#audio, overflowBuffer2#) =
+      loop (#audio0, overflowBuffer10#) = (#unsafeEmptyArray (), overflowBuffer1#) for i <- each do
+        let
+          overflowIndex                = unsafeUIntToIndex (bitAnd (indexToUInt i + overflowIndex1) fftHalfSizeMask)
+          (#sample, overflowBuffer11#) = readArrayU overflowIndex overflowBuffer10
+          audio1                       = writeArray i sample audio0
+        in
+          (#audio1, overflowBuffer11#)
+    -- overflowBuffer2 =
+    --   if currBlockCount == 2048 then
+    --     case writePlot2DToFileOnce "./data/timeDomainTest.dat" (freezeArray overflowBuffer2') primUndefined of
+    --       _ -> primUndefined
+    --   else
+    --     overflowBuffer2'
+
+
 
 ----------------------
 -- DFT
 -- Naive implementation
 
-dftAudio :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow -> FFT k
-dftAudio n audio (FFTWindow window) =
-  FFT (freezeArray bins1)
-  where
-    numSamples   = natVal n
-    numSamplesF  = fromUInt numSamples
-    timeDomain   = audioToTimeDomain numSamples audio window |> freezeArray
-    bins1        =
-      loop bins0 = unsafeEmptyArray () for k <- each do
-        let
-          kr  = fromUInt (indexToUInt k)
-          bin =
-            loop (Complex# fr0 fi0) = Complex# 0 0 for i <- each do
-              let
-                ir             = fromUInt (indexToUInt i)
-                p              = 2 * pi * kr * ir / numSamplesF
-                c              = cosine p
-                s              = 0 - sine p
-                Complex# tr ti = readArray (asTypeOf i k) timeDomain
-                fr1            = fr0 + (tr * c - ti * s)
-                fi1            = fi0 + (tr * s + ti * c)
-              in
-                Complex# fr1 fi1
-        in
-          writeArray k bin bins0
+-- dftAudio :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow k -> FFT k
+-- dftAudio n audio (FFTWindow window) =
+--   FFT (freezeArray bins1)
+--   where
+--     numSamples   = natVal n
+--     numSamplesF  = fromUInt numSamples
+--     timeDomain   = audioToTimeDomain numSamples audio window |> freezeArray
+--     bins1        =
+--       loop bins0 = unsafeEmptyArray () for k <- each do
+--         let
+--           kr  = fromUInt (indexToUInt k)
+--           bin =
+--             loop (Complex# fr0 fi0) = Complex# 0 0 for i <- each do
+--               let
+--                 ir             = fromUInt (indexToUInt i)
+--                 p              = 2 * pi * kr * ir / numSamplesF
+--                 c              = cosine p
+--                 s              = 0 - sine p
+--                 Complex# tr ti = readArray (asTypeOf i k) timeDomain
+--                 fr1            = fr0 + (tr * c - ti * s)
+--                 fi1            = fi0 + (tr * s + ti * c)
+--               in
+--                 Complex# fr1 fi1
+--         in
+--           writeArray k bin bins0
 
 ----------------------
 -- FFT
 -- radix-2 with decimation in time
 
-fftAudio :: NatVal (NatMul BlockSize (NatMax k 2)) -> Array BlockSize Float -> FFTWindow -> FFT k
-fftAudio n audio (FFTWindow window) = aout |> freezeArray |> FFT
+fftAudio :: NatVal (NatMul BlockSize (NatMul k 4)) -> *Array (NatMul BlockSize (NatMul k 4)) Complex -> FFT k
+fftAudio n timeDomain =
+  aout
+  |> freezeArray
+  |> FFT
   where
     numSamples   = natVal n
     numSamples1  = numSamples - 1
     halfSamples  = numSamples / 2
     shiftN       = bitShiftLeft halfSamples 1
-    timeDomain   = audioToTimeDomain numSamples audio window
     (#_, _, ar#) = -- bit reverse
       loop (#i, j, ar#) = (#1, 0, timeDomain#) while i < numSamples1 do
         let
@@ -2790,8 +2961,9 @@ fftAudio n audio (FFTWindow window) = aout |> freezeArray |> FFT
         in
           (#bitShiftLeft i 1, n2, a1#)
 
-ifftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
-ifftAudio freqDomain = timeDomainToAudio numSamples windowSine ifftOut
+ifftAudio :: Array (NatMul BlockSize (NatMul k 4)) Complex -> Array (NatMul BlockSize (NatMul k 4)) Float
+ifftAudio freqDomain =
+  ifftOut
   where
     numSamples   = arrayLength NatVal freqDomain
     numSamplesF  = fromUInt numSamples
@@ -2846,41 +3018,42 @@ ifftAudio freqDomain = timeDomainToAudio numSamples windowSine ifftOut
         in
           (#bitShiftLeft i 1, n2, a1#)
     ifftOut = map (\(Complex# r _) -> r / numSamplesF) (freezeArray aout)
+    -- ifftOut = map (\(Complex# r _) -> r) (freezeArray aout)
 
-idftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
-idftAudio freqDomain =
-  timeDomainToAudio numSamples windowSine (freezeArray bins1)
-  where
-    numSamples   = arrayLength NatVal freqDomain
-    numSamplesF  = fromUInt numSamples
-    bins1        =
-      loop bins0 = unsafeEmptyArray () for k <- each do
-        let
-          kr  = fromUInt (indexToUInt k)
-          bin =
-            loop (Complex# tr0 ti0) = Complex# 0 0 for i <- each do
-              let
-                ir             = fromUInt (indexToUInt (asTypeOf i k))
-                p              = 2 * pi * kr * ir / numSamplesF
-                c              = cosine p
-                s              = 0 - sine p
-                Complex# fr fi = readArray i freqDomain
-                tr1            = tr0 + (fr * c + fi * s)
-                ti1            = ti0 + (fr * s - fi * c)
-              in
-                Complex# tr1 ti1
-        in
-          writeArray k (realPart bin / numSamplesF) bins0
+-- idftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
+-- idftAudio freqDomain =
+--   timeDomainToAudio numSamples windowSine (freezeArray bins1)
+--   where
+--     numSamples   = arrayLength NatVal freqDomain
+--     numSamplesF  = fromUInt numSamples
+--     bins1        =
+--       loop bins0 = unsafeEmptyArray () for k <- each do
+--         let
+--           kr  = fromUInt (indexToUInt k)
+--           bin =
+--             loop (Complex# tr0 ti0) = Complex# 0 0 for i <- each do
+--               let
+--                 ir             = fromUInt (indexToUInt (asTypeOf i k))
+--                 p              = 2 * pi * kr * ir / numSamplesF
+--                 c              = cosine p
+--                 s              = 0 - sine p
+--                 Complex# fr fi = readArray i freqDomain
+--                 tr1            = tr0 + (fr * c + fi * s)
+--                 ti1            = ti0 + (fr * s - fi * c)
+--               in
+--                 Complex# tr1 ti1
+--         in
+--           writeArray k (realPart bin / numSamplesF) bins0
 
-dft :: AudioFormat f => f Audio -> f (FFT k)
-dft cs =
-  map f cs
-  where
-    f c =
-      case c of
-        AudioEnd    -> FFTEnd
-        BlockRate _ -> FFTNone
-        AudioRate a -> dftAudio NatVal a windowSine
+-- dft :: AudioFormat f => f Audio -> f (FFT k)
+-- dft cs =
+--   map f cs
+--   where
+--     f c =
+--       case c of
+--         AudioEnd    -> FFTEnd
+--         BlockRate _ -> FFTNone
+--         AudioRate a -> dftAudio NatVal a windowSine
 
 fft :: AudioFormat f => f Audio -> f (FFT k)
 fft cs =
@@ -2888,34 +3061,56 @@ fft cs =
   where
     f c =
       case c of
-        AudioEnd    -> FFTEnd
-        BlockRate _ -> FFTNone
-        AudioRate a -> fftAudio NatVal a windowSine
+        AudioEnd        -> FFTEnd
+        BlockRate _     -> FFTNone
+        AudioRate audio ->
+          case audioToTimeDomain NatVal windowSine audio of
+            Nothing -> FFTInterval
+            Just t  -> fftAudio NatVal t
+              -- let
+              --   bins = fftAudio NatVal t
+              -- in
+              --   if currBlockCount == 2048 then
+              --       case plotFFTChannelOnce "./data/fftTest.dat" bins primUndefined of
+              --         _ -> bins
+              --   else
+              --     bins
 
 fft' :: AudioFormat f => NatVal k -> f Audio -> f (FFT k)
 fft' _ cs =
   fft cs
 
-idft :: AudioFormat f => f (FFT k) -> f Audio
-idft cs =
-  map f cs
-  where
-    f c =
-      case c of
-        FFTEnd   -> AudioEnd
-        FFTNone  -> BlockRate 0
-        FFT bins -> idftAudio bins
+-- idft :: AudioFormat f => f (FFT k) -> f Audio
+-- idft cs =
+--   map f cs
+--   where
+--     f c =
+--       case c of
+--         FFTEnd   -> AudioEnd
+--         FFTNone  -> BlockRate 0
+--         FFT bins -> idftAudio bins
+
+data IFFTResult a
+  = IFFTEnd
+  | IFFTNone
+  | IFFTResult (Maybe a)
 
 ifft :: AudioFormat f => f (FFT k) -> f Audio
 ifft cs =
   map f cs
   where
     f c =
-      case c of
-        FFTEnd   -> AudioEnd
-        FFTNone  -> BlockRate 0
-        FFT bins -> ifftAudio bins
-
+      case result of
+        IFFTEnd               -> AudioEnd
+        IFFTNone              -> BlockRate 0
+        IFFTResult ifftResult -> timeDomainToAudio NatVal windowSine ifftResult
+      where
+        result =
+          case c of
+            FFTEnd      -> IFFTEnd
+            FFTNone     -> IFFTNone
+            FFTInterval -> IFFTResult Nothing
+            FFT bins    -> IFFTResult (Just (ifftAudio bins))
 
 --------------------------
 -- FFT Effects
@@ -2984,6 +3179,38 @@ fftMagSquared a = fftMapMag sqr a
 fftMagSqrRoot :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftMagSqrRoot a = fftMapMag sqrt a
 
+fftLerp :: AudioFormat f => Float -> f (FFT k) -> f (FFT k) -> f (FFT k)
+fftLerp delta x y =
+  mapFFTAudio2 (\cx cy -> lerpComplex cx cy delta) x y
+
+fftLerpPolar :: AudioFormat f => Float -> f (FFT k) -> f (FFT k) -> f (FFT k)
+fftLerpPolar delta x y =
+  mapFFTAudio2 f x y
+  where
+    f cx cy =
+      mkPolar m p
+      where
+        (#mx, px#) = polar' cx
+        (#my, py#) = polar' cy
+        m          = lerp mx my delta
+        p          = lerp px py delta
+
+fftLerpMag :: AudioFormat f => Float -> f (FFT k) -> f (FFT k) -> f (FFT k)
+fftLerpMag delta x y =
+  fftMapMag2 (\mx my -> lerp mx my delta) x y
+
+fftMulPolar :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftMulPolar x y =
+  mapFFTAudio2 f x y
+  where
+    f cx cy =
+      mkPolar m p
+      where
+        (#mx, px#) = polar' cx
+        (#my, py#) = polar' cy
+        m          = mx * my
+        p          = px * py
+
 -- Keeps the magnitudes of a, but takes the phase of b
 fftCopyPhase :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftCopyPhase a b = mapFFTAudio2 (copyphase) a b
@@ -3000,6 +3227,7 @@ fftMapPhase2 f a b = map2 (\ca cb -> mapFFT2 mImpl ca cb) a b
         pA = phase cma
         pB = phase cmb
 
+-- TODO / NOTE: Why can we only shift bins by UInt and not Int?
 -- shifts bins by offset
 fftShift :: AudioFormat f => UInt -> f (FFT k) -> f (FFT k)
 fftShift n f = mapFFTBuffer shift f
@@ -5014,7 +5242,8 @@ instance Default BiquadState where
 -- fi range: 0 - 1
 waveTableFunction :: WaveTable -> Float -> Float
 waveTableFunction (WaveTable buffer) fi =
-  sample1 * delta + sample2 * (1 - delta)
+  -- sample1 * delta + sample2 * (1 - delta)
+  sample1 * (1 - delta) + sample2 * delta
   where
     findex  = fi * 65536
     delta   = (floor findex + 1) - findex

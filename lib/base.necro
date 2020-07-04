@@ -1294,7 +1294,7 @@ sqrMagnitude :: Complex -> Float
 sqrMagnitude (Complex# r i) = (r * r) + (i * i)
 
 magnitude :: Complex -> Float
-magnitude (Complex# r i) = if ((r == 0) || (i == 0)) then 0 else sqrt ((r * r) + (i * i))
+magnitude (Complex# r i) = if ((r == 0) && (i == 0)) then 0 else sqrt ((r * r) + (i * i))
 
 conjugate :: Complex -> Complex
 conjugate (Complex# r i) = Complex# r (negate i)

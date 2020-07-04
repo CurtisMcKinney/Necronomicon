@@ -2767,6 +2767,7 @@ audioToTimeDomain n (FFTWindow window) audio =
 fftArraySizeGymnastics :: Index (NatMul BlockSize (NatMul k 4)) -> Index (NatMul BlockSize k) -> Index (NatMul BlockSize k)
 fftArraySizeGymnastics _ i = i
 
+-- TODO / NOTE: don't padd with zeroes!??!!?
 timeDomainToAudio :: NatVal (NatMul BlockSize (NatMul k 4)) -> FFTWindow k -> Maybe (Array (NatMul BlockSize (NatMul k 4)) Float) -> Audio
 timeDomainToAudio n (FFTWindow window) maybeTimeDomain =
   case mutRefPut (#overflowBuffer2, prevTimeDomain1, overflowIndex1#) mref of

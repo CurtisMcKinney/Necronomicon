@@ -50,8 +50,21 @@ resogun2 h =
       |> e2
     s = stereo s1 s2
 
+proj :: Float -> Stereo Audio
+proj h = p2 |> mul 1 |> en |> mixStereo
+  where
+    fr = fromFloat h * 55
+    sf :: Mono (FFT 2)
+    sf = saw (fromFloat h * 55 |> mul (sin 1337)) |> fft
+    af :: Mono (FFT 2)
+    af = saw 440 |> fft
+    wf :: Mono (FFT 2)
+    wf = waveGuideBow natSixteen 0.5 0.5 0.6 0.3 0.3 fr |> mixMono |> fft
+    p2 = fftProjection wf sf |> ifft
+    en = asr 0.1 1 8 -4
+
 main :: *World -> *World
 main w =
   outAudio 0 p w
   where
-    p = poly resogun2 <| seqSpeed (1 // 4) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]
+    p = poly proj <| seqSpeed (1 // 4) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]

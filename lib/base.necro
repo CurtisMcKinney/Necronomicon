@@ -615,7 +615,7 @@ instance Ring Float where
 instance Num Float where
   abs    x = primUndefined
   copysign x sign = primUndefined
-  signum x = copysign 1 x
+  signum x = if x == 0 then 0 else copysign 1 x
 
 instance EuclideanRing Float where
   div x y = primUndefined
@@ -1259,7 +1259,7 @@ sqrMagnitude :: Complex -> Float
 sqrMagnitude (Complex# r i) = (r * r) + (i * i)
 
 magnitude :: Complex -> Float
-magnitude (Complex# r i) = sqrt ((r * r) + (i * i))
+magnitude (Complex# r i) = if ((r == 0) || (i == 0)) then 0 else sqrt ((r * r) + (i * i))
 
 conjugate :: Complex -> Complex
 conjugate (Complex# r i) = Complex# r (negate i)
@@ -2528,6 +2528,26 @@ mapFFTBuffer f c = map mf c
         FFTNone -> FFTNone
         FFT b ->  FFT (f b)
 
+composeFFTBuffers ::
+  (Array (NatMul BlockSize (NatMax k 2)) Complex ->
+    Array (NatMul BlockSize (NatMax k 2)) Complex ->
+    Array (NatMul BlockSize (NatMax k 2)) Complex) ->
+  Mono (FFT k) ->
+  Mono (FFT k) ->
+  Mono (FFT k)
+composeFFTBuffers f (Mono cx) (Mono cy) = Mono mcy
+  where
+    mcx =
+      case cx of
+        FFTEnd -> arrayFrom (Complex# 0 0)
+        FFTNone -> arrayFrom (Complex# 0 0)
+        FFT b ->  b
+    mcy =
+      case cy of
+        FFTEnd -> FFTEnd
+        FFTNone -> FFTNone
+        FFT b ->  FFT (f b mcx)
+
 uintToInt :: UInt -> Int
 uintToInt x = primUndefined
 
@@ -3041,31 +3061,114 @@ fftMapPhase p f = mapFFTBuffer mapping f
         in
           writeArray i bin b
 
--- projection the complex bins of a onto b using the dot product
+-- project the entire buffer of A onto B,
+-- interpretting the buffers as higher dimensional vectors of complex numbers
+fftProjection :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftProjection a b = composeFFTBuffers compose a b
+  where
+    compose ba bb = bc |> freezeArray
+      where
+        (#Complex# snr sni, dot#) =
+          loop (#sqrNorm, dot#) = (#Complex# 0 0, Complex# 0 0#) for i <- each do
+            let
+              u = readArray i ba
+              v = readArray i bb
+              uv = u * conjugate v
+            in
+              (#sqrNorm + (v * conjugate v), dot + uv#)
+        isNonZero = snr /= 0 && sni /= 0
+        norm = if isNonZero then sqrt (Complex# snr sni) else (Complex# 0 0)
+        bc =
+          loop bc = unsafeEmptyArray () for i <- each do
+            let
+              v = readArray i bb
+            in
+              writeArray i (if isNonZero then v / norm * dot else norm) bc
+
+-- project the entire buffer of A onto B,
+-- interpretting the buffers as higher dimensional vectors of complex numbers
+fftParallelProjection :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftParallelProjection a b = composeFFTBuffers compose a b
+  where
+    compose ba bb = bc |> freezeArray
+      where
+        (#Complex# snr sni, dot#) =
+          loop (#sqrNorm, dot#) = (#Complex# 0 0, Complex# 0 0#) for i <- each do
+            let
+              u = readArray i ba
+              v = readArray i bb
+              uv = u * conjugate v
+            in
+              (#sqrNorm + (v * conjugate v), dot + uv#)
+        isNonZero = snr /= 0 && sni /= 0
+        norm = if isNonZero then sqrt (Complex# snr sni) else (Complex# 0 0)
+        bc =
+          loop bc = unsafeEmptyArray () for i <- each do
+            let
+              u = readArray i ba
+              v = readArray i bb
+            in
+              writeArray i (if isNonZero then u - (v / norm * dot) else norm) bc
+
+-- projection of the complex bins of a onto b, interpretting each bin as real 2D vectors
 fftBinProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftBinProjection a b = mapFFTAudio2 dot a b
   where
     dot (Complex# ar ai) (Complex# br bi) = Complex# (nbr * d) (nbi * d)
       where
-        ma = magnitude (Complex# ar ai)
         mb = magnitude (Complex# br bi)
-        (Complex# nar nai) = if ma > 0 then Complex# (ar / ma) (ai / ma) else Complex# 0 0
         (Complex# nbr nbi) = if mb > 0 then Complex# (br / mb) (bi / mb) else Complex# 0 0
-        d = (nar * nbr + nai * nbi)
+        d = (ar * br + ai * bi)
 
--- parallel projection of the complex bins of a onto b
+-- projection of the mag/phase of the bins of a onto b,
+-- interpretting polar coordinates as real 2D vectors
+fftBinPolarProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftBinPolarProjection a b = mapFFTAudio2 dot a b
+  where
+    dot (Complex# ar ai) (Complex# br bi) = mkPolar (nmb * d) (npb * d)
+      where
+        ca = Complex# ar ai
+        cb = Complex# br bi
+        ma = magnitude ca
+        mb = magnitude cb
+        pa = phase ca
+        pb = phase cb
+        sqa = ma * ma + pa * pa
+        pma = if sqa /= 0 then sqrt sqa else 0
+        sqb = mb * mb + pb * pb
+        pmb = if sqb /= 0 then sqrt (mb * mb + pb * pb) else 0
+        (#nmb, npb#) = if pmb > 0 then (#(mb / pmb), (pb / pmb)#) else (#0, 0#)
+        d = (ma * mb + pa * pb)
+
+-- parallel projection of the complex bins of a onto b, interpretting each bin as real 2D vectors
 fftBinParallelProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftBinParallelProjection a b = mapFFTAudio2 dot a b
   where
     dot (Complex# ar ai) (Complex# br bi) = Complex# (ar - nbr * d) (ai - nbi * d)
       where
-        ma = magnitude (Complex# ar ai)
         mb = magnitude (Complex# br bi)
-        (Complex# nar nai) = if ma > 0 then Complex# (ar / ma) (ai / ma) else Complex# 0 0
         (Complex# nbr nbi) = if mb > 0 then Complex# (br / mb) (bi / mb) else Complex# 0 0
-        d = (nar * nbr + nai * nbi)
+        d = (ar * br + ai * bi)
 
--- projection the complex bins of a onto b using the dot product
+-- parallel projection of the mag/phase of the bins of a onto b,
+-- interpretting polar coordinates as real 2D vectors
+fftBinPolarParallelProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftBinPolarParallelProjection a b = mapFFTAudio2 dot a b
+  where
+    dot (Complex# ar ai) (Complex# br bi) = mkPolar (ma - (nmb * d)) (pa - (npb * d))
+      where
+        ca = Complex# ar ai
+        cb = Complex# br bi
+        ma = magnitude ca
+        mb = magnitude cb
+        pa = phase ca
+        pb = phase cb
+        smb = mb * mb + pb * pb
+        pmb = if smb /= 0 then sqrt smb else 0
+        (#nmb, npb#) = if pmb > 0 then (#(mb / pmb), (pb / pmb)#) else (#0, 0#)
+        d = (ma * mb + pa * pb)
+
+-- projection the complex bins of a onto b, interpretting each bin as real 2D vectors
 fftComplexProjection :: AudioFormat f => Complex -> f (FFT k) -> f (FFT k)
 fftComplexProjection (Complex# br bi) a = mapFFTAudio dot a
   where
@@ -3073,9 +3176,7 @@ fftComplexProjection (Complex# br bi) a = mapFFTAudio dot a
     mb = magnitude (Complex# br bi)
     dot (Complex# ar ai) = Complex# (nbr * d) (nbi * d)
       where
-        ma = magnitude (Complex# ar ai)
-        (Complex# nar nai) = if ma > 0 then Complex# (ar / ma) (ai / ma) else Complex# 0 0
-        d = (nar * nbr + nai * nbi)
+        d = (ar * br + ai * bi)
 
 -- rotate phases by radians
 fftPhaseRotate :: AudioFormat f => Float -> f (FFT k) -> f (FFT k)
@@ -3129,6 +3230,8 @@ fftIsogonalMapH :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftIsogonalMapH f = mapFFTAudio mapping f
   where
     mapping z = sqrt (2 / z)
+
+--------------------------
 
 plotAudioOnce :: Array n Char -> Mono Audio -> *World -> *World
 plotAudioOnce name (Mono a) w =

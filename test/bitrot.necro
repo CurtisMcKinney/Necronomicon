@@ -50,19 +50,13 @@ resogun2 h =
       |> e2
     s = stereo s1 s2
 
-proj :: Float -> Stereo Audio
-proj h = p2 |> mul 1 |> en |> mixStereo
+proj :: Stereo Audio
+proj = (p2 + 1) |> mixStereo
   where
-    fr = fromFloat h * 55
     sf :: Mono (FFT 2)
-    sf = sin (fromFloat h * 55 |> mul (sin 440)) |> fft
-    wf :: Mono (FFT 2)
-    wf = waveGuidePluck natSixteen 0.5 0.9 0.9 16 fr 0.5 |> mixMono |> fft
-    p2 = fftBinPolarProjection wf sf |> ifft
-    en = asr 0.1 1 8 -4
+    sf = sin 440 |> fft
+    p2 = sf |> ifft
 
 main :: *World -> *World
 main w =
-  outAudio 0 p w
-  where
-    p = poly proj <| seqSpeed (1 // 4) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]
+  outAudio 0 proj w

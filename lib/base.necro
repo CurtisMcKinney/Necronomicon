@@ -63,18 +63,17 @@ testAssertion b w = primUndefined
 panic :: UInt -> UInt
 panic x = primUndefined
 
-boundsCheck :: Array n Char -> UInt -> UInt -> UInt
-boundsCheck str index capacity =
-  if index < capacity then index else
+boundsCheck :: UInt -> UInt -> UInt
+boundsCheck index capacity =
     index
-    |> traceLn "bounds check FAILED:"
-    |> trace "| "
-    |> traceLn str
-    |> trace "| index:    "
-    |> traceLn index
-    |> trace "| capacity: "
-    |> traceLn capacity
-    |> traceLn " "
+    -- |> traceLn "bounds check FAILED:"
+    -- |> trace "| "
+    -- |> traceLn str
+    -- |> trace "| index:    "
+    -- |> traceLn index
+    -- |> trace "| capacity: "
+    -- |> traceLn capacity
+    -- |> traceLn " "
     |> panic
 
 -- testAndPrintAssertion :: (Print a, Eq a) => a -> a -> *World -> *World
@@ -303,8 +302,11 @@ data File = File
 arrayLength :: NatVal n -> Array n a -> UInt
 arrayLength n _ = natVal n
 
--- arrayLengthU :: NatVal n -> Array n .a -> (#UInt, Array n .a#)
+-- arrayLengthU :: NatVal n -> .Array n a -> (#UInt, .Array n a#)
 arrayLengthU n arr = (#natVal n, arr#)
+
+arrayLengthFromIndex :: NatVal n -> Index n -> UInt
+arrayLengthFromIndex n _ = natVal n
 
 unsafeArrayToPtr :: Array n .a -> Ptr .a
 unsafeArrayToPtr a = primUndefined
@@ -1824,17 +1826,26 @@ lookupArray i a =
   else
     Nothing
 
-writeArrayChecked :: Array c Char -> UInt -> Index n -> a -> *Array n a -> *Array n a
-writeArrayChecked str capacity (Index i) x a =
-  writeArray (Index (boundsCheck str i capacity)) x a
+writeArrayChecked :: Index n -> a -> *Array n a -> *Array n a
+writeArrayChecked ind x a =
+  writeArray (Index (boundsCheck i capacity)) x a
+  where
+    capacity = arrayLengthFromIndex NatVal ind
+    (Index i) = ind
 
-readArrayChecked :: Array c Char -> UInt -> Index n -> Array n a -> a
-readArrayChecked str capacity (Index i) a =
-  readArray (Index (boundsCheck str i capacity)) a
+readArrayChecked :: Index n -> Array n a -> a
+readArrayChecked ind a =
+  readArray (Index (boundsCheck i capacity)) a
+  where
+    capacity = arrayLengthFromIndex NatVal ind
+    (Index i) = ind
 
-readArrayUChecked :: Array c Char -> UInt -> Index n -> .Array n a -> (#a, .Array n a#)
-readArrayUChecked str capacity (Index i) a =
-  readArrayU (Index (boundsCheck str i capacity)) a
+readArrayUChecked :: Index n -> .Array n a -> (#a, .Array n a#)
+readArrayUChecked ind a =
+  readArrayU (Index (boundsCheck i capacity)) a
+  where
+    capacity = arrayLengthFromIndex NatVal ind
+    (Index i) = ind
 
 zip :: Array n a -> Array n b -> Array n (a, b)
 zip a b = freezeArray <|

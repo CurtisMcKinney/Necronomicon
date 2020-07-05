@@ -2876,7 +2876,7 @@ timeDomainToAudio n (FFTWindow window) maybeTimeDomain =
 
     -- Fill audio buffer from overflowBuffer
     (#audio, overflowBuffer2#) =
-      loop (#audio0, overflowBuffer10#) = (#unsafeEmptyArray (), overflowBuffer1#) for i <- each do
+      loop (#audio0, overflowBuffer10#) = (#audioInitArray (), overflowBuffer1#) for i <- each do
         let
           overflowIndex                = unsafeUIntToIndex (bitAnd (indexToUInt i + overflowIndex1) fftHalfSizeMask)
           (#sample, overflowBuffer11#) = readArrayU overflowIndex overflowBuffer10
@@ -3158,7 +3158,8 @@ ifftAudio freqDomain =
         in
           (#bitShiftLeft i 1, n2, a1#)
     -- ifftOut = map (\(Complex# r _) -> r / numSamplesF) (freezeArray aout)
-    ifftOut = map (\(Complex# r _) -> r * numSamplesF) (freezeArray aout)
+    -- ifftOut = map (\(Complex# r _) -> r * numSamplesF) (freezeArray aout)
+    ifftOut = map (\(Complex# r _) -> r) (freezeArray aout)
 
 -- idftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
 -- idftAudio freqDomain =

@@ -3464,8 +3464,8 @@ fftProjection a b = composeFFTBuffers compose a b
 
 -- project the entire buffer of A onto B,
 -- interpretting the buffers as higher dimensional vectors of complex numbers
-fftParallelProjection :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
-fftParallelProjection a b = composeFFTBuffers compose a b
+fftPerpendicularProjection :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftPerpendicularProjection a b = composeFFTBuffers compose a b
   where
     compose ba bb = bc |> freezeArray
       where
@@ -3518,9 +3518,9 @@ fftBinPolarProjection a b = mapFFTAudio2 dot a b
         (#nmb, npb#) = if pmb > 0 then (#(mb / pmb), (pb / pmb)#) else (#0, 0#)
         d = (ma * mb + pa * pb)
 
--- parallel projection of the complex bins of a onto b, interpretting each bin as real 2D vectors
-fftBinParallelProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
-fftBinParallelProjection a b = mapFFTAudio2 dot a b
+-- Perpendicular projection of the complex bins of a onto b, interpretting each bin as real 2D vectors
+fftBinPerpendicularProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftBinPerpendicularProjection a b = mapFFTAudio2 dot a b
   where
     dot (Complex# ar ai) (Complex# br bi) = Complex# (ar - nbr * d) (ai - nbi * d)
       where
@@ -3528,10 +3528,10 @@ fftBinParallelProjection a b = mapFFTAudio2 dot a b
         (Complex# nbr nbi) = if mb > 0 then Complex# (br / mb) (bi / mb) else Complex# 0 0
         d = (ar * br + ai * bi)
 
--- parallel projection of the mag/phase of the bins of a onto b,
+-- Perpendicular projection of the mag/phase of the bins of a onto b,
 -- interpretting polar coordinates as real 2D vectors
-fftBinPolarParallelProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
-fftBinPolarParallelProjection a b = mapFFTAudio2 dot a b
+fftBinPolarPerpendicularProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftBinPolarPerpendicularProjection a b = mapFFTAudio2 dot a b
   where
     dot (Complex# ar ai) (Complex# br bi) = mkPolar (ma - (nmb * d)) (pa - (npb * d))
       where

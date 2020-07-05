@@ -51,7 +51,7 @@ resogun2 h =
     s = stereo s1 s2
 
 proj :: Float -> Stereo Audio
-proj h = p2 |> en |> mul 0.0125 |> mixStereo
+proj h = p2 |> en |> mul 0.00125 |> mixStereo
   where
     fr = fromFloat h * 55
     sf :: Mono (FFT 8)

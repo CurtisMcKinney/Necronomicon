@@ -308,6 +308,12 @@ arrayLengthU n arr = (#natVal n, arr#)
 arrayLengthFromIndex :: NatVal n -> Index n -> UInt
 arrayLengthFromIndex n _ = natVal n
 
+natValGetFrom :: f n -> NatVal n
+natValGetFrom _ = NatVal
+
+nextPowerOfTwoNatVal :: NatVal n -> NatVal (NatNextPowerOfTwo n)
+nextPowerOfTwoNatVal _ = NatVal
+
 unsafeArrayToPtr :: Array n .a -> Ptr .a
 unsafeArrayToPtr a = primUndefined
 
@@ -4057,8 +4063,26 @@ audioFilePlay loopType freq (AudioFile# numChannels numSamples dataPtr) =
 ----------------------
 
 data AudioBuffer = AudioBuffer (.Ptr Float) UInt
--- TODO: audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
--- TODO: recordIntoAudioBuffer :: AudioFormat f => Nat s -> LoopType -> f Audio -> f AudioBuffer
+-- TODO: audioBufferFromFile  :: AudioFormat f => AudioFile -> f AudioBuffer
+-- TODO: audioBufferRecord    :: AudioFormat f => Nat s -> LoopType -> f Audio -> f AudioBuffer
+-- TODO: audioBufferFromArray :: AudioFormat f => f (Array n Float) -> f AudioBuffer
+-- TODO: Ensure power of 2 and use bitAnd + sizeMask instead of % (which is stupid slow)
+
+-- unsafeEmptyArrayFromNatVal :: NatVal n -> .Array n a
+-- unsafeEmptyArrayFromNatVal _ = unsafeEmptyArray ()
+
+-- audioBufferFromArray :: AudioFormat f => f (Array n Float) -> f AudioBuffer
+-- audioBufferFromArray arrays =
+--   map f arrays
+--   where
+--     f array
+--       where
+--         size           = arrayLength array
+--         audioBufferPtr =
+--           natValGetFrom array
+--           |> nextPowerOfTwoNatVal
+--           |> unsafeEmptyArrayFromNatVal
+--           |> unsafeArrayToPtr
 
 audioBufferPlayTick :: AudioBuffer -> LoopType -> Float -> Float -> (#Float, Float#)
 audioBufferPlayTick (AudioBuffer audioBuffer numSamples) loopType freq phase0 =
@@ -5954,9 +5978,6 @@ lagrangeInterpolation4 s0 s1 s2 s3 s4 delta =
 -- Delay Line
 -- Note: This is a non-fractional delay line which can only perform integral delay lengths
 data Delay n = Delay# (.Array (NatNextPowerOfTwo n) Float) UInt UInt UInt
-
-nextPowerOfTwoNatVal :: NatVal n -> NatVal (NatNextPowerOfTwo n)
-nextPowerOfTwoNatVal _ = NatVal
 
 mkDelay :: UInt -> NatVal n -> *Delay n
 mkDelay delayLength n =

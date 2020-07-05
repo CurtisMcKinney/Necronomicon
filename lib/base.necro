@@ -3364,6 +3364,7 @@ fftCrossCovariance a b = composeFFTBuffers compose a b
 
 -- I don't really know what this is, but it sounds cool
 -- Note: very large magnitudes!
+-- TODO: normalize intermediate values?
 fftChaos :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
 fftChaos a b = composeFFTBuffers compose a b
   where
@@ -3384,6 +3385,7 @@ fftChaos a b = composeFFTBuffers compose a b
 
 -- spectral coherence of two signals
 -- maintains phase of signal a
+-- TODO: normalize intermediate values?
 fftMagCoherence :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
 fftMagCoherence a b = composeFFTBuffers compose a b
   where

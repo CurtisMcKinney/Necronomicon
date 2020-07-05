@@ -3449,9 +3449,11 @@ fftProjection a b = composeFFTBuffers compose a b
             let
               u = readArray i ba
               v = readArray i bb
-              uv = u * conjugate v
+              cv = conjugate v
+              uv = u * cv
+              vv = v * cv
             in
-              (#sqrNorm + (v * conjugate v), dot + uv#)
+              (#sqrNorm + vv, dot + uv#)
         norm = sqrt sqrNorm
         bc =
           loop bc = unsafeEmptyArray () for i <- each do
@@ -3472,9 +3474,11 @@ fftParallelProjection a b = composeFFTBuffers compose a b
             let
               u = readArray i ba
               v = readArray i bb
-              uv = u * conjugate v
+              cv = conjugate v
+              uv = u * cv
+              vv = v * cv
             in
-              (#sqrNorm + (v * conjugate v), dot + uv#)
+              (#sqrNorm + vv, dot + uv#)
         norm = sqrt sqrNorm
         bc =
           loop bc = unsafeEmptyArray () for i <- each do

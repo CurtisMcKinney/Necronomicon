@@ -3913,7 +3913,8 @@ audioFilePlay loopType freq (AudioFile# numChannels numSamples dataPtr) =
 ----------------------
 
 data AudioBuffer = AudioBuffer (.Ptr Float) UInt
--- TODO: audioBufferFromFile :: AudioFormat f => AudioFile -> f (AudioBuffer)
+-- TODO: audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
+-- TODO: recordIntoAudioBuffer :: AudioFormat f => Nat s -> LoopType -> f Audio -> f AudioBuffer
 
 audioBufferPlayTick :: AudioBuffer -> LoopType -> Float -> Float -> (#Float, Float#)
 audioBufferPlayTick (AudioBuffer audioBuffer numSamples) loopType freq phase0 =

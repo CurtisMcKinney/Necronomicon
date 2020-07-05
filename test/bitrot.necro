@@ -51,14 +51,14 @@ resogun2 h =
     s = stereo s1 s2
 
 proj :: Float -> Stereo Audio
-proj h = p2 |> en |> mul 0.5 |> mixStereo
+proj h = p2 |> en |> mul 0.0125 |> mixStereo
   where
     fr = fromFloat h * 55
-    sf :: Mono (FFT 2)
+    sf :: Mono (FFT 8)
     sf = sin (fromFloat h * 55 * 4 |> mul (sin 13)) |> fft
-    wf :: Mono (FFT 2)
+    wf :: Mono (FFT 8)
     wf = waveGuidePluck natSixteen 0.5 0.5 0.5 16 fr 0.5 |> mixMono |> mul 8 |> fft
-    p2 = fftProjection wf sf |> ifft
+    p2 = fftMagCoherence sf wf |> ifft
     en = asr 0.1 1 8 -4
 
 main :: *World -> *World

@@ -4626,6 +4626,7 @@ tri freq =
 
 -----------
 -- perc
+-- TODO: Switch to EnvState
 data PercState = PercState# Float Float Float Float
 
 mkPercState :: Float -> Float -> Float -> Float -> Float -> () -> *PercState
@@ -6060,12 +6061,13 @@ violinBodyFilter input =
 
 ----------------------
 -- Modal Bar
+-- https://ccrma.stanford.edu/workshops/dsp2008/prc/PDFs/stringbar.pdf
 ----------------------
 
 data ModalFrequency = ModalFrequency# Float Float Float Float
 data ModalResonance = ModalResonance# Float Float Float Float
 data ModalAmplitude = ModalAmplitude# Float Float Float Float
-data StickHardness  = StickHardness# Float Float Float Float
+data StickHardness  = StickHardness#  Float Float Float
 data ModalSignature =
   ModalSignature
     ModalFrequency
@@ -6073,7 +6075,61 @@ data ModalSignature =
     ModalAmplitude
     StickHardness
 
--- data ModalBar#
+marimbaSig :: ModalSignature
+marimbaSig =
+  ModalSignature
+    (ModalFrequency# 1 3.99 10.65 -2443)
+    (ModalResonance# 0.9996 0.9994 0.9994 0.999)
+    (ModalAmplitude# 0.04 0.01 0.01 0.008)
+    (StickHardness# 0.429688 0.445312 0.093750)
+
+woodSig :: ModalSignature
+woodSig =
+  ModalSignature
+    (ModalFrequency# 1 2.777 7.378 15.377)
+    (ModalResonance# 0.996 0.994 0.994 0.99)
+    (ModalAmplitude# 0.04 0.01 0.01 0.008)
+    (StickHardness# 0.460938 0.375 0.046875)
+
+resoSig :: ModalSignature
+resoSig =
+  ModalSignature
+    (ModalFrequency# 1 2.777 7.378 15.377)
+    (ModalResonance# 0.99996 0.99994 0.99994 0.9999)
+    (ModalAmplitude# 0.02 0.005 0.005 0.004)
+    (StickHardness# 0.453125 0.25 0.101562)
+
+-- WaveTable
+
+data Biquad   = Biquad# Float Float Float Float Float
+data ModalBar =
+  ModalBar#
+    BiquadState
+    BiquadState
+    BiquadState
+    BiquadState
+    OnePole
+    EnvState
+
+-- TODO: biquadTick
+-- TODO: Make AudioBuffer (Array n Float)
+-- TODO: audioFileToBuffer :: AudioFormat f => AudioFile -> f (AudioBuffer)
+-- TODO: Strike waveform
+-- modalBar :: AudioBuffer -> ModalSignature -> (Float, Float, Float) -> Float -> Float
+
+-- myCoolSynth =
+--   modalBar woodStrike woodSig (0.01, 0.5, -1) 0.1 0.2
+
+modalBarMkBiquad :: Float -> Float -> Float -> Biquad
+modalBarMkBiquad ratio radius baseFreq =
+  Biquad# b0 b1 b2 a1 a2
+  where
+    freq = if ratio >= 0 then ratio * baseFreq else ratio
+    a1   = radius * radius
+    a2   = -2 * radius * cosine (tau * freq * recipSampleRate)
+    b0   = 0.5 - 0.5 * a2
+    b1   = 0
+    b2   = negate b0
 
 natOne :: NatVal 1
 natOne = NatVal

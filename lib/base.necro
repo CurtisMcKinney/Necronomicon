@@ -6053,6 +6053,24 @@ violinBodyFilter :: AudioFormat f => f Audio -> f Audio
 violinBodyFilter input =
   accumulate1 violinBodyfilterAccumulate constTrue input
 
+
+----------------------
+-- Modal Bar
+----------------------
+
+data ModalFrequency = ModalFrequency# Float Float Float Float
+data ModalResonance = ModalResonance# Float Float Float Float
+data ModalAmplitude = ModalAmplitude# Float Float Float Float
+data StickHardness  = StickHardness# Float Float Float Float
+data ModalSignature =
+  ModalSignature
+    ModalFrequency
+    ModalResonance
+    ModalAmplitude
+    StickHardness
+
+-- data ModalBar#
+
 natOne :: NatVal 1
 natOne = NatVal
 

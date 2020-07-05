@@ -3270,8 +3270,100 @@ fftAutoCorrelate a = map (\ca -> mapFFT cc ca) a
   where
     cc ca = ca * conjugate ca
 
-fftConj :: AudioFormat f => f (FFT k) -> f (FFT k)
-fftConj c = mapFFTAudio conjugate c
+fftCovariance :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftCovariance a b = composeFFTBuffers compose a b
+  where
+    compose ba bb = bc |> freezeArray
+      where
+        numSamplesF = fromUInt <| arrayLength NatVal ba
+        (#Complex# aSumR aSumI, Complex# bSumR bSumI#) =
+          loop (#aSum, bSum#) = (#Complex# 0 0, Complex# 0 0#) for i <- each do
+            let
+              u = readArray i ba
+              v = readArray i bb
+            in
+              (#aSum + u, bSum + v#)
+        aMean = Complex# (aSumR / numSamplesF) (aSumI / numSamplesF)
+        bMean = Complex# (bSumR / numSamplesF) (bSumI / numSamplesF)
+        bc =
+          loop bc = unsafeEmptyArray () for i <- each do
+            let
+              u = readArray i ba
+              v = readArray i bb
+              w = (u - aMean) * (v - bMean)
+            in
+              writeArray i w bc
+
+fftAutoCovariance :: Mono (FFT k) -> Mono (FFT k)
+fftAutoCovariance a = mapFFTBuffer compose a
+  where
+    compose ba = bb |> freezeArray
+      where
+        numSamplesF :: Float
+        numSamplesF = fromUInt <| arrayLength NatVal ba
+        (Complex# aSumR aSumI) =
+          loop aSum = Complex# 0 0 for i <- each do
+            let
+              u = readArray i ba
+            in
+              aSum + u
+        aMean = Complex# (aSumR / numSamplesF) (aSumI / numSamplesF)
+        bb =
+          loop bb = unsafeEmptyArray () for i <- each do
+            let
+              u = readArray i ba
+              w = (u - aMean) * (u - aMean)
+            in
+              writeArray i w bb
+
+fftAutoCrossCovariance :: Mono (FFT k) -> Mono (FFT k)
+fftAutoCrossCovariance a = mapFFTBuffer compose a
+  where
+    compose ba = bb |> freezeArray
+      where
+        numSamplesF :: Float
+        numSamplesF = fromUInt <| arrayLength NatVal ba
+        (Complex# aSumR aSumI) =
+          loop aSum = Complex# 0 0 for i <- each do
+            let
+              u = readArray i ba
+            in
+              aSum + u
+        aMean = Complex# (aSumR / numSamplesF) (aSumI / numSamplesF)
+        bb =
+          loop bb = unsafeEmptyArray () for i <- each do
+            let
+              u = readArray i ba
+              w = (u - aMean) * conjugate (u - aMean)
+            in
+              writeArray i w bb
+
+fftCrossCovariance :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftCrossCovariance a b = composeFFTBuffers compose a b
+  where
+    compose ba bb = bc |> freezeArray
+      where
+        numSamplesF = fromUInt <| arrayLength NatVal ba
+        (#Complex# aSumR aSumI, Complex# bSumR bSumI#) =
+          loop (#aSum, bSum#) = (#Complex# 0 0, Complex# 0 0#) for i <- each do
+            let
+              u = readArray i ba
+              v = readArray i bb
+            in
+              (#aSum + u, bSum + v#)
+        aMean = Complex# (aSumR / numSamplesF) (aSumI / numSamplesF)
+        bMean = Complex# (bSumR / numSamplesF) (bSumI / numSamplesF)
+        bc =
+          loop bc = unsafeEmptyArray () for i <- each do
+            let
+              u = readArray i ba
+              v = readArray i bb
+              w = (u - aMean) * conjugate (v - bMean)
+            in
+              writeArray i w bc
+
+fftConjugate :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftConjugate c = mapFFTAudio conjugate c
 
 -- Question: Would this be better named as fftMapBins?
 mapFFTAudio :: AudioFormat f => (Complex -> Complex) -> f (FFT k) -> f (FFT k)

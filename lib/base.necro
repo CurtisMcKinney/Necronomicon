@@ -6120,8 +6120,16 @@ data ModalBar =
 -- myCoolSynth =
 --   modalBar woodStrike woodSig (0.01, 0.5, -1) 0.1 0.2
 
-modalBarMkBiquad :: Float -> Float -> Float -> Biquad
-modalBarMkBiquad ratio radius baseFreq =
+biquadTick :: Biquad -> Float -> BiquadState -> (#BiquadState, Float#)
+biquadTick (Biquad# b0 b1 b2 a1 a2) x0 (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 y0 y1, y0#)
+  where
+    y0 =
+      (b0 * x0 + b1 * x1 + b2 * x2) -
+      (a2 * y2 + a1 * y1)
+
+modalBarMkModeBiquad :: Float -> Float -> Float -> Biquad
+modalBarMkModeBiquad ratio radius baseFreq =
   Biquad# b0 b1 b2 a1 a2
   where
     freq = if ratio >= 0 then ratio * baseFreq else ratio

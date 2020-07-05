@@ -3260,6 +3260,11 @@ ifft cs =
 convolve :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 convolve a b = map2 (\ca cb -> mapFFT2 (*) ca cb) a b
 
+fftCrossCorrelate :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
+fftCrossCorrelate a b = map2 (\ca cb -> mapFFT2 cc ca cb) a b
+  where
+    cc ca cb = ca * conjugate cb
+
 fftConj :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftConj c = mapFFTAudio conjugate c
 

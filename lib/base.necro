@@ -3410,6 +3410,27 @@ fftMagCoherence a b = composeFFTBuffers compose a b
             in
               writeArray i (mkPolar w (phase u)) bc
 
+-- phase coherence of two signals
+-- maintains magnitude of signal a
+-- TODO: normalize intermediate values?
+fftPhaseCoherence :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftPhaseCoherence a b = composeFFTBuffers compose a b
+  where
+    compose ba bb = bc |> freezeArray
+      where
+        bc =
+          loop bc = unsafeEmptyArray () for i <- each do
+            let
+              u = readArray i ba
+              v = readArray i bb
+              vj = conjugate v
+              upsd = u * conjugate u
+              vpsd = v * vj
+              cpsd = u * vj
+              w = (cpsd * cpsd) / (upsd * vpsd)
+            in
+              writeArray i (mkPolar (magnitude u) (phase w)) bc
+
 fftConjugate :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftConjugate c = mapFFTAudio conjugate c
 

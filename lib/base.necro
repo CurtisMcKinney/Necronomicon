@@ -3808,7 +3808,6 @@ data Mono a             = Mono a
 data Stereo a           = Stereo# a a
 data Quad a             = Quad# a a a a
 data Ambisonic a        = Ambisonic# a a a a
-data AudioBuffer s      = AudioBuffer (.Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) Float)
 data Seconds (n :: Nat) = Seconds
 
 -- TODO: Equal power panning
@@ -3987,10 +3986,23 @@ instance Monoid a => Monoid (Stereo a) where
 
 
 --------------------
--- Audio IO
+-- Audio File
 --------------------
 
-data LoopType  = Loop | DontLoop
+data LoopType = Loop | DontLoop
+
+-- TODO: Derive enum with efficient implementations
+instance Enum LoopType where
+  toEnum   x = if x == 0 then Loop else DontLoop
+  fromEnum x =
+    case x of
+      Loop -> 0
+      _    -> 1
+
+instance Eq LoopType where
+  eq  x y = fromEnum x == fromEnum y
+  neq x y = fromEnum x /= fromEnum y
+
 data AudioFile =
   AudioFile#
     UInt        -- numChannels
@@ -4025,7 +4037,6 @@ audioFileOpen fileName =
             (#1, Just (AudioFile# numChannels numSamples dataPtr)#)
 
 -- TODO: Loop type!
--- TODO: For now we're just going to stick with plain linear interpolation
 audioFilePlayTick :: UInt -> LoopType -> UInt -> UInt -> Ptr Float -> Float -> Float -> (#Float, Float#)
 audioFilePlayTick channelNum loopType numChannels numSamples dataPtr freq phase0 =
   (#phase1, out#)
@@ -4034,11 +4045,21 @@ audioFilePlayTick channelNum loopType numChannels numSamples dataPtr freq phase0
     phase1    = fma freq recipSampleRate phase0
     findex    = phase1 * audioSampleRateF
     delta     = (floor findex + 1) - findex
-    index1    = (floatToUInt findex * numChannels + channelNum) % numFrames
-    index2    = (index1 + numChannels) % numFrames
-    sample1   = unsafePtrPeek index1 dataPtr
-    sample2   = unsafePtrPeek index2 dataPtr
-    out       = sample1 * delta + sample2 * (1 - delta)
+    index1    = floatToUInt findex * numChannels + channelNum
+    index0    = index1 - numChannels
+    index2    = index1 + numChannels
+    index3    = index2 + numChannels
+    out       =
+      if (loopType == DontLoop) && (index0 >= numSamples || index1 >= numSamples || index2 >= numSamples || index3 >= numSamples) then
+        0
+      else
+        let
+          sample0 = unsafePtrPeek (index0 % numSamples) dataPtr
+          sample1 = unsafePtrPeek (index1 % numSamples) dataPtr
+          sample2 = unsafePtrPeek (index2 % numSamples) dataPtr
+          sample3 = unsafePtrPeek (index3 % numSamples) dataPtr
+        in
+          cubicInterpolation sample0 sample1 sample2 sample3 delta
 
 -- TODO: data folder?
 -- TODO: Sum type for AudioFile instead of manually checking against members for validity
@@ -4050,7 +4071,52 @@ audioFilePlay loopType freq (AudioFile# numChannels numSamples dataPtr) =
   else
     accumulate1 (audioFilePlayTick 0 loopType numChannels numSamples dataPtr) constTrue freq
 
+
+----------------------
+-- AudioBuffer
+-- Represents a non-interleaved single channel of audio data inside a dynamically sized array of data
+----------------------
+
+data AudioBuffer = AudioBuffer (.Ptr Float) UInt
+-- TODO: audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
+-- TODO: recordIntoAudioBuffer :: AudioFormat f => Nat s -> LoopType -> f Audio -> f AudioBuffer
+
+audioBufferPlayTick :: AudioBuffer -> LoopType -> Float -> Float -> (#Float, Float#)
+audioBufferPlayTick (AudioBuffer audioBuffer numSamples) loopType freq phase0 =
+  (#phase1, out#)
+  where
+    phase1 = fma freq recipSampleRate phase0
+    findex = phase1 * audioSampleRateF
+    delta  = (floor findex + 1) - findex
+    index1 = floatToUInt findex
+    index0 = index1 - 1
+    index2 = index1 + 1
+    index3 = index2 + 1
+    out    =
+      if (loopType == DontLoop) && (index0 >= numSamples || index1 >= numSamples || index2 >= numSamples || index3 >= numSamples) then
+        0
+      else
+        let
+          sample0 = unsafePtrPeek (index0 % numSamples) audioBuffer
+          sample1 = unsafePtrPeek (index1 % numSamples) audioBuffer
+          sample2 = unsafePtrPeek (index2 % numSamples) audioBuffer
+          sample3 = unsafePtrPeek (index3 % numSamples) audioBuffer
+        in
+          cubicInterpolation sample0 sample1 sample2 sample3 delta
+
+audioBufferPlay :: AudioFormat f => LoopType -> f Audio -> f AudioBuffer -> f Audio
+audioBufferPlay loopType freq audioBuffers =
+  map2 f audioBuffers freq
+  where
+    f ab fc =
+      accumulateAudio1 (audioBufferPlayTick ab loopType) constTrue fc
+
+
+----------------------
+-- Record Audio
+----------------------
 -- TODO: Sprinkle World around a bit more in here!
+
 data ScratchBuffer = ScratchBuffer (Ptr (.Ptr ()))
 
 recordAudioBlock :: UInt -> UInt -> Array BlockSize Float -> *ScratchBuffer -> *ScratchBuffer
@@ -4080,6 +4146,8 @@ recordAudio name audio world =
       in
         case mutRefPut scratchBuffer1 mref of
           _ -> world
+
+
 
 --------------------
 -- UGens
@@ -4791,6 +4859,7 @@ tri freq =
 
 -----------
 -- perc
+-- TODO: Switch to EnvState
 data PercState = PercState# Float Float Float Float
 
 mkPercState :: Float -> Float -> Float -> Float -> Float -> () -> *PercState
@@ -5718,7 +5787,7 @@ lag lagTime input =
 
 -----------
 -- delay
-data DelayState s = DelayState# (.AudioBuffer s) UInt Float
+data DelayState s = DelayState# (.Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) Float) UInt Float
 
 natSecondsToNatBufferSamples :: Seconds n -> NatVal (NatNextPowerOfTwo (NatMul SampleRate (NatMax n 1)))
 natSecondsToNatBufferSamples _ = NatVal
@@ -5728,8 +5797,8 @@ natSecondsToNatBufferSamples _ = NatVal
 -- TODO: initialDelayTime, maxDelayTime, audioBufferSize, etc
 
 accumulateDelay :: UInt -> Float -> Float -> Float -> *DelayState s -> (#*DelayState s, Float#)
-accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState# (AudioBuffer buffer0) index delayTime) =
-  (#DelayState# (AudioBuffer buffer2) index' delayTime', out#)
+accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState# buffer0 index delayTime) =
+  (#DelayState# buffer2 index' delayTime', out#)
   where
     delayTime'       = targetDelayTime
     delayIndex       = bitAnd (index + floatToUInt (delayTime' * audioSampleRateF)) bufferSizeMinus1
@@ -5739,7 +5808,7 @@ accumulateDelay bufferSizeMinus1 targetDelayTime mix input (DelayState# (AudioBu
     index'           = bitAnd (index + 1) bufferSizeMinus1
 
 mkDelayState :: Seconds s -> () -> *DelayState s
-mkDelayState _ _ = DelayState# (AudioBuffer (arrayFrom 0)) 0 1
+mkDelayState _ _ = DelayState# (arrayFrom 0) 0 1
 
 delay :: AudioFormat f => Seconds n -> f Audio -> f Audio -> f Audio -> f Audio
 delay maxDelayTime delayTime mix input =
@@ -6221,6 +6290,94 @@ violinBodyfilterAccumulate input (ViolinBodyFilter# bq0 bq1 bq2 bq3 bq4 bq5) =
 violinBodyFilter :: AudioFormat f => f Audio -> f Audio
 violinBodyFilter input =
   accumulate1 violinBodyfilterAccumulate constTrue input
+
+
+----------------------
+-- Modal Bar
+-- https://ccrma.stanford.edu/workshops/dsp2008/prc/PDFs/stringbar.pdf
+----------------------
+
+data ModalFrequency = ModalFrequency# Float Float Float Float -- 4 Modes
+data ModalResonance = ModalResonance# Float Float Float Float -- 4 Modes
+data ModalAmplitude = ModalAmplitude# Float Float Float Float -- 4 Modes
+data ModalStickSig  = ModalStickSig#  Float Float Float       -- Hardness Position Gain
+data ModalSignature =
+  ModalSignature
+    ModalFrequency
+    ModalResonance
+    ModalAmplitude
+    ModalStickSig
+
+marimbaSig :: ModalSignature
+marimbaSig =
+  ModalSignature
+    (ModalFrequency# 1 3.99 10.65 -2443)
+    (ModalResonance# 0.9996 0.9994 0.9994 0.999)
+    (ModalAmplitude# 0.04 0.01 0.01 0.008)
+    (ModalStickSig# 0.429688 0.445312 0.093750)
+
+woodSig :: ModalSignature
+woodSig =
+  ModalSignature
+    (ModalFrequency# 1 2.777 7.378 15.377)
+    (ModalResonance# 0.996 0.994 0.994 0.99)
+    (ModalAmplitude# 0.04 0.01 0.01 0.008)
+    (ModalStickSig# 0.460938 0.375 0.046875)
+
+resoSig :: ModalSignature
+resoSig =
+  ModalSignature
+    (ModalFrequency# 1 2.777 7.378 15.377)
+    (ModalResonance# 0.99996 0.99994 0.99994 0.9999)
+    (ModalAmplitude# 0.02 0.005 0.005 0.004)
+    (ModalStickSig# 0.453125 0.25 0.101562)
+
+-- WaveTable
+
+data Biquad   = Biquad# Float Float Float Float Float
+data ModalBar =
+  ModalBar#
+    BiquadState
+    BiquadState
+    BiquadState
+    BiquadState
+    OnePole
+    EnvState
+
+-- TODO: biquadTick
+-- TODO: Make AudioBuffer (Array n Float)
+-- TODO: audioFileToBuffer :: AudioFormat f => AudioFile -> f (AudioBuffer)
+-- TODO: Strike waveform
+-- modalBar :: AudioBuffer -> ModalSignature -> (Float, Float, Float) -> Float -> Float
+
+-- myCoolSynth =
+--   modalBar woodStrike woodSig (0.01, 0.5, -1) 0.1 0.2
+
+biquadTick :: Biquad -> Float -> BiquadState -> (#BiquadState, Float#)
+biquadTick (Biquad# b0 b1 b2 a1 a2) x0 (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 y0 y1, y0#)
+  where
+    y0 =
+      (b0 * x0 + b1 * x1 + b2 * x2) -
+      (a2 * y2 + a1 * y1)
+
+modalBarMkModeBiquad :: Float -> Float -> Float -> Biquad
+modalBarMkModeBiquad ratio radius baseFreq =
+  Biquad# b0 b1 b2 a1 a2
+  where
+    freq = if ratio >= 0 then ratio * baseFreq else ratio
+    a1   = radius * radius
+    a2   = -2 * radius * cosine (tau * freq * recipSampleRate)
+    b0   = 1
+    b1   = 0
+    b2   = -1
+    -- b0   = 0.5 - 0.5 * a2
+    -- b1   = 0
+    -- b2   = negate b0
+
+-- onePoleTick
+
+-- modalBarTick :: Biquad -> Biquad -> Biquad -> Biquad -> Float
 
 natOne :: NatVal 1
 natOne = NatVal

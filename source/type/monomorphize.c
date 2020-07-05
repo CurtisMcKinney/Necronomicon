@@ -1076,8 +1076,6 @@ void necro_monomorphize_test()
     {
         const char* test_name   = "Defaulting 1";
         const char* test_source = ""
-            "const :: a -> b -> a\n"
-            "const x y = x\n"
             "amb :: Float\n"
             "amb = const 22 33.0\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_OK;
@@ -1123,8 +1121,6 @@ void necro_monomorphize_test()
         const char* test_source = ""
             "maybeNothing :: Maybe c\n"
             "maybeNothing = Nothing\n"
-            "const :: a -> b -> a\n"
-            "const x y = x\n"
             "amb :: Int\n"
             "amb = const 22 Nothing\n";
         const NECRO_RESULT_TYPE       expect_error_result = NECRO_RESULT_ERROR;

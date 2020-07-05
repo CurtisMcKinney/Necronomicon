@@ -3362,6 +3362,46 @@ fftCrossCovariance a b = composeFFTBuffers compose a b
             in
               writeArray i w bc
 
+-- I don't really know what this is, but it sounds cool
+-- Note: very large magnitudes!
+fftChaos :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftChaos a b = composeFFTBuffers compose a b
+  where
+    compose ba bb = bc |> freezeArray
+      where
+        bc =
+          loop bc = unsafeEmptyArray () for i <- each do
+            let
+              u = readArray i ba
+              v = readArray i bb
+              vj = conjugate v
+              upsd = u * conjugate u
+              vpsd = v * vj
+              cpsd = u * vj
+              w = (cpsd * cpsd) / (upsd * vpsd)
+            in
+              writeArray i w bc
+
+-- spectral coherence of two signals
+-- maintains phase of signal a
+fftMagCoherence :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftMagCoherence a b = composeFFTBuffers compose a b
+  where
+    compose ba bb = bc |> freezeArray
+      where
+        bc =
+          loop bc = unsafeEmptyArray () for i <- each do
+            let
+              u = readArray i ba
+              v = readArray i bb
+              vj = conjugate v
+              upsd = magnitude <| u * conjugate u
+              vpsd = magnitude <| v * vj
+              cpsd = magnitude <| u * vj
+              w = (cpsd * cpsd) / (upsd * vpsd)
+            in
+              writeArray i (mkPolar w (phase u)) bc
+
 fftConjugate :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftConjugate c = mapFFTAudio conjugate c
 

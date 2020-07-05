@@ -3265,6 +3265,11 @@ fftCrossCorrelate a b = map2 (\ca cb -> mapFFT2 cc ca cb) a b
   where
     cc ca cb = ca * conjugate cb
 
+fftAutoCorrelate :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftAutoCorrelate a = map (\ca -> mapFFT cc ca) a
+  where
+    cc ca = ca * conjugate ca
+
 fftConj :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftConj c = mapFFTAudio conjugate c
 

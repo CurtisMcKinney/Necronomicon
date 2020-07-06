@@ -63,11 +63,11 @@ proj h = p2 |> en |> mul 0.125 |> mixStereo
 
 zcTest :: Float -> Stereo Audio
 zcTest h =
-  wf |> fftMagFreeze trigger |> ifft |> en |> mixStereo
+  wf |> fftMagPhaseFlip |> ifft |> mul 0.1 |> en |> mixStereo
   where
-    fr = fromFloat h * 220 |> mul ((sin 1 + 1) |> mul 0.5)
+    fr = fromFloat h * 220
     wf :: Mono (FFT 1)
-    wf = sin fr |> fft
+    wf = waveGuidePluck natSixteen 0.5 0.5 0.5 16 fr 0.5 |> mixMono |> mul 8 |> fft
     trigger = sin (fromFloat (h * 0.5)) |> genTriggers
     en = asr 0.1 1 8 -4
 

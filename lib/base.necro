@@ -3690,6 +3690,18 @@ phaseFreezeTick trigger buffer = buffer2
 fftPhaseFreeze :: AudioFormat f => f TriggerState -> f (FFT k) -> f (FFT k)
 fftPhaseFreeze trigger input = freezeImpl phaseFreezeTick trigger input
 
+-- (magnitude -> phase) (phase -> magnitude) mapping
+fftMagPhaseFlip :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftMagPhaseFlip a = mapFFTBuffer doFlip a 
+  where
+    doFlip a = freezeArray <|
+      loop b = unsafeEmptyArray () for i <- each do
+        let
+          (#m, p#) = readArray i a |> polar'
+          bin = mkPolar p m
+        in
+          writeArray i bin b
+
 -- project the entire buffer of A onto B,
 -- interpretting the buffers as higher dimensional vectors of complex numbers
 fftProjection :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)

@@ -1705,15 +1705,15 @@ either lf rf e =
 --------------------
 -- Ptr
 --------------------
-ptrMalloc :: UInt -> Ptr *a
+ptrMalloc :: UInt -> *Ptr .a
 ptrMalloc capacity =
   primUndefined
 
-ptrRealloc :: UInt -> Ptr *a -> Ptr *a
+ptrRealloc :: UInt -> *Ptr .a -> *Ptr .a
 ptrRealloc capacity ptr =
   primUndefined
 
-ptrFree :: Ptr .a -> *()
+ptrFree :: *Ptr .a -> *()
 ptrFree ptr =
   primUndefined
 
@@ -1721,7 +1721,7 @@ unsafePtrPeek :: UInt -> Ptr a -> a
 unsafePtrPeek index ptr =
   primUndefined
 
-unsafePtrPoke :: UInt -> *a -> Ptr *a -> Ptr *a
+unsafePtrPoke :: UInt -> .a -> *Ptr .a -> *Ptr .a
 unsafePtrPoke index value ptr =
   primUndefined
 
@@ -1729,7 +1729,7 @@ unsafePtrSwapElement :: UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
 unsafePtrSwapElement index element ptr =
   primUndefined
 
-unsafePtrCast :: Ptr a -> Ptr b
+unsafePtrCast :: Ptr .a -> Ptr .b
 unsafePtrCast p =
   primUndefined
 
@@ -3828,7 +3828,8 @@ class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
   mixMono      :: Num a => f a -> Mono a
   mixStereo    :: Num a => f a -> Stereo a
   outAudio     :: UInt -> f Audio -> *World -> *World
-  numChannels  :: f Audio -> UInt
+  numChannels  :: f a -> UInt
+  channelNums  :: f UInt
 
 stereo :: Mono a -> Mono a -> Stereo a
 stereo (Mono l) (Mono r) = Stereo# l r
@@ -3870,6 +3871,7 @@ instance AudioFormat Mono where
   mixMono x                                              = x
   mixStereo (Mono x)                                     = Stereo# x x
   numChannels _                                          = 1
+  channelNums                                            = Mono 0
 
 instance Functor Stereo where
   map f (Stereo# x y) = Stereo# (f x) (f y)
@@ -3899,6 +3901,7 @@ instance AudioFormat Stereo where
   mixMono (Stereo# l r)                                                       = Mono (l + r)
   mixStereo x                                                                 = x
   numChannels _                                                               = 2
+  channelNums                                                                 = Stereo# 0 1
 
 -- Mono
 instance Eq a => Eq (Mono a) where
@@ -4083,30 +4086,41 @@ audioFilePlay loopType freq (AudioFile# numChannels numSamples dataPtr) =
 -- Represents a non-interleaved single channel of audio data inside a dynamically sized array of data
 ----------------------
 
-data AudioBuffer = AudioBuffer (.Ptr Float) UInt
+data AudioBuffer = AudioBuffer# (.Ptr Float) UInt
 -- TODO: audioBufferFromFile  :: AudioFormat f => AudioFile -> f AudioBuffer
 -- TODO: audioBufferRecord    :: AudioFormat f => Nat s -> LoopType -> f Audio -> f AudioBuffer
--- TODO: audioBufferFromArray :: AudioFormat f => f (Array n Float) -> f AudioBuffer
 -- TODO: Ensure power of 2 and use bitAnd + sizeMask instead of % (which is stupid slow)
+-- TODO: Double check playback with negative rates, perhaps delta would be off?
+-- TODO: TEEEECCCCHNNNICALLY we should buffer the audio files across the tick such that the file value would be the same across the entirety of the tick. This is required to maintain referential transparency
 
--- unsafeEmptyArrayFromNatVal :: NatVal n -> .Array n a
--- unsafeEmptyArrayFromNatVal _ = unsafeEmptyArray ()
+-- NOTE: This dynamically allocates memory which IS NOT reclaimed by the memory management system!!!
+audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
+audioBufferFromFile (AudioFile# fileNumChannels numSamples audioData) =
+  map f channelNums
+  where
+    nChannels    = numChannels channelNums
+    f channelNum =
+      AudioBuffer# (unsafePtrCast bufferData) numSamples
+      where
+        numFrames            = fileNumChannels * numSamples
+        (#_, _, bufferData#) =
+          -- Deep copy interleaved data
+          loop (#fileIndex, bufferIndex, bufferData0#) = (#0, 0, ptrMalloc numSamples#) while fileIndex < numFrames do
+            let
+              sample      = unsafePtrPeek (fileIndex + (channelNum % nChannels)) audioData
+              bufferData1 = unsafePtrPoke bufferIndex sample bufferData0
+            in
+              (#fileIndex + fileNumChannels, bufferIndex + 1, bufferData1#)
 
--- audioBufferFromArray :: AudioFormat f => f (Array n Float) -> f AudioBuffer
--- audioBufferFromArray arrays =
---   map f arrays
---   where
---     f array
---       where
---         size           = arrayLength array
---         audioBufferPtr =
---           natValGetFrom array
---           |> nextPowerOfTwoNatVal
---           |> unsafeEmptyArrayFromNatVal
---           |> unsafeArrayToPtr
+audioBufferFromArray :: AudioFormat f => f (Array n Float) -> f AudioBuffer
+audioBufferFromArray arrays =
+  map f arrays
+  where
+    f array =
+      AudioBuffer# (unsafeArrayToPtr array) (arrayLength NatVal array)
 
 audioBufferPlayTick :: AudioBuffer -> LoopType -> Float -> Float -> (#Float, Float#)
-audioBufferPlayTick (AudioBuffer audioBuffer numSamples) loopType freq phase0 =
+audioBufferPlayTick (AudioBuffer# audioBuffer numSamples) loopType freq phase0 =
   (#phase1, out#)
   where
     phase1 = fma freq recipSampleRate phase0
@@ -5633,20 +5647,33 @@ superTri freq depth mix =
   accumulate3U mkSuperSawState accumulateSuperTri constTrueU freq depth mix
   |> hpf freq 6
 
-
 ----------------------
--- RBJ Filters, Audio EQ Cookbook
+-- Biquad
 ----------------------
 
+data Biquad      = Biquad# Float Float Float Float Float Float
 data BiquadState = BiquadState# Float Float Float Float
 
 instance Default BiquadState where
   default = BiquadState# 0 0 0 0
 
+biquadTick :: Biquad -> Float -> BiquadState -> (#BiquadState, Float#)
+biquadTick (Biquad# b0 b1 b2 a1 a2 gain) x0' (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 y0 y1, y0#)
+  where
+    x0 = x0' * gain
+    y0 =
+      (b0 * x0 + b1 * x1 + b2 * x2) -
+      (a2 * y2 + a1 * y1)
+
+
+----------------------
+-- RBJ Filters, Audio EQ Cookbook
+----------------------
+
 -- fi range: 0 - 1
 waveTableFunction :: WaveTable -> Float -> Float
 waveTableFunction (WaveTable buffer) fi =
-  -- sample1 * delta + sample2 * (1 - delta)
   sample1 * (1 - delta) + sample2 * delta
   where
     findex  = fi * 65536
@@ -5778,14 +5805,15 @@ instance Default OnePole where
   default = OnePole 0
 
 -- Note: expected pole range: 0 - 1
-onePoleTick :: Float -> Float -> Float -> OnePole -> (#Float, OnePole#)
+onePoleTick :: Float -> Float -> Float -> OnePole -> (#OnePole, Float#)
 onePoleTick pole gain input (OnePole z0) =
-  (#z1, OnePole z1#)
+  (#OnePole z1, z1#)
   where
     a  = 0 - pole
     b  = if pole < 0 then 1 + pole else 1 - pole
     x  = input * gain
     z1 = b * x - a * z0
+
 
 -----------
 -- lag
@@ -6125,7 +6153,7 @@ accumulateWaveGuidePluck brightness sustain freq pickupLocation (WaveGuidePluckS
     (#nutSample, rightBuffer3#)                   = fracDelayReadOutput rightBuffer2
     -- Nut and Bridge
     invertedNutReflection                         = negate nutSample
-    (#bridgeReflection0, bridgeReflectionState1#) = onePoleTick brightness sustain bridgeSample bridgeReflectionState0
+    (#bridgeReflectionState1, bridgeReflection0#) = onePoleTick brightness sustain bridgeSample bridgeReflectionState0
     bridgeReflection                              = negate bridgeReflection0
 
     -- Tick Delays
@@ -6249,7 +6277,7 @@ accumulateWaveGuideBow bowLocation brightness sustain bowSlope bowVelocity freq 
     -- Values
     invertedNutReflection                         = negate neckSample
     pole                                          = 0.65 - (brightness * 48000 * 0.5 * recipSampleRate)
-    (#bridgeReflection0, bridgeReflectionState1#) = onePoleTick pole sustain bridgeSample bridgeReflectionState0
+    (#bridgeReflectionState1, bridgeReflection0#) = onePoleTick pole sustain bridgeSample bridgeReflectionState0
     bridgeReflection1                             = negate bridgeReflection0
     (#bodyState1, bodyResonance#)                 = violinBodyfilterAccumulate (bridgeSample * 0.8 * sustain) bodyState0
     bridgeReflection                              = bridgeReflection1 * 0.75 + bodyResonance * 0.25
@@ -6321,7 +6349,7 @@ violinBodyFilter input =
 data ModalFrequency = ModalFrequency# Float Float Float Float -- 4 Modes
 data ModalResonance = ModalResonance# Float Float Float Float -- 4 Modes
 data ModalAmplitude = ModalAmplitude# Float Float Float Float -- 4 Modes
-data ModalStickSig  = ModalStickSig#  Float Float Float       -- Hardness Position Gain
+data ModalStickSig  = ModalStickSig#  Float Float Float       -- Hardness Position DirectGain
 data ModalSignature =
   ModalSignature
     ModalFrequency
@@ -6355,7 +6383,6 @@ resoSig =
 
 -- WaveTable
 
-data Biquad   = Biquad# Float Float Float Float Float
 data ModalBar =
   ModalBar#
     BiquadState
@@ -6363,28 +6390,23 @@ data ModalBar =
     BiquadState
     BiquadState
     OnePole
-    EnvState
+    Float -- AudioBufferState
 
--- TODO: biquadTick
+instance Default ModalBar where
+  default = ModalBar# default default default default default 0
+
 -- TODO: Make AudioBuffer (Array n Float)
 -- TODO: audioFileToBuffer :: AudioFormat f => AudioFile -> f (AudioBuffer)
 -- TODO: Strike waveform
+-- TODO: Vibrato?
 -- modalBar :: AudioBuffer -> ModalSignature -> (Float, Float, Float) -> Float -> Float
 
 -- myCoolSynth =
 --   modalBar woodStrike woodSig (0.01, 0.5, -1) 0.1 0.2
 
-biquadTick :: Biquad -> Float -> BiquadState -> (#BiquadState, Float#)
-biquadTick (Biquad# b0 b1 b2 a1 a2) x0 (BiquadState# x1 x2 y1 y2) =
-  (#BiquadState# x0 x1 y0 y1, y0#)
-  where
-    y0 =
-      (b0 * x0 + b1 * x1 + b2 * x2) -
-      (a2 * y2 + a1 * y1)
-
-modalBarMkModeBiquad :: Float -> Float -> Float -> Biquad
-modalBarMkModeBiquad ratio radius baseFreq =
-  Biquad# b0 b1 b2 a1 a2
+modalBarMkModeBiquad :: Float -> Float -> Float -> Float -> Biquad
+modalBarMkModeBiquad ratio radius gain baseFreq =
+  Biquad# b0 b1 b2 a1 a2 gain
   where
     freq = if ratio >= 0 then ratio * baseFreq else ratio
     a1   = radius * radius
@@ -6392,13 +6414,39 @@ modalBarMkModeBiquad ratio radius baseFreq =
     b0   = 1
     b1   = 0
     b2   = -1
-    -- b0   = 0.5 - 0.5 * a2
-    -- b1   = 0
-    -- b2   = negate b0
 
--- onePoleTick
+modalBarTick :: AudioBuffer -> Float -> Float -> Biquad -> Biquad -> Biquad -> Biquad -> Float -> ModalBar -> (#ModalBar, Float#)
+modalBarTick ab directGain masterGain mode1 mode2 mode3 mode4 strikeAmplitude (ModalBar# bq10 bq20 bq30 bq40 op0 abState0) =
+  (#ModalBar# bq11 bq21 bq31 bq41 op1 abState1, out#)
+  where
+    (#abState1, abOut#) = audioBufferPlayTick ab DontLoop 1 abState0
+    (#op1, opOut#)      = onePoleTick (1 - strikeAmplitude) 1 abOut op0
+    direct              = opOut * masterGain
+    (#bq11, bq1Out#)    = biquadTick mode1 direct bq10 -- Feed onePole out in parallel to filters for each mode
+    (#bq21, bq2Out#)    = biquadTick mode2 direct bq20
+    (#bq31, bq3Out#)    = biquadTick mode3 direct bq30
+    (#bq41, bq4Out#)    = biquadTick mode4 direct bq40
+    filtered            = bq1Out + bq2Out + bq3Out + bq4Out
+    out                 = (filtered - filtered * directGain) + (direct * directGain)
 
--- modalBarTick :: Biquad -> Biquad -> Biquad -> Biquad -> Float
+-- TODO: Handle audioformat + audio buffer!
+-- AudioBuffer play rate based on hardness???
+modalBar :: AudioFormat f => AudioBuffer -> ModalSignature -> Float -> f Audio -> f Audio
+modalBar audioBuffer (ModalSignature frequencies resonances amplitudes stickSig) frequency strikeAmplitude =
+  accumulate1 (modalBarTick audioBuffer directGain hardness mode1 mode2 mode3 mode4) constTrue strikeAmplitude
+  where
+    ModalFrequency# f1 f2 f3 f4                 = frequencies
+    ModalResonance# r1 r2 r3 r4                 = resonances
+    ModalAmplitude# _  _  _  a4                 = amplitudes
+    ModalStickSig# hardness position directGain = stickSig
+    ppi                                         = position * pi
+    a1                                          =  0.12 * sine ppi
+    a2                                          = -0.03 * sine (0.05 + 3.9 * ppi)
+    a3                                          =  0.11 * sine (-0.05 + 11 * ppi)
+    mode1                                       = modalBarMkModeBiquad f1 r1 frequency a1
+    mode2                                       = modalBarMkModeBiquad f2 r2 frequency a2
+    mode3                                       = modalBarMkModeBiquad f3 r3 frequency a3
+    mode4                                       = modalBarMkModeBiquad f4 r4 frequency a4
 
 natOne :: NatVal 1
 natOne = NatVal
@@ -8476,6 +8524,7 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
 -- TODO: Test arg copying
 
+-- TODO: ARRAYS NEED TO BE DEEP COPIED IN STATEFUL VALUES
 -- TODO: Softsync Oscillators
 -- TODO: optimize perc?
 -- TODO: Waveterrain oscillators? Table based? Function Based? Both? Trajectory combinators, etc

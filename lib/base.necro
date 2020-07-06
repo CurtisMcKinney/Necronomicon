@@ -2131,6 +2131,13 @@ mapAudio2Vec f ff cx cy =
   where
     ia = toFloatVecArray <| audioInitArray ()
 
+foldAudio :: (a -> Float -> a) -> a -> Audio -> a
+foldAudio f init c =
+  case c of
+    AudioEnd    -> init
+    BlockRate x -> f init x
+    AudioRate b -> foldl f init b
+
 const :: .a -> .b -> .a
 const x _ = x
 
@@ -3607,6 +3614,127 @@ fftMapPhase p f = mapFFTBuffer mapping f
           bin = mkPolar (magnitude c) (p (indexToUInt i) (phase c))
         in
           writeArray i bin b
+
+freezeImpl ::
+  AudioFormat f =>
+  (TriggerState ->
+    Array (NatMul BlockSize (NatMul k 4)) Complex ->
+    Array (NatMul BlockSize (NatMul k 4)) Complex) ->
+  f TriggerState ->
+  f (FFT k) ->
+  f (FFT k)
+freezeImpl f trigger input = map2 doFreeze trigger input
+  where
+    doFreeze ctrigger cinput =
+      case cinput of
+        FFTEnd -> FFTEnd
+        FFTNone -> FFTNone
+        FFTInterval -> FFTInterval
+        FFT b -> f (fst' intervalTrigger) b |> FFT
+      where
+        intervalTrigger ~ (#TriggerInactive, TriggerInactive#) =
+          case cinput of
+            FFTInterval ->
+              if (ctrigger == TriggerActive)
+                then (#TriggerActive, TriggerActive#)
+                else (#TriggerInactive, snd' intervalTrigger#)
+            _ -> if snd' intervalTrigger == TriggerActive
+              then (#TriggerActive, TriggerInactive#)
+              else (#ctrigger, TriggerInactive#)
+
+freezeTick ::
+  TriggerState ->
+  Array (NatMul BlockSize (NatMul k 4)) Complex ->
+  Array (NatMul BlockSize (NatMul k 4)) Complex
+freezeTick trigger buffer = buffer2
+  where
+    buffer2 ~ (arrayFrom 0) =
+      case trigger of
+        TriggerInactive -> buffer2
+        TriggerActive -> map id buffer -- HACK for array deep copy bug with state
+
+fftFreeze :: AudioFormat f => f TriggerState -> f (FFT k) -> f (FFT k)
+fftFreeze trigger input = freezeImpl freezeTick trigger input
+
+magFreezeTick ::
+  TriggerState ->
+  Array (NatMul BlockSize (NatMul k 4)) Complex ->
+  Array (NatMul BlockSize (NatMul k 4)) Complex
+magFreezeTick trigger buffer = buffer2
+  where
+    buffer2 ~ (arrayFrom 0) =
+      case trigger of
+        TriggerInactive -> freezeArray <|
+          loop b3 = unsafeEmptyArray () for i <- each do
+            let
+              m = readArray i buffer2 |> magnitude
+              p = readArray i buffer |> phase
+            in
+              writeArray i (mkPolar m p) b3
+        TriggerActive -> map id buffer -- HACK for array deep copy bug with state
+
+fftMagFreeze :: AudioFormat f => f TriggerState -> f (FFT k) -> f (FFT k)
+fftMagFreeze trigger input = freezeImpl magFreezeTick trigger input
+
+phaseFreezeTick ::
+  TriggerState ->
+  Array (NatMul BlockSize (NatMul k 4)) Complex ->
+  Array (NatMul BlockSize (NatMul k 4)) Complex
+phaseFreezeTick trigger buffer = buffer2
+  where
+    buffer2 ~ (arrayFrom 0) =
+      case trigger of
+        TriggerInactive -> freezeArray <|
+          loop b3 = unsafeEmptyArray () for i <- each do
+            let
+              p = readArray i buffer2 |> phase
+              m = readArray i buffer |> magnitude
+            in
+              writeArray i (mkPolar m p) b3
+        TriggerActive -> map id buffer -- HACK for array deep copy bug with state
+
+fftPhaseFreeze :: AudioFormat f => f TriggerState -> f (FFT k) -> f (FFT k)
+fftPhaseFreeze trigger input = freezeImpl phaseFreezeTick trigger input
+
+-- (magnitude -> phase) (phase -> magnitude) mapping
+fftMagPhaseFlip :: AudioFormat f => f (FFT k) -> f (FFT k)
+fftMagPhaseFlip a = mapFFTBuffer doFlip a 
+  where
+    doFlip a = freezeArray <|
+      loop b = unsafeEmptyArray () for i <- each do
+        let
+          (#m, p#) = readArray i a |> polar'
+          bin = mkPolar p m
+        in
+          writeArray i bin b
+
+data SpliceType = SpliceFirst | SpliceSecond
+
+instance Enum SpliceType where
+  toEnum   x = if x == 0 then SpliceFirst else SpliceSecond
+  fromEnum x =
+    case x of
+      SpliceFirst -> 0
+      _    -> 1
+
+instance Eq SpliceType where
+  eq  x y = fromEnum x == fromEnum y
+  neq x y = fromEnum x /= fromEnum y
+
+-- splice bins from two sources using selector function
+fftSplice :: (UInt -> SpliceType) -> Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftSplice f a b = composeFFTBuffers splice a b
+  where
+    splice ba bb = bc |> freezeArray
+      where
+        bc =
+          loop bc = unsafeEmptyArray () for i <- each do
+            let
+              c = if (f <| indexToUInt i) == SpliceFirst
+                then readArray i ba
+                else readArray i bb
+            in
+              writeArray i c bc
 
 -- project the entire buffer of A onto B,
 -- interpretting the buffers as higher dimensional vectors of complex numbers
@@ -6584,6 +6712,41 @@ freeVerb mix roomSize damp (Stereo# l0 r0) =
     l1 = accumulateAudio1U (mkFreeVerb 0) (freeVerbTick mix roomSize damp) constTrueU l0
     r1 = accumulateAudio1U (mkFreeVerb 23) (freeVerbTick mix roomSize damp) constTrueU r0
 
+--------------------
+-- Trigger
+
+data TriggerState = TriggerInactive | TriggerActive
+
+instance Enum TriggerState where
+  toEnum   x = if x == 0 then TriggerInactive else TriggerActive
+  fromEnum x =
+    case x of
+      TriggerInactive -> 0
+      _    -> 1
+
+instance Eq TriggerState where
+  eq  x y = fromEnum x == fromEnum y
+  neq x y = fromEnum x /= fromEnum y
+
+zeroCrossingTick :: Float -> Float -> (#Float, Float#)
+zeroCrossingTick sample lastPole = (#pole, result#)
+  where
+    pole = copysign 1 sample
+    result = if pole >= 0 && lastPole < 0 then 1 else 0
+
+-- creates an impulse ever sample a zero crossing is detected
+zeroCrossing :: AudioFormat f => f Audio -> f Audio
+zeroCrossing a = accumulate1 zeroCrossingTick constTrue a
+
+triggerTick :: TriggerState -> Float -> TriggerState
+triggerTick acc sample =
+  case acc of
+    TriggerInactive -> if (sample > 0) then TriggerActive else TriggerInactive
+    _ -> TriggerActive
+
+-- transforms zero-crossing impulses into logical triggers
+genTriggers :: AudioFormat f => f Audio -> f TriggerState
+genTriggers a = map (foldAudio triggerTick TriggerInactive) (zeroCrossing a)
 
 --------------------
 -- Seq

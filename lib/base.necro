@@ -3702,6 +3702,34 @@ fftMagPhaseFlip a = mapFFTBuffer doFlip a
         in
           writeArray i bin b
 
+data SpliceType = SpliceFirst | SpliceSecond
+
+instance Enum SpliceType where
+  toEnum   x = if x == 0 then SpliceFirst else SpliceSecond
+  fromEnum x =
+    case x of
+      SpliceFirst -> 0
+      _    -> 1
+
+instance Eq SpliceType where
+  eq  x y = fromEnum x == fromEnum y
+  neq x y = fromEnum x /= fromEnum y
+
+-- splice bins from two sources using selector function
+fftSplice :: (UInt -> SpliceType) -> Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftSplice f a b = composeFFTBuffers splice a b
+  where
+    splice ba bb = bc |> freezeArray
+      where
+        bc =
+          loop bc = unsafeEmptyArray () for i <- each do
+            let
+              c = if (f <| indexToUInt i) == SpliceFirst
+                then readArray i ba
+                else readArray i bb
+            in
+              writeArray i c bc
+
 -- project the entire buffer of A onto B,
 -- interpretting the buffers as higher dimensional vectors of complex numbers
 fftProjection :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)

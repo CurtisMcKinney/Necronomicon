@@ -71,8 +71,20 @@ zcTest h =
     trigger = sin (fromFloat (h * 0.5)) |> genTriggers
     en = asr 0.1 1 8 -4
 
+spliceTest :: Float -> Stereo Audio
+spliceTest h = p2 |> en |> mul 0.125 |> mixStereo
+  where
+    fr = fromFloat h * 55
+    sf :: Mono (FFT 8)
+    sf = sin (fromFloat h * 55 * 4 |> mul (sin 13)) |> fft
+    wf :: Mono (FFT 8)
+    wf = waveGuidePluck natSixteen 0.5 0.5 0.5 16 fr 0.5 |> mixMono |> mul 8 |> fft
+    sn ~ 0 = (sn + 1) % 1024
+    p2 = fftSplice (\i -> if i < sn then SpliceFirst else SpliceSecond) sf wf |> ifft
+    en = asr 0.1 1 8 -4
+
 main :: *World -> *World
 main w =
   outAudio 0 p w
   where
-    p = poly zcTest <| seqSpeed (1 // 4) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]
+    p = poly spliceTest <| seqSpeed (1 // 4) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]

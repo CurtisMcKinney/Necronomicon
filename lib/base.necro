@@ -2663,7 +2663,7 @@ windowSine =
   FFTWindow
   <| freezeArray
   <| loop a = unsafeEmptyArray () for i <- each do
-    writeArray i (sine (pi * fromUInt (indexToUInt i) / fromUInt (natValFrom NatVal i))) a
+    writeArray i (sine (pi * fromUInt (indexToUInt i + 1) / fromUInt (natValFrom NatVal i + 1))) a
 
 windowMLTSine :: FFTWindow k
 windowMLTSine =
@@ -3698,7 +3698,7 @@ fftPhaseFreeze trigger input = freezeImpl phaseFreezeTick trigger input
 
 -- (magnitude -> phase) (phase -> magnitude) mapping
 fftMagPhaseFlip :: AudioFormat f => f (FFT k) -> f (FFT k)
-fftMagPhaseFlip a = mapFFTBuffer doFlip a 
+fftMagPhaseFlip a = mapFFTBuffer doFlip a
   where
     doFlip a = freezeArray <|
       loop b = unsafeEmptyArray () for i <- each do
@@ -3907,6 +3907,50 @@ fftIsogonalMapH :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftIsogonalMapH f = mapFFTAudio mapping f
   where
     mapping z = sqrt (2 / z)
+
+fftNormalizeMags :: AudioFormat f => f (FFT k) -> f (#FFT k, Float#)
+fftNormalizeMags fx =
+  map f fx
+  where
+    f x =
+      case x of
+        FFTEnd      -> (#FFTEnd, 0#)
+        FFTNone     -> (#FFTNone, 0#)
+        FFTInterval -> (#FFTInterval, 0#)
+        FFT buffer  ->
+          let
+            highestMag =
+              loop hm = 0 for i <- each do
+                max (magnitude (readArray i buffer)) hm
+            rHighestMag = 1 / highestMag
+            normalizedBuffer =
+              loop nb = unsafeEmptyArray () for i <- each do
+                let
+                  (#m, p#) = polar' (readArray i buffer)
+                  newBin   = mkPolar (m * rHighestMag) p
+                in
+                  writeArray i newBin nb
+          in
+            (#FFT (freezeArray normalizedBuffer), highestMag#)
+
+fftBinOpWithNormMag :: AudioFormat f => (f (FFT k) -> f (FFT k) -> f (FFT k)) -> f (FFT k) -> f (FFT k) -> f (FFT k)
+fftBinOpWithNormMag op fx fy =
+  op nxs nys
+  |> map3 magAdjustf mxs mys
+  where
+    nmax           = fftNormalizeMags fx
+    nmay           = fftNormalizeMags fy
+    nxs            = map fst' nmax
+    nys            = map fst' nmay
+    mxs            = map snd' nmax
+    mys            = map snd' nmay
+    mf magAdjust c =
+      mkPolar (m * magAdjust) p
+      where
+        (#m, p#) = polar' c
+    magAdjustf magAdjustX magAdjustY fftx =
+      mapFFT (mf ((magAdjustX + magAdjustY) * 0.5)) fftx
+      -- mapFFT (mf (max magAdjustX magAdjustY)) fftx
 
 --------------------------
 
@@ -5786,10 +5830,10 @@ instance Default BiquadState where
   default = BiquadState# 0 0 0 0
 
 biquadTick :: Biquad -> Float -> BiquadState -> (#BiquadState, Float#)
-biquadTick (Biquad# b0 b1 b2 a1 a2 gain) x0' (BiquadState# x1 x2 y1 y2) =
+biquadTick (Biquad# b0 b1 b2 a1 a2 gain) input (BiquadState# x1 x2 y1 y2) =
   (#BiquadState# x0 x1 y0 y1, y0#)
   where
-    x0 = x0' * gain
+    x0 = input * gain
     y0 =
       (b0 * x0 + b1 * x1 + b2 * x2) -
       (a2 * y2 + a1 * y1)
@@ -6547,7 +6591,7 @@ modalBarTick :: AudioBuffer -> Float -> Float -> Biquad -> Biquad -> Biquad -> B
 modalBarTick ab directGain masterGain mode1 mode2 mode3 mode4 strikeAmplitude (ModalBar# bq10 bq20 bq30 bq40 op0 abState0) =
   (#ModalBar# bq11 bq21 bq31 bq41 op1 abState1, out#)
   where
-    (#abState1, abOut#) = audioBufferPlayTick ab DontLoop 1.0 abState0
+    (#abState1, abOut#) = audioBufferPlayTick ab Loop 1.0 abState0
     (#op1, opOut#)      = onePoleTick (1 - strikeAmplitude) 1 abOut op0
     direct              = opOut * masterGain
     (#bq11, bq1Out#)    = biquadTick mode1 direct bq10 -- Feed onePole out in parallel to filters for each mode
@@ -6555,8 +6599,10 @@ modalBarTick ab directGain masterGain mode1 mode2 mode3 mode4 strikeAmplitude (M
     (#bq31, bq3Out#)    = biquadTick mode3 direct bq30
     (#bq41, bq4Out#)    = biquadTick mode4 direct bq40
     filtered            = bq1Out + bq2Out + bq3Out + bq4Out
-    out                 = lerp filtered direct directGain
+    -- out                 = direct
+    -- out                 = lerp filtered direct 1.0
     -- out                 = (filtered - filtered * directGain) + (direct * directGain)
+    out                 = bq1Out
 
 -- TODO: Handle audioformat + audio buffer!
 -- AudioBuffer play rate based on hardness???

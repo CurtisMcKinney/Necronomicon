@@ -6408,7 +6408,7 @@ modalBarMkModeBiquad :: Float -> Float -> Float -> Float -> Biquad
 modalBarMkModeBiquad ratio radius gain baseFreq =
   Biquad# b0 b1 b2 a1 a2 gain
   where
-    freq = if ratio >= 0 then ratio * baseFreq else ratio
+    freq = if ratio >= 0 then ratio * baseFreq else negate ratio
     a1   = radius * radius
     a2   = -2 * radius * cosine (tau * freq * recipSampleRate)
     b0   = 1
@@ -6419,7 +6419,7 @@ modalBarTick :: AudioBuffer -> Float -> Float -> Biquad -> Biquad -> Biquad -> B
 modalBarTick ab directGain masterGain mode1 mode2 mode3 mode4 strikeAmplitude (ModalBar# bq10 bq20 bq30 bq40 op0 abState0) =
   (#ModalBar# bq11 bq21 bq31 bq41 op1 abState1, out#)
   where
-    (#abState1, abOut#) = audioBufferPlayTick ab DontLoop 1 abState0
+    (#abState1, abOut#) = audioBufferPlayTick ab DontLoop 1.0 abState0
     (#op1, opOut#)      = onePoleTick (1 - strikeAmplitude) 1 abOut op0
     direct              = opOut * masterGain
     (#bq11, bq1Out#)    = biquadTick mode1 direct bq10 -- Feed onePole out in parallel to filters for each mode
@@ -6427,7 +6427,8 @@ modalBarTick ab directGain masterGain mode1 mode2 mode3 mode4 strikeAmplitude (M
     (#bq31, bq3Out#)    = biquadTick mode3 direct bq30
     (#bq41, bq4Out#)    = biquadTick mode4 direct bq40
     filtered            = bq1Out + bq2Out + bq3Out + bq4Out
-    out                 = (filtered - filtered * directGain) + (direct * directGain)
+    out                 = lerp filtered direct directGain
+    -- out                 = (filtered - filtered * directGain) + (direct * directGain)
 
 -- TODO: Handle audioformat + audio buffer!
 -- AudioBuffer play rate based on hardness???
@@ -6437,12 +6438,12 @@ modalBar audioBuffer (ModalSignature frequencies resonances amplitudes stickSig)
   where
     ModalFrequency# f1 f2 f3 f4                 = frequencies
     ModalResonance# r1 r2 r3 r4                 = resonances
-    ModalAmplitude# _  _  _  a4                 = amplitudes
+    ModalAmplitude# a1 a2 a3 a4                 = amplitudes
     ModalStickSig# hardness position directGain = stickSig
-    ppi                                         = position * pi
-    a1                                          =  0.12 * sine ppi
-    a2                                          = -0.03 * sine (0.05 + 3.9 * ppi)
-    a3                                          =  0.11 * sine (-0.05 + 11 * ppi)
+    -- ppi                                         = position * pi
+    -- a1                                          =  0.12 * sine ppi
+    -- a2                                          = -0.03 * sine (0.05 + 3.9 * ppi)
+    -- a3                                          =  0.11 * sine (-0.05 + 11 * ppi)
     mode1                                       = modalBarMkModeBiquad f1 r1 frequency a1
     mode2                                       = modalBarMkModeBiquad f2 r2 frequency a2
     mode3                                       = modalBarMkModeBiquad f3 r3 frequency a3

@@ -3365,6 +3365,10 @@ fftLerpMag :: AudioFormat f => Float -> f (FFT k) -> f (FFT k) -> f (FFT k)
 fftLerpMag delta x y =
   fftMapMag2 (\mx my -> lerp mx my delta) x y
 
+fftLerpPhase :: AudioFormat f => Float -> f (FFT k) -> f (FFT k) -> f (FFT k)
+fftLerpPhase delta x y =
+  fftMapPhase2 (\px py -> lerpTheta px py delta) x y
+
 fftMulPolar :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftMulPolar x y =
   mapFFTAudio2 f x y

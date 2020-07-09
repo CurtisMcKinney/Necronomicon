@@ -58,7 +58,7 @@ proj h = p2 |> en |> mul 0.125 |> mixStereo
     sf = sin (fromFloat h * 55 * 4 |> mul (sin 13)) |> fft
     wf :: Mono (FFT 8)
     wf = waveGuidePluck natSixteen 0.5 0.5 0.5 16 fr 0.5 |> mixMono |> mul 8 |> fft
-    p2 = fftPhaseCoherence sf wf |> ifft
+    p2 = fftProjection sf wf |> ifft
     en = asr 0.1 1 8 -4
 
 zcTest :: Float -> Stereo Audio

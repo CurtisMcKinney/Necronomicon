@@ -177,7 +177,6 @@ not b =
     True  -> False
     False -> True
 
-
 ----------------------
 -- Some Base Classes
 ----------------------
@@ -543,6 +542,13 @@ instance Monoid Int where
 
 instance Default Int where
   default = 0
+
+instance Enum Bool where
+  toEnum   x = if x == 0 then False else True
+  fromEnum x =
+    case x of
+      False -> 0
+      _     -> 1
 
 
 --------------------
@@ -4171,6 +4177,50 @@ audioBufferPlay loopType freq audioBuffers =
     f ab fc =
       accumulateAudio1 (audioBufferPlayTick ab loopType) constTrue fc
 
+-- apertureMapPhase :: Float -> Float -> Float -> Float -> Int -> Float
+-- apertureMapPhase phase0 length start end direction =
+--   if end > start
+--     then
+--       if phase1 > end && phase1 > start
+--         then abs ((phase1 - start) % (end - start)) + start
+--         else phase1
+--   else
+--     if phase1 > end && phase1 < start
+--       then abs (phase - end) (length - start) + end
+--       else phase1
+--   where
+--     phase = abs (phase0 % length)
+
+-- -- TODO: Finish!
+-- audioBufferPlayWithApertureTick :: AudioBuffer -> Float -> Float -> Float -> Float -> (#Float, Float#)
+-- audioBufferPlayWithApertureTick (AudioBuffer# audioBuffer numSamples) freq start0 end0 phase0 =
+--   (#phase1, out#)
+--   where
+--     numSamplesF = fromInt numSamples
+--     start       = start0 * numSamplesF
+--     end         = end0 * numSamplesF
+--     direction   = floorToInt (signum freq)
+--     phase00     = phase0 + freq -- phase00   = fma freq recipSampleRate phase0
+--     phase000    = apertureMapPhase phase00 numSamplesF start end direction
+--     findex      = phase000 * audioSampleRateF
+--     delta       = (floor findex + 1) - findex
+--     phase1      = phase000
+--     phase0      = apertureMapPhase (phase1 - direction) numSamplesF start end direction
+--     phase2      = apertureMapPhase (phase1 + direction) numSamplesF start end direction
+--     phase3      = apertureMapPhase (phase2 + direction) numSamplesF start end direction
+--     sample0     = unsafePtrPeek (floatToUInt phase0 % numSamples) audioBuffer
+--     sample1     = unsafePtrPeek (floatToUInt phase1 % numSamples) audioBuffer
+--     sample2     = unsafePtrPeek (floatToUInt phase2 % numSamples) audioBuffer
+--     sample3     = unsafePtrPeek (floatToUInt phase3 % numSamples) audioBuffer
+--     out         = cubicInterpolation sample0 sample1 sample2 sample3 delta
+
+-- audioBufferPlayWithAperture :: AudioFormat f => f Audio -> f Audio -> f Audio -> f AudioBuffer -> f Audio
+-- audioBufferPlayWithAperture freq start end audioBuffers =
+--   map4 f audioBuffers freq start end
+--   where
+--     f ab fc sc ec =
+--       accumulateAudio3 (audioBufferPlayWithApertureTick ab) constTrue fc sc ec
+
 
 ----------------------
 -- Record Audio
@@ -5076,7 +5126,8 @@ attackSustain attackTime sustainTime curve input =
 
 
 -----------
--- playFor
+-- Simple Scheduling
+
 playFor :: AudioFormat f => Float -> f Audio -> f Audio
 playFor length audio =
   if rationalToFloat t >= length then
@@ -5085,6 +5136,16 @@ playFor length audio =
     audio
   where
     t ~ 0 = t + audioBlockDelta
+
+waitFor :: AudioFormat f => Float -> (() -> f Audio) -> f Audio
+waitFor length faudio =
+  if rationalToFloat t <= length then
+    pure (BlockRate 0)
+  else
+    faudio ()
+  where
+    t ~ 0 = t + audioBlockDelta
+
 
 -----------
 -- Wave tables

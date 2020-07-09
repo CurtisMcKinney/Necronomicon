@@ -308,6 +308,12 @@ arrayLengthU n arr = (#natVal n, arr#)
 arrayLengthFromIndex :: NatVal n -> Index n -> UInt
 arrayLengthFromIndex n _ = natVal n
 
+natValGetFrom :: f n -> NatVal n
+natValGetFrom _ = NatVal
+
+nextPowerOfTwoNatVal :: NatVal n -> NatVal (NatNextPowerOfTwo n)
+nextPowerOfTwoNatVal _ = NatVal
+
 unsafeArrayToPtr :: Array n .a -> Ptr .a
 unsafeArrayToPtr a = primUndefined
 
@@ -1399,6 +1405,14 @@ lerpComplex (Complex# rx ix) (Complex# ry iy) delta =
     r = rx * (1 - delta) + ry * delta
     i = ix * (1 - delta) + iy * delta
 
+lerpTheta :: Float -> Float -> Float -> Float
+lerpTheta x y delta =
+  s * ((2 * abs d) % tau) - d
+  where
+    ymx = y - x
+    s   = signum ymx
+    d   = s * (abs ymx % tau)
+
 
 --------------------
 -- Vector2D
@@ -1699,15 +1713,15 @@ either lf rf e =
 --------------------
 -- Ptr
 --------------------
-ptrMalloc :: UInt -> Ptr *a
+ptrMalloc :: UInt -> *Ptr .a
 ptrMalloc capacity =
   primUndefined
 
-ptrRealloc :: UInt -> Ptr *a -> Ptr *a
+ptrRealloc :: UInt -> *Ptr .a -> *Ptr .a
 ptrRealloc capacity ptr =
   primUndefined
 
-ptrFree :: Ptr .a -> *()
+ptrFree :: *Ptr .a -> *()
 ptrFree ptr =
   primUndefined
 
@@ -1715,7 +1729,7 @@ unsafePtrPeek :: UInt -> Ptr a -> a
 unsafePtrPeek index ptr =
   primUndefined
 
-unsafePtrPoke :: UInt -> *a -> Ptr *a -> Ptr *a
+unsafePtrPoke :: UInt -> .a -> *Ptr .a -> *Ptr .a
 unsafePtrPoke index value ptr =
   primUndefined
 
@@ -1723,7 +1737,7 @@ unsafePtrSwapElement :: UInt -> *a -> Ptr *a -> (#*a, Ptr *a#)
 unsafePtrSwapElement index element ptr =
   primUndefined
 
-unsafePtrCast :: Ptr a -> Ptr b
+unsafePtrCast :: Ptr .a -> Ptr .b
 unsafePtrCast p =
   primUndefined
 
@@ -2619,30 +2633,34 @@ mapFFTBuffer f c = map mf c
         FFT b ->  FFT (f b)
 
 composeFFTBuffers ::
+  AudioFormat f =>
   (Array (NatMul BlockSize (NatMul k 4)) Complex ->
     Array (NatMul BlockSize (NatMul k 4)) Complex ->
     Array (NatMul BlockSize (NatMul k 4)) Complex) ->
-  Mono (FFT k) ->
-  Mono (FFT k) ->
-  Mono (FFT k)
-composeFFTBuffers f (Mono cx) (Mono cy) =
-  case cx of
-    FFTEnd      -> Mono FFTEnd
-    FFTNone     ->
-      case cy of
-        FFTEnd      -> Mono FFTEnd
-        FFTInterval -> Mono FFTInterval
-        _           -> Mono FFTNone
-    FFTInterval ->
-      case cy of
-        FFTEnd      -> Mono FFTEnd
-        _           -> Mono FFTInterval
-    FFT x ->
-      case cy of
-        FFTEnd      -> Mono FFTEnd
-        FFTNone     -> Mono FFTNone
-        FFTInterval -> Mono FFTInterval
-        FFT y       -> Mono (FFT (f x y))
+  f (FFT k) ->
+  f (FFT k) ->
+  f (FFT k)
+composeFFTBuffers f fx fy =
+  map2 go fx fy
+  where
+    go cx cy =
+      case cx of
+        FFTEnd      -> FFTEnd
+        FFTNone     ->
+          case cy of
+            FFTEnd      -> FFTEnd
+            FFTInterval -> FFTInterval
+            _           -> FFTNone
+        FFTInterval ->
+          case cy of
+            FFTEnd      -> FFTEnd
+            _           -> FFTInterval
+        FFT x ->
+          case cy of
+            FFTEnd      -> FFTEnd
+            FFTNone     -> FFTNone
+            FFTInterval -> FFTInterval
+            FFT y       -> (FFT (f x y))
 
 natValFrom :: NatVal k -> f k -> UInt
 natValFrom n _ =
@@ -2657,7 +2675,7 @@ windowSine =
   FFTWindow
   <| freezeArray
   <| loop a = unsafeEmptyArray () for i <- each do
-    writeArray i (sine (pi * fromUInt (indexToUInt i) / fromUInt (natValFrom NatVal i))) a
+    writeArray i (sine (pi * fromUInt (indexToUInt i + 1) / fromUInt (natValFrom NatVal i + 1))) a
 
 windowMLTSine :: FFTWindow k
 windowMLTSine =
@@ -2685,56 +2703,12 @@ windowHamming =
 -- This preps audio data for FFT analysis
 -- Currently uses a fixed hop size of 0.5
 -- First it copies the data into a circular buffer (fft needs past audio data to perform overlay-add in ifft)
--- Next it performs zero-phase buffering
+-- Next it performs zero-phase zero-padding
 -- Then it multiplies the audio by the supplied window function
 -- And lastly it stores this in a Complex valued array for the FFT algorithm
 -- TODO: use NatNextPowerOfTwo for safer FFT sizes? It would mean even more hilariously large Array types
 -- TODO: something is up, maybe with windowing?!?!?!?!?!?
 -- TODO: Insure next power of two!
-
--- audioToTimeDomain :: UInt -> Array BlockSize Float -> Array (NatMul BlockSize 2) Float -> *Array (NatMul BlockSize (NatMax k 2)) Complex
--- audioToTimeDomain fftSize a w =
---   case mutRefTake (\_ -> (#arrayFrom 0, 0#)) of
---     (#(#cBuffer0, cOffset0#), mref#) ->
---       let
---         a2SizeMask = audioBlockSize * 2 - 1
---         cOffset1   = bitAnd (cOffset0 + audioBlockSize) a2SizeMask
---         cBuffer2   =
---           -- Copy data into circular buffer
---           loop cBuffer1 = cBuffer0 for i <- each do
---             writeArray (unsafeUIntToIndex (bitAnd (indexToUInt i + cOffset0) a2SizeMask)) (readArray i a) cBuffer1
---         (#timeDomain, cBuffer5#) =
---           loop (#timeDomain0, cBuffer3#) = (#unsafeEmptyArray (), cBuffer2#) for fftIndex <- each do
---             let
---               fftIndexU  = indexToUInt fftIndex
---             in
---               -- Zero-phase Zero padding
---               if fftIndexU < audioBlockSize then
---                 let
---                   ai               = fftIndexU + audioBlockSize
---                   wi               = unsafeUIntToIndex ai
---                   wx               = readArray wi w
---                   ci               = asTypeOf (unsafeUIntToIndex (bitAnd (ai + cOffset0 + audioBlockSize) a2SizeMask)) wi
---                   (#ax, cBuffer4#) = readArrayU ci cBuffer3
---                   tc               = Complex# (ax * wx) 0
---                 in
---                   (#writeArray fftIndex tc timeDomain0, cBuffer4#)
---               else if fftIndexU >= fftSize - audioBlockSize then
---                 let
---                   ai               = fftIndexU - (fftSize - audioBlockSize)
---                   wi               = unsafeUIntToIndex ai
---                   wx               = readArray wi w
---                   ci               = asTypeOf (unsafeUIntToIndex (bitAnd (ai + cOffset0 + audioBlockSize) a2SizeMask)) wi
---                   (#ax, cBuffer4#) = readArrayU ci cBuffer3
---                   tc               = Complex# (ax * wx) 0
---                 in
---                   (#writeArray fftIndex tc timeDomain0, cBuffer4#)
---               else
---                 (#writeArray fftIndex 0 timeDomain0, cBuffer3#)
---       in
---         case mutRefPut (#cBuffer5, cOffset1#) mref of
---           _ ->
---             timeDomain
 
 fftIndexIsZeroBin :: UInt -> UInt -> Index (NatMul BlockSize (NatMul k 4)) -> Bool
 fftIndexIsZeroBin bufferSize fftHalfSize (Index i) =
@@ -2758,9 +2732,8 @@ fftArraySizeGymnastics :: Index (NatMul BlockSize (NatMul k 4)) -> Index (NatMul
 fftArraySizeGymnastics _ i = i
 
 ----------------------
--- Zero-phase Zero padding version
-----------------------
 -- Useful values
+----------------------
 -- BufferSize     size: BufferSize
 -- FFTSize        size: BufferSize / 2
 -- timeDomain     size: BufferSize
@@ -2896,125 +2869,6 @@ timeDomainToAudio n (FFTWindow window) maybeTimeDomain =
     --       _ -> primUndefined
     --   else
     --     overflowBuffer2'
-
--- Useful values
--- FFTSize        size: FFTSize
--- timeDomain     size: FFTSize
--- cBuffer        size: FFTSize
--- prevTimeDomain size: FFTSize / 2
--- overflowBuffer size: FFTSize / 2
--- window buffer  size: FFTSize
-
--- audioToTimeDomain :: NatVal (NatMul BlockSize (NatMul k 4)) -> FFTWindow k -> Array BlockSize Float -> Maybe (*Array (NatMul BlockSize (NatMul k 4)) Complex)
--- audioToTimeDomain n (FFTWindow window) audio =
---   case mutRefPut (#cBufferEnd, cIndex1#) mref of
---     _ -> timeDomainEnd
---   where
---     (#(#cBuffer0, cIndex0#), mref#) = mutRefTake (\_ -> (#arrayFrom 0, 0#))
---     fftSize                         = natVal n
---     fftHalfSize                     = fftSize / 2
---     fftSizeMask                     = fftSize - 1
---     fftScaleFactor                  = 1 / fromUInt fftSize
---     cIndex1                         = bitAnd (cIndex0 + audioBlockSize) fftSizeMask
---     cBuffer2                        =
---       -- Copy data into circular buffer
---       loop cBuffer1 = cBuffer0 for i <- each do
---         writeArray (unsafeUIntToIndex (bitAnd (indexToUInt i + cIndex0) fftSizeMask)) (readArray i audio) cBuffer1
---     (#timeDomainEnd, cBufferEnd#) =
---       if cIndex1 == 0 || cIndex1 == fftHalfSize then
---         let
---           (#timeDomain, cBuffer5#) =
---             loop (#timeDomain0, cBuffer3#) = (#unsafeEmptyArray (), cBuffer2#) for fftIndex <- each do
---               let
---                 wx               = readArray fftIndex window
---                 circularIndex    = asTypeOf (unsafeUIntToIndex (bitAnd (indexToUInt fftIndex + cIndex1) fftSizeMask)) fftIndex
---                 (#ax, cBuffer4#) = readArrayU circularIndex cBuffer3
---                 c                = Complex# (ax * wx * fftScaleFactor) 0
---                 timeDomain1      = writeArray fftIndex c timeDomain0
---               in
---                 (#timeDomain1, cBuffer4#)
---         in
---           (#Just timeDomain, cBuffer5#)
---           -- if currBlockCount == 2048 then
---           --   case plotFFTChannelOnce "./data/timeDomainTest.dat" (FFT (freezeArray timeDomain)) primUndefined of
---           --     _ -> primUndefined
---           -- else
---       else
---         -- In between FFT blocks
---         (#Nothing, cBuffer2#)
---
--- ----------------------
--- -- timeDomainToAudio
--- -- Overlap-Add method: dspguide.com/ch18/1.htm
--- -- Use sine window for FFT and IFFT to combine for a Hann window?
--- -- This is the inverse of audioToTimeDomain
--- -- Performs overlay-add with a hop size of 2
--- -- Undoes zero phase buffering
---
--- -- TODO / NOTE: don't padd with zeroes!??!!?
--- timeDomainToAudio :: NatVal (NatMul BlockSize (NatMul k 4)) -> FFTWindow k -> Maybe (Array (NatMul BlockSize (NatMul k 4)) Float) -> Audio
--- timeDomainToAudio n (FFTWindow window) maybeTimeDomain =
---   case mutRefPut (#overflowBuffer2, prevTimeDomain1, overflowIndex1#) mref of
---     _ -> AudioRate (freezeArray audio)
---   where
---     (#(#overflowBuffer0, prevTimeDomain0, overflowIndex0#), mref#) =
---       mutRefTake (\_ -> (#arrayFrom 0, arrayFrom 0, 0#))
---
---     fftSize         = natVal n
---     fftHalfSize     = fftSize / 2
---     fftSizeMask     = fftSize - 1
---     fftHalfSizeMask = fftHalfSize - 1
---     fftScaleFactor  = 1 / fromUInt fftSize
---     overflowIndex1  = bitAnd (overflowIndex0 + audioBlockSize) fftHalfSizeMask
---     -- TODO: statefulness in here is causing a crash....wtf???
---
---     -- Resynthesize and fill overflow buffer
---     (#overflowBuffer1, prevTimeDomain1#) =
---       case maybeTimeDomain of
---         Nothing         -> (#overflowBuffer0, prevTimeDomain0#)
---         Just timeDomain ->
---           loop (#overflowBuffer00, prevTimeDomain00#) = asTypeOfU overflowBuffer0 prevTimeDomain0 for fftIndex <- each do
---             if indexToUInt fftIndex < fftHalfSize then
---               -- use contents of first half of timeDomain buffer for resynthesis windowed against prevTimeDomain
---               let
---                 w0                       = readArray fftIndex window
---                 t0                       = readArray fftIndex timeDomain
---                 (#t1, prevTimeDomain01#) = readArrayU (unsafeIndexToIndex fftIndex) prevTimeDomain00
---                 sample                   = t0 * w0 + t1
---                 -- sample                   = w0 + t1
---                 overflowBuffer01         = writeArray (unsafeIndexToIndex fftIndex) sample overflowBuffer00
---               in
---                 (#overflowBuffer01, prevTimeDomain01#)
---             else
---               -- write contents of second half of timeDomain buffer into prevTimeDomain buffer
---               let
---                 windowSample     = readArray fftIndex window
---                 timeDomainSample = readArray fftIndex timeDomain
---                 sample           = timeDomainSample * windowSample
---                 -- sample           = windowSample
---                 -- sample           = indexToFloat index
---                 -- sample           = timeDomainSample
---                 index            = fftArraySizeGymnastics fftIndex (unsafeUIntToIndex (indexToUInt fftIndex - fftHalfSize))
---                 prevTimeDomain01 = writeArray index sample prevTimeDomain00
---               in
---                 (#overflowBuffer00, prevTimeDomain01#)
---
---     -- Fill audio buffer from overflowBuffer
---     (#audio, overflowBuffer2#) =
---       loop (#audio0, overflowBuffer10#) = (#unsafeEmptyArray (), overflowBuffer1#) for i <- each do
---         let
---           overflowIndex                = unsafeUIntToIndex (bitAnd (indexToUInt i + overflowIndex1) fftHalfSizeMask)
---           (#sample, overflowBuffer11#) = readArrayU overflowIndex overflowBuffer10
---           audio1                       = writeArray i sample audio0
---         in
---           (#audio1, overflowBuffer11#)
---     -- overflowBuffer2 =
---     --   if currBlockCount == 2048 then
---     --     case writePlot2DToFileOnce "./data/timeDomainTest.dat" (freezeArray overflowBuffer2') primUndefined of
---     --       _ -> primUndefined
---     --   else
---     --     overflowBuffer2'
-
 
 ----------------------
 -- DFT
@@ -3164,9 +3018,7 @@ ifftAudio freqDomain =
                 (#j + 1, theta + e, a2#)
         in
           (#bitShiftLeft i 1, n2, a1#)
-    -- ifftOut = map (\(Complex# r _) -> r / numSamplesF) (freezeArray aout)
-    -- ifftOut = map (\(Complex# r _) -> r * numSamplesF) (freezeArray aout)
-    ifftOut = map (\(Complex# r _) -> r) (freezeArray aout)
+    ifftOut = map realPart (freezeArray aout)
 
 -- idftAudio :: Array (NatMul BlockSize (NatMax k 2)) Complex -> Audio
 -- idftAudio freqDomain =
@@ -3277,7 +3129,7 @@ fftAutoCorrelate a = map (\ca -> mapFFT cc ca) a
   where
     cc ca = ca * conjugate ca
 
-fftCovariance :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftCovariance :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftCovariance a b = composeFFTBuffers compose a b
   where
     compose ba bb = bc |> freezeArray
@@ -3301,7 +3153,7 @@ fftCovariance a b = composeFFTBuffers compose a b
             in
               writeArray i w bc
 
-fftAutoCovariance :: Mono (FFT k) -> Mono (FFT k)
+fftAutoCovariance :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftAutoCovariance a = mapFFTBuffer compose a
   where
     compose ba = bb |> freezeArray
@@ -3323,7 +3175,7 @@ fftAutoCovariance a = mapFFTBuffer compose a
             in
               writeArray i w bb
 
-fftAutoCrossCovariance :: Mono (FFT k) -> Mono (FFT k)
+fftAutoCrossCovariance :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftAutoCrossCovariance a = mapFFTBuffer compose a
   where
     compose ba = bb |> freezeArray
@@ -3345,7 +3197,7 @@ fftAutoCrossCovariance a = mapFFTBuffer compose a
             in
               writeArray i w bb
 
-fftCrossCovariance :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftCrossCovariance :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftCrossCovariance a b = composeFFTBuffers compose a b
   where
     compose ba bb = bc |> freezeArray
@@ -3372,7 +3224,7 @@ fftCrossCovariance a b = composeFFTBuffers compose a b
 -- I don't really know what this is, but it sounds cool
 -- Note: very large magnitudes!
 -- TODO: normalize intermediate values?
-fftChaos :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftChaos :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftChaos a b = composeFFTBuffers compose a b
   where
     compose ba bb = bc |> freezeArray
@@ -3393,7 +3245,7 @@ fftChaos a b = composeFFTBuffers compose a b
 -- spectral coherence of two signals
 -- maintains phase of signal a
 -- TODO: normalize intermediate values?
-fftMagCoherence :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftMagCoherence :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftMagCoherence a b = composeFFTBuffers compose a b
   where
     compose ba bb = bc |> freezeArray
@@ -3414,7 +3266,7 @@ fftMagCoherence a b = composeFFTBuffers compose a b
 -- phase coherence of two signals
 -- maintains magnitude of signal a
 -- TODO: normalize intermediate values?
-fftPhaseCoherence :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftPhaseCoherence :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftPhaseCoherence a b = composeFFTBuffers compose a b
   where
     compose ba bb = bc |> freezeArray
@@ -3507,11 +3359,15 @@ fftLerpPolar delta x y =
         (#mx, px#) = polar' cx
         (#my, py#) = polar' cy
         m          = lerp mx my delta
-        p          = lerp px py delta
+        p          = lerpTheta px py delta
 
 fftLerpMag :: AudioFormat f => Float -> f (FFT k) -> f (FFT k) -> f (FFT k)
 fftLerpMag delta x y =
   fftMapMag2 (\mx my -> lerp mx my delta) x y
+
+fftLerpPhase :: AudioFormat f => Float -> f (FFT k) -> f (FFT k) -> f (FFT k)
+fftLerpPhase delta x y =
+  fftMapPhase2 (\px py -> lerpTheta px py delta) x y
 
 fftMulPolar :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftMulPolar x y =
@@ -3692,7 +3548,7 @@ fftPhaseFreeze trigger input = freezeImpl phaseFreezeTick trigger input
 
 -- (magnitude -> phase) (phase -> magnitude) mapping
 fftMagPhaseFlip :: AudioFormat f => f (FFT k) -> f (FFT k)
-fftMagPhaseFlip a = mapFFTBuffer doFlip a 
+fftMagPhaseFlip a = mapFFTBuffer doFlip a
   where
     doFlip a = freezeArray <|
       loop b = unsafeEmptyArray () for i <- each do
@@ -3716,7 +3572,7 @@ instance Eq SpliceType where
   neq x y = fromEnum x /= fromEnum y
 
 -- splice bins from two sources using selector function
-fftSplice :: (UInt -> SpliceType) -> Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftSplice :: AudioFormat f => (UInt -> SpliceType) -> f (FFT k) -> f (FFT k) -> f (FFT k)
 fftSplice f a b = composeFFTBuffers splice a b
   where
     splice ba bb = bc |> freezeArray
@@ -3732,7 +3588,7 @@ fftSplice f a b = composeFFTBuffers splice a b
 
 -- project the entire buffer of A onto B,
 -- interpretting the buffers as higher dimensional vectors of complex numbers
-fftProjection :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftProjection a b = composeFFTBuffers compose a b
   where
     compose ba bb = bc |> freezeArray
@@ -3757,7 +3613,7 @@ fftProjection a b = composeFFTBuffers compose a b
 
 -- project the entire buffer of A onto B,
 -- interpretting the buffers as higher dimensional vectors of complex numbers
-fftPerpendicularProjection :: Mono (FFT k) -> Mono (FFT k) -> Mono (FFT k)
+fftPerpendicularProjection :: AudioFormat f => f (FFT k) -> f (FFT k) -> f (FFT k)
 fftPerpendicularProjection a b = composeFFTBuffers compose a b
   where
     compose ba bb = bc |> freezeArray
@@ -3902,6 +3758,50 @@ fftIsogonalMapH f = mapFFTAudio mapping f
   where
     mapping z = sqrt (2 / z)
 
+fftNormalizeMags :: AudioFormat f => f (FFT k) -> f (#FFT k, Float#)
+fftNormalizeMags fx =
+  map f fx
+  where
+    f x =
+      case x of
+        FFTEnd      -> (#FFTEnd, 0#)
+        FFTNone     -> (#FFTNone, 0#)
+        FFTInterval -> (#FFTInterval, 0#)
+        FFT buffer  ->
+          let
+            highestMag =
+              loop hm = 0 for i <- each do
+                max (magnitude (readArray i buffer)) hm
+            rHighestMag = 1 / highestMag
+            normalizedBuffer =
+              loop nb = unsafeEmptyArray () for i <- each do
+                let
+                  (#m, p#) = polar' (readArray i buffer)
+                  newBin   = mkPolar (m * rHighestMag) p
+                in
+                  writeArray i newBin nb
+          in
+            (#FFT (freezeArray normalizedBuffer), highestMag#)
+
+fftBinOpWithNormMag :: AudioFormat f => (f (FFT k) -> f (FFT k) -> f (FFT k)) -> f (FFT k) -> f (FFT k) -> f (FFT k)
+fftBinOpWithNormMag op fx fy =
+  op nxs nys
+  |> map3 magAdjustf mxs mys
+  where
+    nmax           = fftNormalizeMags fx
+    nmay           = fftNormalizeMags fy
+    nxs            = map fst' nmax
+    nys            = map fst' nmay
+    mxs            = map snd' nmax
+    mys            = map snd' nmay
+    mf magAdjust c =
+      mkPolar (m * magAdjust) p
+      where
+        (#m, p#) = polar' c
+    magAdjustf magAdjustX magAdjustY fftx =
+      mapFFT (mf ((magAdjustX + magAdjustY) * 0.5)) fftx
+      -- mapFFT (mf (max magAdjustX magAdjustY)) fftx
+
 --------------------------
 
 plotAudioOnce :: Array n Char -> Mono Audio -> *World -> *World
@@ -3950,7 +3850,8 @@ class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
   mixMono      :: Num a => f a -> Mono a
   mixStereo    :: Num a => f a -> Stereo a
   outAudio     :: UInt -> f Audio -> *World -> *World
-  numChannels  :: f Audio -> UInt
+  numChannels  :: f a -> UInt
+  channelNums  :: f UInt
 
 stereo :: Mono a -> Mono a -> Stereo a
 stereo (Mono l) (Mono r) = Stereo# l r
@@ -3992,6 +3893,7 @@ instance AudioFormat Mono where
   mixMono x                                              = x
   mixStereo (Mono x)                                     = Stereo# x x
   numChannels _                                          = 1
+  channelNums                                            = Mono 0
 
 instance Functor Stereo where
   map f (Stereo# x y) = Stereo# (f x) (f y)
@@ -4021,6 +3923,7 @@ instance AudioFormat Stereo where
   mixMono (Stereo# l r)                                                       = Mono (l + r)
   mixStereo x                                                                 = x
   numChannels _                                                               = 2
+  channelNums                                                                 = Stereo# 0 1
 
 -- Mono
 instance Eq a => Eq (Mono a) where
@@ -4205,12 +4108,41 @@ audioFilePlay loopType freq (AudioFile# numChannels numSamples dataPtr) =
 -- Represents a non-interleaved single channel of audio data inside a dynamically sized array of data
 ----------------------
 
-data AudioBuffer = AudioBuffer (.Ptr Float) UInt
--- TODO: audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
--- TODO: recordIntoAudioBuffer :: AudioFormat f => Nat s -> LoopType -> f Audio -> f AudioBuffer
+data AudioBuffer = AudioBuffer# (.Ptr Float) UInt
+-- TODO: audioBufferFromFile  :: AudioFormat f => AudioFile -> f AudioBuffer
+-- TODO: audioBufferRecord    :: AudioFormat f => Nat s -> LoopType -> f Audio -> f AudioBuffer
+-- TODO: Ensure power of 2 and use bitAnd + sizeMask instead of % (which is stupid slow)
+-- TODO: Double check playback with negative rates, perhaps delta would be off?
+-- TODO: TEEEECCCCHNNNICALLY we should buffer the audio files across the tick such that the file value would be the same across the entirety of the tick. This is required to maintain referential transparency
+
+-- NOTE: This dynamically allocates memory which IS NOT reclaimed by the memory management system!!!
+audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
+audioBufferFromFile (AudioFile# fileNumChannels numSamples audioData) =
+  map f channelNums
+  where
+    nChannels    = numChannels channelNums
+    f channelNum =
+      AudioBuffer# (unsafePtrCast bufferData) numSamples
+      where
+        numFrames            = fileNumChannels * numSamples
+        (#_, _, bufferData#) =
+          -- Deep copy interleaved data
+          loop (#fileIndex, bufferIndex, bufferData0#) = (#0, 0, ptrMalloc numSamples#) while fileIndex < numFrames do
+            let
+              sample      = unsafePtrPeek (fileIndex + (channelNum % nChannels)) audioData
+              bufferData1 = unsafePtrPoke bufferIndex sample bufferData0
+            in
+              (#fileIndex + fileNumChannels, bufferIndex + 1, bufferData1#)
+
+audioBufferFromArray :: AudioFormat f => f (Array n Float) -> f AudioBuffer
+audioBufferFromArray arrays =
+  map f arrays
+  where
+    f array =
+      AudioBuffer# (unsafeArrayToPtr array) (arrayLength NatVal array)
 
 audioBufferPlayTick :: AudioBuffer -> LoopType -> Float -> Float -> (#Float, Float#)
-audioBufferPlayTick (AudioBuffer audioBuffer numSamples) loopType freq phase0 =
+audioBufferPlayTick (AudioBuffer# audioBuffer numSamples) loopType freq phase0 =
   (#phase1, out#)
   where
     phase1 = fma freq recipSampleRate phase0
@@ -5737,20 +5669,43 @@ superTri freq depth mix =
   accumulate3U mkSuperSawState accumulateSuperTri constTrueU freq depth mix
   |> hpf freq 6
 
-
 ----------------------
--- RBJ Filters, Audio EQ Cookbook
+-- Biquad
 ----------------------
 
+data Biquad      = Biquad# Float Float Float Float Float Float
 data BiquadState = BiquadState# Float Float Float Float
 
 instance Default BiquadState where
   default = BiquadState# 0 0 0 0
 
+biquadMk :: Float -> Float -> Float -> Biquad
+biquadMk freq radius gain =
+  Biquad# b0 b1 b2 a1 a2 gain
+  where
+    a1   = -2 * radius * cosine (tau * freq * recipSampleRate)
+    a2   = radius * radius
+    b0   = 1
+    b1   = 0
+    b2   = -1
+
+biquadTick :: Biquad -> Float -> BiquadState -> (#BiquadState, Float#)
+biquadTick (Biquad# b0 b1 b2 a1 a2 gain) input (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 y0 y1, y0#)
+  where
+    x0 = input * gain
+    y0 =
+      (b0 * x0 + b1 * x1 + b2 * x2) -
+      (a2 * y2 + a1 * y1)
+
+
+----------------------
+-- RBJ Filters, Audio EQ Cookbook
+----------------------
+
 -- fi range: 0 - 1
 waveTableFunction :: WaveTable -> Float -> Float
 waveTableFunction (WaveTable buffer) fi =
-  -- sample1 * delta + sample2 * (1 - delta)
   sample1 * (1 - delta) + sample2 * delta
   where
     findex  = fi * 65536
@@ -5882,14 +5837,15 @@ instance Default OnePole where
   default = OnePole 0
 
 -- Note: expected pole range: 0 - 1
-onePoleTick :: Float -> Float -> Float -> OnePole -> (#Float, OnePole#)
+onePoleTick :: Float -> Float -> Float -> OnePole -> (#OnePole, Float#)
 onePoleTick pole gain input (OnePole z0) =
-  (#z1, OnePole z1#)
+  (#OnePole z1, z1#)
   where
     a  = 0 - pole
     b  = if pole < 0 then 1 + pole else 1 - pole
     x  = input * gain
     z1 = b * x - a * z0
+
 
 -----------
 -- lag
@@ -6104,9 +6060,6 @@ lagrangeInterpolation4 s0 s1 s2 s3 s4 delta =
 -- Note: This is a non-fractional delay line which can only perform integral delay lengths
 data Delay n = Delay# (.Array (NatNextPowerOfTwo n) Float) UInt UInt UInt
 
-nextPowerOfTwoNatVal :: NatVal n -> NatVal (NatNextPowerOfTwo n)
-nextPowerOfTwoNatVal _ = NatVal
-
 mkDelay :: UInt -> NatVal n -> *Delay n
 mkDelay delayLength n =
   Delay# arr sizeMask 0 outCursor
@@ -6232,7 +6185,7 @@ accumulateWaveGuidePluck brightness sustain freq pickupLocation (WaveGuidePluckS
     (#nutSample, rightBuffer3#)                   = fracDelayReadOutput rightBuffer2
     -- Nut and Bridge
     invertedNutReflection                         = negate nutSample
-    (#bridgeReflection0, bridgeReflectionState1#) = onePoleTick brightness sustain bridgeSample bridgeReflectionState0
+    (#bridgeReflectionState1, bridgeReflection0#) = onePoleTick brightness sustain bridgeSample bridgeReflectionState0
     bridgeReflection                              = negate bridgeReflection0
 
     -- Tick Delays
@@ -6356,7 +6309,7 @@ accumulateWaveGuideBow bowLocation brightness sustain bowSlope bowVelocity freq 
     -- Values
     invertedNutReflection                         = negate neckSample
     pole                                          = 0.65 - (brightness * 48000 * 0.5 * recipSampleRate)
-    (#bridgeReflection0, bridgeReflectionState1#) = onePoleTick pole sustain bridgeSample bridgeReflectionState0
+    (#bridgeReflectionState1, bridgeReflection0#) = onePoleTick pole sustain bridgeSample bridgeReflectionState0
     bridgeReflection1                             = negate bridgeReflection0
     (#bodyState1, bodyResonance#)                 = violinBodyfilterAccumulate (bridgeSample * 0.8 * sustain) bodyState0
     bridgeReflection                              = bridgeReflection1 * 0.75 + bodyResonance * 0.25
@@ -6428,7 +6381,7 @@ violinBodyFilter input =
 data ModalFrequency = ModalFrequency# Float Float Float Float -- 4 Modes
 data ModalResonance = ModalResonance# Float Float Float Float -- 4 Modes
 data ModalAmplitude = ModalAmplitude# Float Float Float Float -- 4 Modes
-data ModalStickSig  = ModalStickSig#  Float Float Float       -- Hardness Position Gain
+data ModalStickSig  = ModalStickSig#  Float Float Float       -- Hardness Position DirectGain
 data ModalSignature =
   ModalSignature
     ModalFrequency
@@ -6462,7 +6415,6 @@ resoSig =
 
 -- WaveTable
 
-data Biquad   = Biquad# Float Float Float Float Float
 data ModalBar =
   ModalBar#
     BiquadState
@@ -6470,42 +6422,62 @@ data ModalBar =
     BiquadState
     BiquadState
     OnePole
-    EnvState
+    Float -- AudioBufferState
 
--- TODO: biquadTick
+instance Default ModalBar where
+  default = ModalBar# default default default default default 0
+
 -- TODO: Make AudioBuffer (Array n Float)
 -- TODO: audioFileToBuffer :: AudioFormat f => AudioFile -> f (AudioBuffer)
 -- TODO: Strike waveform
+-- TODO: Vibrato?
 -- modalBar :: AudioBuffer -> ModalSignature -> (Float, Float, Float) -> Float -> Float
 
--- myCoolSynth =
---   modalBar woodStrike woodSig (0.01, 0.5, -1) 0.1 0.2
-
-biquadTick :: Biquad -> Float -> BiquadState -> (#BiquadState, Float#)
-biquadTick (Biquad# b0 b1 b2 a1 a2) x0 (BiquadState# x1 x2 y1 y2) =
-  (#BiquadState# x0 x1 y0 y1, y0#)
+modalBarMkModeBiquad :: Float -> Float -> Float -> Float -> Biquad
+modalBarMkModeBiquad ratio radius gain baseFreq =
+  biquadMk freq radius gain
   where
-    y0 =
-      (b0 * x0 + b1 * x1 + b2 * x2) -
-      (a2 * y2 + a1 * y1)
+    freq =
+      if ratio >= 0 then
+        ratio * baseFreq
+      else
+        negate ratio
 
-modalBarMkModeBiquad :: Float -> Float -> Float -> Biquad
-modalBarMkModeBiquad ratio radius baseFreq =
-  Biquad# b0 b1 b2 a1 a2
+modalBarTick :: AudioBuffer -> Float -> Float -> Biquad -> Biquad -> Biquad -> Biquad -> Float -> ModalBar -> (#ModalBar, Float#)
+modalBarTick ab directGain masterGain mode1 mode2 mode3 mode4 strikeAmplitude (ModalBar# bq10 bq20 bq30 bq40 op0 abState0) =
+  (#ModalBar# bq11 bq21 bq31 bq41 op1 abState1, out#)
   where
-    freq = if ratio >= 0 then ratio * baseFreq else ratio
-    a1   = radius * radius
-    a2   = -2 * radius * cosine (tau * freq * recipSampleRate)
-    b0   = 1
-    b1   = 0
-    b2   = -1
-    -- b0   = 0.5 - 0.5 * a2
-    -- b1   = 0
-    -- b2   = negate b0
+    (#abState1, abOut#) = audioBufferPlayTick ab Loop 0.01 abState0
+    (#op1, opOut#)      = onePoleTick (1 - strikeAmplitude) 1 abOut op0
+    direct              = opOut * masterGain
+    (#bq11, bq1Out#)    = biquadTick mode1 direct bq10 -- Feed onePole out in parallel to filters for each mode
+    (#bq21, bq2Out#)    = biquadTick mode2 direct bq20
+    (#bq31, bq3Out#)    = biquadTick mode3 direct bq30
+    (#bq41, bq4Out#)    = biquadTick mode4 direct bq40
+    filtered            = bq1Out + bq2Out + bq3Out + bq4Out
+    -- out                 = direct
+    out                 = lerp filtered direct directGain
+    -- out                 = (filtered - filtered * directGain) + (direct * directGain)
+    -- out                 = bq1Out
 
--- onePoleTick
-
--- modalBarTick :: Biquad -> Biquad -> Biquad -> Biquad -> Float
+-- TODO: Handle audioformat + audio buffer!
+-- AudioBuffer play rate based on hardness???
+modalBar :: AudioFormat f => AudioBuffer -> ModalSignature -> Float -> f Audio -> f Audio
+modalBar audioBuffer (ModalSignature frequencies resonances amplitudes stickSig) frequency strikeAmplitude =
+  accumulate1 (modalBarTick audioBuffer directGain hardness mode1 mode2 mode3 mode4) constTrue strikeAmplitude
+  where
+    ModalFrequency# f1 f2 f3 f4                 = frequencies
+    ModalResonance# r1 r2 r3 r4                 = resonances
+    ModalAmplitude# _  _  _  a4                 = amplitudes
+    ModalStickSig# hardness position directGain = stickSig
+    ppi                                         = position * pi
+    a1                                          =  0.12 * sine ppi
+    a2                                          = -0.03 * sine (0.05 + 3.9 * ppi)
+    a3                                          =  0.11 * sine (-0.05 + 11 * ppi)
+    mode1                                       = modalBarMkModeBiquad f1 r1 frequency a1
+    mode2                                       = modalBarMkModeBiquad f2 r2 frequency a2
+    mode3                                       = modalBarMkModeBiquad f3 r3 frequency a3
+    mode4                                       = modalBarMkModeBiquad f4 r4 frequency a4
 
 natOne :: NatVal 1
 natOne = NatVal
@@ -8618,6 +8590,7 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
 -- TODO: Test arg copying
 
+-- TODO: ARRAYS NEED TO BE DEEP COPIED IN STATEFUL VALUES
 -- TODO: Softsync Oscillators
 -- TODO: optimize perc?
 -- TODO: Waveterrain oscillators? Table based? Function Based? Both? Trajectory combinators, etc

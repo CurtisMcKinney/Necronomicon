@@ -1816,6 +1816,7 @@ mkRange init inc end = Range# init inc (natVal end)
 each :: Range n
 each = mkRange 0 1 NatVal
 
+-- TODO / HACK / NOTE: Ranges should really support this on their own
 indexBackwards :: NatVal n -> Index n -> Index n
 indexBackwards n i =
   unsafeUIntToIndex ((natVal n - 1) - (indexToUInt i))
@@ -3789,6 +3790,35 @@ fftNormalizeMags fx =
           in
             (#FFT (freezeArray normalizedBuffer), highestMag#)
 
+fftPitchShiftCrude :: AudioFormat f => Float -> f (FFT k) -> f (FFT k)
+fftPitchShiftCrude pitchRatio ffft =
+  map f ffft
+  where
+    f cfft =
+      case cfft of
+        FFTEnd      -> FFTEnd
+        FFTNone     -> FFTNone
+        FFTInterval -> FFTInterval
+        FFT bins    ->
+          let
+            numBins       = arrayLength NatVal bins
+            numBinsHalf   = numBins / 2
+            binFreqWidth  = audioSampleRateF / fromUInt numBins
+            pitchRatioInv = 1 / pitchRatio
+          in
+            FFT <| freezeArray <| loop bins0 = unsafeEmptyArray () for i0 <- each do
+              let
+                i                  = if pitchRatio < 1.0 then unsafeUIntToIndex (indexToUInt i0) else indexBackwards NatVal i0 -- We iteratre backwards if we're shift bins upwards, Also some weird shit with type checking in core for i0 in the then branch here
+                shiftF             = if indexToUInt i < numBinsHalf then fromUInt (indexToUInt i) * pitchRatio else ((fromUInt (indexToUInt i) - fromUInt numBinsHalf) * pitchRatioInv) + fromUInt numBinsHalf
+                shiftI             = unsafeUIntToIndex (floatToUInt shiftF)
+                (#m, p#)           = readArray i bins |> polar'
+                bins1              = writeArray i (Complex# 0 0) bins0
+                (#prevBin, bins2#) = readArrayU shiftI bins1 -- NOTE: Should we add overlapping shifted bins together? Replace them? Average them?
+                bin'               = mkPolar (magnitude prevBin + m) p
+                bins3              = writeArray shiftI bin' bins2
+              in
+                bins3
+
 fftBinOpWithNormMag :: AudioFormat f => (f (FFT k) -> f (FFT k) -> f (FFT k)) -> f (FFT k) -> f (FFT k) -> f (FFT k)
 fftBinOpWithNormMag op fx fy =
   op nxs nys
@@ -3861,6 +3891,12 @@ class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
 
 stereo :: Mono a -> Mono a -> Stereo a
 stereo (Mono l) (Mono r) = Stereo# l r
+
+stereoSpread :: Floating a => Mono a -> Mono a -> a -> Stereo a
+stereoSpread (Mono l) (Mono r) spread =
+  Stereo# (l * spread + r * spread') (l * spread' + r * spread)
+  where
+    spread' = 1 - spread
 
 left :: Stereo a -> Mono a
 left (Stereo# l _) = Mono l
@@ -4121,9 +4157,13 @@ data AudioBuffer = AudioBuffer# (.Ptr Float) UInt
 -- TODO: Double check playback with negative rates, perhaps delta would be off?
 -- TODO: TEEEECCCCHNNNICALLY we should buffer the audio files across the tick such that the file value would be the same across the entirety of the tick. This is required to maintain referential transparency
 
+silentAudioBuffer :: AudioFormat f => f (AudioBuffer)
+silentAudioBuffer =
+  pure (AudioBuffer# primUndefined 0)
+
 -- NOTE: This dynamically allocates memory which IS NOT reclaimed by the memory management system!!!
-audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
-audioBufferFromFile (AudioFile# fileNumChannels numSamples audioData) =
+audioBufferFromFileGo :: AudioFormat f => AudioFile -> f AudioBuffer
+audioBufferFromFileGo (AudioFile# fileNumChannels numSamples audioData) =
   map f channelNums
   where
     nChannels    = numChannels channelNums
@@ -4139,6 +4179,15 @@ audioBufferFromFile (AudioFile# fileNumChannels numSamples audioData) =
               bufferData1 = unsafePtrPoke bufferIndex sample bufferData0
             in
               (#fileIndex + fileNumChannels, bufferIndex + 1, bufferData1#)
+
+audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
+audioBufferFromFile af =
+  ab |> fromMaybe silentAudioBuffer
+  where
+    ab ~ Nothing =
+      case ab of
+        Nothing -> Just (audioBufferFromFileGo af)
+        _       -> ab
 
 audioBufferFromArray :: AudioFormat f => f (Array n Float) -> f AudioBuffer
 audioBufferFromArray arrays =
@@ -4177,49 +4226,45 @@ audioBufferPlay loopType freq audioBuffers =
     f ab fc =
       accumulateAudio1 (audioBufferPlayTick ab loopType) constTrue fc
 
--- apertureMapPhase :: Float -> Float -> Float -> Float -> Int -> Float
--- apertureMapPhase phase0 length start end direction =
---   if end > start
---     then
---       if phase1 > end && phase1 > start
---         then abs ((phase1 - start) % (end - start)) + start
---         else phase1
---   else
---     if phase1 > end && phase1 < start
---       then abs (phase - end) (length - start) + end
---       else phase1
---   where
---     phase = abs (phase0 % length)
+-- NOTE: This is wrong! Figure out correct, but figure out this nice wrong behavior too!
+apertureMapPhase :: Float -> Float -> Float -> Float -> Float -> Float
+apertureMapPhase phase length start end direction =
+  if direction > 0 && ((start < end && phase > start && phase > end) || (start > end && phase < start && phase > end)) then
+    ((phase - end) + start) % length
+  else if direction > 0 && ((start < end && phase < start && phase < end) || (start > end && phase < start && phase > end)) then
+    (end - (start - phase)) % length
+  else
+    phase
 
--- -- TODO: Finish!
--- audioBufferPlayWithApertureTick :: AudioBuffer -> Float -> Float -> Float -> Float -> (#Float, Float#)
--- audioBufferPlayWithApertureTick (AudioBuffer# audioBuffer numSamples) freq start0 end0 phase0 =
---   (#phase1, out#)
---   where
---     numSamplesF = fromInt numSamples
---     start       = start0 * numSamplesF
---     end         = end0 * numSamplesF
---     direction   = floorToInt (signum freq)
---     phase00     = phase0 + freq -- phase00   = fma freq recipSampleRate phase0
---     phase000    = apertureMapPhase phase00 numSamplesF start end direction
---     findex      = phase000 * audioSampleRateF
---     delta       = (floor findex + 1) - findex
---     phase1      = phase000
---     phase0      = apertureMapPhase (phase1 - direction) numSamplesF start end direction
---     phase2      = apertureMapPhase (phase1 + direction) numSamplesF start end direction
---     phase3      = apertureMapPhase (phase2 + direction) numSamplesF start end direction
---     sample0     = unsafePtrPeek (floatToUInt phase0 % numSamples) audioBuffer
---     sample1     = unsafePtrPeek (floatToUInt phase1 % numSamples) audioBuffer
---     sample2     = unsafePtrPeek (floatToUInt phase2 % numSamples) audioBuffer
---     sample3     = unsafePtrPeek (floatToUInt phase3 % numSamples) audioBuffer
---     out         = cubicInterpolation sample0 sample1 sample2 sample3 delta
+-- TODO: Finish!
+audioBufferPlayWithApertureTick :: AudioBuffer -> Float -> Float -> Float -> Float -> (#Float, Float#)
+audioBufferPlayWithApertureTick (AudioBuffer# audioBuffer numSamples) freq start0 end0 phase0 =
+  (#phase1, out#)
+  where
+    numSamplesF = fromUInt numSamples
+    start       = start0 * numSamplesF
+    end         = end0 * numSamplesF
+    direction   = signum freq
+    phase00     = phase0 + freq
+    phase000    = apertureMapPhase phase00 numSamplesF start end direction
+    delta       = (floor phase000 + 1) - phase000
+    phase1      = phase000
+    phase_      = apertureMapPhase (phase1 - direction) numSamplesF start end direction
+    phase2      = apertureMapPhase (phase1 + direction) numSamplesF start end direction
+    phase3      = apertureMapPhase (phase2 + direction) numSamplesF start end direction
+    sample0     = unsafePtrPeek (floatToUInt phase_ % numSamples) audioBuffer
+    sample1     = unsafePtrPeek (floatToUInt phase1 % numSamples) audioBuffer
+    sample2     = unsafePtrPeek (floatToUInt phase2 % numSamples) audioBuffer
+    sample3     = unsafePtrPeek (floatToUInt phase3 % numSamples) audioBuffer
+    out         = cubicInterpolation sample0 sample1 sample2 sample3 delta
 
--- audioBufferPlayWithAperture :: AudioFormat f => f Audio -> f Audio -> f Audio -> f AudioBuffer -> f Audio
--- audioBufferPlayWithAperture freq start end audioBuffers =
---   map4 f audioBuffers freq start end
---   where
---     f ab fc sc ec =
---       accumulateAudio3 (audioBufferPlayWithApertureTick ab) constTrue fc sc ec
+audioBufferPlayWithAperture :: AudioFormat f => f Audio -> f Audio -> f Audio -> f AudioBuffer -> f Audio
+audioBufferPlayWithAperture freq start end audioBuffers =
+  map4 f audioBuffers freq start end
+  where
+    f (AudioBuffer# audioBuffer numSamples) fc sc ec =
+      if numSamples == 0 then 0 else
+        accumulateAudio3 (audioBufferPlayWithApertureTick (AudioBuffer# audioBuffer numSamples)) constTrue fc sc ec
 
 
 ----------------------
@@ -6543,6 +6588,9 @@ modalBar audioBuffer (ModalSignature frequencies resonances amplitudes stickSig)
 natOne :: NatVal 1
 natOne = NatVal
 
+nat1 :: NatVal 1
+nat1 = NatVal
+
 natTwo :: NatVal 2
 natTwo = NatVal
 
@@ -6566,6 +6614,15 @@ natEight = NatVal
 
 natSixteen :: NatVal 16
 natSixteen = NatVal
+
+nat32 :: NatVal 32
+nat32 = NatVal
+
+nat64 :: NatVal 64
+nat64 = NatVal
+
+nat128 :: NatVal 128
+nat128 = NatVal
 
 clip :: AudioFormat f => f Audio -> f Audio
 clip cs =
@@ -8652,6 +8709,7 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- TODO: Test arg copying
 
 -- TODO: ARRAYS NEED TO BE DEEP COPIED IN STATEFUL VALUES
+-- TODO: Negative values in d2f not working properly
 -- TODO: Softsync Oscillators
 -- TODO: optimize perc?
 -- TODO: Waveterrain oscillators? Table based? Function Based? Both? Trajectory combinators, etc

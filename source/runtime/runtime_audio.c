@@ -13,7 +13,7 @@
 #include "runtime_audio.h"
 #include "sndfile.h"
 #include "utility/utility.h"
-
+#include "runtime.h"
 
 ///////////////////////////////////////////////////////
 // NecroDownsample
@@ -230,6 +230,7 @@ extern DLLEXPORT const size_t* necro_runtime_open_audio_file(const size_t* a_nam
     {
         fprintf(stderr, "Unable to open audio file: %s\n", file_name);
         puts(sf_strerror(NULL));
+        fprintf(stderr, "\n\n");
         return (size_t*) &NULL_AUDIO_FILE;
     }
 
@@ -244,7 +245,7 @@ extern DLLEXPORT const size_t* necro_runtime_open_audio_file(const size_t* a_nam
     const uint64_t         num_channels   = sf_info.channels;
     const uint64_t         num_samples    = sf_info.frames;
     const size_t           buffer_size    = sf_info.channels * sf_info.frames;
-    NecroRuntimeAudioFile* audio_file_ptr = emalloc(sizeof(NecroRuntimeAudioFile) + (buffer_size * sizeof(double))); // Allocating in one contiguous block
+    NecroRuntimeAudioFile* audio_file_ptr = (NecroRuntimeAudioFile*) necro_runtime_alloc(sizeof(NecroRuntimeAudioFile) + (buffer_size * sizeof(double))); // Allocating in one contiguous block from runtime memory pool
     double*                audio_data     = (double*)(audio_file_ptr + 1);
     size_t                 read_count     = sf_read_double(snd_file, audio_data, buffer_size);
     sf_close(snd_file);

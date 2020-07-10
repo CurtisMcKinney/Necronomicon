@@ -8217,6 +8217,7 @@ aMajor = major <| d2f cMajor 6
 bMajor :: Scale 12 7
 bMajor = major <| d2f cMajor 7
 
+-- NOTE / TODO: This root of 200 business makes little sense! Had it like this for part of piece, but that's not even used anymore...
 justChromatic :: Scale 12 12
 justChromatic =
   -- Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 150
@@ -8226,6 +8227,11 @@ justChromatic =
 -- justChromaticTest :: Scale 12 12
 -- justChromaticTest =
 --   Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 266.668
+--
+
+chromatic :: Scale 12 12
+chromatic =
+  Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 261.6255653006
 
 coleJI :: Scale 12 12
 coleJI =

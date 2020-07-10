@@ -164,7 +164,7 @@ waveSpiritGuide h =
       |> e
     f1 = (fromFloat h * 55 * 0.25)
     ffft :: AudioFormat f => f (FFT 4) -> f (FFT 4)
-    ffft t = fftConj t
+    ffft t = fftConjugate t
 
 waveSpiritTrap :: Float -> Stereo Audio
 waveSpiritTrap h =

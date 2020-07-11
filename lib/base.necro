@@ -8123,27 +8123,32 @@ oscTest f =
 --       |> perc 10 20 -1
 --       |> mul 0.15
 
-data Scale (t :: Nat) (d :: Nat) = Scale (Array t Rational) (Array d UInt) Float
 
 ------------------------------------------------------------------------------------------------
 -- Tunings
 
-equalTemperament:: Array 12 Rational
+-- NOTE from Curtis: Trying out floats instead of rationals for scales...
+data Scale (t :: Nat) (d :: Nat) = Scale (Array t Float) (Array d UInt) Float
+
+equalTemperament :: Array 12 Float
 equalTemperament =
-  {
-    1//1,
-    496486303//468620668,
-    4599422449//4097619564,
-    3884186827//3266198779,
-    1287812503//1022137461,
-    4991353939//3739290465,
-    4608782885//3258901631,
-    6407646301//4276590827,
-    4590526883//2891850725,
-    2734760725//1626098456,
-    7533684278//4228137343,
-    6598800369//3495592729,
-  }
+  mkArray (\x -> pow 2 (fromUInt x / 12))
+
+-- equalTemperament =
+--   {
+--     1//1,
+--     496486303//468620668,
+--     4599422449//4097619564,
+--     3884186827//3266198779,
+--     1287812503//1022137461,
+--     4991353939//3739290465,
+--     4608782885//3258901631,
+--     6407646301//4276590827,
+--     4590526883//2891850725,
+--     2734760725//1626098456,
+--     7533684278//4228137343,
+--     6598800369//3495592729,
+--   }
 
 -- equalTuning = map (\x -> pow 2 (x / 12) |> fromFloat) { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 }
 -- sruti = [1, 256/243, 16/15, 10/9, 9/8, 32/27, 6/5, 5/4, 81/64,4/3, 27/20, 45/32, 729/512, 3/2, 128/81, 8/5, 5/3, 27/16, 16/9, 9/5, 15/8, 243/128]
@@ -8157,33 +8162,23 @@ equalTemperament =
 -- mothraTuning = [1,1.1189384464207068,1.1436839646530013,1.2797119586051036,1.3080130110044073,1.4635860464313424,1.49595350624323,1.6738798921934088,1.7108980369568154,1.914389591456696,1.9567266500238074]
 -- egyptianTuning =  [1/2,107/96,9/8,11/9,59/48,4/3,1/1,3/2,5/3,121/72,11/6,133/72]
 
--- equalTuning :: A.Array Int Rational
--- equalTuning =
-
--- equalTuning :: Array 12 Rational
--- equalTuning =
---   { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
---   |> map (\x -> pow 2 (x / 12))
-
--- arrayFromList $ map (\x -> toRational $ 2 ** (x / 12)) [0.0..11.0 :: Double]
-
-justTuning :: Array 12 Rational
+justTuning :: Array 12 Float
 justTuning =
-  {1, 16//15, 9//8, 6//5, 5//4, 4//3, 45//32, 3//2, 8//5, 5//3, 9//5, 15//8}
+  {1, 16/15, 9/8, 6/5, 5/4, 4/3, 45/32, 3/2, 8/5, 5/3, 9/5, 15/8}
 
-partch43Tuning :: Array 43 Rational
+partch43Tuning :: Array 43 Float
 partch43Tuning =
   {
-    1, 81//80, 33/32, 21//20, 16//15, 12//11, 11//10, 10//9, 9//8, 8//7,
-    7//6, 32//27, 6//5, 11//9, 5//4, 14//11, 9//7, 21//16, 4//3, 27//20,
-    11//8, 7//5, 10//7, 16//11, 40//27, 3//2, 32//21, 14//9, 11//7, 8//5,
-    18//11, 5//3, 27//16, 12//7, 7//4, 16//9, 9//5, 20//11, 11//6, 15//8,
-    40//21, 64//33, 160//81
+    1, 81/80, 33/32, 21/20, 16/15, 12/11, 11/10, 10/9, 9/8, 8/7,
+    7/6, 32/27, 6/5, 11/9, 5/4, 14/11, 9/7, 21/16, 4/3, 27/20,
+    11/8, 7/5, 10/7, 16/11, 40/27, 3/2, 32/21, 14/9, 11/7, 8/5,
+    18/11, 5/3, 27/16, 12/7, 7/4, 16/9, 9/5, 20/11, 11/6, 15/8,
+    40/21, 64/33, 160/81
   }
 
-egyptianTuning :: Array 12 Rational
+egyptianTuning :: Array 12 Float
 egyptianTuning =
-  {1//2, 107//96, 9//8, 11//9, 59//48, 4//3, 1//1, 3//2, 5//3, 121//72, 11//6, 133//72}
+  {1/2, 107/96, 9/8, 11/9, 59/48, 4/3, 1/1, 3/2, 5/3, 121/72, 11/6, 133/72}
 
 justMajor :: Scale 12 7
 justMajor =
@@ -8231,11 +8226,11 @@ justChromatic =
 
 chromatic :: Scale 12 12
 chromatic =
-  Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 261.6255653006
+  Scale equalTemperament {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 261.6255653006
 
 coleJI :: Scale 12 12
 coleJI =
-  Scale {1,10//9,9//8,8//7,6//5,4//3,11//8,3//2,8//5,7//4,16//9,9//5} {0,1,2,3,4,5,6,7,8,9,10,11} 261.6255653006
+  Scale {1,10/9,9/8,8/7,6/5,4/3,11/8,3/2,8/5,7/4,16/9,9/5} {0,1,2,3,4,5,6,7,8,9,10,11} 261.6255653006
 
 partch43 :: Scale 43 43
 partch43 =
@@ -8250,7 +8245,7 @@ degreeToFrequency (Scale tuning degrees rootFreq) degree =
     numDegrees = arrayLength NatVal degrees |> fromUInt
     octave     = fromInt (max (div degree numDegrees) 0) |> pow 2.0
     degree'    = lookupArray (fromInt (rem degree numDegrees)) degrees |> fromMaybe 0
-    pitch      = lookupArray degree' tuning |> fromMaybe 0 |> rationalToFloat
+    pitch      = lookupArray degree' tuning |> fromMaybe 0
 
 d2f :: Scale t d -> Int -> Float
 d2f = degreeToFrequency

@@ -6615,6 +6615,9 @@ natEight = NatVal
 natSixteen :: NatVal 16
 natSixteen = NatVal
 
+natThirtyTwo :: NatVal 32
+natThirtyTwo = NatVal
+
 nat32 :: NatVal 32
 nat32 = NatVal
 

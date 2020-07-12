@@ -400,7 +400,7 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
     //--------------------
     // Init, then start RT thread
     necro_try(void, necro_runtime_audio_init());
-    necro_heap = necro_heap_create(512000000);
+    necro_heap = necro_heap_create(4096000000);
     necro_runtime_init();
     necro_runtime_audio_lang_callback = necro_main;
     PaError pa_error = paNoError;

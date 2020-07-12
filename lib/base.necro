@@ -3460,6 +3460,30 @@ fftPhaseShift n f = mapFFTBuffer shift f
       in
         freezeArray b
 
+-- shift phases of bins, clamped, taking into account negative frequency bins
+fftPhaseShift' :: AudioFormat f => Int -> f (FFT k) -> f (FFT k)
+fftPhaseShift' n f = mapFFTBuffer shift f
+  where
+    shift a =
+      let
+        numSamples = arrayLength NatVal a
+        midPoint   = numSamples / 2
+        b =
+          loop b = unsafeEmptyArray () for i <- each do
+            let
+              n'     = if indexToUInt i >= midPoint / 2 then n else negate n
+              index  = unsafeUIntToIndex (clamp (fromInt (fromUInt (indexToUInt i) + n')) 0 numSamples)
+              r      = readArray index a
+              u      = readArray i a
+              result = mkPolar (magnitude u) (phase r)
+            in
+              if (indexToUInt index < midPoint && indexToUInt i < midPoint) || (indexToUInt index >= midPoint && indexToUInt i >= midPoint) then
+                writeArray i result b
+              else
+                b
+      in
+        freezeArray b
+
 -- use a lambda to map phases (index -> phase -> new phase)
 fftMapPhase :: AudioFormat f => (UInt -> Float -> Float) -> f (FFT k) -> f (FFT k)
 fftMapPhase p f = mapFFTBuffer mapping f
@@ -3790,6 +3814,8 @@ fftNormalizeMags fx =
           in
             (#FFT (freezeArray normalizedBuffer), highestMag#)
 
+-- TODO: Iterating after midpoint is fuxored
+-- TODO: This doesn't handle pitch shifting up currently! Only pitch shifting down
 fftPitchShiftCrude :: AudioFormat f => Float -> f (FFT k) -> f (FFT k)
 fftPitchShiftCrude pitchRatio ffft =
   map f ffft
@@ -3815,7 +3841,11 @@ fftPitchShiftCrude pitchRatio ffft =
                 bins1              = writeArray i (Complex# 0 0) bins0
                 (#prevBin, bins2#) = readArrayU shiftI bins1 -- NOTE: Should we add overlapping shifted bins together? Replace them? Average them?
                 bin'               = mkPolar (magnitude prevBin + m) p
-                bins3              = writeArray shiftI bin' bins2
+                bins3              =
+                  if (indexToUInt shiftI < numBinsHalf && indexToUInt i < numBinsHalf) || (indexToUInt shiftI >= numBinsHalf && indexToUInt i >= numBinsHalf) then
+                    writeArray shiftI bin' bins2
+                  else
+                    bins2
               in
                 bins3
 

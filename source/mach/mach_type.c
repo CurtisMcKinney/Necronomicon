@@ -180,6 +180,16 @@ NecroMachType* _necro_mach_type_from_necro_type(NecroMachProgram* program, Necro
         if (type->con.args == NULL)
         {
             // Monotype
+            if (type->con.con_symbol->core_ast_symbol->mach_symbol == NULL)
+            {
+                /* TODO / NOTE / HACK:
+                    It seems we in some rare circumstances hitting data types out of order (in other words they are used before they are declared).
+                    The correct fix of course is to make sure this does not happen.
+                    However right we're focused getting things functional and this is blocking, so the quick fix is in.
+                    Come back and do this the right way FOR THE LOVE OF CTHULHU.
+                */
+                necro_core_transform_to_mach_1_data_decl(program, type->con.con_symbol->core_ast_symbol->ast);
+            }
             assert(type->con.con_symbol->core_ast_symbol->mach_symbol != NULL);
             assert(type->con.con_symbol->core_ast_symbol->mach_symbol->mach_type != NULL);
             return type->con.con_symbol->core_ast_symbol->mach_symbol->mach_type;

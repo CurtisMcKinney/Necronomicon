@@ -388,6 +388,7 @@ void necro_core_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAst* ast)
     {
         if (ast->ast_type != NECRO_CORE_AST_LET)
         {
+            assert(!(ll->lift_point != NULL && ll->scope->parent == NULL));
             // TODO: What if we need to hoist from here? doesn't this break things?
             necro_core_lambda_lift_go(ll, ast);
             return;
@@ -400,7 +401,6 @@ void necro_core_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAst* ast)
         }
         else if (ll->lift_point != NULL && ll->scope->parent == NULL)
         {
-            // TODO: Somehow we tripped up lambda lift, FIXXX! (This was an older note...Is this still the case? double check.)
             // We're a top level ast node and at some point in bind we lifted a function.
             //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             // And now for some in place gnarly Ast surgery

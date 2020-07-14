@@ -2043,6 +2043,16 @@ outChannel n c w =
     BlockRate _ -> outAudioBlock n silentBlock w
     AudioRate b -> outAudioBlock n b w
 
+audioToFloatChannel :: Audio -> Float
+audioToFloatChannel c =
+  case c of
+    AudioRate b -> readArray (unsafeUIntToIndex 0) b
+    _           -> 0
+
+audioToFloat :: Mono Audio -> Float
+audioToFloat (Mono a) =
+  audioToFloatChannel a
+
 -- TODO / NOTE:
 --     Take care when creating arrays for usage as audio buffers, they must be 64 BYTE aligned to allow for proper simd usage,
 --     Thus audio buffers should always be created in the form:
@@ -6645,9 +6655,6 @@ modalBar audioBuffer (ModalSignature frequencies resonances amplitudes stickSig)
     mode3                                       = modalBarMkModeBiquad f3 r3 frequency a3
     mode4                                       = modalBarMkModeBiquad f4 r4 frequency a4
 
-natOne :: NatVal 1
-natOne = NatVal
-
 nat1 :: NatVal 1
 nat1 = NatVal
 
@@ -6657,32 +6664,23 @@ nat2 = NatVal
 nat3 :: NatVal 3
 nat3 = NatVal
 
-natFour :: NatVal 4
-natFour = NatVal
-
 nat4 :: NatVal 4
 nat4 = NatVal
 
-natFive :: NatVal 5
-natFive = NatVal
+nat5 :: NatVal 5
+nat5 = NatVal
 
-natSix :: NatVal 6
-natSix = NatVal
+nat6 :: NatVal 6
+nat6 = NatVal
 
-natSeven :: NatVal 7
-natSeven = NatVal
-
-natEight :: NatVal 8
-natEight = NatVal
+nat7 :: NatVal 7
+nat7 = NatVal
 
 nat8 :: NatVal 8
 nat8 = NatVal
 
-natSixteen :: NatVal 16
-natSixteen = NatVal
-
-natThirtyTwo :: NatVal 32
-natThirtyTwo = NatVal
+nat16 :: NatVal 16
+nat16 = NatVal
 
 nat32 :: NatVal 32
 nat32 = NatVal
@@ -8479,16 +8477,16 @@ testJit w = plotFFTOnce "fftOut.dat" fftOut w
     fftOut :: Mono (FFT 1)
     fftOut = fft p
     p =
-      pluck natEight 50 1.0 +
-      pluck natFour 100 1.0
+      pluck nat8 50 1.0 +
+      pluck nat4 100 1.0
 
 -- testJit :: *World -> *World
 -- testJit w =
 --   outAudio 0 p w
 --   where
 --     p =
---       pluck natEight 50 1.0 +
---       pluck natFour 100 1.0
+--       pluck nat8 50 1.0 +
+--       pluck nat4 100 1.0
 --       |> pan 0.5
 --       |> mul 0.1
 
@@ -8992,6 +8990,7 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
 -- TODO: Test arg copying
 
+-- TODO: Seq lambda lifting bug and/or pure type checking isn't GREAT
 -- TODO: Look at copying logic for poly + boxed types (even boxed types nested into unboxed types)
 -- TODO: ARRAYS NEED TO BE DEEP COPIED IN STATEFUL VALUES
 -- TODO: Negative values in d2f not working properly

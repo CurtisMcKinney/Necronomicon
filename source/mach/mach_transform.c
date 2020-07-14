@@ -172,6 +172,14 @@ void necro_core_transform_to_mach_1_data_decl(NecroMachProgram* program, NecroCo
         return;
     }
 
+    //--------------------
+    // Skip data types compiled out of order...(Shouldn't happen, but such is life)
+    if (core_ast->data_decl.ast_symbol->mach_symbol != NULL)
+    {
+        necro_snapshot_arena_rewind(&program->snapshot_arena, snapshot);
+        return;
+    }
+
     //--------------
     // Prune polymorphic types
     if (necro_type_is_polymorphic_ignoring_ownership(program->base, core_ast->data_decl.ast_symbol->type))

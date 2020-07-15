@@ -179,6 +179,28 @@ doOnce f x =
         Nothing -> Just (f x)
         _       -> my
 
+doOnce2 :: (.a -> .b -> c) -> .a -> .b -> c
+doOnce2 f x y =
+  case mout of
+    Just out -> out
+    _        -> panicWithMessage "doOnce2, impossible"
+  where
+    mout ~ Nothing =
+      case mout of
+        Nothing -> Just (f x y)
+        _       -> mout
+
+doOnce3 :: (.a -> .b -> .c -> d) -> .a -> .b -> .c -> d
+doOnce3 f x y z =
+  case mout of
+    Just out -> out
+    _        -> panicWithMessage "doOnce3, impossible"
+  where
+    mout ~ Nothing =
+      case mout of
+        Nothing -> Just (f x y z)
+        _       -> mout
+
 initial :: a -> a
 initial x =
   case my of
@@ -4252,12 +4274,7 @@ audioBufferFromFileGo (AudioFile# fileNumChannels numSamples audioData) =
 
 audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
 audioBufferFromFile af =
-  ab |> fromMaybe silentAudioBuffer
-  where
-    ab ~ Nothing =
-      case ab of
-        Nothing -> Just (audioBufferFromFileGo af)
-        _       -> ab
+  doOnce audioBufferFromFileGo af
 
 audioBufferFromArray :: AudioFormat f => f (Array n Float) -> f AudioBuffer
 audioBufferFromArray arrays =
@@ -6180,12 +6197,7 @@ noiseF iseed mn mx =
 
 randOnceF :: UInt -> Float -> Float -> Float
 randOnceF iseed mn mx =
-  result |> fromMaybe 0
-  where
-    result ~ Nothing =
-      case result of
-        Nothing -> Just (noiseF iseed mn mx)
-        Just r  -> Just r
+  doOnce3 noiseF iseed mn mx
 
 tnoiseF :: UInt -> Float -> Float -> Float
 tnoiseF iseed mn mx =
@@ -6196,12 +6208,7 @@ tnoiseF iseed mn mx =
 
 trandOnceF :: UInt -> Float -> Float -> Float
 trandOnceF iseed mn mx =
-  result |> fromMaybe 0
-  where
-    result ~ Nothing =
-      case result of
-        Nothing -> Just (tnoiseF iseed mn mx)
-        Just r  -> Just r
+  doOnce3 tnoiseF iseed mn mx
 
 trandOnce :: UInt -> Float -> Float -> Mono Audio
 trandOnce iseed mn mx =
@@ -7792,8 +7799,15 @@ instance Finite a => Finite (Stereo a) where
   isRunning (Stereo# l r) = isRunning l && isRunning r
 
 instance Poly Audio where
-instance Poly (Mono a) where
+instance Poly a => Poly (Mono a) where
 instance Poly a => Poly (Stereo a) where
+-- TODO / BUG: These instance declarations should throw type errors without the Poly constraint on 'a', but they are not!, Test case below:
+-- polyFn :: Bool -> Mono Bool
+-- polyFn b = Mono b
+--
+-- polyTest :: Mono Bool
+-- polyTest =
+--   poly polyFn (pure True)
 
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
@@ -8982,6 +8996,7 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- TODO: Seq lambda lifting bug and/or pure type checking isn't GREAT
 -- TODO: Look at copying logic for poly + boxed types (even boxed types nested into unboxed types)
 -- TODO: ARRAYS NEED TO BE DEEP COPIED IN STATEFUL VALUES
+-- TODO / BUG: Poly instance bug, constraints are not properly required
 -- TODO: Negative values in d2f not working properly
 -- TODO: Softsync Oscillators
 -- TODO: optimize perc?

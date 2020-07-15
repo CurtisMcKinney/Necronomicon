@@ -8992,11 +8992,12 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
 -- TODO: Test arg copying
 
+-- TODO: (BUG) Comments after where and let break the parser
 -- TODO / NOTE: Possible FFT bug fix: Use global block count counter for FFT counters!!!!
 -- TODO: Seq lambda lifting bug and/or pure type checking isn't GREAT
 -- TODO: Look at copying logic for poly + boxed types (even boxed types nested into unboxed types)
 -- TODO: ARRAYS NEED TO BE DEEP COPIED IN STATEFUL VALUES
--- TODO / BUG: Poly instance bug, constraints are not properly required
+-- TODO  (BUG) Poly instance bug, constraints are not properly required
 -- TODO: Negative values in d2f not working properly
 -- TODO: Softsync Oscillators
 -- TODO: optimize perc?

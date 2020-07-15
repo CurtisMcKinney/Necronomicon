@@ -550,6 +550,9 @@ instance Enum Bool where
       False -> 0
       _     -> 1
 
+maxInt :: Int
+maxInt = 9223372036854775807
+
 
 --------------------
 -- UInt
@@ -1280,6 +1283,9 @@ instance Default Rational where
 rationalToFloat :: Rational -> Float
 rationalToFloat r = fromInt (numerator r) / fromInt (denominator r)
 
+maxRational :: Rational
+maxRational = 922337203685477580 // 1
+
 
 --------------------
 -- Complex
@@ -1982,6 +1988,9 @@ audioBlocksPerSecond = audioSampleRate / audioBlockSize
 audioBlockDelta :: Rational
 audioBlockDelta = 1 // fromUInt audioBlocksPerSecond
 
+audioBlockDeltaF :: Float
+audioBlockDeltaF = rationalToFloat audioBlockDelta
+
 audioSampleDelta :: Rational
 audioSampleDelta = 1 // fromUInt audioSampleRate
 
@@ -1999,6 +2008,12 @@ currBlockTime =
   t
   where
     t ~ 0 = t + audioBlockDelta
+
+localTime :: () -> Float
+localTime _ =
+  t
+  where
+    t ~ 0 = t + audioBlockDeltaF
 
 currBlockCount :: UInt
 currBlockCount =
@@ -2848,9 +2863,6 @@ timeDomainToAudio n (FFTWindow window) maybeTimeDomain =
                   windowSample     = readArray windowIndex window
                   timeDomainSample = readArray fftIndex timeDomain
                   sample           = timeDomainSample * windowSample
-                  -- sample           = windowSample
-                  -- sample           = indexToFloat index
-                  -- sample           = timeDomainSample
                   index            = fftArraySizeGymnastics fftIndex (unsafeUIntToIndex fftIndexU)
                   prevTimeDomain01 = writeArray index sample prevTimeDomain00
                 in
@@ -2863,7 +2875,6 @@ timeDomainToAudio n (FFTWindow window) maybeTimeDomain =
                   t0                       = readArray fftIndex timeDomain
                   (#t1, prevTimeDomain01#) = readArrayU (unsafeIndexToIndex windowIndex) prevTimeDomain00
                   sample                   = t0 * w0 + t1
-                  -- sample                   = w0 + t1
                   overflowBuffer01         = writeArray (unsafeIndexToIndex windowIndex) sample overflowBuffer00
                 in
                   (#overflowBuffer01, prevTimeDomain01#)
@@ -3085,14 +3096,6 @@ fft cs =
             Nothing -> FFTInterval
             Just t  ->
               fftAudio NatVal t
-              -- let
-              --   bins = fftAudio NatVal t
-              -- in
-              --   if currBlockCount == 2048 then
-              --       case plotFFTChannelOnce "./data/fftTest.dat" bins primUndefined of
-              --         _ -> bins
-              --   else
-              --     bins
 
 fft' :: AudioFormat f => NatVal k -> f Audio -> f (FFT k)
 fft' _ cs =
@@ -5241,25 +5244,37 @@ attackSustain attackTime sustainTime curve input =
 
 
 -----------
--- Simple Scheduling
+-- Scheduling
 
-playFor :: AudioFormat f => Float -> f Audio -> f Audio
-playFor length audio =
-  if rationalToFloat t >= length then
+playFor :: AudioFormat f => Float -> (() -> f Audio) -> f Audio
+playFor length faudio =
+  if t > length then
     pure AudioEnd
   else
-    audio
+    faudio ()
   where
-    t ~ 0 = t + audioBlockDelta
+    t = localTime ()
 
 waitFor :: AudioFormat f => Float -> (() -> f Audio) -> f Audio
 waitFor length faudio =
-  if rationalToFloat t <= length then
+  if t <= length then
     pure (BlockRate 0)
   else
     faudio ()
   where
-    t ~ 0 = t + audioBlockDelta
+    t = localTime ()
+
+waitThenPlayFor :: AudioFormat f => Float -> Float -> (() -> f Audio) -> f Audio
+waitThenPlayFor waitLength playLength faudio =
+  if t <= waitLength then
+    pure (BlockRate 0)
+  else if t <= totalLength then
+    faudio ()
+  else
+    pure AudioEnd
+  where
+    totalLength = waitLength + playLength
+    t           = localTime ()
 
 
 -----------
@@ -6264,6 +6279,9 @@ delayTick sample (Delay# arr0 sizeMask inCursor0 outCursor0) =
 -- Fractional Delay Line
 data FractionalDelay n = FractionalDelay# (.Array (NatNextPowerOfTwo n) Float) UInt Float Float UInt UInt
 
+mkFractionalDelay' :: NatVal n -> () -> *FractionalDelay n
+mkFractionalDelay' n _ = mkFractionalDelay n
+
 mkFractionalDelay :: NatVal n -> *FractionalDelay n
 mkFractionalDelay n =
   FractionalDelay# arr sizeMask stringLength 0 0 0
@@ -6335,6 +6353,21 @@ fracDelayTick sample (FractionalDelay# arr0 sizeMask stringLength delta inCursor
     inCursor1  = bitAnd (inCursor0 + 1) sizeMask
     outCursor1 = bitAnd (outCursor0 + 1) sizeMask
     arr1       = writeArray (unsafeUIntToIndex inCursor1) sample arr0
+
+fractionalDelayTick :: Float -> Float -> Float -> *FractionalDelay n -> (#*FractionalDelay n, Float#)
+fractionalDelayTick delayTime mix input state0 =
+  (#state3, out#)
+  where
+    (#sample, state1#) = fracDelayReadOutput state0
+    out                = input * (1 - mix) + sample * mix
+    state2             = fracDelaySetDelay delayTime state1
+    state3             = fracDelayTick out state2
+
+fractionalDelay :: AudioFormat f => Seconds n -> f Audio -> f Audio -> f Audio -> f Audio
+fractionalDelay maxDelayTime delayTime mix input =
+  accumulate3U (mkFractionalDelay' n) fractionalDelayTick (\s -> (#s, True#)) delayTime mix input
+  where
+    n = natSecondsToNatBufferSamples maxDelayTime
 
 
 -----------
@@ -7276,6 +7309,20 @@ repeat repetitions s = Seq go
                 else
                   SeqValue# dur SeqNormal value
             _  -> SeqValue# dur control value
+
+endAtLoop :: Seq a -> Seq a
+endAtLoop s = Seq go
+  where
+    go _ =
+      value
+      where
+        value ~ SeqValue# 0 SeqNormal Nothing =
+          case value of
+            SeqValue# d c v ->
+              case c of
+                SeqEnd     -> SeqValue# maxRational SeqEnd nothing
+                SeqLoopEnd -> SeqValue# maxRational SeqEnd nothing
+                _          -> runSeq s ()
 
 
 --------------------
@@ -8523,69 +8570,6 @@ testJit w = plotFFTOnce "fftOut.dat" fftOut w
 
 -- testJit :: *World -> *World
 -- testJit w =
---   outAudio 0 osc w
---   where
---     sync = [1 2 5 4 1 2 7 2 <5.5 6> <8 8.5> <5.5 4.5> <1.5 0.5>] * 100 |> seqSpeed 6 |> seqToAudio |> lfPulse (0.5 + sin 0.125 * 0.125)
---     osc  =
---       syncSin sync 200
---       |> perc 5 5 -1
---       |> mul 0.2
---       |> mixStereo
-
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 osc w
---   where
---     osc =
---       let feed ~ 0 = syncTri feed (stereo 660 500 + sin 2.0 * 50 + sin 0.1 * -50 + (delay oneSec 0.25 0.4 <| feed * -60)) in
---       feed
---       |> delay oneSec 0.25 0.2
---       |> perc 5 20 -1
---       |> mul 0.5
-
--- -- TODO: Perhaps upsample freq argument to saw and pulse?
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 osc w
---   where
---     osc =
---       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 4000)
---       |> sin
---       |> perc 5 20 -1
---       |> mul 0.2
-
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 osc w
---   where
---     osc =
---       stereo 440 330 + (sin (10 + perc 5 20 -1 200) * perc 5 20 -1 2000)
---       |> tri
---       |> perc 5 20 -1
---       |> mul 0.2
-
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 osc w
---   where
---     osc =
---       stereo 440 330 + (sin (1 + perc 5 20 -1 30) * perc 5 20 -1 4000)
---       |> pulse 0.5
---       |> perc 5 20 -1
---       |> mul 0.2
-
--- testJit :: *World -> *World
--- testJit w =
---   outAudio 0 osc w
---   where
---     osc =
---       stereo 440 330 + (sin (1 + perc 5 20 -1 30) * perc 5 20 -1 4000)
---       |> saw
---       |> perc 5 20 -1
---       |> mul 0.2
-
--- testJit :: *World -> *World
--- testJit w =
 --   outAudio 0 badAudio w
 --   where
 --     freqMul1  = sin 0.2  *  0.0035 + sin 0.6 *  0.00025 + 0.5
@@ -8700,6 +8684,7 @@ testJit w = plotFFTOnce "fftOut.dat" fftOut w
 
 -----------------------------------------
 -- Trig and Complex numbers testing
+-- TODO: Move this junk into a separate test file!
 
 printArraySpaced :: Print a => Array n a -> *World -> *World
 printArraySpaced a w = print "[" w |> printNewline |> printLoop |> printChar ']' |> printNewline
@@ -8778,6 +8763,7 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
     complexByComplex t = case t of
       (a, b) -> f a b
 
+-- TODO: Move this junk into a separate test file!
 -- Chad Test!
 -- testJit :: *World -> *World
 -- testJit w =
@@ -8952,32 +8938,7 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- seqTest3 :: Seq Float
 -- seqTest3 =
 --   [0 _ 1 [2:3:4]]
-
--- proceduralBeat :: Seq Float
--- proceduralBeat = Seq <| \_ ->
---   let
---     tick ~ 0 = tick + 1
---     value    = tick * 100 + fromInt mouseY * fromInt mouseX
---   in
---     SeqValue# 2 SeqNormal (Just value)
-
--- seqTest :: Seq Float
--- seqTest =
---   [x 100 200 <300 x> [400:500]]
---   where
---     x = <30 40 <50 60 70> 80> + 3
-
--- coolBeat :: Seq Float
--- coolBeat =
---   [
---     x y (y+y) z
---     _ x <5 z> x
---     _ 0 <1 2> y
---   ] * 2
---   where
---     x = <0 5 <1 2> 1>
---     y = 3
---     z = fromInt mouseX * 100
+-- TODO: Move all this junk into a separate Seq test file!
 
 -- TODO: Nat valued constants where the number is applied as a Nat kind
 --       to a Type Constructor with a single Unit data constructor, such as NatlVal or Seconds,
@@ -8990,6 +8951,7 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
 -- TODO: Test arg copying
 
+-- TODO / NOTE: Possible FFT bug fix: Use global block count counter for FFT counters!!!!
 -- TODO: Seq lambda lifting bug and/or pure type checking isn't GREAT
 -- TODO: Look at copying logic for poly + boxed types (even boxed types nested into unboxed types)
 -- TODO: ARRAYS NEED TO BE DEEP COPIED IN STATEFUL VALUES

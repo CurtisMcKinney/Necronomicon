@@ -63,6 +63,12 @@ testAssertion b w = primUndefined
 panic :: UInt -> UInt
 panic x = primUndefined
 
+panicWithMessage :: Array n Char -> a
+panicWithMessage msg =
+  traceLn msg 1
+  |> panic
+  |> const primUndefined
+
 boundsCheck :: UInt -> UInt -> UInt
 boundsCheck index capacity =
     index
@@ -162,8 +168,29 @@ asTypeOf x _ = x
 asTypeOfU :: *a -> *a -> (#*a, *a#)
 asTypeOfU x y = (#x, y#)
 
+doOnce :: (.a -> b) -> .a -> b
+doOnce f x =
+  case my of
+    Just y -> y
+    _      -> panicWithMessage "doOnce, impossible"
+  where
+    my ~ Nothing =
+      case my of
+        Nothing -> Just (f x)
+        _       -> my
 
+initial :: a -> a
+initial x =
+  case my of
+    Just y -> y
+    _      -> panicWithMessage "initial, impossible"
+  where
+    my ~ Nothing =
+      case my of
+        Nothing -> Just x
+        _       -> my
 
+-- TODO: take combinator?
 
 ----------------------
 -- Bool

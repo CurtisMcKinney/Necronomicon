@@ -372,6 +372,26 @@ deepCopyArray arr = freezeArray arr2
       loop arr2 = unsafeEmptyArray () for i <- each do
         writeArray i (readArray i arr) arr2
 
+-- TODO: Deep copy class, or perhaps "duplicate" class
+-- This is a bit of a hack...
+deepCopyAudio :: AudioFormat f => f Audio -> f Audio
+deepCopyAudio cs =
+  map f cs
+  where
+    f a =
+      case a of
+        AudioEnd     -> AudioEnd
+        BlockRate b  -> BlockRate b
+        AudioRate as ->
+          let
+            asv :: Array (NatDiv BlockSize 32) (FloatVec 32)
+            asv = toFloatVecArray as
+            as' =
+              loop asv2 = unsafeEmptyArray () for i <- each do
+                writeArray i (readArray i asv) asv2
+          in
+            as' |> freezeArray |> fromFloatVecArray |> AudioRate
+
 unsafeOpenFile :: Ptr Char -> UInt -> *File
 unsafeOpenFile fileName fileNameLength = primUndefined
 
@@ -1466,13 +1486,20 @@ lerpComplex (Complex# rx ix) (Complex# ry iy) delta =
     r = rx * (1 - delta) + ry * delta
     i = ix * (1 - delta) + iy * delta
 
+-- lerpTheta :: Float -> Float -> Float -> Float
+-- lerpTheta x y delta =
+--   s * ((2 * abs d) % tau) - d
+--   where
+--     ymx = y - x
+--     s   = signum ymx
+--     d   = s * (abs ymx % tau)
+
 lerpTheta :: Float -> Float -> Float -> Float
 lerpTheta x y delta =
-  s * ((2 * abs d) % tau) - d
+  (x + shortestAngle * delta) % tau
   where
-    ymx = y - x
-    s   = signum ymx
-    d   = s * (abs ymx % tau)
+    shortestAngle = ((((y - x) % tau) + pi) % tau) - pi
+
 
 
 --------------------
@@ -2117,6 +2144,10 @@ audioToFloat :: Mono Audio -> Float
 audioToFloat (Mono a) =
   audioToFloatChannel a
 
+blockRate :: AudioFormat f => f Audio -> f Audio
+blockRate cs =
+  map (audioToFloatChannel .> BlockRate) cs
+
 -- TODO / NOTE:
 --     Take care when creating arrays for usage as audio buffers, they must be 64 BYTE aligned to allow for proper simd usage,
 --     Thus audio buffers should always be created in the form:
@@ -2175,7 +2206,21 @@ mapAudio2 f cx cy =
     offsetToEndRange = mkRange audioSampleOffset 1 NatVal
     ia               = audioInitArray ()
 
--- TODO: perc Env state in for loop
+mapAudioVec :: (FloatVec 32 -> FloatVec 32) -> (Float -> Float) -> Audio -> Audio
+mapAudioVec f ff cx =
+  case cx of
+    AudioEnd     -> AudioEnd
+    BlockRate x' -> BlockRate (ff x')
+    AudioRate x' ->
+      let
+        x = toFloatVecArray x'
+      in
+        AudioRate
+        <| freezeArray
+        <| fromFloatVecArray
+        <| loop a = toFloatVecArray (audioInitArray ()) for i <- each do
+          writeArray i (f (readArray i x)) a
+
 mapAudio2Vec :: (FloatVec 32 -> FloatVec 32 -> FloatVec 32) -> (Float -> Float -> Float) -> Audio -> Audio -> Audio
 mapAudio2Vec f ff cx cy =
   case cx of
@@ -3614,7 +3659,7 @@ magFreezeTick trigger buffer = buffer2
               p = readArray i buffer |> phase
             in
               writeArray i (mkPolar m p) b3
-        TriggerActive -> map id buffer -- HACK for array deep copy bug with state
+        TriggerActive -> deepCopyArray buffer -- HACK for array deep copy bug with state
 
 fftMagFreeze :: AudioFormat f => f TriggerState -> f (FFT k) -> f (FFT k)
 fftMagFreeze trigger input = freezeImpl magFreezeTick trigger input
@@ -3634,7 +3679,7 @@ phaseFreezeTick trigger buffer = buffer2
               m = readArray i buffer |> magnitude
             in
               writeArray i (mkPolar m p) b3
-        TriggerActive -> map id buffer -- HACK for array deep copy bug with state
+        TriggerActive -> deepCopyArray buffer -- HACK for array deep copy bug with state
 
 fftPhaseFreeze :: AudioFormat f => f TriggerState -> f (FFT k) -> f (FFT k)
 fftPhaseFreeze trigger input = freezeImpl phaseFreezeTick trigger input
@@ -4343,12 +4388,12 @@ audioBufferPlay' loopType freq phaseOffset audioBuffers =
     f ab fc pc =
       accumulateAudio2 (audioBufferPlayTick' ab loopType) constTrue fc pc
 
--- NOTE: This is wrong! Figure out correct, but figure out this nice wrong behavior too!
+-- NOTE: Slightly corrected version
 apertureMapPhase :: Float -> Float -> Float -> Float -> Float -> Float
 apertureMapPhase phase length start end direction =
-  if direction > 0 && ((start < end && phase > start && phase > end) || (start > end && phase < start && phase > end)) then
+  if direction > 0 && ((start < end && phase > start && phase > end)) then
     ((phase - end) + start) % length
-  else if direction > 0 && ((start < end && phase < start && phase < end) || (start > end && phase < start && phase > end)) then
+  else if direction > 0 && ((start > end && phase < start && phase > end)) then
     (end - (start - phase)) % length
   else
     phase
@@ -4364,7 +4409,7 @@ audioBufferPlayWithApertureTick (AudioBuffer# audioBuffer numSamples) freq start
     direction   = signum freq
     phase00     = phase0 + freq
     phase000    = apertureMapPhase phase00 numSamplesF start end direction
-    delta       = (floor phase000 + 1) - phase000
+    delta       = 1 - ((floor phase000 + 1) - phase000)
     phase1      = phase000
     phase_      = apertureMapPhase (phase1 - direction) numSamplesF start end direction
     phase2      = apertureMapPhase (phase1 + direction) numSamplesF start end direction
@@ -4383,6 +4428,44 @@ audioBufferPlayWithAperture freq start end audioBuffers =
       if numSamples == 0 then 0 else
         accumulateAudio3 (audioBufferPlayWithApertureTick (AudioBuffer# audioBuffer numSamples)) constTrue fc sc ec
 
+-- NOTE: This is wrong! Figure out correct, but figure out this nice wrong behavior too!
+apertureMapPhaseGlitch :: Float -> Float -> Float -> Float -> Float -> Float
+apertureMapPhaseGlitch phase length start end direction =
+  if direction > 0 && ((start < end && phase > start && phase > end) || (start > end && phase < start && phase > end)) then
+    ((phase - end) + start) % length
+  else if direction > 0 && ((start < end && phase < start && phase < end) || (start > end && phase < start && phase > end)) then
+    (end - (start - phase)) % length
+  else
+    phase
+
+audioBufferPlayWithApertureTickGlitch :: AudioBuffer -> Float -> Float -> Float -> Float -> (#Float, Float#)
+audioBufferPlayWithApertureTickGlitch (AudioBuffer# audioBuffer numSamples) freq start0 end0 phase0 =
+  (#phase1, out#)
+  where
+    numSamplesF = fromUInt numSamples
+    start       = start0 * numSamplesF
+    end         = end0 * numSamplesF
+    direction   = signum freq
+    phase00     = phase0 + freq
+    phase000    = apertureMapPhaseGlitch phase00 numSamplesF start end direction
+    delta       = 1 - ((floor phase000 + 1) - phase000)
+    phase1      = phase000
+    phase_      = apertureMapPhaseGlitch (phase1 - direction) numSamplesF start end direction
+    phase2      = apertureMapPhaseGlitch (phase1 + direction) numSamplesF start end direction
+    phase3      = apertureMapPhaseGlitch (phase2 + direction) numSamplesF start end direction
+    sample0     = unsafePtrPeek (floatToUInt phase_ % numSamples) audioBuffer
+    sample1     = unsafePtrPeek (floatToUInt phase1 % numSamples) audioBuffer
+    sample2     = unsafePtrPeek (floatToUInt phase2 % numSamples) audioBuffer
+    sample3     = unsafePtrPeek (floatToUInt phase3 % numSamples) audioBuffer
+    out         = cubicInterpolation sample0 sample1 sample2 sample3 delta
+
+audioBufferPlayWithApertureGlitch :: AudioFormat f => f Audio -> f Audio -> f Audio -> f AudioBuffer -> f Audio
+audioBufferPlayWithApertureGlitch freq start end audioBuffers =
+  map4 f audioBuffers freq start end
+  where
+    f (AudioBuffer# audioBuffer numSamples) fc sc ec =
+      if numSamples == 0 then 0 else
+        accumulateAudio3 (audioBufferPlayWithApertureTickGlitch (AudioBuffer# audioBuffer numSamples)) constTrue fc sc ec
 
 ----------------------
 -- Record Audio
@@ -5349,6 +5432,7 @@ cosTable =
 
 -- TODO: Accumulator will grow very large, reducing precision?
 -- TODO: need ceil
+
 accumulateWaveTable :: WaveTable -> Float -> Float -> (#Float, Float#)
 accumulateWaveTable (WaveTable buffer) freq phase0 =
   (#phase1, out#)
@@ -5367,7 +5451,55 @@ wave buffer freq =
   accumulate1 (accumulateWaveTable buffer) constTrue freq
 
 sin :: AudioFormat f => f Audio -> f Audio
-sin freq = wave sinTable freq
+sin freq =
+  wave sinTable freq
+
+accumulateWaveTable' :: WaveTable -> Float -> Float -> Float -> (#Float, Float#)
+accumulateWaveTable' (WaveTable buffer) freq phaseOffset phase0 =
+  (#phase1, out#)
+  where
+    phase1  = fma freq recipSampleRate phase0
+    findex  = (phase1 + phaseOffset * recipTau) * 65536
+    delta   = (floor findex + 1) - findex
+    index1  = bitAnd (floatToUInt findex) 65535
+    index2  = bitAnd (index1 + 1) 65535
+    sample1 = readArray (Index index1) buffer
+    sample2 = readArray (Index index2) buffer
+    out     = sample1 * delta + sample2 * (1 - delta)
+
+wave' :: AudioFormat f => WaveTable -> f Audio -> f Audio -> f Audio
+wave' buffer freq phaseOffset =
+  accumulate2 (accumulateWaveTable' buffer) constTrue freq phaseOffset
+
+sin' :: AudioFormat f => f Audio -> f Audio -> f Audio
+sin' freq phaseOffset =
+  wave' sinTable freq phaseOffset
+
+
+-------------
+-- Range conversion
+
+-- TODO: SIMD version, need to more tools for FloatVec conversion
+-- linLin :: AudioFormat f => Float -> Float -> Float -> Float -> f Audio
+-- linLin low high newLow newHigh cs =
+--   map (mapAudioVec f ff) cs
+--   where
+--     f  x = ((x - low) * (newHigh - newLow) / (high - low)) + newLow
+--     ff x = ((x - low) * (newHigh - newLow) / (high - low)) + newLow
+
+linLin :: AudioFormat f => Float -> Float -> Float -> Float -> f Audio -> f Audio
+linLin low high newLow newHigh cs =
+  map (mapAudio f) cs
+  where
+    f  x = ((x - low) * (newHigh - newLow) / (high - low)) + newLow
+
+linCurve :: AudioFormat f => Float -> Float -> Float -> Float -> Float -> f Audio -> f Audio
+linCurve low high newLow newHigh curve cs =
+  map (mapAudio f) cs
+  where
+    curve' = if curve < 0 then 1 / ((curve * -1) + 1) else curve + 1
+    f  x   = (newHigh - newLow) * pow ((x - low) / (high - low)) curve + newLow
+
 
 -------------
 -- Wave Terrain

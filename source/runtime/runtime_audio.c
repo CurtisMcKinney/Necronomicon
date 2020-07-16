@@ -344,6 +344,7 @@ extern DLLEXPORT const size_t** necro_runtime_record_audio_block_finalize(const 
     sf_close(snd_file);
     *a_scratch_buffer = NULL;
     free(file_name);
+    printf("Finished recording: %s\n", file_name);
     return NULL;
 }
 

@@ -6065,6 +6065,15 @@ biquadTick (Biquad# b0 b1 b2 a1 a2 gain) input (BiquadState# x1 x2 y1 y2) =
       (b0 * x0 + b1 * x1 + b2 * x2) -
       (a2 * y2 + a1 * y1)
 
+biquadTick' :: Biquad -> Float -> BiquadState -> (#BiquadState, Float#)
+biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 (BiquadState# x1 x2 y1 y2) =
+  (#BiquadState# x0 x1 y0 y1, y0#)
+  where
+    ra0 = 1 / a0
+    y0  =
+      (fma (b0 * ra0) x0 (fma (b1 * ra0) x1 ((b2 * ra0) * x2))) -
+        (fma (a1 * ra0) y1 ((a2 * ra0) * y2))
+
 
 ----------------------
 -- RBJ Filters, Audio EQ Cookbook
@@ -6085,8 +6094,9 @@ waveTableFunction (WaveTable buffer) fi =
 -----------
 -- lpf
 accumulateLPF :: Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
-accumulateLPF freq q x0 (BiquadState# x1 x2 y1 y2) =
-  (#BiquadState# x0 x1 (negate y0) y1, y0#)
+accumulateLPF freq q x0 state =
+  biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
+  -- (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
     omega = freq * recipSampleRate
     cso   = waveTableFunction cosTable omega
@@ -6097,8 +6107,8 @@ accumulateLPF freq q x0 (BiquadState# x1 x2 y1 y2) =
     a0    =  1 + alpha
     a1    = -2 * cso
     a2    =  1 - alpha
-    y0    =
-      fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
+    -- y0    =
+    --   fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
 lpf :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 lpf freq q input =
@@ -6107,8 +6117,9 @@ lpf freq q input =
 -----------
 -- hpf
 accumulateHPF :: Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
-accumulateHPF freq q x0 (BiquadState# x1 x2 y1 y2) =
-  (#BiquadState# x0 x1 (negate y0) y1, y0#)
+accumulateHPF freq q x0 state =
+  biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
+  -- (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
     omega = freq * recipSampleRate
     cso   = waveTableFunction cosTable omega
@@ -6119,8 +6130,8 @@ accumulateHPF freq q x0 (BiquadState# x1 x2 y1 y2) =
     a0    =  1 + alpha
     a1    = -2 * cso
     a2    =  1 - alpha
-    y0    =
-      fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
+    -- y0    =
+    --   fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
 hpf :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 hpf freq q input =
@@ -6129,8 +6140,9 @@ hpf freq q input =
 -----------
 -- bpf
 accumulateBPF :: Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
-accumulateBPF freq q x0 (BiquadState# x1 x2 y1 y2) =
-  (#BiquadState# x0 x1 (negate y0) y1, y0#)
+accumulateBPF freq q x0 state =
+  biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
+  -- (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
     omega = freq * recipSampleRate
     cso   = waveTableFunction cosTable omega
@@ -6141,8 +6153,8 @@ accumulateBPF freq q x0 (BiquadState# x1 x2 y1 y2) =
     a0    =  1 + alpha
     a1    = -2 * cso
     a2    =  1 - alpha
-    y0    =
-      fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
+    -- y0    =
+    --   fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
 bpf :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 bpf freq q input =
@@ -6151,8 +6163,9 @@ bpf freq q input =
 -----------
 -- lowShelf
 accumulateLowShelf :: Float -> Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
-accumulateLowShelf slope freq gain x0 (BiquadState# x1 x2 y1 y2) =
-  (#BiquadState# x0 x1 (negate y0) y1, y0#)
+accumulateLowShelf slope freq gain x0 state =
+  biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
+  -- (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
     biga  = pow 10 (gain / 40)
     omega = freq * recipSampleRate
@@ -6165,8 +6178,8 @@ accumulateLowShelf slope freq gain x0 (BiquadState# x1 x2 y1 y2) =
     a0    = (biga + 1) + ((biga - 1) * cso) + beta
     a1    = -2 * ((biga - 1) + ((biga + 1) * cso))
     a2    = (biga + 1) + ((biga - 1) * cso) - beta
-    y0    =
-      fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
+    -- y0    =
+    --   fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
 lowShelf :: AudioFormat f => f Audio -> f Audio -> Float -> f Audio -> f Audio
 lowShelf freq gain slope input =
@@ -6175,8 +6188,8 @@ lowShelf freq gain slope input =
 -----------
 -- highShelf
 accumulateHighShelf :: Float -> Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
-accumulateHighShelf slope freq gain x0 (BiquadState# x1 x2 y1 y2) =
-  (#BiquadState# x0 x1 (negate y0) y1, y0#)
+accumulateHighShelf slope freq gain x0 state =
+  biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
   where
     biga  = pow 10 (gain / 40)
     omega = freq * recipSampleRate
@@ -6189,12 +6202,33 @@ accumulateHighShelf slope freq gain x0 (BiquadState# x1 x2 y1 y2) =
     a0    = (biga + 1) - ((biga - 1) * cso) + beta
     a1    = 2 * ((biga - 1) - ((biga + 1) * cso))
     a2    = (biga + 1) - ((biga - 1) * cso) - beta
-    y0    =
-      fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
 highShelf :: AudioFormat f => f Audio -> f Audio -> Float -> f Audio -> f Audio
 highShelf freq gain slope input =
   accumulate3 (accumulateHighShelf slope) constTrue freq gain input
+
+-----------
+-- peakEQ
+
+peakEQTick :: Float -> Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
+peakEQTick q freq gain x0 state =
+  biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
+  where
+    biga  = pow 10 (gain / 40)
+    omega = freq * recipSampleRate
+    cso   = waveTableFunction cosTable omega
+    alpha = waveTableFunction sinTable omega * q * 0.5
+    b0    =  1 + alpha * biga
+    b1    = -2 * cso
+    b2    =  1 - alpha * biga
+    a0    =  1 + (alpha / biga)
+    a1    = -2 * cso
+    a2    =  1 - (alpha / biga)
+
+peakEQ :: AudioFormat f => f Audio -> f Audio -> Float -> f Audio -> f Audio
+peakEQ freq gain q input =
+  accumulate3 (peakEQTick q) constTrue freq gain input
+
 
 ----------
 -- OnePole

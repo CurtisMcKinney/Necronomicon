@@ -2138,6 +2138,7 @@ audioToFloatChannel :: Audio -> Float
 audioToFloatChannel c =
   case c of
     AudioRate b -> readArray (unsafeUIntToIndex 0) b
+    BlockRate a -> a
     _           -> 0
 
 audioToFloat :: Mono Audio -> Float
@@ -4031,7 +4032,7 @@ stereo (Mono l) (Mono r) = Stereo# l r
 
 stereoSpread :: Floating a => Mono a -> Mono a -> a -> Stereo a
 stereoSpread (Mono l) (Mono r) spread =
-  Stereo# (l * spread + r * spread') (l * spread' + r * spread)
+  Stereo# (l * spread' + r * spread) (l * spread + r * spread')
   where
     spread' = 1 - spread
 
@@ -4246,6 +4247,8 @@ audioFileOpen fileName =
           else
             (#1, Just (AudioFile# numChannels numSamples dataPtr)#)
 
+
+
 -- TODO: Loop type!
 audioFilePlayTick :: UInt -> LoopType -> UInt -> UInt -> Ptr Float -> Float -> Float -> (#Float, Float#)
 audioFilePlayTick channelNum loopType numChannels numSamples dataPtr freq phase0 =
@@ -4320,6 +4323,12 @@ audioBufferFromFileGo (AudioFile# fileNumChannels numSamples audioData) =
 audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
 audioBufferFromFile af =
   doOnce audioBufferFromFileGo af
+
+audioBufferOpen :: Array n Char -> Mono AudioBuffer
+audioBufferOpen name =
+  audioFileOpen name
+  |> fromMaybe silentAudioFile
+  |> audioBufferFromFile
 
 audioBufferFromArray :: AudioFormat f => f (Array n Float) -> f AudioBuffer
 audioBufferFromArray arrays =
@@ -4507,6 +4516,58 @@ recordAudio name audio world =
 --------------------
 -- UGens
 --------------------
+
+----------------------
+-- Randomness
+
+-- TODO: Random class ?
+
+linearCongruentialGenerator :: UInt -> UInt -> UInt -> UInt -> UInt
+linearCongruentialGenerator a c m seed =
+  (a * seed + c) % m
+
+randLCG :: Float -> Float -> UInt -> (#UInt, Float#)
+randLCG mn mx seed =
+  (#s, r#)
+  where
+    a = 1664525
+    c = 1013904223
+    m = 4294967296
+    s = linearCongruentialGenerator a c m seed
+    r = ((fromUInt s / fromUInt m) * (mx - mn)) + mn
+
+-- This is quick'n'dirty linear congruential randomness. Replace with something higher quality!
+noiseF :: UInt -> Float -> Float -> Float
+noiseF iseed mn mx =
+  r2
+  where
+    seed = 123456789
+    s    = seed + iseed
+    a    = 1664525
+    c    = 1013904223
+    m    = 4294967296
+    r0   = fromUInt ((a * s + c) % m)
+    r1   = (r0 / fromUInt m) * (mx - mn)
+    r2   = r1 + mn
+
+randOnceF :: UInt -> Float -> Float -> Float
+randOnceF iseed mn mx =
+  doOnce3 noiseF iseed mn mx
+
+tnoiseF :: UInt -> Float -> Float -> Float
+tnoiseF iseed mn mx =
+  noiseF tseed mn mx
+  where
+    tseed = bitShiftLeft (bitOr (t * 37) (iseed * 37)) 1
+    t     = currSampleCount + audioSampleOffset
+
+trandOnceF :: UInt -> Float -> Float -> Float
+trandOnceF iseed mn mx =
+  doOnce3 tnoiseF iseed mn mx
+
+trandOnce :: UInt -> Float -> Float -> Mono Audio
+trandOnce iseed mn mx =
+  fromFloat(trandOnceF iseed mn mx)
 
 --------------------
 -- downsample oversampled audio
@@ -6071,8 +6132,7 @@ biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 (BiquadState# x1 x2 y1 y2) =
   where
     ra0 = 1 / a0
     y0  =
-      (fma (b0 * ra0) x0 (fma (b1 * ra0) x1 ((b2 * ra0) * x2))) -
-        (fma (a1 * ra0) y1 ((a2 * ra0) * y2))
+      fma (b0 * ra0) x0 (fma (b1 * ra0) x1 (b2 * ra0 * x2)) - (a1 * ra0 * y1) - (a2 * ra0 * y2)
 
 
 ----------------------
@@ -6096,7 +6156,6 @@ waveTableFunction (WaveTable buffer) fi =
 accumulateLPF :: Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
 accumulateLPF freq q x0 state =
   biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
-  -- (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
     omega = freq * recipSampleRate
     cso   = waveTableFunction cosTable omega
@@ -6107,8 +6166,6 @@ accumulateLPF freq q x0 state =
     a0    =  1 + alpha
     a1    = -2 * cso
     a2    =  1 - alpha
-    -- y0    =
-    --   fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
 lpf :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 lpf freq q input =
@@ -6119,7 +6176,6 @@ lpf freq q input =
 accumulateHPF :: Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
 accumulateHPF freq q x0 state =
   biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
-  -- (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
     omega = freq * recipSampleRate
     cso   = waveTableFunction cosTable omega
@@ -6130,8 +6186,6 @@ accumulateHPF freq q x0 state =
     a0    =  1 + alpha
     a1    = -2 * cso
     a2    =  1 - alpha
-    -- y0    =
-    --   fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
 hpf :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 hpf freq q input =
@@ -6142,7 +6196,6 @@ hpf freq q input =
 accumulateBPF :: Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
 accumulateBPF freq q x0 state =
   biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
-  -- (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
     omega = freq * recipSampleRate
     cso   = waveTableFunction cosTable omega
@@ -6153,8 +6206,6 @@ accumulateBPF freq q x0 state =
     a0    =  1 + alpha
     a1    = -2 * cso
     a2    =  1 - alpha
-    -- y0    =
-    --   fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
 bpf :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 bpf freq q input =
@@ -6165,9 +6216,8 @@ bpf freq q input =
 accumulateLowShelf :: Float -> Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
 accumulateLowShelf slope freq gain x0 state =
   biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
-  -- (#BiquadState# x0 x1 (negate y0) y1, y0#)
   where
-    biga  = pow 10 (gain / 40)
+    biga  = pow 10 (gain * 0.025)
     omega = freq * recipSampleRate
     cso   = waveTableFunction cosTable omega
     alpha = waveTableFunction sinTable omega * 0.5 * sqrt (((biga + (1 / biga)) * ((1 / slope) - 1)) + 2)
@@ -6178,8 +6228,6 @@ accumulateLowShelf slope freq gain x0 state =
     a0    = (biga + 1) + ((biga - 1) * cso) + beta
     a1    = -2 * ((biga - 1) + ((biga + 1) * cso))
     a2    = (biga + 1) + ((biga - 1) * cso) - beta
-    -- y0    =
-    --   fma b0 x0 (fma b1 x1 (fma b2 x2 (fma a1 y1 (a2 * y2)))) * (1 / a0)
 
 lowShelf :: AudioFormat f => f Audio -> f Audio -> Float -> f Audio -> f Audio
 lowShelf freq gain slope input =
@@ -6191,7 +6239,7 @@ accumulateHighShelf :: Float -> Float -> Float -> Float -> BiquadState -> (#Biqu
 accumulateHighShelf slope freq gain x0 state =
   biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
   where
-    biga  = pow 10 (gain / 40)
+    biga  = pow 10 (gain * 0.025)
     omega = freq * recipSampleRate
     cso   = waveTableFunction cosTable omega
     alpha = waveTableFunction sinTable omega * 0.5 * sqrt (((biga + (1 / biga)) * ((1 / slope) - 1)) + 2)
@@ -6214,7 +6262,7 @@ peakEQTick :: Float -> Float -> Float -> Float -> BiquadState -> (#BiquadState, 
 peakEQTick bandWidthInOctaves freq gain x0 state =
   biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
   where
-    biga  = pow 10 (gain / 40)
+    biga  = pow 10 (gain * 0.025)
     omega = freq * recipSampleRate
     cso   = waveTableFunction cosTable omega
     so    = waveTableFunction sinTable omega
@@ -6229,7 +6277,6 @@ peakEQTick bandWidthInOctaves freq gain x0 state =
 peakEQ :: AudioFormat f => f Audio -> f Audio -> Float -> f Audio -> f Audio
 peakEQ freq gain bandWidthInOctaves input =
   accumulate3 (peakEQTick bandWidthInOctaves) constTrue freq gain input
-
 
 ----------
 -- OnePole
@@ -6333,53 +6380,6 @@ accumulatePluck bufferSizeMinus1 freq damping (PluckState# buffer0 index0 count)
     out              = (d1 + d2) * 0.5 * damping
     buffer3          = writeArray (Index index0) out buffer2
     index1           = (index0 + 1) % delaySamples
-
-linearCongruentialGenerator :: UInt -> UInt -> UInt -> UInt -> UInt
-linearCongruentialGenerator a c m seed =
-  (a * seed + c) % m
-
-randLCG :: Float -> Float -> UInt -> (#UInt, Float#)
-randLCG mn mx seed =
-  (#s, r#)
-  where
-    a = 1664525
-    c = 1013904223
-    m = 4294967296
-    s = linearCongruentialGenerator a c m seed
-    r = ((fromUInt s / fromUInt m) * (mx - mn)) + mn
-
--- This is quick'n'dirty linear congruential randomness. Replace with something higher quality!
-noiseF :: UInt -> Float -> Float -> Float
-noiseF iseed mn mx =
-  r2
-  where
-    seed = 123456789
-    s    = seed + iseed
-    a    = 1664525
-    c    = 1013904223
-    m    = 4294967296
-    r0   = fromUInt ((a * s + c) % m)
-    r1   = (r0 / fromUInt m) * (mx - mn)
-    r2   = r1 + mn
-
-randOnceF :: UInt -> Float -> Float -> Float
-randOnceF iseed mn mx =
-  doOnce3 noiseF iseed mn mx
-
-tnoiseF :: UInt -> Float -> Float -> Float
-tnoiseF iseed mn mx =
-  noiseF tseed mn mx
-  where
-    tseed = bitShiftLeft (bitOr (t * 37) (iseed * 37)) 1
-    t     = currSampleCount + audioSampleOffset
-
-trandOnceF :: UInt -> Float -> Float -> Float
-trandOnceF iseed mn mx =
-  doOnce3 tnoiseF iseed mn mx
-
-trandOnce :: UInt -> Float -> Float -> Mono Audio
-trandOnce iseed mn mx =
-  fromFloat(trandOnceF iseed mn mx)
 
 -- Note: Fill Buffer with quick'n'dirty random noise
 mkPluckState :: NatVal n -> () -> *PluckState n

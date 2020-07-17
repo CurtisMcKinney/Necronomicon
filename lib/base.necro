@@ -6211,13 +6211,14 @@ highShelf freq gain slope input =
 -- peakEQ
 
 peakEQTick :: Float -> Float -> Float -> Float -> BiquadState -> (#BiquadState, Float#)
-peakEQTick q freq gain x0 state =
+peakEQTick bandWidthInOctaves freq gain x0 state =
   biquadTick' (Biquad# b0 b1 b2 a0 a1 a2) x0 state
   where
     biga  = pow 10 (gain / 40)
     omega = freq * recipSampleRate
     cso   = waveTableFunction cosTable omega
-    alpha = waveTableFunction sinTable omega * q * 0.5
+    so    = waveTableFunction sinTable omega
+    alpha = so * sineh (log 2 * 0.5 * bandWidthInOctaves * (omega / so))
     b0    =  1 + alpha * biga
     b1    = -2 * cso
     b2    =  1 - alpha * biga
@@ -6226,8 +6227,8 @@ peakEQTick q freq gain x0 state =
     a2    =  1 - (alpha / biga)
 
 peakEQ :: AudioFormat f => f Audio -> f Audio -> Float -> f Audio -> f Audio
-peakEQ freq gain q input =
-  accumulate3 (peakEQTick q) constTrue freq gain input
+peakEQ freq gain bandWidthInOctaves input =
+  accumulate3 (peakEQTick bandWidthInOctaves) constTrue freq gain input
 
 
 ----------

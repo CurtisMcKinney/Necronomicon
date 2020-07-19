@@ -6925,6 +6925,9 @@ nat64 = NatVal
 nat128 :: NatVal 128
 nat128 = NatVal
 
+nat256 :: NatVal 256
+nat256 = NatVal
+
 clip :: AudioFormat f => f Audio -> f Audio
 clip cs =
   map f cs

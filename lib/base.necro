@@ -7494,8 +7494,10 @@ interleaveTick :: Int -> Int -> SeqValue a -> (#Int, SeqValue a#)
 interleaveTick slot maxSlot sv =
   slotTick slot maxSlot SeqLoopEnd sv
 
-repeat :: UInt -> Seq a -> Seq a
-repeat repetitions s = Seq go
+-- TODO: Make repetitions parameter a Seq value
+seqRepeat :: UInt -> Seq a -> Seq a
+seqRepeat repetitions s =
+  Seq go
   where
     go _ =
       case runSeq s () of
@@ -7503,13 +7505,44 @@ repeat repetitions s = Seq go
           case control of
             SeqLoopEnd ->
               let
-                currentRepetition ~ 0 = (currentRepetition + 1) % repetitions
+                currentRepetition ~ 0 = if repetitions == 0 then 0 else (currentRepetition + 1) % repetitions
               in
                 if currentRepetition == 0 then
                   SeqValue# dur SeqLoopEnd value
                 else
                   SeqValue# dur SeqNormal value
             _  -> SeqValue# dur control value
+
+seqControlAllNormalButEnd :: SeqValue a -> SeqValue a
+seqControlAllNormalButEnd (SeqValue# dur control value) =
+  case control of
+    SeqEnd -> SeqValue# dur control value
+    _      -> SeqValue# dur SeqNormal value
+
+-- TODO: Make repetitions parameter a Seq value
+seqStutter :: UInt -> Seq a -> Seq a
+seqStutter repetitions s =
+  Seq go
+  where
+    go _ =
+      snd3' acc
+      where
+        acc ~ (#1, SeqValue# 0 SeqNormal Nothing, SeqNormal#) =
+          case acc of
+            (#i, SeqValue# dur control value, prevControl#) ->
+              if i == 0 || repetitions <= 1 then
+                case runSeq s () of
+                  SeqValue# dur' control' value' ->
+                    if repetitions <= 1 then
+                      (#0, SeqValue# dur' control' value', control'#)
+                    else
+                      (#i + 1, seqControlAllNormalButEnd (SeqValue# dur' control' value'), control'#)
+              else if i < (repetitions - 1) then
+                (#i + 1, SeqValue# dur control value, prevControl#)
+              else
+                case prevControl of
+                  SeqPure -> (#0, SeqValue# dur SeqLoopEnd value, prevControl#)
+                  _       -> (#0, SeqValue# dur prevControl value, prevControl#)
 
 endAtLoop :: Seq a -> Seq a
 endAtLoop s = Seq go
@@ -7570,8 +7603,8 @@ instance Print a => Print (SeqValue a) where
 printBarOnLoop :: SeqControl -> *World -> *World
 printBarOnLoop c w =
   case c of
-    SeqLoopEnd -> print '|' w |> print ' '
-    _          -> w
+    SeqLoopEnd -> print '|' w |> print ' ' |> printNewline
+    _          -> printNewline w
 
 instance Print a => Print (Seq a) where
   print s w = wout
@@ -9159,6 +9192,8 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- TODO: Simultaneous synths panned in the middle cause weird FM?!?!!?!?
 -- TODO: Test arg copying
 
+-- TODO: Make seqRepeat repetitions parameter a Seq value
+-- TODO: Make seqStutter repetitions parameter a Seq value
 -- TODO: (BUG) Comments after where and let break the parser
 -- TODO / NOTE: Possible FFT bug fix: Use global block count counter for FFT counters!!!!
 -- TODO: Seq lambda lifting bug and/or pure type checking isn't GREAT
@@ -9180,7 +9215,6 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 -- TODO: Generic env
 -- TODO: Clipping detection
 -- TODO: Set audioSampleOffset to NOT be constant and insure that it is never used at a global scope!!!!! (It is magical...)
--- TODO: repeat combinator
 -- TODO: Nested case literals seem broken!
 -- TODO: Out of order monomorphic instances (i.e. 'instance Ring Complex' textually appearing before 'instance Ring F64') can cause erroneous 'Not An Instance' errors. Maybe need a better dep analysis story to make this work since we don't figure this out until inference which is at that point too late to fix.
 -- TODO: Write to log file, perhaps class Log a similar to class Print a

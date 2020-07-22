@@ -3639,8 +3639,8 @@ freezeTick trigger buffer = buffer2
   where
     buffer2 ~ (arrayFrom 0) =
       case trigger of
-        TriggerInactive -> buffer2
-        TriggerActive -> map id buffer -- HACK for array deep copy bug with state
+        TriggerInactive -> deepCopyArray buffer2
+        TriggerActive -> deepCopyArray buffer -- HACK for array deep copy bug with state
 
 fftFreeze :: AudioFormat f => f TriggerState -> f (FFT k) -> f (FFT k)
 fftFreeze trigger input = freezeImpl freezeTick trigger input
@@ -4035,6 +4035,13 @@ stereoSpread (Mono l) (Mono r) spread =
   Stereo# (l * spread' + r * spread) (l * spread + r * spread')
   where
     spread' = 1 - spread
+
+stereoSplit :: Stereo a -> (Mono a, Mono a)
+stereoSplit (Stereo# l r) = (Mono l, Mono r)
+
+stereoReMix :: Floating a => a -> Stereo a -> Stereo a
+stereoReMix spread (Stereo# l r) =
+  stereoSpread (Mono l) (Mono r) spread
 
 left :: Stereo a -> Mono a
 left (Stereo# l _) = Mono l
@@ -4567,7 +4574,22 @@ trandOnceF iseed mn mx =
 
 trandOnce :: UInt -> Float -> Float -> Mono Audio
 trandOnce iseed mn mx =
-  fromFloat(trandOnceF iseed mn mx)
+  fromFloat (trandOnceF iseed mn mx)
+
+tcoinOnce :: UInt -> Mono Audio -> Mono Audio -> Mono Audio
+tcoinOnce iseed x y =
+  if trandOnceF iseed 0 1 < 0.5 then x else y
+
+tcoinOnce' :: UInt -> Float -> Mono Audio -> Mono Audio -> Mono Audio
+tcoinOnce' iseed probability x y =
+  if trandOnceF iseed 0 1 <= probability then x else y
+
+-- TODO: Polymorphic version is crashing for some reason?
+-- tcoinOnceF' :: UInt -> Float -> a -> a -> a
+tcoinOnceF' :: UInt -> Float -> Float -> Float -> Float
+tcoinOnceF' iseed probability x y =
+  if trandOnceF iseed 0 1 <= probability then x else y
+
 
 --------------------
 -- downsample oversampled audio
@@ -5013,17 +5035,18 @@ saw freq =
 
 -----------
 -- lfSaw
-accumulateLFSaw :: Float -> Float -> (#Float, Float#)
-accumulateLFSaw freq phase0 =
+accumulateLFSaw :: Float -> Float -> Float -> (#Float, Float#)
+accumulateLFSaw freq phaseOffset phase0 =
   (#phase1, out#)
   where
     phase1 = fma freq recipSampleRate phase0
+    phaseO = phase1 + (phaseOffset * freq * recipSampleRate)
     phase2 = phase1 - floor phase1
     out    = fma phase2 2 -1
 
-lfSaw :: AudioFormat f => f Audio -> f Audio
-lfSaw freq =
-  accumulate1 accumulateLFSaw constTrue freq
+lfSaw :: AudioFormat f => f Audio -> f Audio -> f Audio
+lfSaw freq phaseOffset =
+  accumulate2 accumulateLFSaw constTrue freq phaseOffset
 
 -----------
 -- pulse
@@ -5520,7 +5543,7 @@ accumulateWaveTable' (WaveTable buffer) freq phaseOffset phase0 =
   (#phase1, out#)
   where
     phase1  = fma freq recipSampleRate phase0
-    findex  = (phase1 + phaseOffset * recipTau) * 65536
+    findex  = (phase1 + phaseOffset * freq * recipSampleRate) * 65536
     delta   = (floor findex + 1) - findex
     index1  = bitAnd (floatToUInt findex) 65535
     index2  = bitAnd (index1 + 1) 65535
@@ -6347,6 +6370,13 @@ delay :: AudioFormat f => Seconds n -> f Audio -> f Audio -> f Audio -> f Audio
 delay maxDelayTime delayTime mix input =
   accumulate3U (mkDelayState maxDelayTime) (accumulateDelay (natVal (natSecondsToNatBufferSamples maxDelayTime) - 1)) (\s -> (#s, True#)) delayTime mix input
 
+delay' :: AudioFormat f => Seconds n -> f Audio -> f Audio -> f Audio -> f Audio -> f Audio
+delay' maxDelayTime delayTime feedbackAmount wetMix input =
+  map3 (\x y m -> x * (1 - m) + y * m) input wet wetMix
+  where
+    wet = accumulate3U (mkDelayState maxDelayTime) (accumulateDelay (natVal (natSecondsToNatBufferSamples maxDelayTime) - 1)) (\s -> (#s, True#)) delayTime feedbackAmount input
+
+
 oneSec :: Seconds 1
 oneSec = Seconds
 
@@ -7029,12 +7059,12 @@ freeVerbTick mix roomSize damp x (FreeVerb# c0 c1 c2 c3 c4 c5 c6 c7 a0 a1 a2 a3)
 -- mix: 0 - 1
 -- roomSize: 0 - 1
 -- damp: 0 - 1
-freeVerb :: Float -> Float -> Float -> Stereo Audio -> Stereo Audio
-freeVerb mix roomSize damp (Stereo# l0 r0) =
+freeVerb :: Float -> Float -> Stereo Audio -> Stereo Audio -> Stereo Audio
+freeVerb mix roomSize (Stereo# dampL dampR) (Stereo# l0 r0) =
   Stereo# l1 r1
   where
-    l1 = accumulateAudio1U (mkFreeVerb 0) (freeVerbTick mix roomSize damp) constTrueU l0
-    r1 = accumulateAudio1U (mkFreeVerb 23) (freeVerbTick mix roomSize damp) constTrueU r0
+    l1 = accumulateAudio2U (mkFreeVerb 0) (freeVerbTick mix roomSize) constTrueU dampL l0
+    r1 = accumulateAudio2U (mkFreeVerb 23) (freeVerbTick mix roomSize) constTrueU dampR r0
 
 --------------------
 -- Trigger
@@ -7452,6 +7482,8 @@ restSeqValue =
 rest :: Seq a
 rest =
   Seq (\_ -> restSeqValue)
+
+-- TODO: restFor
 
 seqValueDurationMul :: Rational -> SeqValue a -> SeqValue a
 seqValueDurationMul speed (SeqValue# t c v) =
@@ -8307,7 +8339,7 @@ oscTest f =
 --   where
 --     a =
 --       perc 10 1 3 6000 + 50
---       |> lfSaw
+--       |> lfSaw 0
 --       |> highShelf 20000 -64 1
 --       |> perc 5 5 -1
 --       |> mul 0.125

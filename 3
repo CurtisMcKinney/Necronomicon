@@ -1,0 +1,1351 @@
+----------------------
+-- I Hear the Singing Still, Beyond These Deep Waves of Abyss
+----------------------
+
+-- F2 Ideas:
+--   * Work more with Phase Vocoder outputs from FFT
+--   * Sin amp mod voice
+--
+-- TODO: Long Time Stretch?
+-- TODO: Throw samples into bitrot repo? They're pretty big however...
+-- Parallel 5ths F ?
+-- Drum simulation: Wave guide idiophones/etc
+
+----------------------
+-- Section 1
+----------------------
+-- Strangely Beautiful
+-- FFT Carl Stone? (but not really)
+-- No really, I'm going to use this voice EVERYWHERE goddamnit
+
+-- TODO: CPU freezing, FML
+-- TODO: Remove Clicks, FML
+-- TODO: Remove Voice breath noise, FML
+-- TODO: Lag on glitched wave with aperture combinator?
+-- TODO: One more Voice thing that comes in at the end
+-- TODO: Handle CPU shit
+
+-- TODO: Extend eq range with basses and high end partials throughout?
+-- TODO: section2 experiment with slower tempo?!?!!?
+-- TODO: Look at how the fuck all of this is organized, fix pulsar1 (needs correct pulsing and fade in)
+-- TODO:
+-- TODO: lantern synth should come in later!
+-- TODO: sections 2 and 3 are too quiet
+section1 :: () -> Stereo Audio
+section1 _ =
+  verb1
+  +  verb2
+  |> mul 0.5
+  |> delay oneSec 0.5 0.75
+  |> add (waitThenPlayFor 59.9 80 slowAndLow |> silenceAtEnd)
+  |> add (waitFor 90 pulsar1)
+  |> add (waitThenPlayFor 140 85 illuminated |> silenceAtEnd)
+  |> mul 0.75
+  where
+    hum1          = humSynth1 ()
+    hum2          = humSynth2 ()
+    hum3          = humSynth3 ()
+    frozenEnv     = asr 10 130 30 1 1
+
+    verb1         =
+      frozen1 +
+      frozen2
+      |> mul frozenEnv
+      |> silenceAtEnd
+      |> freeVerb 0.4 0.975 0.95
+    verb2         =
+      waitFor 20 frozen3 +
+      waitFor 30 frozen4
+      |> mul frozenEnv
+      |> silenceAtEnd
+      |> freeVerb 0.5 1.0 0.75
+
+    -- freezeTarget1 = fftBinOpWithNormMag fftBinPolarPerpendicularProjection hum1 hum1
+    freezeTarget1 = fftBinPolarPerpendicularProjection hum1 hum1
+    trigs1        = lfPulse 0.5 2.0 |> genTriggers
+    frozen1       =
+      fftLerp 0.5 (fftPhaseFreeze trigs1 freezeTarget1) (fftMagFreeze trigs1 freezeTarget1)
+      |> ifft
+      |> mul 2
+      |> pan 0.4
+
+    freezeTarget2 = hum2
+    trigs2        = lfPulse 0.5 1.0 |> genTriggers
+    frozen2       =
+      fftFreeze trigs2 freezeTarget2
+      |> ifft
+      |> mul 0.5
+      |> pan 0.6
+
+    -- Is this a problem?
+    frozen3 _ =
+      fftBinOpWithNormMag fftBinPolarPerpendicularProjection hum3 hum2
+      |> fftFreeze trigs3
+      |> ifft
+      |> mul 0.25
+      |> lpf 6000 0.5
+      |> asr 20 150 30 3
+      |> silenceAtEnd
+      where
+        trigs3 = lfPulse 0.5 (stereo 0.75 0.5) |> genTriggers
+
+    frozen4 _ =
+      ooh3
+      |> fftFreeze trigs4
+      |> ifft
+      |> mul 0.5
+      |> mul (sin 0.25 * 0.5 + 0.5)
+      |> asr 20 150 30 3
+      |> silenceAtEnd
+      where
+        ooh3   = oohSynth3 ()
+        trigs4 = lfPulse 0.5 (stereo 1.0 1.5) |> genTriggers
+
+-- TODO / NOTE: Possible FFT bug fix: Use global block count counter for FFT counters!!!!
+
+slowAndLow :: () -> Stereo Audio
+slowAndLow _ =
+  slowAndLow1 +
+  slowAndLow2
+  |> asr 20 49 1 3
+  |> silenceAtEnd
+  |> mul 0.7
+  |> freeVerb 0.6 1.00 0.85
+  where
+    sd =
+      stringsD ()
+      |> peakEQ 900 -32 2
+      |> fft
+    slowAndLow1 =
+      fftBinOpWithNormMag fftMagMul slowSynth1 sd
+      |> fftLerpMag 0.95 slowSynth1
+      |> (\x -> fftLerpMag 0.2 x (fftBinOpWithNormMag fftBinPerpendicularProjection slowSynth1 sd))
+      |> ifft
+      |> lpf 1800 1
+      |> mul 0.8
+      |> pan 0.4
+    slowAndLow2 =
+      fftBinOpWithNormMag fftMagMul slowSynth2 sd
+      |> fftLerpMag 0.95 slowSynth2
+      |> (\x -> fftLerpMag 0.2 x (fftBinOpWithNormMag fftBinPerpendicularProjection slowSynth2 sd))
+      |> ifft
+      |> lpf 1200 2
+      |> mul 0.8
+      |> pan 0.6
+
+    slowSynth1 :: Stereo (FFT 16)
+    slowSynth1 =
+      stereo sig sig
+      where
+        sig =
+          (audioFilePlay Loop 1.0 humSlowAah       * 0.275) +
+          (audioFilePlay Loop 1.0 humSlowAndLowAah * 1.125)
+          |> mul 4.0
+          |> fft
+
+    slowSynth2 :: Stereo (FFT 16)
+    slowSynth2 =
+      stereo sig sig
+      where
+        sig =
+          (audioFilePlay Loop 0.5 humSlowAndLowAah * 1.0)
+          |> mul 5.0
+          |> fft
+
+ldfl = pure (#dFlatLowVoiceSample, d2f chromatic 1 , 0.875#)
+ldf  = pure (#dFlatVoiceSample,    d2f chromatic 13, 0.875#)
+lefl = pure (#eFlatLowVoiceSample, d2f chromatic 3,  0.875#)
+lef  = pure (#eFlatVoiceSample,    d2f chromatic 15, 0.875#)
+lfl  = pure (#fLowVoiceSample,     d2f chromatic 5,  0.10#)
+lgfl = pure (#gFlatLowVoiceSample, d2f chromatic 6,  0.50#)
+lafl = pure (#aFlatLowVoiceSample, d2f chromatic 8,  0.90#)
+lbfl = pure (#bFlatLowVoiceSample, d2f chromatic 10, 0.50#)
+lbf  = pure (#bFlatVoiceSample,    d2f chromatic 22, 0.875#)
+lcl  = pure (#cLowVoiceSample,     d2f chromatic 0,  0.125#)
+lc   = pure (#cVoiceSample,        d2f chromatic 12, 0.125#)
+
+-- Hocket freeze voice bass
+lanternSynth3 :: (#Mono AudioBuffer, Float, Float#) -> Stereo Audio
+lanternSynth3 (#buffer, ffreq, pos#) =
+  s + v
+  |> (\x -> stereoSpread (left x) (right x) 0.25)
+  |> mul e
+  |> pan (fromFloat pos)
+  where
+    freq = fromFloat ffreq
+    freq' = freq * linLin 0 1.00001 0.99 1 e
+    p    = lfPulse (stereo 0.25 0.75) (freq' * 1.0) * lfPulse (stereo 0.75 0.25) (freq' * 1.0)
+    s    = (sin (freq * 0.5) * 0.75) + (syncSin (flipStereo p) (freq * 0.5) * 0.75) + syncTri p (freq * 1.0) |> mul 0.375 |> lpf (e * 2500 + 600) 1.25 |> highShelf 2000 -3 1
+    v    = audioBufferPlay' Loop 1 (stereo 3.0 2.0) (stereo buffer buffer) |> mul 1.0 |> peakEQ 2000 -3 0.5 |> peakEQ 500 3 1
+    e    = asr 0.05 0.025 2.0 -4 1
+
+-- Hocket freeze voice bass
+lanternSynth3Low :: (#Mono AudioBuffer, Float, Float#) -> Stereo Audio
+lanternSynth3Low (#buffer, ffreq, pos#) =
+  s + v
+  |> (\x -> stereoSpread (left x) (right x) 0.25)
+  |> mul 0.75
+  |> mul e
+  |> pan (fromFloat (1 - pos))
+  where
+    e    = asr 0.05 0.05 2.05 -3 1
+    v    =
+      audioBufferPlay' Loop -0.5 (stereo 5.0 4.0) (stereo buffer buffer)
+      -- audioBufferPlay' Loop -1.0 (stereo 5.0 4.0) (stereo buffer buffer)
+      -- |> mul 0.425
+      |> mul 0.9
+    freq = fromFloat (ffreq * 0.5) * linLin 0 1.00001 0.999 1 e
+    -- freq = fromFloat (ffreq * 0.5)
+    p    = lfPulse (stereo 0.75 0.25) (freq * 1.0) * lfPulse (stereo 0.25 0.75) (freq * 0.5)
+    s    =
+      (sin (freq * 0.25) * 1.0) +
+      (sin (freq * 0.5) * 1.125) +
+      (syncSin (flipStereo p) (freq * 1.0) * 0.75) +
+      syncSin p (freq * 1.0)
+      |> mul 0.5
+      |> lpf (e * 900 + 200) 1.0
+
+lanternBeat3 :: Seq (#Mono AudioBuffer, Float, Float#)
+lanternBeat3 =
+  bs
+  |> endAtLoop
+  |> seqSpeed (bpm 180)
+  where
+    bs  = [b1 b2 b1 b2 b32] |> seqRepeat 6
+    b1  = [lfl lafl <lbfl lc> ldf <lbfl lafl>] |> seqRepeat 3
+    b2  = [ldfl lcl <lbfl lafl> <lbf lef> <lbf lc>]
+    b31 = [lbf lbfl _ lbf lbfl _]
+    b32 = [lc lcl _ lc lcl _]
+
+lanternBeat3Low :: Seq (#Mono AudioBuffer, Float, Float#)
+lanternBeat3Low =
+  [rs bs]
+  |> endAtLoop
+  |> seqSpeed (bpm 180)
+  where
+    bs = [b1 b2 b1 b2 b3] |> seqRepeat 4
+    b1 = [[<_ ldfl>:ldfl] _ [<_ lcl>:lcl] _ lefl] |> seqRepeat 3
+    b2 = [ldfl _ lfl _ lcl]
+    b3 = [_ _ _ _ _ _]
+    rs = [r1 r2 r1 r2 r3]
+    r1 = [_ _ _ _ _] |> seqRepeat 3
+    r2 = [_ _ _ _ _]
+    r3 = [_ _ _ _ _ _]
+
+-- TODO: Emphasize hocket with second, and maybe third voice? And sequenced pan position
+
+illuminated :: () -> Stereo Audio
+illuminated _ =
+  l
+  |> mul e
+  |> lpf 3000 1
+  |> silenceAtEnd
+  |> peakEQ 900 -3 0.25
+  |> delay twoSec ((90/60) * 0.5) 0.55
+  |> freeVerb 0.3 0.9 0.995
+  |> mul 0.3
+  where
+    e = sustainRelease 70 20 1 1
+    l =
+      poly lanternSynth3 (seqSpeed (1 // 3) lanternBeat3) +
+      poly lanternSynth3Low (seqSpeed (1 // 3) lanternBeat3Low)
+
+humSynth1 :: () -> Stereo (FFT 16)
+humSynth1 _ =
+  stereo sig sig
+  where
+    sig =
+      (audioFilePlay Loop 1.0 hum * 1.0) +
+      (audioFilePlay Loop 0.5 hum * 0.75)
+      |> highShelf 4000 2 1
+      |> lowShelf 800 -6 1
+      |> fft
+
+humSynth2 :: () -> Stereo (FFT 32)
+humSynth2 _ =
+  stereo sig sig
+  where
+    sig =
+      (audioFilePlay Loop 2.0 hum * 0.5) +
+      (audioFilePlay Loop 1.0 hum * 1.0) +
+      (audioFilePlay Loop 0.5 hum * 0.5)
+      -- |> highShelf 4000 2 1
+      |> lowShelf 1300 -3 1
+      |> lowShelf 800 -6 1
+      |> mul 0.75
+      |> fft
+
+humSynth3 :: () -> Stereo (FFT 32)
+humSynth3 _ =
+  stereo sig sig
+  where
+    sig =
+      (audioFilePlay Loop 3.0 ooh * 1.0) +
+      (audioFilePlay Loop 2.0 ooh * 1.0) +
+      (audioFilePlay Loop 1.0 ooh * 0.5) +
+      (audioFilePlay Loop 0.5 ooh * 0.5)
+      -- |> highShelf 4000 2 1
+      |> lowShelf 1200 -3 1
+      |> mul 0.5
+      |> fft
+
+oohSynth3 :: () -> Stereo (FFT 4)
+oohSynth3 _ =
+  stereo sig sig
+  where
+    sig =
+      (audioFilePlay Loop 3.0 hum * 1.0) +
+      (audioFilePlay Loop 2.0 hum * 1.0) +
+      (audioFilePlay Loop 1.0 hum * 0.5) +
+      (audioFilePlay Loop 0.5 hum * 0.5)
+      -- |> highShelf 4000 2 1
+      |> lowShelf 1150 -3 1
+      |> mul 0.5
+      |> fft
+
+pulsar1 :: () -> Stereo Audio
+pulsar1 _ =
+  osc
+  |> mul 0.25
+  |> mul (lowSn * 0.65 + 0.35)
+  |> lowShelf (pitch * 1.25) -2 1.25
+  -- |> asr 30 50 30 3
+  |> asr 10 20 20 3
+  |> silenceAtEnd
+  |> highShelf (pitch * 6) -6 1.25
+  |> freeVerb 0.5 0.95 0.85
+  |> hpf 50 1
+  |> mul 1.5
+  where
+    pitch =
+      [1 1 3 3 -2 -4]
+      |> map (add 12 .> d2f chromatic .> mul 0.5)
+      |> seqSpeed (1 / 5)
+      |> seqToAudio
+      |> lag 0.05
+
+    -- fuckOn      = [1 0]
+    -- fuckOff     = [0 0]
+    -- fuck        = [fuckOn fuckOff fuckOff fuckOff] |> seqSpeed (bpm (180 / 3) * 8) |> seqToAudio |> lag 0.05
+    temp        = (180 / 3) / 128 |> mixStereo
+    phaseOffset = 0.0 |> mixStereo
+    lowSn       = sin (1/30) * 0.35 + 0.65
+    lowSn2      = sin (1/10) * 0.35 + 0.65
+    fm1         = sin' (left temp * 1) (left phaseOffset) * 1
+    fm2         = sin' (right temp * 1) (right phaseOffset) * -1
+    fm          = stereo fm1 fm2
+    am1         = sin' (temp * 2) phaseOffset * 0.125
+    -- am1         = lfSaw (temp * -2.0) phaseOffset |> lag 0.04 |> mul 0.125
+    am2'        = sin' (temp * 1) phaseOffset
+    -- am2'        = lfSaw (temp * -1.0) phaseOffset
+    am2         = lag 0.04 (am2' * am2' * 0.325 * signum am2')
+    am3'        = sin' (temp * 0.5) phaseOffset
+    -- am3'        = lfSaw (temp * -0.5) phaseOffset
+    am3         = lag 0.04 (am3' * am3' * 0.375 * signum am3')
+    am          = (am1 + am2 + am3) * 1.125 + 0.95
+    -- am          = fuck
+    ffm         = am * 0.5 + 0.5
+    syncNorXor1 =
+      lfPulse (stereo (sin 0.15 |> linLin -1 1 0.125 0.375) (sin 0.15 |> linLin -1 1 0.625 0.875)) (pitch * 0.25) +
+      lfPulse 0.5 (pitch * 0.5 + fm * 0.0625 * 0.125 * pitch)
+    syncNorXor2 =
+      lfPulse (stereo (sin 0.15 |> linLin -1 1 0.625 0.875) (sin 0.15 |> linLin -1 1 0.125 0.375)) (pitch * 0.25) +
+      lfPulse (stereo 0.25 0.75) (pitch * 0.5 + fm * 0.0625 * 0.125 * pitch)
+    syncOrSwim  =
+      (syncTri syncNorXor2 (pitch * 0.25) * 0.5 * am) +
+      (syncTri syncNorXor1 (pitch * 0.125) * 1.0 * am)
+      -- (syncTri syncNorXor1 (pitch * 0.125) * 0.25 * am)
+    osc         =
+      (sin (pitch * 0.25 + fm * 0.01) * 0.0625) +
+      (sin (pitch * 0.5 + fm * 0.01) * 0.125) +
+      syncOrSwim
+      |> lpf (pitch * (8 + 4 * lowSn2) + ffm * pitch * 0.5 + fm * pitch * 0.125) 0.75
+      |> lpf (pitch + pitch * 2 * lowSn) 0.75
+      |> mul am
+
+-- TODO: Curry this into lantern?
+lanternLowMod :: Stereo Audio
+lanternLowMod =
+  sin (stereo 0.21 0.23)
+  |> linLin -1 1 0 1
+
+lanternFilterMod :: Stereo Audio
+lanternFilterMod =
+  sin (stereo 0.14 0.135)
+  |> linLin -1 1 100 2000
+
+lanternSynth :: Float -> Stereo Audio
+lanternSynth ffreq =
+  s + p
+  |> lpf (linLin 0 1 250 4000 e) 1.25
+  |> lpf (initial (blockRate lanternFilterMod)) 1
+  |> mul 0.25
+  |> mul e
+  |> pan (trandOnce 0 0.1 0.9)
+  where
+    s    = tri (freq * 0.125) * 0.5 |> hpf (freq * 0.5) 1
+    p    = pulse (stereo 0.4 0.6) (freq * 0.5) * 0.5 * initial (blockRate lanternLowMod)
+    e    = perc 0.0125 2.95 -3 1
+    freq = fromFloat ffreq
+
+lanternBeat :: Seq Float
+lanternBeat =
+  bs
+  |> seqRepeat 2
+  |> map (d2f chromatic)
+  |> endAtLoop
+  |> seqSpeed (bpm 180)
+  where
+    bs  = [b1 b2 b1 b2 [b31:b32]] |> seqRepeat 2
+    b1  = [<5 5> <8 8> <10 0> <1 1> <10 8>] |> seqRepeat 3
+    b2  = [<1 1> <0 12> <10 8> <10 3> <10 12>]
+    b31 = [22 10 10 22 10 10]
+    b32 = [12 0 3 0 12 0 3 0]
+
+lantern :: () -> Stereo Audio
+lantern _ =
+  poly lanternSynth lanternBeat
+  |> mul e
+  |> lpf (e |> linLin 0 1 800 2000) 1.25
+  |> delay oneSec (60/90) 0.45
+  |> freeVerb 0.4 0.95 0.85
+  |> mul 0.15
+  where
+    e = asr 10 30 10 1 1 |> silenceAtEnd
+
+lantern2 :: () -> Stereo Audio
+lantern2 _ =
+  poly lanternSynth lanternBeat
+  |> mul e
+  |> lpf (e |> linLin 0 1 400 1500) 1.25
+  |> delay oneSec (60/90) 0.45
+  |> freeVerb 0.4 0.95 0.85
+  |> mul 0.6
+  where
+    e = asr 0.5 30 20 1 1 |> silenceAtEnd
+
+cycle :: () -> Stereo Audio
+cycle _ =
+  sig
+  |> mul mod
+  -- |> lpf (linLin 0 1 500 3000 mod) 1
+  |> asr 3 30 10 1
+  |> silenceAtEnd
+  |> freeVerb 0.5 0.9 0.35
+  |> mul 0.35
+  where
+    t      = 90 / 60
+    freq   = [6 6 1 1 0] |> map (d2f chromatic) |> seqSpeed (bpm 90 / 6) |> seqToAudio |> lag 0.5
+    ffreq  = audioToFloat freq
+    lowSn  = sin (t * 0.0625) |> linLin -1 1 0.5 1
+    lowSn2 = sin' (t * 0.125) 0.125 |> linLin -1 1 0.75 1
+    mod    = lowSn * lowSn2
+    am0    = sin' (t * 4.0) 0.125 |> linLin -1 1 0 0.25
+    am1    = sin' (t * 2.0) 0.125 |> linLin -1 1 0 0.25
+    am2    = sin' (t * 1.0) 0.125 |> linLin -1 1 0 0.25
+    am3    = sin' (t * 0.5) 0.125 |> linLin -1 1 0 0.25
+    am     = am0 + am1 + am2 + am3
+    fmLow  = ffreq * 0.03125
+    fmHigh = ffreq * 0.125
+    fmMod  = linLin 0 1 0.9 1.1 lowSn |> left
+    fm1    = sin (sin' 0.125 0.00 |> linLin -1 1 25 50) |> linLin -1 1 fmLow fmHigh
+    fm2    = sin (sin' 0.250 0.25 |> linLin -1 1 25 50) |> linLin -1 1 fmLow fmHigh
+    fm3    = sin (sin' 0.125 0.33 |> linLin -1 1 25 50) |> linLin -1 1 fmLow fmHigh
+    l ~ 0  =
+      (sin (freq * 0.125 + fm1) * 0.125) +
+      (sin (freq * 0.125 + l * fmMod * freq * 2.125) * 0.125) +
+      (sin (freq * 0.125 + fm2) * 0.2 * left lowSn2)
+      |> mul (left am)
+      |> deepCopyAudio
+    r ~ 0 =
+      (sin (freq * 0.250 + r * fmMod * freq * 2.125) * 0.125) +
+      (sin (freq * 0.125 + fm1) * 0.2) +
+      (sin (freq * 0.125 + fm3) * 0.2 * right lowSn2)
+      |> mul (right am)
+      |> deepCopyAudio
+    sig =
+      stereoSpread l r 0.25
+
+section1to2Transition :: () -> Stereo Audio
+section1to2Transition _ =
+  -- cycle () +
+  waitFor 5 lantern
+
+hum :: AudioFile
+hum =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\HumSplice1.wav"
+  |> fromMaybe silentAudioFile
+
+ooh :: AudioFile
+ooh =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\HumOoh25Slow1.wav"
+  |> fromMaybe silentAudioFile
+
+humSlowAah :: AudioFile
+humSlowAah =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\HumAah25Slow1.wav"
+  |> fromMaybe silentAudioFile
+
+humSlowAndLowAah :: AudioFile
+humSlowAndLowAah =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\HumAah25SlowLow1.wav"
+  |> fromMaybe silentAudioFile
+
+
+----------------------
+-- Section 2
+----------------------
+
+-- TODO: Make current "C" section happen every other "C" section
+-- TODO: Make foreshadow synth better
+-- TODO: Make contravoice melody come wheneverything else drops out
+-- TODO: cross fade section 2 / 3
+-- B section-ish break away
+-- When we come back things are even more pulsed
+-- After melody in pulsed form we return to B section, but we are breaking it down, bit by bit
+-- Section 3 stringsD come in first
+-- More Beat oriented
+-- More Sync oriented
+-- More Melodic
+-- More oneohtrixpointnever (but not really)
+-- Aperture wavetable shit
+-- End with melody gesture which plays until last splice/chunk which gets repeated over and over again becoming a little mini glitch solo?
+
+-- Take a closer look at wrapping logic in audioBufferPlayWithAperture
+
+section2 :: () -> Stereo Audio
+section2 _ =
+  apertureScience () +
+  foreShadow () +
+  basic () +
+  slendroz () +
+  -- waitFor 161.5 contraVoice +
+  (waitFor 160.0 lantern2) -- This pops at end instead of fading, fml
+  |> mul 0.35
+
+-- Bring this in at the end?
+-- Seperate out the pitches, bitches
+-- Use this as basis for bass synth?
+contraVoice :: () -> Stereo Audio
+contraVoice _ =
+  voice
+  |> fftPitchShiftCrude 0.25
+  |> fftLerp 0.5 (fftPitchShiftCrude 0.5 voice)
+  |> fftLerp 0.6 voice
+  |> ifft
+  |> mul 0.1
+  |> lowShelf 500 -3 1
+  |> highShelf 2000 -3 1
+  |> asr 4.0 15 25 1
+  |> silenceAtEnd
+  |> mixStereo
+  |> freeVerb 0.4 0.95 0.85
+  where
+    voice =
+      audioBufferPlay  Loop 0.5 melody1Note +
+      audioBufferPlay' Loop 0.5 0.5 melody1Note
+      |> lpf 10000 2
+      |> mixStereo
+      |> fft' nat128
+
+foreShadowSynth :: Float -> Stereo Audio
+foreShadowSynth ffreq =
+  osc
+  |> lpf (freq * 0.25 + e * freq * 12) 1.0
+  |> mul e
+  |> mul 0.25
+  where
+    e    = perc (60/90 * 2.5) 0.5 4 1
+    freq = fromFloat ffreq
+    trig = lfPulse (stereo (0.9 - left e * 0.8) (0.1 + right e * 0.8)) (freq * 0.125)
+    osc  =
+      syncPulse (stereo 0.25 0.75) trig (freq * 0.25) +
+      syncPulse (stereo 0.75 0.25) trig (freq * 0.50) * 0.5 +
+      sin (freq * 0.25)
+
+foreShadowBeat :: Seq Float
+foreShadowBeat =
+  [bs cs]
+  |> seqRepeat 5
+  |> endAtLoop
+  |> map (d2f chromatic)
+  |> seqSpeed (bpm 180)
+  where
+    bs  = [b1 b2 b1 b2 b3] |> seqRepeat 2
+    b1  = [_ _ _ _ _] |> seqRepeat 3
+    b2  = [_ _ _ _ _]
+    b3  = [_ _ _ _ _ _]
+    cs  = [[3:_:_:5:_] _ _ _ _ _]
+
+-- foreShadow "tick" beat?
+foreShadow :: () -> Stereo Audio
+foreShadow _ =
+  poly foreShadowSynth foreShadowBeat
+  |> pan 0.6
+  |> freeVerb 0.7 0.95 0.95
+  |> mul 0.9
+
+-- Aperture bounce type
+longSungSynth :: (#Mono AudioBuffer, Float#) -> Stereo Audio
+longSungSynth (#buffer, ffreq#) =
+  -- fftBinOpWithNormMag (fftLerp e) voices oscs
+  fftLerp 0.5
+    (fftBinOpWithNormMag (fftLerpPolar e) voices oscs)
+    (fftBinOpWithNormMag (fftLerpMag e) voices oscs)
+  |> ifft
+  -- |> peakEQ freq -2 1.0
+  |> mul aenv
+  |> mul 1.0
+  |> mixStereo
+  |> pan 0.6
+  where
+    freq  = fromFloat ffreq
+    aenv  = asr 2.0 3 4 1 1
+    e ~ 0 = min (e + rationalToFloat audioBlockDelta * 0.2) 1
+    lage  = lag 0.1 (fromFloat e)
+    voices :: Mono (FFT 16)
+    voices =
+      (audioBufferPlay Loop 1.0 buffer * 1.5)
+      |> mul 0.25
+      |> peakEQ freq -3 1.0
+      |> lpf 6000 1.25
+      |> fft
+    oscs  =
+      ((pulse 0.125 (sin 6.12 * (lage * 16) + freq * 2.0) * 0.05) * lage * lage * lage) +
+      (tri (sin 6.12 * (lage * 16) + freq * 1.0) * 0.5 * lage * lage) +
+      (tri (sin 6.12 * (lage * 16) + freq * 0.5) * 0.25) +
+      (tri (sin 6.12 * (lage * 16) + freq * 2.0) * 0.05)
+      |> lpf 10000 1.25
+      |> mul 0.25
+      |> fft
+
+beatOfTheLongSung :: Seq (#Mono AudioBuffer, Float#)
+beatOfTheLongSung =
+  [bs cs]
+  |> seqRepeat 6
+  |> endAtLoop
+  |> seqSpeed (bpm 180)
+  where
+    bs  = [b1 b2 b1 b22 b3] |> seqRepeat 2
+    cs  = [_ _ _ _ _ _]
+    b1  = [_ _ _ _ _] |> seqRepeat 3
+    b2  = [_ _ _ _ _]
+    b22 = [_ _ _ _ [bfl:cl:dfl:bf:c:df]]
+    b3  = [_ _ _ _ _ _]
+    bfl = pure (#bFlatLowVoiceSample, 466.1638#)
+    bf  = pure (#bFlatVoiceSample, 466.1638 * 2#)
+    cl  = pure (#cLowVoiceSample, 523.2511#)
+    c   = pure (#cVoiceSample, 523.2511 * 2#)
+    dfl = pure (#dFlatLowVoiceSample, 554.3653#)
+    df  = pure (#dFlatVoiceSample, 554.3653 * 2#)
+
+apertureBeat :: Seq (#Mono AudioBuffer, Float, Float, Bool#)
+apertureBeat =
+  [bshort cs bshort cs bshort cs bshort cs blong cs]
+  |> endAtLoop
+  |> seqSpeed (bpm 180)
+  where
+    bs     = [b1 b2 b1 b2 [b31:b32]]
+    bshort = map (\x -> (#x, 0, 0, False#)) bs |> seqRepeat 2
+    blong  = map (\x -> (#x, 1, 1, True#)) bs |> seqRepeat 2
+    b1     = [<fl fl> <afl afl> <bfl c> <df df> <bfl afl>] |> seqRepeat 3
+    b2     = [<dfl dfl> <cl c> <bfl afl> <bf ef> <bf c>]
+    b31    = [bf bfl bfl bf bfl bfl]
+    b32    = [c cl cl c cl cl]
+    cs     = [_ _ _ _ _ _]
+
+apertureScience :: () -> Stereo Audio
+apertureScience _ =
+  apertureScienceArp +
+  longSung
+  |> mul 0.5
+  where
+    longSung =
+      poly longSungSynth beatOfTheLongSung
+      |> freeVerb 0.6 1.05 0.95
+      -- |> peakEQ 500 6 2
+      |> lowShelf 400 9 1
+      |> peakEQ 1500 -6 2
+      |> peakEQ 4000 3 2
+      |> mul 0.8
+
+    apertureScienceArp =
+      poly apertureSynth apertureBeat
+      -- |> delay oneSec ((60/90)) 0.3
+      -- |> delay oneSec 0.5 0.125
+      -- |> delay' oneSec ((60/90) * 0.125) 0.65 0.35
+      |> freeVerb 0.15 0.9 0.9995
+      |> peakEQ 400  4 1
+      |> peakEQ 1200 -6 1.25
+      -- |> peakEQ 3000 3 2
+      |> mul 0.4
+
+    apertureLowMod = 1 - (sin' 0.065 0.5 * 0.5 + 0.5)
+    apertureDMod   = (1 - (sine (let phase ~ 0 = phase + rationalToFloat audioBlockDelta * 0.015 in phase * tau + pi * 0.66667) * 0.5 + 0.5)) * 2.0
+
+    apertureSynth :: (#Mono AudioBuffer, Float, Float, Bool#) -> Stereo Audio
+    apertureSynth (#buffer, additionalDur, otherAmpF, isLong#) =
+      -- (audioBufferPlayWithApertureGlitch 2.000 (1 - h) (1 - l) s * 0.5 * otherAmp) +
+      -- (audioBufferPlayWithApertureGlitch 1.000 l       h       s * 0.5) +
+      -- (audioBufferPlayWithApertureGlitch 0.500 (1 - h) (1 - l) s * 0.375 * apertureLowMod) +
+      -- (audioBufferPlayWithApertureGlitch 0.250 l        h      s * 0.5 * otherAmp)
+      (audioBufferPlay' DontLoop 2.000 h s * 0.5 * otherAmp) +
+      (audioBufferPlay' DontLoop rate  l s * 0.5) +
+      -- (audioBufferPlay' Loop rateL h s * 0.5 * apertureLowMod) +
+      (audioBufferPlay' DontLoop 0.250 l s * 0.5 * otherAmp)
+      |> filt
+      -- |> stereoReMix 0.25
+      |> pan p
+      |> asr 0.001 sus d -5
+      |> mul a
+      where
+        a        = if isLong then 1.5 else 1
+        otherAmp = fromFloat otherAmpF
+        s        = stereo buffer buffer
+        -- l        = stereo (trandOnce 0 0.125 3)   (trandOnce 1 0.125 4)
+        -- h        = stereo (trandOnce 2 0.125 2)   (trandOnce 3 0.125 1.5)
+        -- cutOff   = stereo (trandOnce 5 3000 5000) (trandOnce 6 3000 5000)
+        -- rate     = stereo (tcoinOnce 7 -1      1) (tcoinOnce 8 -1     1)
+        -- rateL    = stereo (tcoinOnce 8 -0.5  0.5) (tcoinOnce 9 -0.5 0.5) * 1
+        l        = mixStereo (trandOnce 0 1 3)
+        h        = mixStereo (trandOnce 2 0.125 2)
+        cutOff   = mixStereo (trandOnce 5 3000 5000)
+        rate     = mixStereo (tcoinOnce 7 -1      1)
+        rateL    = mixStereo (tcoinOnce 8 -0.25  0.25)
+        rd       = tcoinOnceF' 11 0.25 (trandOnceF 12 0.1 0.25) (trandOnceF 4  0.125 1.125) |> tcoinOnceF' 13 0.1 3
+        sus      = tcoinOnceF' 14 0.1 (trandOnceF 15 0.01 0.05) (trandOnceF 16 0.125 0.175) |> tcoinOnceF' 17 0.05 0.25
+        d        = rd + initial apertureDMod + additionalDur
+        p        = trandOnce 10 0.25 0.75
+        -- rateL    = -0.5
+        filt x   =
+          if isLong then
+            lpf (asr 0.001 sus d -7.5 (cutOff - 125) + 125) 1 x |> silenceAtEnd
+          else
+            lpf (asr 0.001 sus d -2.5 (cutOff - 1000) + 1000) 2 x |> silenceAtEnd
+
+basicSynth :: (#Mono AudioBuffer, Float#) -> Stereo Audio
+basicSynth (#buffer, ffreq#) =
+  osc +
+  sample
+  |> mul 0.4
+  |> mixStereo
+  where
+    freq = fromFloat ffreq
+    osc =
+      (sin (sin 2.925 *  0.02 + freq * 0.25) * 1.25) +
+      (sin (sin 1.753 * -0.02 + freq * 0.50) * 1.0)
+      |> perc 0.001 4 -6
+    sample =
+      (audioBufferPlay DontLoop (sin 3.5   * -0.01 + 0.5) buffer * 0.6667) +
+      (audioBufferPlay DontLoop (sin 4.125 *  0.01 + 1.0) buffer * 0.3334)
+      |> perc 0.125 4 -5
+
+basicBeat :: Seq (#Mono AudioBuffer, Float#)
+basicBeat =
+  [bs1 cs1 bs2 cs2 bs2 cs2 bs2 cs2 bs2 cs2]
+  |> endAtLoop
+  |> seqSpeed (bpm 180)
+  where
+    bs2 = [b1 b2 b11 b22 b3] |> seqRepeat 2
+    cs2 = [_ _ _ _ _ _]
+    b1  =
+      [
+        sf _ _ sdf _
+        _ _ _ _ _
+        _ sef saf _ _
+      ]
+    b11  =
+      [
+        sgf _ _ saf _
+        _ _ _ _ _
+        _ sf sbf _ _
+      ]
+    b2  = [_ _ _ _ _]
+    b22 = [_ _ <_ sdf> sc _]
+    b3  = [_ _ _ _ _ _]
+    bs1 = [b1_ b2_ b1_ b2_ b3_] |> seqRepeat 2
+    cs1 = [_ _ _ _ _ _]
+    b1_ = [_ _ _ _ _] |> seqRepeat 3
+    b2_ = [_ _ _ _ _]
+    b3_ = [_ _ _ _ _ _]
+
+basic :: () -> Stereo Audio
+basic _ =
+  poly basicSynth basicBeat
+  |> pan 0.6
+  |> lpf 3000 1.5
+  |> freeVerb 0.3 0.85 0.9995
+  |> peakEQ 400 3 1.0
+  |> peakEQ 900 -3 0.5
+  |> peakEQ 1300 -3 1.0
+  |> mul 0.65
+
+slendrozSynth1 :: Stereo Audio -> Stereo Audio -> Stereo Audio
+slendrozSynth1 freq voices =
+  voice * 0.325
+  where
+    voicep = asr 0.0125 0.3 0.3375 1 1
+    voice  =
+      voices
+      |> lpf (freq * 0.25 + mixStereo voicep * freq * 0.5 * (4.0 + sin 4.215 * 0.5)) 0.9
+      |> mul voicep
+
+slendrozSynth2 :: Stereo Audio -> Stereo Audio -> Stereo Audio
+slendrozSynth2 freq voices =
+  voice * 0.325
+  where
+    voiceEnv = asr 0.0125 0.15 0.45 -3 1
+    oscLeft  = waveGuidePluck nat4 0.0255 0.75 0.005 0.99 (audioToFloat (left freq) * 1.0) 0.12523 + waveGuidePluck nat4 0.0555 1.0 0.025 0.96 (audioToFloat (left freq) * 0.125) 0.284523
+    oscRight = waveGuidePluck nat4 0.0375 0.75 0.009 0.99 (audioToFloat (left freq) * 1.0) 0.12552 + waveGuidePluck nat4 0.0675 1.0 0.029 0.96 (audioToFloat (left freq) * 0.125) 0.285552
+    osc      =
+      stereoSpread oscLeft oscRight 0.25
+      |> mul 0.125
+    voice    =
+      (voices * 1.5 * voiceEnv) +
+      osc
+
+slendrozSynth :: Int -> Stereo Audio
+slendrozSynth pitch =
+  if pitch < 12 then
+    slendrozSynth1 freq voices
+  else
+    slendrozSynth2 freq voices
+  where
+    (#vBuffer, freq#) = slendrozPitch pitch
+    voices            =
+      (audioBufferPlay' DontLoop  1.0 (trandOnce 0 2.0 6) vBuffer * 0.5 |> pan 0.3) +
+      (audioBufferPlay' DontLoop -1.0 (trandOnce 1 2.0 5) vBuffer * 0.7 |> pan 0.7)
+
+slendrozPitch :: Int -> (#Mono AudioBuffer, Stereo Audio#)
+slendrozPitch ix =
+  case ix of
+    0  -> (#cLowVoiceSample,     fromFloat (d2f chromatic 0)#)
+    1  -> (#dFlatLowVoiceSample, fromFloat (d2f chromatic 1)#)
+    3  -> (#eFlatLowVoiceSample, fromFloat (d2f chromatic 3)#)
+    5  -> (#fLowVoiceSample,     fromFloat (d2f chromatic 5)#)
+    6  -> (#gFlatLowVoiceSample, fromFloat (d2f chromatic 6)#)
+    8  -> (#aFlatLowVoiceSample, fromFloat (d2f chromatic 8)#)
+    10 -> (#bFlatLowVoiceSample, fromFloat (d2f chromatic 10)#)
+    12 -> (#cLowVoiceSample,     fromFloat (d2f chromatic 12)#)
+    13 -> (#dFlatLowVoiceSample, fromFloat (d2f chromatic 13)#)
+    15 -> (#eFlatLowVoiceSample, fromFloat (d2f chromatic 15)#)
+    17 -> (#fLowVoiceSample,     fromFloat (d2f chromatic 17)#)
+    18 -> (#gFlatLowVoiceSample, fromFloat (d2f chromatic 18)#)
+    20 -> (#aFlatLowVoiceSample, fromFloat (d2f chromatic 20)#)
+    _  -> (#bFlatLowVoiceSample, fromFloat (d2f chromatic 22)#)
+
+slendrozBeat :: Seq Int
+slendrozBeat =
+  [bs1 cs1 bs1 cs1 bs2 cs2 bs2 cs2 (bs2 + 12) bs2 cs2]
+  |> endAtLoop
+  |> seqSpeed (bpm 90)
+  where
+    bs2 = [b1 b2 b11 b22 b3]
+    cs2 = [_ _ _]
+    b1  =
+      [
+        <_ 5> 0     <5 3> <_ 1> _
+        <_ 3> 1     <_ 5> <_ 8> _
+        _     <_ 1> <3 5> 0     _
+      ]
+    b11  =
+      [
+        <_ 5> 6     <5 3>  <_ 1> _
+        <_ 3> 1     <_ 5>  <_ 6> _
+        _     <_ 5> <6 5>  3     _
+      ]
+    b2  = [_ _ _ _ _ _ _ _]
+    b22 = [_ _ 1 <_ 0> _ _]
+    b3  = [_ _]
+    bs1 = [b1_ b2_ b1_ b2_ b3_]
+    cs1 = [_ _ _]
+    b1_ = [_ _ _ _ _] |> seqRepeat 3
+    b2_ = [_ _ _ _ _]
+    b3_ = [_ _ _ _ _ _]
+
+slendroz :: () -> Stereo Audio
+slendroz _ =
+  poly slendrozSynth slendrozBeat
+  |> pan 0.45
+  |> freeVerb 0.2125 0.9 0.75
+  |> delay twoSec (60/90 * 0.5) 0.7
+  |> mul 6.25
+
+dFlatLowVoiceSample :: Mono AudioBuffer
+dFlatLowVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\DFlatLow.wav"
+
+dFlatVoiceSample :: Mono AudioBuffer
+dFlatVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\DFlat.wav"
+
+eFlatLowVoiceSample :: Mono AudioBuffer
+eFlatLowVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\EFlatLow.wav"
+
+eFlatVoiceSample :: Mono AudioBuffer
+eFlatVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\EFlat.wav"
+
+fLowVoiceSample :: Mono AudioBuffer
+fLowVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\FLow.wav"
+
+gFlatLowVoiceSample :: Mono AudioBuffer
+gFlatLowVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\gFlatLow.wav"
+
+aFlatLowVoiceSample :: Mono AudioBuffer
+aFlatLowVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\AFlatLow.wav"
+
+bFlatLowVoiceSample :: Mono AudioBuffer
+bFlatLowVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\BFlatLow.wav"
+
+bFlatVoiceSample :: Mono AudioBuffer
+bFlatVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\BFlat.wav"
+
+cLowVoiceSample :: Mono AudioBuffer
+cLowVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\CLow.wav"
+
+cVoiceSample :: Mono AudioBuffer
+cVoiceSample =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Notes\C.wav"
+
+slendroCLow :: Mono AudioBuffer
+slendroCLow =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\Slendro\CleanedUp\Retuned\SlendroCLow.wav"
+
+slendroDFlatLow :: Mono AudioBuffer
+slendroDFlatLow =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\Slendro\CleanedUp\Retuned\SlendroDFlatLow.wav"
+
+slendroEFlatLow :: Mono AudioBuffer
+slendroEFlatLow =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\Slendro\CleanedUp\Retuned\SlendroEFlatLow.wav"
+
+slendroFLow :: Mono AudioBuffer
+slendroFLow =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\Slendro\CleanedUp\Retuned\SlendroFLow.wav"
+
+slendroGFlatLow :: Mono AudioBuffer
+slendroGFlatLow =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\Slendro\CleanedUp\Retuned\SlendroGFlatLow.wav"
+
+slendroAFlatLow :: Mono AudioBuffer
+slendroAFlatLow =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\Slendro\CleanedUp\Retuned\SlendroAFlatLow.wav"
+
+slendroBFlatLow :: Mono AudioBuffer
+slendroBFlatLow =
+  audioBufferOpen "C:\Users\casiosk1\Documents\Audio\Samples\Slendro\CleanedUp\Retuned\SlendroBFlatLow.wav"
+
+-- Pitch short hand
+dfl :: Seq (Mono AudioBuffer)
+dfl = pure dFlatLowVoiceSample
+df  = pure dFlatVoiceSample
+efl = pure eFlatLowVoiceSample
+ef  = pure eFlatVoiceSample
+fl  = pure fLowVoiceSample
+gfl = pure gFlatLowVoiceSample
+afl = pure aFlatLowVoiceSample
+bfl = pure bFlatLowVoiceSample
+bf  = pure bFlatVoiceSample
+cl  = pure cLowVoiceSample
+c   = pure cVoiceSample
+
+sc :: Seq (#Mono AudioBuffer, Float#)
+sc  = pure (#slendroCLow, d2f chromatic 0#)
+sdf = pure (#slendroDFlatLow, d2f chromatic 1#)
+sef = pure (#slendroEFlatLow, d2f chromatic 3#)
+sf  = pure (#slendroFLow, d2f chromatic 5#)
+sgf = pure (#slendroGFlatLow, d2f chromatic 6#)
+saf = pure (#slendroAFlatLow, d2f chromatic 8#)
+sbf = pure (#slendroBFlatLow, d2f chromatic 10#)
+
+
+----------------------
+-- Section 3
+----------------------
+-- Two-ish minute denoument section
+-- More Frozen
+-- More Ethereal
+-- More Suspended
+-- Slow harmonic movement, more coordinated than first section
+-- Largely consonant suspended chords (within minor dissonant decorations)
+-- Resolution
+-- Isn't this just Ives' The Unanswered Question (ok, not at all)
+
+section3 :: () -> Stereo Audio
+section3 _ =
+  s1 +
+  waitFor 30 cryoVoice +
+  waitFor 60 pulsar2 +
+  waitFor 30 basic2
+  |> asr 10 150 30 1
+  |> mul 0.5
+  where
+    s1 =
+      stringsD () * 0.1
+      |> freeVerb 0.6 0.9 0.9
+      |> delay oneSec 1.0 0.35
+
+cryoVoice :: () -> Stereo Audio
+cryoVoice _ =
+  cryoFreeze nat64 3123 (lfPulse (stereo 0.25 0.75) 4.00) voice +
+  cryoFreeze nat4  3543 (lfPulse 0.25 (stereo 1.00 0.50)) voice +
+  cryoFreeze nat8  4287 (lfPulse 0.75 (stereo 0.50 1.00)) voice +
+  cryoFreeze nat16 5287 (lfPulse 0.5  (stereo 1.00 1.00)) voice +
+  (voice * 0.5)
+  |> lpf 8321 1.0
+  |> asr 10 120 30 1
+  |> silenceAtEnd
+  |> mul 0.4
+  where
+    mod1        = -1 * lag 0.050 (lfPulse 0.92 0.225)
+    mod2        = -1 * lag 0.050 (lfPulse 0.91 0.275)
+    mod3        = -1 * lag 0.075 (lfPulse 0.85 0.31)
+    mod4        = -1 * lag 0.075 (lfPulse 0.84 0.34)
+    lastVoice _ =
+      ((audioBufferPlay' Loop  (1.00 * mod1 * mod3)  0.3  oohRev * 1.00) |> pan 0.35) +
+      ((audioBufferPlay' Loop  ((-2/3) * mod2 * mod4) 0.4 oohRev * 1.00) |> pan 0.65)
+      |> asr 20 20 20 1
+      |> silenceAtEnd
+    voice     =
+      ((audioBufferPlay' Loop  0.50                   0.25 oohRev * 1.25) |> pan 0.4875) +
+      ((audioBufferPlay' Loop  (1.00 * mod1 * mod3)   0.00 oohRev * 1.00) |> pan 0.6125) +
+      ((audioBufferPlay' Loop  ((-2/3) * mod2 * mod4) 0.50 oohRev * 1.00) |> pan 0.3875) +
+      waitFor 100 lastVoice
+      |> delay oneSec 0.5 0.375
+      |> mul 1.125
+      |> add (chirping () * 0.5 |> lpf 6000 1)
+      |> mul 0.5
+      |> freeVerb 0.5 1.05 0.95
+
+cryoFreeze :: NatVal n -> Stereo Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+cryoFreeze n cutoff triggerLFO input =
+  fftFreeze (genTriggers triggerLFO) audio
+  |> ifft
+  where
+    audioHigh = fft' n (lpf cutoff 1 input)
+    audioLow  = fftPitchShiftCrude 0.5 audioHigh
+    audio     = fftLerp 0.35 audioHigh audioLow
+
+chirping :: () -> Stereo Audio
+chirping _ =
+  -- Interesting high pitched chirping
+  stereo
+    (audioFilePlay Loop (sin  20 * 0.10 + sin -0.10 * 0.5 + ((lfPulse 0.75 0.25 * 0.5 + 0.5) * 2 + -4)) hum)
+    (audioFilePlay Loop (sin -21 * 0.11 + sin  0.15 * 0.5 + ((lfPulse 0.25 0.25 * 0.5 + 0.5) * 4 + -8)) hum)
+  |> delay oneSec 1.0 0.5
+  |> mul 0.1
+  |> asr 10 180 10 1
+
+-- TODO: trigEnv? genTrigOnChange?
+pulsar2 :: () -> Stereo Audio
+pulsar2 _ =
+  osc
+  |> mul ((lowSn * 0.35 + 0.65) * 1)
+  |> mul 0.195
+  |> mul e
+  |> silenceAtEnd
+  |> freeVerb 0.9 0.95 0.9
+  |> mul 0.65
+  where
+    e           = asr 30 60 30 3 1
+    pitch       = [6 [5:8] 3 1] |> map (d2f chromatic .> mul 2.0) |> seqSpeed (1 / 6) |> seqToAudio |> lag 0.01
+    lowSn       = sin (1/30) * 0.5 + 0.5
+    lowSn2      = sin (1/10) * 0.5 + 0.5
+    fm1         = sin 2 * 0.25
+    fm2         = sin 2 * -0.25
+    fm          = stereo fm1 fm2
+    am1         = sin 4 * 0.125
+    am2         = sin 2 * 0.125
+    am3         = sin 0.25 * 0.175
+    am          = (am1 + am2 + am3) * 1.0 + 0.95
+    ffm         = am * 0.5 + 0.5
+    syncNorXor  =
+      lfPulse (stereo 0.5 0.25) (pitch / 2)
+    syncNorXor2 =
+      lfPulse (stereo 0.25 0.5) (pitch / 4)
+    syncOrSwim  =
+      (syncTri syncNorXor2 (pitch / 4) * 0.75 * am) +
+      (syncTri syncNorXor (pitch / 4) * 0.75) +
+      (syncTri syncNorXor (pitch / 8) * 0.25 * am)
+    osc         =
+      (sin (pitch * 0.25 + fm * 0.01) * 0.0625) +
+      (sin (pitch * 0.5 + fm * 0.01) * 0.125) +
+      syncOrSwim
+      |> lpf (pitch + pitch * 1.25 * e) 1.0
+      |> mul am
+
+basic2 :: () -> Stereo Audio
+basic2 _ =
+  poly basicSynth2 basicBeat2
+  |> pan 0.6
+  |> freeVerb 0.6667 1.05 0.6
+  |> mul 0.5
+
+basicSynth2 :: (#Mono AudioBuffer, Float#) -> Stereo Audio
+basicSynth2 (#buffer, ffreq#) =
+  osc +
+  gong +
+  sample
+  |> mul 0.5
+  |> mixStereo
+  where
+    freq  = fromFloat ffreq
+    snare = audioFilePlay DontLoop 1.0 snareSample * 0.25
+    gong  = audioFilePlay DontLoop 1.0 gongSample * 1.5 + audioFilePlay DontLoop 1.8 gongSample * 2.5
+    osc   =
+      (sin (sin 2.925 *  0.02 + freq * 0.250) * 1.0) +
+      (sin (sin 1.753 * -0.02 + freq * 0.500) * 0.5)
+      |> perc 0.001 9 -2
+    sample =
+      (audioBufferPlay DontLoop (sin 3.5   * -0.01 + 0.50) buffer * 0.75) +
+      (audioBufferPlay DontLoop (sin 4.125 *  0.01 + 1.00) buffer * 0.25)
+
+basicBeat2 :: Seq (#Mono AudioBuffer, Float#)
+basicBeat2 =
+  [b0 _ b1 b0 b0]
+  |> seqSpeed (1//6)
+  where
+    b0 = [_ _ _ _] |> seqRepeat 3
+    b1 =
+      [
+        <_ sgf> _ _ _
+        <_ sgf> _ _ _
+        <_ sdf> _ _ _
+      ]
+
+snareSample :: AudioFile
+snareSample =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\Percussion\SnareRim.wav"
+  |> fromMaybe silentAudioFile
+
+gongSample :: AudioFile
+gongSample =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\Percussion\gong_2.wav"
+  |> fromMaybe silentAudioFile
+
+oohRev :: Mono AudioBuffer
+oohRev =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\HumOoh25SlowRev1.wav"
+  |> fromMaybe silentAudioFile
+  |> audioBufferFromFile
+
+buzz1 :: AudioFile
+buzz1 =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\400hzBuzz1.wav"
+  |> fromMaybe silentAudioFile
+
+melody1Note :: Mono AudioBuffer
+melody1Note =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Melody1Note1.wav"
+  |> fromMaybe silentAudioFile
+  |> audioBufferFromFile
+
+humDrone1 :: Mono AudioBuffer
+humDrone1 =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\HumDrone1.wav"
+  |> fromMaybe silentAudioFile
+  |> audioBufferFromFile
+
+melody1 :: Mono AudioBuffer
+melody1 =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Melody1.wav"
+  |> fromMaybe silentAudioFile
+  |> audioBufferFromFile
+
+melody2 :: Mono AudioBuffer
+melody2 =
+  audioFileOpen "C:\Users\casiosk1\Documents\Audio\Samples\HumMelody\Melody2.wav"
+  |> fromMaybe silentAudioFile
+  |> audioBufferFromFile
+
+
+----------------------
+-- Strings
+----------------------
+
+-- -- Consider warping frequencies more?
+-- strings :: () -> Stereo Audio
+-- strings _ =
+--   osc
+--   |> mul 10
+--   |> highShelf 4000 -3 1
+--   |> asr 3 177 10 1
+--   |> silenceAtEnd
+--   where
+--     env = asr 10 170 10 1 1
+--     bv0 = env * 0.2 * (sin 1.51 * (env * 0.0125 + 0.025) + 0.975) * (sin 2.22 * 0.051 + 0.95) + 0.05
+--     bv1 = env * 0.2 * (sin 1.53 * (env * 0.0125 + 0.052) + 0.975) * (sin 2.17 * 0.052 + 0.95) + 0.05
+--     bv2 = env * 0.2 * (sin 1.54 * (env * 0.0125 + 0.055) + 0.975) * (sin 3.52 * 0.053 + 0.95) + 0.05
+--     bv3 = env * 0.2 * (sin 1.55 * (env * 0.0125 + 0.035) + 0.975) * (sin 2.13 * 0.054 + 0.95) + 0.05
+--     bv4 = env * 0.2 * (sin 1.45 * (env * 0.0125 + 0.045) + 0.975) * (sin 2.32 * 0.055 + 0.95) + 0.05
+--     bv5 = env * 0.2 * (sin 1.4  * (env * 0.0125 + 0.075) + 0.975) * (sin 2.22 * 0.056 + 0.95) + 0.05
+--     fw  = 1.0
+--     p0  = 1.0 * fw * (env *  0.0275 + 0.5) * 800.01 + sin (env * 2 + 0.12) * (env * 3 + 0.75)
+--     p1  = 1.0 * fw * (env * -0.0275 + 0.5) * 799.99 + sin (env * 2 + 0.07) * (env * 3 + 0.35)
+--     p2  = 0.5 * fw * (env *  0.0275 + 0.5) * 1000.01 + sin (env * 2 + 0.52) * (env * 3 + 0.5)
+--     p3  = 1.0 * fw * (env * -0.0275 + 0.5) * 599.99 + sin (env * 2 + 0.25) * (env * 3 + 0.25)
+--     p4  = 1.0 * fw * (env *  0.0275 + 0.5) * 549.99 + sin (env * 2 + 0.75) * (env * 3 + 0.75)
+--     p5  = 0.5 * fw * (env * -0.0275 + 0.5) * 399.99 + sin (env * 2 + 0.85) * (env * 3 + 0.9)
+--     l   =
+--       (waveGuideBow nat4 0.3317236 0.41 0.93500 1.2 bv0 p0 * 0.75) +
+--       (waveGuideBow nat4 0.3337236 0.43 0.91250 1.4 bv2 p2 * 0.75) +
+--       (waveGuideBow nat4 0.3357236 0.45 0.91350 1.5 bv4 p4 * 0.75) +
+--       (waveGuideBow nat4 0.3317236 0.42 0.93350 1.2 bv0 (p0 * 0.5) * 1.125) +
+--       (waveGuideBow nat4 0.3337236 0.44 0.95125 1.4 bv2 (p2 * 0.5) * 1.125) +
+--       (waveGuideBow nat4 0.3357236 0.46 0.93135 1.5 bv4 (p4 * 0.5) * 1.125)
+--     r =
+--       (waveGuideBow nat4 0.3227236 0.42 0.9250 1.3 bv1 p1 * 0.75) +
+--       (waveGuideBow nat4 0.3247236 0.44 0.9250 1.1 bv3 p3 * 0.75) +
+--       (waveGuideBow nat4 0.3267236 0.41 0.9250 1.0 bv5 p5 * 0.75) +
+--       (waveGuideBow nat4 0.3227236 0.43 0.9425 1.3 bv1 (p1 * 0.5) * 1.125) +
+--       (waveGuideBow nat4 0.3247236 0.45 0.9225 1.1 bv3 (p3 * 0.5) * 1.125) +
+--       (waveGuideBow nat4 0.3267236 0.47 0.9425 1.0 bv5 (p5 * 0.5) * 1.125)
+--     osc =
+--       stereo (l * 0.55 + r * 0.45) (l * 0.45 + r * 0.55)
+
+-- Lower strings fade in later
+-- Full Env combinator?
+stringsD :: () -> Stereo Audio
+stringsD _ =
+  osc
+  where
+    env = asr 10 170 10 1 1
+    bv0 = env * 0.2 * (sin 1.51 * (env * 0.0125 + 0.025) + 0.975) * (sin 2.22 * 0.051 + 0.95) + 0.05
+    bv1 = env * 0.2 * (sin 1.53 * (env * 0.0125 + 0.052) + 0.975) * (sin 2.17 * 0.052 + 0.95) + 0.05
+    bv2 = env * 0.2 * (sin 1.54 * (env * 0.0125 + 0.055) + 0.975) * (sin 3.52 * 0.053 + 0.95) + 0.05
+    bv3 = env * 0.2 * (sin 1.55 * (env * 0.0125 + 0.035) + 0.975) * (sin 2.13 * 0.054 + 0.95) + 0.05
+    p0  = 277.1826 * 0.50 + sin 1.75 * 0.9
+    p1  = 277.1826 * (3/2) * 0.25 + sin -1.5 * 0.95
+    p2  = 277.1826 * 0.50 + sin 1.15 * 0.92
+    p3  = 277.1826 * (3/2) * 0.50 + sin -1.5 * 0.75
+    p4  = 277.1826 * 0.25 + sin 0.75 * 0.97
+    p5  = 277.1826 * 0.25 + sin 0.87 * 0.99
+    l   =
+      waveGuideBow nat4 0.12 0.15 0.885 1.34 bv0 p0 +
+      waveGuideBow nat4 0.14 0.19 0.835 1.32 bv1 p1 +
+      waveGuideBow nat4 0.11 0.15 0.845 1.39 bv2 p4
+    r   =
+      waveGuideBow nat4 0.13 0.18 0.865 1.38 bv2 p2 +
+      waveGuideBow nat4 0.15 0.16 0.855 1.37 bv3 p3 +
+      waveGuideBow nat4 0.10 0.17 0.875 1.35 bv0 p5
+    osc =
+      stereo (l * 0.75 + r * 0.25) (l * 0.25 + r * 0.75)
+      |> mul 2.0
+      |> silenceAtEnd
+
+
+----------------------
+-- Bubbling Chaos
+----------------------
+
+-- strangeNoise :: Stereo Audio
+-- strangeNoise =
+--   rabinovichFabrikantAttractor size ifn mfn 1.1 0.87 (stereo 0.5 0.75) +
+--   rabinovichFabrikantAttractor size ifn mfn 1.1 0.87 (stereo 0.6 0.7) +
+--   rabinovichFabrikantAttractor size ifn mfn 1.1 0.87 (stereo 0.4 0.8) +
+--   rabinovichFabrikantAttractor size ifn mfn 1.1 0.87 (stereo 0.3 0.85)
+--   |> mul (sin 0.1)
+--   |> perc 60 60 6
+--   |> lpf (perc 60 60 10 8000 + 50) 36
+--   |> delay twoSec 2.0 0.5
+--   |> mul 0.0125
+--   where
+--     size :: NatVal3 2 2 2
+--     size                      = NatVal3
+--     ifn i (Vector3D# x y z)   = (#Vector3D# -1 0 0.5 + Vector3D# (x * 0.5) (y * 0.5) (z * 0.5), fromUInt i#)
+--     mfn i (Vector3D# x y z) s = (#s, sine ((x * 1100) + sine (y * 900) + sine (z * 1000))#)
+
+-- bubblingChaos :: () -> Stereo Audio
+-- bubblingChaos _ =
+--   chaos
+--   |> mul 0.25
+--   |> silenceAtEnd
+--   |> freeVerb 0.35 0.8 0.8
+--   |> delay oneSec 2.0 0.4
+--   where
+--     chaos =
+--       lorenzAttractor size ifn mfn 10 38 (8/3) (perc 60 60 2 9 + stereo 3 3.01)
+--       |> perc 60 60 2
+--       |> lpf (perc 60 60 2 16000 + 50) 36
+--     p ~ 0                     = p + recipSampleRate * 60 * 0.4
+--     sp1                       = sine (p * 10) * 20
+--     sp2                       = sine (p * 13) * 30
+--     size :: NatVal3 3 3 3
+--     size                      = NatVal3
+--     ifn i (Vector3D# x y z)   = (#Vector3D# (x * 75) (y * 25) (z * 50), fromUInt i#)
+--     mfn i (Vector3D# x y z) s =
+--       (#s + ((magnitude3D (Vector3D# x y z)) * p * recipSampleRate), ((sine (y * 25 + sine (s * 0.25))) * 2) + (sine (x * (8.00 + sp1)) * 0.5) + sine (z * (15 + sp2))#)
+
+-- Voice Melody:
+-- | Db _ Eb | Bb _ _  |
+-- | Db _ Eb | Bb _ _  |
+-- | F  _ Gb | Gb _ Bb | Gb _ _ |
+
+
+----------------------
+-- Seq Test
+----------------------
+
+-- -- TODO: Suss This shit out!
+-- data MoonState = MoonState# Float Float
+--
+-- moonSeq :: Seq MoonState
+-- moonSeq =
+--   pure b1
+--   |> seqSpeed (1 // 16)
+--   where
+--     b1 = MoonState# 7 7
+
+
+----------------------
+-- Main
+----------------------
+
+-- TODO / IDEA: occasional voice sputter transition from 2 to 3?
+-- TODO: Transition section
+
+main :: *World -> *World
+main w =
+  -- print ([(seqStutter 3 [1 2 3 4]) 666]) w
+  outAudio 0 sig  w
+  -- |> recordAudio "IHearTheWavesStillBeyondTheseDeepWavesOfAbyss.wav" sig
+  where
+    blah = 0
+
+    -- Pair with frozen3 + frozen4?
+    -- sig  = illuminated ()
+
+    -- sig = playFor 250 section3
+    -- sig = playFor 215 section2
+    -- sig = playFor 80 section1to2Transition
+    -- sig = playFor 195 section1
+
+    -- -- -- TODO: section1 sparkly shit at end
+    -- s1Wait = 170
+    -- sig    =
+    --   silenceAtEnd (playFor 215 section1) +
+    --   silenceAtEnd (waitThenPlayFor s1Wait 60 section1to2Transition) +
+    --   silenceAtEnd (waitThenPlayFor (s1Wait + 51) 215 section2) +
+    --   waitFor (s1Wait + 231) section3
+
+    sig = section2 ()
+
+    -- sig = section1to2Transition ()
+    -- sig = section2 ()
+    -- sig = section3 ()
+    -- sig = silenceAtEnd (playFor 205 section2) + waitFor 180 section3
+    -- s1  = playFor 190 section1 |> silenceAtEnd
+    -- s2  = waitThenPlayFor 185 205 section2 |> silenceAtEnd
+    -- s3  = waitFor 390 section3
+    -- sig =
+    --   s1 + s2 + s3
+
+

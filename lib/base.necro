@@ -4049,8 +4049,8 @@ left (Stereo# l _) = Mono l
 right :: Stereo a -> Mono a
 right (Stereo# _ r) = Mono r
 
-flipStereo :: Stereo a -> Stereo a
-flipStereo (Stereo# l r) = Stereo# r l
+stereoFlip :: Stereo a -> Stereo a
+stereoFlip (Stereo# l r) = Stereo# r l
 
 instance Functor Mono where
   map f (Mono x) = Mono (f x)

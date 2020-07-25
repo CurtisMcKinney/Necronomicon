@@ -4590,6 +4590,26 @@ tcoinOnceF' :: UInt -> Float -> Float -> Float -> Float
 tcoinOnceF' iseed probability x y =
   if trandOnceF iseed 0 1 <= probability then x else y
 
+----------------------
+-- Chaos
+
+data LogisticMapState = LogisticMapState# Float
+
+instance Default LogisticMapState where
+    default = LogisticMapState# 0.5
+
+logisticMapTick :: Float -> LogisticMapState -> (#LogisticMapState, Float#)
+logisticMapTick r (LogisticMapState# xn) = (#LogisticMapState# xn1, xn1#)
+  where
+    xn1 = (r * xn) * (1 - xn)
+
+-- Simple chaotic function, r expected to be in the range of 0 - 4
+-- outputs values in the range of 0 - 1
+logisticMap :: AudioFormat f => f Audio -> f Audio
+logisticMap r =
+  map f r
+  where
+    f rc = accumulateAudio1 logisticMapTick constTrue rc
 
 --------------------
 -- downsample oversampled audio

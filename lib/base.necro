@@ -4592,6 +4592,10 @@ tcoinOnceF' iseed probability x y =
 
 ----------------------
 -- Chaos
+----------------------
+
+----------------------
+-- Logistic Map
 
 data LogisticMapState = LogisticMapState# Float
 
@@ -4610,6 +4614,52 @@ logisticMap r =
   map f r
   where
     f rc = accumulateAudio1 logisticMapTick constTrue rc
+
+----------------------
+-- FNV1A
+
+data FNV1aState = FNV1aState# UInt
+
+instance Default FNV1aState where
+  default = FNV1aState# 14695981039346656037
+
+fnv1aTick :: Float -> FNV1aState -> (#FNV1aState, Float#)
+fnv1aTick v (FNV1aState# hash) = (#FNV1aState# hash, fromBits hash'#)
+  where
+    vu = toBits v
+    mask = 255
+    prime = 1099511628211
+    (#hash', _#) =
+      loop (#hash', i#) = (#hash, 0#) while i < 4 do
+        (#bitXor hash' (bitAnd (bitShiftRight vu i) mask) |> mul prime, i + 1#)
+
+-- Instantaneous hash, doesn't accumulate hash over time
+-- input is hashed as the IEEE float binary format, interpretted as octet array
+-- output values will be across the entire floating point range!
+fnv1a :: AudioFormat f => f Audio -> f Audio
+fnv1a v =
+  map f v
+  where
+    f vc = accumulateAudio1 fnv1aTick constTrue vc
+
+fnv1aTick' :: Float -> FNV1aState -> (#FNV1aState, Float#)
+fnv1aTick' v (FNV1aState# hash) = (#FNV1aState# hash', fromBits hash'#)
+  where
+    vu = toBits v
+    mask = 255
+    prime = 1099511628211
+    (#hash', _#) =
+      loop (#hash', i#) = (#hash, 0#) while i < 4 do
+        (#bitXor hash' (bitAnd (bitShiftRight vu i) mask) |> mul prime, i + 1#)
+
+-- Accumulates hash over time
+-- input is hashed as the IEEE float binary format, interpretted as octet array
+-- output values will be across the entire floating point range!
+fnv1a' :: AudioFormat f => f Audio -> f Audio
+fnv1a' v =
+  map f v
+  where
+    f vc = accumulateAudio1 fnv1aTick' constTrue vc
 
 --------------------
 -- downsample oversampled audio

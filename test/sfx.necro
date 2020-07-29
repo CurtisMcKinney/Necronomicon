@@ -29,15 +29,15 @@ toneFFT =
 
 plvolve :: Float -> Stereo Audio
 plvolve h =
-  pluck natFour (fromFloat h * 27.5) 0.9 |>
-  add (pluck natEight 440 0.5) |>
+  pluck nat4 (fromFloat h * 27.5) 0.9 |>
+  add (pluck nat8 440 0.5) |>
   mul 0.5 |> e |> fft |> convolve toneFFT |> ifft |> mixStereo
   where
     e = asr 0.1 0.5 8.0 -16
 
 plrez :: Float -> Stereo Audio
 plrez h =
-  pluck natEight (fromFloat h * 55) 0.1 |>
+  pluck nat8 (fromFloat h * 55) 0.1 |>
   mul 4 |> e |> mixStereo |> add s |>
   freeVerb 0.9 0.1 0.9
   where
@@ -53,7 +53,7 @@ plrez h =
 
 resogun :: Float -> Stereo Audio
 resogun h =
-  pluck natEight (fromFloat h * 55) 0.9 |>
+  pluck nat8 (fromFloat h * 55) 0.9 |>
   mul 8 |> e |> mixStereo |> add s |>
   freeVerb 0.99 0.95 0.9
   where
@@ -69,7 +69,7 @@ resogun h =
 
 resogun2 :: Float -> Stereo Audio
 resogun2 h =
-  pluck natEight (fromFloat h * 55) 0.9 |>
+  pluck nat8 (fromFloat h * 55) 0.9 |>
   mul 8 |> e |> mixStereo |> add s |>
   freeVerb 0.99 0.95 0.9
   where
@@ -85,7 +85,7 @@ resogun2 h =
 
 spookyActionAtADistance :: Float -> Stereo Audio
 spookyActionAtADistance h =
-  pluck natEight (fromFloat h * 55 * 13) 0.9 |>
+  pluck nat8 (fromFloat h * 55 * 13) 0.9 |>
   mul 8 |> e |> mixStereo |> add s |>
   freeVerb 0.99 0.95 0.9
   where
@@ -101,8 +101,8 @@ spookyActionAtADistance h =
 
 spookyActionAtAnotherDistance :: Float -> Stereo Audio
 spookyActionAtAnotherDistance h =
-  pluck natEight (fromFloat h * 55 * 13) 0.9 +
-  pluck natEight (fromFloat h * 27.5 * 17) 0.9 |>
+  pluck nat8 (fromFloat h * 55 * 13) 0.9 +
+  pluck nat8 (fromFloat h * 27.5 * 17) 0.9 |>
   mul 8 |> e |> mixStereo |> add s |>
   freeVerb 0.99 0.95 0.9
   where
@@ -119,8 +119,8 @@ spookyActionAtAnotherDistance h =
 
 ghostNotes :: Float -> Stereo Audio
 ghostNotes h =
-  pluck natEight (fromFloat h2 * 55 / 4) 0.6 +
-  pluck natEight (fromFloat h2 * 27.5 / 2) 0.7 |>
+  pluck nat8 (fromFloat h2 * 55 / 4) 0.6 +
+  pluck nat8 (fromFloat h2 * 27.5 / 2) 0.7 |>
   lpf 1000 0.01 |>
   mul 1 |> e |> mixStereo |> add s |>
   freeVerb 0.99 0.999 0.99
@@ -159,7 +159,7 @@ waveSpiritGuide h =
   freeVerb 0.75 0.5 0.9
   where
     e = asr 0.1 0.1 16 -4
-    s f = waveGuidePluck natSixteen 0.5 0.3 0.9 16 f (saw 1337)
+    s f = waveGuidePluck nat16 0.5 0.3 0.9 16 f (saw 1337)
       |> mul 1
       |> e
     f1 = (fromFloat h * 55 * 0.25)
@@ -180,7 +180,7 @@ waveSpiritTrap h =
       fftMagSqrRoot |>
       convolve f
     e = asr 0.1 1 16 -4
-    s f = waveGuidePluck natSixteen 0.5 0.9 0.9 16 f (e 0.9 + 0.1)
+    s f = waveGuidePluck nat16 0.5 0.9 0.9 16 f (e 0.9 + 0.1)
       |> mul 4
     f1 = (fromFloat h * 55 * 1)
 
@@ -198,7 +198,7 @@ waveSpiritSnack h =
       fftMagSqrRoot |>
       convolve f
     e = asr 0.1 0.5 8 -16
-    s f = waveGuidePluck natSixteen 0.3 0.3 0.5 16 f (0.1)
+    s f = waveGuidePluck nat16 0.3 0.3 0.5 16 f (0.1)
       |> mul 4
     f1 = (fromFloat (h + 4) * 55 * 4)
 
@@ -212,7 +212,7 @@ hiddenVariables h =
       fftMagSqrRoot |>
       convolve f
     e = asr 0.03 0.5 0.3 -16
-    s f = waveGuideBow natSixteen 0.5 0.5 1.0 0.9 0.3 f
+    s f = waveGuideBow nat16 0.5 0.5 1.0 0.9 0.3 f
       |> mul 4
     f1 = (fromFloat h * 55 * 0.125 * 0.5)
 
@@ -228,7 +228,7 @@ waveFunctionCollapse h =
       fftMagSqrRoot |>
       convolve f
     e = asr 0.1 0.1 0.3 -4
-    s f = waveGuideBow natSixteen 0.5 0.5 1.0 0.9 0.3 f
+    s f = waveGuideBow nat16 0.5 0.5 1.0 0.9 0.3 f
       |> mul 4
     f1 = (fromFloat h * 55 * 0.125 * 0.125)
 
@@ -244,7 +244,7 @@ deadCatAliveCat h =
       fftMagSqrRoot |>
       convolve f
     e = asr 0.1 0.1 0.3 -4
-    s f = waveGuideBow natSixteen 0.5 0.5 0.333 0.3 0.3 f
+    s f = waveGuideBow nat16 0.5 0.5 0.333 0.3 0.3 f
       |> mul 8
     f1 = (fromFloat h * 55 * 0.125 * 0.125)
 
@@ -261,7 +261,7 @@ copenhagenInterpretation h =
       fftMagSqrRoot |>
       convolve f
     e = asr 0.1 0.1 4 -4
-    s f = waveGuideBow natSixteen 0.5 0.5 0.333 0.3 0.3 f
+    s f = waveGuideBow nat16 0.5 0.5 0.333 0.3 0.3 f
       |> mul 8
     f1 = (fromFloat h * 55 * 0.125 * 0.125)
 
@@ -279,7 +279,7 @@ aliveCatDeadCat h =
       fftMagSqrRoot |>
       convolve f
     e = asr 0.1 0.1 4 -4
-    s f = waveGuideBow natSixteen 0.5 0.5 0.333 0.3 0.3 f
+    s f = waveGuideBow nat16 0.5 0.5 0.333 0.3 0.3 f
       |> mul 8
     f1 = (fromFloat h * 55 * 0.125 * 0.125)
 
@@ -297,7 +297,7 @@ frozenCats h =
       fftMagSqrRoot |>
       convolve f
     e = asr 0.1 0.5 8 -4
-    s f = waveGuideBow natSixteen 0.5 0.5 0.333 0.3 0.3 f
+    s f = waveGuideBow nat16 0.5 0.5 0.333 0.3 0.3 f
       |> mul 8
     f1 = (fromFloat h * 55 * 0.125)
 
@@ -315,7 +315,7 @@ infiniteCats h =
       fftMagSqrRoot |>
       convolve f
     e = asr 0.5 0.5 8 -4
-    s f = waveGuideBow natSixteen 0.5 0.5 0.6 0.3 0.3 f
+    s f = waveGuideBow nat16 0.5 0.5 0.6 0.3 0.3 f
       |> mul 8
     f1 = (fromFloat h * 55 * 0.125 * 0.25)
 
@@ -334,7 +334,7 @@ countablyInfiniteCats h =
       convolve f
     e = asr 0.01 0.01 4 -4
     e2 = asr 0.01 0.1 4 -16
-    s f = waveGuideBow natSixteen 0.5 0.5 0.6 0.3 0.3 f
+    s f = waveGuideBow nat16 0.5 0.5 0.6 0.3 0.3 f
       |> mul 8 |> e2
     f1 = (fromFloat h * 55 * 0.125 * 0.25)
 
@@ -342,8 +342,9 @@ uncountablyInfiniteCats :: Float -> Stereo Audio
 uncountablyInfiniteCats h =
   s f1 |> fft |> ffft |> ifft |> e |>
   mul (sin (fromFloat <| h * 55 * 0.125 * 5 / 4)) |>
-  hpf (fromFloat h * 111 * 5/4) 0.003 |> mixStereo |>
-  freeVerb 0.5 0.5 0.9
+  hpf (fromFloat h * 111 * 5/4) 0.003 |> mixStereo
+  |> mul 4
+  |> freeVerb 0.5 0.5 0.9
   where
     ffft :: Mono (FFT 2) -> Mono (FFT 2)
     ffft f =
@@ -352,7 +353,7 @@ uncountablyInfiniteCats h =
       convolve f
     e = asr 0.01 0.01 2 -8
     e2 = asr 0.01 0.1 2 -16
-    s f = waveGuideBow natSixteen 0.5 0.5 0.6 0.3 0.3 f
+    s f = waveGuideBow nat16 0.5 0.5 0.6 0.3 0.3 f
       |> mul 8 |> e2
     f1 = (fromFloat h * 55 * 0.125 * 0.25)
 

@@ -2117,6 +2117,15 @@ silenceAtEnd cs =
         AudioEnd -> BlockRate 0
         _        -> c
 
+valueAtEnd :: AudioFormat f => Float -> f Audio -> f Audio
+valueAtEnd value cs =
+  map f cs
+  where
+    f c =
+      case c of
+        AudioEnd -> BlockRate value
+        _        -> c
+
 outAudioBlock :: UInt -> Array BlockSize Float -> *World -> *World
 outAudioBlock c a w = primUndefined
 
@@ -4485,6 +4494,17 @@ recordAudio name audio world =
 -- UGens
 --------------------
 
+--------------------
+-- bitCrush
+
+-- TODO: Finish!
+bitCrush :: AudioFormat f => f Audio -> f Audio -> f Audio
+bitCrush crushFactor input =
+  map2 (mapAudio2 f) crushFactor input
+  where
+    f crush x =
+      floor (x / crush) * crush
+
 ----------------------
 -- Randomness
 
@@ -4494,14 +4514,21 @@ linearCongruentialGenerator :: UInt -> UInt -> UInt -> UInt -> UInt
 linearCongruentialGenerator a c m seed =
   (a * seed + c) % m
 
-randLCG :: Float -> Float -> UInt -> (#UInt, Float#)
-randLCG mn mx seed =
-  (#s, r#)
+lcg :: UInt -> UInt
+lcg seed =
+  s
   where
     a = 1664525
     c = 1013904223
     m = 4294967296
     s = linearCongruentialGenerator a c m seed
+
+randLCG :: Float -> Float -> UInt -> (#UInt, Float#)
+randLCG mn mx seed =
+  (#s, r#)
+  where
+    s = lcg seed
+    m = 4294967296
     r = ((fromUInt s / fromUInt m) * (mx - mn)) + mn
 
 -- This is quick'n'dirty linear congruential randomness. Replace with something higher quality!
@@ -4529,8 +4556,24 @@ tnoiseF iseed mn mx =
     tseed = bitShiftLeft (bitOr (t * 37) (iseed * 37)) 1
     t     = currSampleCount + audioSampleOffset
 
--- TODO: Rand class
+randT :: UInt -> Float -> Float -> Float
+randT iseed mn mx =
+  r2
+  where
+    seed             = 123456789 + iseed
+    a                = 1664525
+    c                = 1013904223
+    m                = 4294967296
+    r0               = fromUInt (snd' s)
+    r1               = (r0 / fromUInt m) * (mx - mn)
+    r2               = r1 + mn
+    s ~ (#True, 0#) =
+      if fst' s then
+        (#False, linearCongruentialGenerator a c m seed#)
+      else
+        (#False, linearCongruentialGenerator a c m (snd' s)#)
 
+-- TODO: Rand class
 trandOnceF :: UInt -> Float -> Float -> Float
 trandOnceF iseed mn mx =
   doOnce3 tnoiseF iseed mn mx
@@ -5361,6 +5404,10 @@ asr attackTime sustainTime decayTime curve input =
     update    = asrTick attackTime sustainTime decayTime totalTime curve
     isRunning = envIsRunning totalTime
 
+asr' :: AudioFormat f => Float -> Float -> Float -> Float -> f Audio -> f Audio
+asr' attackTime sustainTime decayTime curve input =
+  silenceAtEnd (asr attackTime sustainTime decayTime curve input)
+
 -----------
 -- sustainRelease
 sustainReleaseTick :: Float -> Float -> Float -> Float -> Float -> *EnvState -> (#*EnvState, Float#)
@@ -5405,7 +5452,7 @@ attackSustainTick attackTime sustainTime totalTime curve input (EnvState# a20 b1
         envMk (a20 - b10) 1 sustainTime curve currTime1 ()
       -- End
       else if currTime1 > totalTime then
-        EnvState# 0 0 0 currTime1
+        EnvState# a20 0 0 currTime1
       -- Attack / decay
       else
         EnvState# a20 b10 grow0 currTime1
@@ -5421,6 +5468,14 @@ attackSustain attackTime sustainTime curve input =
     mk        = envMk 0 1 attackTime curve 0
     update    = attackSustainTick attackTime sustainTime totalTime curve
     isRunning = envIsRunning totalTime
+
+attackSustain' :: AudioFormat f => Float -> Float -> Float -> f Audio -> f Audio
+attackSustain' attackTime sustainTime curve input =
+  accumulate1U mk update constTrueU input
+  where
+    totalTime = attackTime + sustainTime
+    mk        = envMk 0 1 attackTime curve 0
+    update    = attackSustainTick attackTime sustainTime totalTime curve
 
 
 -----------
@@ -6663,9 +6718,9 @@ mkWaveGuidePluckState n pickLocation pickAmplitude freq _ =
     left2  = fracDelaySetPos pickLocation left1
     right2 = fracDelaySetPos (1 - pickLocation) right1
 
-waveGuidePluck :: NatVal n -> Float -> Float -> Float -> Float -> Float -> Mono Audio -> Mono Audio
+waveGuidePluck :: NatVal n -> Float -> Float -> Float -> Float -> Mono Audio -> Mono Audio -> Mono Audio
 waveGuidePluck maxDelayInBlocks pickLocation pickAmplitude brightness sustain freq pickupLocation =
-  accumulate1U (mkWaveGuidePluckState maxDelayInBlocks pickLocation pickAmplitude freq) (accumulateWaveGuidePluck (clamp brightness 0 1) (clamp sustain 0 1) freq) (\s -> (#s, True#)) pickupLocation
+  accumulate2U (mkWaveGuidePluckState maxDelayInBlocks pickLocation pickAmplitude (audioToFloat freq)) (accumulateWaveGuidePluck (clamp brightness 0 1) (clamp sustain 0 1)) (\s -> (#s, True#)) freq pickupLocation
 
 -----------
 -- Waveguide Synthesis: Bow

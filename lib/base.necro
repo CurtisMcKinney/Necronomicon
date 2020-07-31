@@ -4692,17 +4692,18 @@ noiseTick mn mx freq (NoiseState phase0 prev0 hash0) =
     phase1 = fma freq recipSampleRate phase0
     phase2 = phase1 - floor phase1
 
-mkNoiseState :: UInt -> () -> *NoiseState
-mkNoiseState iseed _ =
-  NoiseState 0 0 tseed
+mkNoiseState :: UInt -> Float -> Float -> () -> *NoiseState
+mkNoiseState seed mn mx _ =
+  NoiseState 0 out hash1
   where
-    tseed = bitShiftLeft (bitOr (t * 37) (iseed * 37)) 1
-    t     = currSampleCount + audioSampleOffset
+    hash0          = bitShiftLeft (bitOr (t * 37) (seed * 37)) 1
+    t              = currSampleCount + audioSampleOffset
+    (#hash1, out#) = randLCG mn mx hash0
 
 -- SC "LFNoise" style noise audio combinator
-noiseT :: AudioFormat f => UInt -> f Audio -> f Audio -> f Audio -> f Audio
-noiseT iseed mn mx freq =
-  accumulate3U (mkNoiseState iseed) noiseTick constTrueU mn mx freq
+noise :: AudioFormat f => UInt -> f Audio -> f Audio -> f Audio -> f Audio
+noise iseed mn mx freq =
+  accumulate3U (mkNoiseState iseed (audioToFloat (mixMono mn)) (audioToFloat (mixMono mx))) noiseTick constTrueU mn mx freq
 
 
 --------------------
@@ -6210,7 +6211,7 @@ accumulateSuperPulse freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phas
 -- superPulse :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 superPulse freq depth mix =
   accumulate3U mkSuperSawState accumulateSuperPulse constTrueU freq depth mix
-  |> hpf freq 6
+  |> hpf freq 2
 
 accumulateSuperTri :: Float -> Float -> Float -> *SuperSawState -> (#*SuperSawState, Float#)
 accumulateSuperTri freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD0 phaseE0 phaseF0 phaseG0) =
@@ -6244,7 +6245,7 @@ accumulateSuperTri freq depth mix (SuperSawState# phaseA0 phaseB0 phaseC0 phaseD
 -- superTri :: AudioFormat f => f Audio -> f Audio -> f Audio -> f Audio
 superTri freq depth mix =
   accumulate3U mkSuperSawState accumulateSuperTri constTrueU freq depth mix
-  |> hpf freq 6
+  |> hpf freq 2
 
 ----------------------
 -- Biquad
@@ -6458,6 +6459,20 @@ accumulateLag lagTime input z =
 lag :: AudioFormat f => f Audio -> f Audio -> f Audio
 lag lagTime input =
   accumulate2 accumulateLag constTrue lagTime input
+
+data LagState = LagState Float
+
+accumulateLag' :: Float -> Float -> *LagState -> (#*LagState, Float#)
+accumulateLag' lagTime input (LagState z) =
+  (#LagState out, out#)
+  where
+    a   = exp ((-2 * pi) / (lagTime * audioSampleRateF))
+    b   = 1 - a
+    out = (input * b) + (z * a)
+
+lag' :: AudioFormat f => Float -> f Audio -> f Audio -> f Audio
+lag' initialValue lagTime input =
+  accumulate2U (\_ -> LagState initialValue) accumulateLag' constTrueU lagTime input
 
 -----------
 -- range
@@ -7086,17 +7101,14 @@ nat256 = NatVal
 
 clip :: AudioFormat f => f Audio -> f Audio
 clip cs =
-  map f cs
+  map (mapAudio (\x -> clamp x -1 1)) cs
+
+softClip :: AudioFormat f => f Audio -> f Audio -> f Audio
+softClip distortion input =
+  map2 (mapAudio2 f) distortion input
   where
-    f ia =
-      case ia of
-        AudioEnd    -> AudioEnd
-        BlockRate x -> BlockRate (clamp x -1 1)
-        AudioRate c ->
-          AudioRate <|
-            freezeArray <|
-              loop oa = audioInitArray () for i <- each do
-                writeArray i (clamp (readArray i c) -1 1) oa
+    f alpha x =
+      2 * recipPi * atanF64 (alpha * x)
 
 
 ----------------------

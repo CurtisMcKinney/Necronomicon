@@ -8903,6 +8903,13 @@ aMajor = major <| d2f cMajor 6
 bMajor :: Scale 12 7
 bMajor = major <| d2f cMajor 7
 
+harmonicMajor :: Float -> Scale 12 7
+harmonicMajor rootFreq =
+  Scale equalTemperament {0, 2, 4, 5, 7, 8, 11} rootFreq
+
+cHarmonicMajor :: Scale 12 7
+cHarmonicMajor = harmonicMajor middleC
+
 -- NOTE / TODO: This root of 200 business makes little sense! Had it like this for part of piece, but that's not even used anymore...
 justChromatic :: Scale 12 12
 justChromatic =

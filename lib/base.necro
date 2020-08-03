@@ -3549,6 +3549,30 @@ fftMagShift n f = mapFFTBuffer shift f
       in
         freezeArray b
 
+-- shift magnitudes of bins, clamped, taking into account negative frequency bins
+fftMagShift' :: AudioFormat f => Int -> f (FFT k) -> f (FFT k)
+fftMagShift' n f = mapFFTBuffer shift f
+  where
+    shift a =
+      let
+        numSamples = arrayLength NatVal a
+        midPoint   = numSamples / 2
+        b =
+          loop b = unsafeEmptyArray () for i <- each do
+            let
+              n'     = if indexToUInt i >= midPoint / 2 then n else negate n
+              index  = unsafeUIntToIndex (clamp (fromInt (fromUInt (indexToUInt i) + n')) 0 numSamples)
+              r      = readArray index a
+              u      = readArray i a
+              result = mkPolar (magnitude r) (phase u)
+            in
+              if (indexToUInt index < midPoint && indexToUInt i < midPoint) || (indexToUInt index >= midPoint && indexToUInt i >= midPoint) then
+                writeArray i result b
+              else
+                b
+      in
+        freezeArray b
+
 -- shift phases of bins
 fftPhaseShift :: AudioFormat f => UInt -> f (FFT k) -> f (FFT k)
 fftPhaseShift n f = mapFFTBuffer shift f
@@ -4589,6 +4613,15 @@ tcoinOnce' iseed probability x y =
 tcoinOnceF' :: UInt -> Float -> Float -> Float -> Float
 tcoinOnceF' iseed probability x y =
   if trandOnceF iseed 0 1 <= probability then x else y
+
+whiteNoise :: Mono Audio
+whiteNoise =
+  Mono <| AudioRate <| freezeArray <| fst' <|
+  loop (#a, s#) = (#audioInitArray (), seed#) for i <- offsetToEndRange do
+    (#writeArray i (noiseF s -1 1) a, s + 1#)
+  where
+    seed ~ 0 = seed + audioBlockSize
+    offsetToEndRange = mkRange audioSampleOffset 1 NatVal
 
 ----------------------
 -- Chaos

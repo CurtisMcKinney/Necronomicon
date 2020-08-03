@@ -359,6 +359,13 @@ uncountablyInfiniteCats h =
 
 main :: *World -> *World
 main w =
-  outAudio 0 p w
+  -- outAudio 0 p w
+  recordAudio "ghostNotes.wav" (playFor 300 (\_ -> p)) w
   where
-    p = poly uncountablyInfiniteCats <| seqSpeed (2 // 8) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]
+    p =
+      (poly ghostNotes <| seqSpeed (2 // 16) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16] |> map (*0.125))
+      -- + (poly waveSpiritTrap <| seqSpeed (2 // 8) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16] |> map (*4))
+      -- + (poly uncountablyInfiniteCats <| seqSpeed (2 // 8) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16] |> map (/2))
+      -- + (poly countablyInfiniteCats <| seqSpeed (2 // 8) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16] |> map (/2))
+      -- + (poly infiniteCats <| seqSpeed (2 // 8) ([1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]))
+      -- + (poly aliveCatDeadCat <| seqSpeed (2 // 8) [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16] |> map (/2))

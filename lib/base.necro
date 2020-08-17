@@ -7194,9 +7194,9 @@ freeVerbTick mix roomSize damp x (FreeVerb# c0 c1 c2 c3 c4 c5 c6 c7 a0 a1 a2 a3)
     (#a3', sa3#) = freeVerbAllPassTick 0.5 sa2 a3
     y            = x * (1 - mix) + sa3 * mix
 
--- mix: 0 - 1
+-- mix:      0 - 1
 -- roomSize: 0 - 1
--- damp: 0 - 1
+-- damp:     0 - 1
 freeVerb :: Float -> Float -> Stereo Audio -> Stereo Audio -> Stereo Audio
 freeVerb mix roomSize (Stereo# dampL dampR) (Stereo# l0 r0) =
   Stereo# l1 r1

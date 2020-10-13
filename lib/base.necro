@@ -4341,6 +4341,12 @@ silentAudioBuffer :: AudioFormat f => f (AudioBuffer)
 silentAudioBuffer =
   pure (AudioBuffer# primUndefined 0)
 
+audioBufferDuration :: AudioFormat f => f (AudioBuffer) -> Float
+audioBufferDuration audioBuffers =
+  foldl f 0 audioBuffers
+  where
+    f _ (AudioBuffer# _ numSamples) = fromUInt numSamples / audioSampleRateF
+
 -- NOTE: This dynamically allocates memory which IS NOT reclaimed by the memory management system!!!
 audioBufferFromFileGo :: AudioFormat f => AudioFile -> f AudioBuffer
 audioBufferFromFileGo (AudioFile# fileNumChannels numSamples audioData) =
@@ -4436,6 +4442,35 @@ audioBufferPlay' loopType freq phaseOffset audioBuffers =
   where
     f ab fc pc =
       accumulateAudio2 (audioBufferPlayTick' ab loopType) constTrue fc pc
+
+audioBufferPlayAtTick :: AudioBuffer -> Float -> Float -> (#Float, Float#)
+audioBufferPlayAtTick (AudioBuffer# audioBuffer numSamples) phaseOffset _ =
+  (#phase1, out#)
+  where
+    phase1  = rem phaseOffset 1
+    phase11 = 1 + phase1
+    phase   = if phase1 < 0 then phase11 else phase1
+    findex  = phase * fromUInt numSamples
+    delta   = (floor findex + 1) - findex
+    index1  = floatToUInt findex
+    index0  = index1 - 1
+    index2  = index1 + 1
+    index3  = index2 + 1
+    out     =
+      let
+        sample0 = unsafePtrPeek (index0 % numSamples) audioBuffer
+        sample1 = unsafePtrPeek (index1 % numSamples) audioBuffer
+        sample2 = unsafePtrPeek (index2 % numSamples) audioBuffer
+        sample3 = unsafePtrPeek (index3 % numSamples) audioBuffer
+      in
+        cubicInterpolation sample0 sample1 sample2 sample3 delta
+
+audioBufferPlayAt :: AudioFormat f => f AudioBuffer -> f Audio -> f Audio
+audioBufferPlayAt audioBuffers phaseOffset =
+  map2 f audioBuffers phaseOffset
+  where
+    f ab pc =
+      accumulateAudio1 (audioBufferPlayAtTick ab) constTrue pc
 
 -- NOTE: Slightly corrected version
 apertureMapPhase :: Float -> Float -> Float -> Float -> Float -> Float

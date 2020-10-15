@@ -4445,7 +4445,7 @@ audioBufferPlay' loopType freq phaseOffset audioBuffers =
 
 audioBufferPlayAtTick :: AudioBuffer -> Float -> Float -> (#Float, Float#)
 audioBufferPlayAtTick (AudioBuffer# audioBuffer numSamples) phaseOffset _ =
-  (#phase1, out#)
+  (#phase, out#)
   where
     phase1  = rem phaseOffset 1
     phase11 = 1 + phase1

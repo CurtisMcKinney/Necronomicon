@@ -7308,6 +7308,18 @@ triggerTick acc sample =
 genTriggers :: AudioFormat f => f Audio -> f TriggerState
 genTriggers a = map (foldAudio triggerTick TriggerInactive) (zeroCrossing a)
 
+latchTick :: Float -> Float -> Float -> (#Float, Float#)
+latchTick tr a s =
+  (#s', s'#)
+  where
+    s' = if tr > 0 then a else s
+
+latch :: AudioFormat f => f Audio -> f Audio -> f Audio
+latch tr a =
+  map2 f tr a
+  where
+    f trc ac = accumulateAudio2 latchTick constTrue trc ac
+
 --------------------
 -- Seq
 --------------------

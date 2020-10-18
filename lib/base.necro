@@ -4423,10 +4423,9 @@ writeAudioBuffer durationSeconds a =
           --   AudioBuffer# (unsafeArrayToPtr a) durationSamples
         AudioRate as ->
           let
-            offsetToEndRange = mkRange audioSampleOffset 1 NatVal
-            a =
+            a ~ mkAudioArray durationSeconds =
               freezeArray <|
-              loop a' = mkAudioArray durationSeconds for i <- offsetToEndRange do
+              loop a' = deepCopyArray a for i <- each do
                 let
                   v = readArray i as
                 in
@@ -4435,8 +4434,8 @@ writeAudioBuffer durationSeconds a =
             AudioBuffer# (unsafeArrayToPtr a) (arrayLength NatVal a)
       where
         durationSamples = natSecondsToNatBufferSamples durationSeconds |> natValGetFrom |> natVal
-        phaseRaw ~ 0 = phaseRaw + audioBlockSize |> rem durationSamples
-        phase = traceLn2 "phase " <| if phaseRaw == 0 then durationSamples - audioBlockSize else phaseRaw - audioBlockSize
+        phaseRaw ~ 0 = phaseRaw + audioBlockSize
+        phase =  (phaseRaw - audioBlockSize) % durationSamples
 
 audioBufferPlayTick :: AudioBuffer -> LoopType -> Float -> Float -> (#Float, Float#)
 audioBufferPlayTick (AudioBuffer# audioBuffer numSamples) loopType freq phase0 =

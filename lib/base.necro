@@ -4045,6 +4045,15 @@ data Quad a             = Quad# a a a a
 data Ambisonic a        = Ambisonic# a a a a
 data Seconds (n :: Nat) = Seconds
 
+oneSecondInSeconds :: Seconds 1
+oneSecondInSeconds = Seconds
+
+oneMinuteInSeconds :: Seconds 60
+oneMinuteInSeconds = Seconds
+
+oneHourInSeconds :: Seconds 3600
+oneHourInSeconds = Seconds
+
 -- TODO: Equal power panning
 class (Functor f, FunctorN f, Applicative f, Foldable f) => AudioFormat f where
   accumulate1  :: Default s => (Float -> s -> (#s, Float#)) -> (s -> Bool) -> f Audio -> f Audio
@@ -4382,6 +4391,52 @@ audioBufferFromArray arrays =
   where
     f array =
       AudioBuffer# (unsafeArrayToPtr array) (arrayLength NatVal array)
+
+mkAudioArray :: Seconds s -> .Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) Float
+mkAudioArray _ = arrayFrom 0
+
+mkAudioArrayUnsafeEmpty :: Seconds s -> .Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) Float
+mkAudioArrayUnsafeEmpty _ = unsafeEmptyArray () |> freezeArray
+
+audioBufferEmpty :: AudioFormat f => Seconds n -> f AudioBuffer
+audioBufferEmpty durationSeconds =
+  mkAudioArray durationSeconds |> pure |> audioBufferFromArray
+
+audioBufferUnsafeEmpty :: AudioFormat f => Seconds n -> f AudioBuffer
+audioBufferUnsafeEmpty durationSeconds =
+  mkAudioArrayUnsafeEmpty durationSeconds |> pure |> audioBufferFromArray
+
+writeAudioBuffer :: AudioFormat f =>  Seconds n -> f Audio -> f AudioBuffer
+writeAudioBuffer durationSeconds a =
+  map f a
+  where
+    f ac =
+      case ac of
+        AudioEnd -> AudioBuffer# primUndefined 0
+        BlockRate b -> AudioBuffer# primUndefined 0
+          -- let
+          --   a =
+          --     freezeArray <| fst' <|
+          --       loop (#a', i#) = (#mkAudioArray durationSeconds, 0#) while i < audioBlockSize do
+          --         (#writeArray (phase + i |> unsafeUIntToIndex) b a', i + 1#)
+          -- in
+          --   AudioBuffer# (unsafeArrayToPtr a) durationSamples
+        AudioRate as ->
+          let
+            offsetToEndRange = mkRange audioSampleOffset 1 NatVal
+            a =
+              freezeArray <|
+              loop a' = mkAudioArray durationSeconds for i <- offsetToEndRange do
+                let
+                  v = readArray i as
+                in
+                  writeArray (phase + indexToUInt i |> unsafeUIntToIndex) v a'
+          in
+            AudioBuffer# (unsafeArrayToPtr a) (arrayLength NatVal a)
+      where
+        durationSamples = natSecondsToNatBufferSamples durationSeconds |> natValGetFrom |> natVal
+        phaseRaw ~ 0 = phaseRaw + audioBlockSize |> rem durationSamples
+        phase = traceLn2 "phase " <| if phaseRaw == 0 then durationSamples - audioBlockSize else phaseRaw - audioBlockSize
 
 audioBufferPlayTick :: AudioBuffer -> LoopType -> Float -> Float -> (#Float, Float#)
 audioBufferPlayTick (AudioBuffer# audioBuffer numSamples) loopType freq phase0 =

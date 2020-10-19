@@ -4596,7 +4596,7 @@ audioBufferPlayAtRateTick (AudioBuffer# audioBuffer numSamples) timeTrigger inTi
       in
         if abs delta /= 1.0 then cubicInterpolation sample0 sample1 sample2 sample3 delta else sample1
 
--- Guarantees sample accurate playback as long as rate is 1 or -1 AND timeTrigger is never used
+-- Guarantees sample accurate playback as long as rate is 1 or -1 (or an integral multiple thereof) AND timeTrigger is never used
 -- When timeTrigger is greater than 0 then play head is set to time input
 -- rate is samples per second, can be positive or negative
 audioBufferPlayAtRate :: AudioFormat f => f AudioBuffer -> f Audio -> f Audio -> f Audio -> f Audio
@@ -4630,7 +4630,7 @@ audioBufferPlayAtRateTick' (AudioBuffer# audioBuffer numSamples) sampleTrigger i
       in
         if abs delta /= 1.0 then cubicInterpolation sample0 sample1 sample2 sample3 delta else sample1
 
--- Guarantees sample accurate playback as long as rate is 1 or -1
+-- Guarantees sample accurate playback as long as rate is 1 or -1 (or an integral multiple thereof)
 -- When sampleTrigger is greater than 0 then play head is set to sample index (wrapped to numsamples)
 -- rate is samples per second, can be positive or negative
 audioBufferPlayAtRate' :: AudioFormat f => f AudioBuffer -> f Audio -> f Audio -> f Audio -> f Audio

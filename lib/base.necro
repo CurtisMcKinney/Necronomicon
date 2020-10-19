@@ -1872,6 +1872,15 @@ mutRefPut x ptr =
   case unsafePtrPoke 0 (Just x) ptr of
     _ -> ()
 
+mutRefPutAudioArrayPtr :: *Ptr Float -> Ptr (Maybe *(Ptr Float)) -> Maybe (Ptr Float)
+mutRefPutAudioArrayPtr x ptr =
+  unsafePtrPeek 0 px'
+  where
+    px :: *Ptr (Maybe *(Ptr Float))
+    px = unsafePtrPoke 0 (Just x) ptr
+    px' :: Ptr (Maybe (Ptr Float))
+    px' = unsafePtrCast px
+
 
 --------------------
 -- Array
@@ -4392,8 +4401,13 @@ audioBufferFromArray arrays =
     f array =
       AudioBuffer# (unsafeArrayToPtr array) (arrayLength NatVal array)
 
+data AudioArray s = AudioArray# ()
+
 mkAudioArray :: Seconds s -> .Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) Float
-mkAudioArray _ = arrayFrom 0
+mkAudioArray _ =  (arrayFrom 0)
+
+mkAudioArrayPtr :: Seconds s -> .Ptr Float
+mkAudioArrayPtr durationSeconds = unsafeArrayToPtr (mkAudioArray durationSeconds)
 
 mkAudioArrayUnsafeEmpty :: Seconds s -> .Array (NatNextPowerOfTwo (NatMul SampleRate (NatMax s 1))) Float
 mkAudioArrayUnsafeEmpty _ = unsafeEmptyArray () |> freezeArray
@@ -4406,36 +4420,37 @@ audioBufferUnsafeEmpty :: AudioFormat f => Seconds n -> f AudioBuffer
 audioBufferUnsafeEmpty durationSeconds =
   mkAudioArrayUnsafeEmpty durationSeconds |> pure |> audioBufferFromArray
 
-writeAudioBuffer :: AudioFormat f =>  Seconds n -> f Audio -> f AudioBuffer
-writeAudioBuffer durationSeconds a =
+audioBufferWrite :: AudioFormat f =>  Seconds n -> f Audio -> f AudioBuffer
+audioBufferWrite durationSeconds a =
   map f a
   where
     f ac =
-      case ac of
-        AudioEnd -> AudioBuffer# primUndefined 0
-        BlockRate b -> AudioBuffer# primUndefined 0
-          -- let
-          --   a =
-          --     freezeArray <| fst' <|
-          --       loop (#a', i#) = (#mkAudioArray durationSeconds, 0#) while i < audioBlockSize do
-          --         (#writeArray (phase + i |> unsafeUIntToIndex) b a', i + 1#)
-          -- in
-          --   AudioBuffer# (unsafeArrayToPtr a) durationSamples
-        AudioRate as ->
+      case mutRefTake (\_ -> mkAudioArrayPtr durationSeconds) of
+        (#ptrA, mref#) ->
           let
-            a ~ mkAudioArray durationSeconds =
-              freezeArray <|
-              loop a' = deepCopyArray a for i <- each do
-                let
-                  v = readArray i as
-                in
-                  writeArray (phase + indexToUInt i |> unsafeUIntToIndex) v a'
+            ptrA' :: *Ptr Float
+            ptrA' =
+              case ac of
+                AudioEnd -> ptrA
+                BlockRate b ->
+                  fst' <|
+                  loop (#loopPtrA, i#) = (#ptrA, 0#) while i < audioBlockSize do
+                    (#unsafePtrPoke (sampleIndex + i) b loopPtrA, i + 1#)
+                AudioRate as ->
+                  loop loopPtrA = ptrA for i <- each do
+                    let
+                      v = readArray i as
+                    in
+                      unsafePtrPoke (sampleIndex + indexToUInt i) v loopPtrA
+            ptrA'' = case mutRefPutAudioArrayPtr ptrA' mref of
+              Just jPtrA -> jPtrA
+              Nothing -> primUndefined -- Should never happen?
           in
-            AudioBuffer# (unsafeArrayToPtr a) (arrayLength NatVal a)
+            AudioBuffer# ptrA'' durationSamples
       where
         durationSamples = natSecondsToNatBufferSamples durationSeconds |> natValGetFrom |> natVal
-        phaseRaw ~ 0 = phaseRaw + audioBlockSize
-        phase =  (phaseRaw - audioBlockSize) % durationSamples
+        sampleIndexRaw ~ 0 = sampleIndexRaw + audioBlockSize
+        sampleIndex =  (sampleIndexRaw - audioBlockSize) % durationSamples
 
 audioBufferPlayTick :: AudioBuffer -> LoopType -> Float -> Float -> (#Float, Float#)
 audioBufferPlayTick (AudioBuffer# audioBuffer numSamples) loopType freq phase0 =
@@ -4497,8 +4512,8 @@ audioBufferPlay' loopType freq phaseOffset audioBuffers =
     f ab fc pc =
       accumulateAudio2 (audioBufferPlayTick' ab loopType) constTrue fc pc
 
-audioBufferPlayAtTick :: AudioBuffer -> Float -> Float -> (#Float, Float#)
-audioBufferPlayAtTick (AudioBuffer# audioBuffer numSamples) phaseOffset _ =
+audioBufferPlayAtRatioTick :: AudioBuffer -> Float -> Float -> (#Float, Float#)
+audioBufferPlayAtRatioTick (AudioBuffer# audioBuffer numSamples) phaseOffset _ =
   (#phase, out#)
   where
     phase1  = rem phaseOffset 1
@@ -4519,12 +4534,12 @@ audioBufferPlayAtTick (AudioBuffer# audioBuffer numSamples) phaseOffset _ =
       in
         cubicInterpolation sample0 sample1 sample2 sample3 delta
 
-audioBufferPlayAt :: AudioFormat f => f AudioBuffer -> f Audio -> f Audio
-audioBufferPlayAt audioBuffers phaseOffset =
+audioBufferPlayAtRatio :: AudioFormat f => f AudioBuffer -> f Audio -> f Audio
+audioBufferPlayAtRatio audioBuffers phaseOffset =
   map2 f audioBuffers phaseOffset
   where
     f ab pc =
-      accumulateAudio1 (audioBufferPlayAtTick ab) constTrue pc
+      accumulateAudio1 (audioBufferPlayAtRatioTick ab) constTrue pc
 
 -- NOTE: Slightly corrected version
 apertureMapPhase :: Float -> Float -> Float -> Float -> Float -> Float

@@ -2684,6 +2684,10 @@ NecroAst* necro_ast_deep_copy_with_new_names_go(NecroPagedArena* arena, NecroInt
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_fn(arena,
             necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->function_type.type),
             necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->function_type.next_on_arrow)));
+    case NECRO_AST_TYPE_ATTRIBUTE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_type_attribute(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->attribute.attribute_type),
+            ast->attribute.type));
     default:
         assert(false);
         return NULL;

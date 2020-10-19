@@ -4534,12 +4534,43 @@ audioBufferPlayAtRatioTick (AudioBuffer# audioBuffer numSamples) phaseOffset _ =
       in
         cubicInterpolation sample0 sample1 sample2 sample3 delta
 
+-- durationRatio is wrapped to buffer duration, normalized as 0.0 - 1.0
 audioBufferPlayAtRatio :: AudioFormat f => f AudioBuffer -> f Audio -> f Audio
-audioBufferPlayAtRatio audioBuffers phaseOffset =
-  map2 f audioBuffers phaseOffset
+audioBufferPlayAtRatio audioBuffers durationRatio =
+  map2 f audioBuffers durationRatio
   where
     f ab pc =
       accumulateAudio1 (audioBufferPlayAtRatioTick ab) constTrue pc
+
+audioBufferPlayAtTimeTick :: AudioBuffer -> Float -> Float -> (#Float, Float#)
+audioBufferPlayAtTimeTick (AudioBuffer# audioBuffer numSamples) inTime _ =
+  (#inTime, out#)
+  where
+    numSamplesF = fromUInt numSamples
+    findex1 = (inTime * audioSampleRateF) % numSamplesF
+    findex11 = findex1 + numSamplesF
+    findex  = if findex1 < 0 then findex11 else findex1
+    delta   = (floor findex + 1) - findex
+    index1  = floatToUInt findex % numSamples
+    index0  = index1 - 1
+    index2  = index1 + 1
+    index3  = index2 + 1
+    out     =
+      let
+        sample0 = unsafePtrPeek (index0 % numSamples) audioBuffer
+        sample1 = unsafePtrPeek (index1 % numSamples) audioBuffer
+        sample2 = unsafePtrPeek (index2 % numSamples) audioBuffer
+        sample3 = unsafePtrPeek (index3 % numSamples) audioBuffer
+      in
+        cubicInterpolation sample0 sample1 sample2 sample3 delta
+
+-- Time is wrapped to buffer duration
+audioBufferPlayAtTime :: AudioFormat f => f AudioBuffer -> f Audio -> f Audio
+audioBufferPlayAtTime audioBuffers time =
+  map2 f audioBuffers time
+  where
+    f ab pc =
+      accumulateAudio1 (audioBufferPlayAtTimeTick ab) constTrue pc
 
 -- NOTE: Slightly corrected version
 apertureMapPhase :: Float -> Float -> Float -> Float -> Float -> Float

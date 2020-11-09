@@ -9105,6 +9105,30 @@ justTuning =
     15/8
   }
 
+-- Tuning used in The Well Tuned Piano, by La Monte Young
+youngTuning :: Array 12 Float
+youngTuning =
+  {
+    1,
+    567/512,
+    9/8,
+    147/128,
+    21/16,
+    1323/1024,
+    189/128,
+    3/2,
+    49/32,
+    7/4,
+    441/256,
+    63/32
+  }
+
+-- Note that the pitches are not arranged in frequency ascent,
+-- Rather, they are arranged according to the original tunings of the keys in The Well Tuned Piano
+youngScale :: Scale 12 12
+youngScale =
+  Scale youngTuning { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 } 297.989
+
 partch43Tuning :: Array 43 Float
 partch43Tuning =
   {

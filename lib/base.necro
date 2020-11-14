@@ -8912,14 +8912,14 @@ oscTest f =
 ------------------------------------------------------------------------------------------------
 -- Tunings
 
--- NOTE from Curtis: Trying out floats instead of rationals for scales...
+-- Scale (Tuning --> last index is repeat ratio, typically 2.0 for an octave) (Degrees) rootFreq
 data Scale (t :: Nat) (d :: Nat) = Scale (Array t Float) (Array d UInt) Float
 
-equalTemperament :: Array 12 Float
+equalTemperament :: Array 13 Float
 equalTemperament =
   mkArray (\x -> pow 2 (fromUInt x / 12))
 
-sruti :: Array 22 Float
+sruti :: Array 23 Float
 sruti =
   {
     1,
@@ -8943,20 +8943,22 @@ sruti =
     16/9,
     9/5,
     15/8,
-    243/128
+    243/128,
+    2
   }
 
-slendroTuning :: Array 5 Float
+slendroTuning :: Array 6 Float
 slendroTuning =
   {
     1,
     1.1654065573126493,
     1.3263853707896778,
     1.5087286267502333,
-    1.743113687764283
+    1.743113687764283,
+    2
   }
 
-slendroTuning2 :: Array 12 Float
+slendroTuning2 :: Array 13 Float
 slendroTuning2 =
   {
     1,
@@ -8970,20 +8972,22 @@ slendroTuning2 =
     1.5457782086418603,
     1.6405353335201565,
     1.7766588275058794,
-    1.8118958124688056
+    1.8118958124688056,
+    2
   }
 
-pelogTuning :: Array 5 Float
+pelogTuning :: Array 6 Float
 pelogTuning =
   {
     1,
     1.0999973132782155,
     1.3763365917680923,
     1.4581778243945491,
-    1.629203328218162
+    1.629203328218162,
+    2
   }
 
-ankaraTuning :: Array 34 Float
+ankaraTuning :: Array 35 Float
 ankaraTuning =
   {
     1,
@@ -9019,10 +9023,11 @@ ankaraTuning =
     1853/1000,
     47/25,
     951/500,
-    1931/1000
+    1931/1000,
+    2
   }
 
-flamencoTuning :: Array 12 Float
+flamencoTuning :: Array 13 Float
 flamencoTuning =
   {
     1,
@@ -9036,10 +9041,11 @@ flamencoTuning =
     80/51,
     256/153,
     16/9,
-    4096/2187
+    4096/2187,
+    2
   }
 
-hawaiianTuning :: Array 12 Float
+hawaiianTuning :: Array 13 Float
 hawaiianTuning =
   {
     1,
@@ -9053,10 +9059,11 @@ hawaiianTuning =
     2120315/1360773,
     84172/50399,
     90219/50399,
-    846376/453591
+    846376/453591,
+    2
   }
 
-kotoTuning :: Array 11 Float
+kotoTuning :: Array 12 Float
 kotoTuning =
   {
     107/152,
@@ -9069,10 +9076,11 @@ kotoTuning =
     1/1,
     5/4,
     15/8,
-    143/76
+    143/76,
+    2
   }
 
-mothraTuning :: Array 11 Float
+mothraTuning :: Array 12 Float
 mothraTuning =
   {
     1,
@@ -9085,10 +9093,11 @@ mothraTuning =
     1.6738798921934088,
     1.7108980369568154,
     1.914389591456696,
-    1.9567266500238074
+    1.9567266500238074,
+    2
   }
 
-justTuning :: Array 12 Float
+justTuning :: Array 13 Float
 justTuning =
   {
     1,
@@ -9102,11 +9111,12 @@ justTuning =
     8/5,
     5/3,
     9/5,
-    15/8
+    15/8,
+    2
   }
 
 -- Tuning used in The Well Tuned Piano, by La Monte Young
-youngTuning :: Array 12 Float
+youngTuning :: Array 13 Float
 youngTuning =
   {
     1,
@@ -9120,70 +9130,151 @@ youngTuning =
     49/32,
     7/4,
     441/256,
-    63/32
+    63/32,
+    2
   }
 
 -- Note that the pitches are not arranged in frequency ascent,
 -- Rather, they are arranged according to the original tunings of the keys in The Well Tuned Piano
-youngScale :: Scale 12 12
+youngScale :: Scale 13 12
 youngScale =
   Scale youngTuning { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 } 297.989
 
-partch43Tuning :: Array 43 Float
+partch43Tuning :: Array 44 Float
 partch43Tuning =
   {
     1, 81/80, 33/32, 21/20, 16/15, 12/11, 11/10, 10/9, 9/8, 8/7,
     7/6, 32/27, 6/5, 11/9, 5/4, 14/11, 9/7, 21/16, 4/3, 27/20,
     11/8, 7/5, 10/7, 16/11, 40/27, 3/2, 32/21, 14/9, 11/7, 8/5,
     18/11, 5/3, 27/16, 12/7, 7/4, 16/9, 9/5, 20/11, 11/6, 15/8,
-    40/21, 64/33, 160/81
+    40/21, 64/33, 160/81, 2
   }
 
-egyptianTuning :: Array 12 Float
+egyptianTuning :: Array 13 Float
 egyptianTuning =
-  { 1/2, 107/96, 9/8, 11/9, 59/48, 4/3, 1/1, 3/2, 5/3, 121/72, 11/6, 133/72 }
+  { 1/2, 107/96, 9/8, 11/9, 59/48, 4/3, 1/1, 3/2, 5/3, 121/72, 11/6, 133/72, 2 }
 
-justMajor :: Scale 12 7
+justMajor :: Scale 13 7
 justMajor =
   Scale justTuning {0, 2, 4, 5, 7, 9, 11} 261.6255653006
 
-major :: Float -> Scale 12 7
+major :: Float -> Scale 13 7
 major rootFreq =
   Scale equalTemperament {0, 2, 4, 5, 7, 9, 11} rootFreq
+
+minor :: Float -> Scale 13 7
+minor rootFreq =
+  Scale equalTemperament {0, 2, 3, 5, 7, 8, 10} rootFreq
 
 middleC :: Float
 middleC = 261.6255653006
 
-cMajor :: Scale 12 7
+---------------
+-- Major Scales
+
+cMajor :: Scale 13 7
 cMajor = major middleC
 
-dMajor :: Scale 12 7
-dMajor = major <| d2f cMajor 2
+dMajor :: Scale 13 7
+dMajor = major <| d2f cMajor 1
 
-eMajor :: Scale 12 7
-eMajor = major <| d2f cMajor 3
+eMajor :: Scale 13 7
+eMajor = major <| d2f cMajor 2
 
-fMajor :: Scale 12 7
-fMajor = major <| d2f cMajor 4
+fMajor :: Scale 13 7
+fMajor = major <| d2f cMajor 3
 
-gMajor :: Scale 12 7
-gMajor = major <| d2f cMajor 5
+gMajor :: Scale 13 7
+gMajor = major <| d2f cMajor 4
 
-aMajor :: Scale 12 7
-aMajor = major <| d2f cMajor 6
+aMajor :: Scale 13 7
+aMajor = major <| d2f cMajor 5
 
-bMajor :: Scale 12 7
-bMajor = major <| d2f cMajor 7
+bMajor :: Scale 13 7
+bMajor = major <| d2f cMajor 6
 
-harmonicMajor :: Float -> Scale 12 7
+---------------
+-- Minor Scales
+
+cMinor :: Scale 13 7
+cMinor = minor middleC
+
+dMinor :: Scale 13 7
+dMinor = major <| d2f cMinor 1
+
+eMinor :: Scale 13 7
+eMinor = major <| d2f cMinor 2
+
+fMinor :: Scale 13 7
+fMinor = major <| d2f cMinor 3
+
+gMinor :: Scale 13 7
+gMinor = major <| d2f cMinor 4
+
+aMinor :: Scale 13 7
+aMinor = major <| d2f cMinor 5
+
+bMinor :: Scale 13 7
+bMinor = major <| d2f cMinor 6
+
+-------------------------
+-- Harmonic Minor Scales
+
+harmonicMinor :: Float -> Scale 13 7
+harmonicMinor rootFreq =
+  Scale equalTemperament {0, 2, 3, 5, 7, 8, 11} rootFreq
+
+cHarmonicMinor :: Scale 13 7
+cHarmonicMinor = harmonicMinor middleC
+
+dHarmonicMinor :: Scale 13 7
+dHarmonicMinor = harmonicMinor <| d2f cMinor 1
+
+eHarmonicMinor :: Scale 13 7
+eHarmonicMinor = harmonicMinor <| d2f cMinor 2
+
+fHarmonicMinor :: Scale 13 7
+fHarmonicMinor = harmonicMinor <| d2f cMinor 3
+
+gHarmonicMinor :: Scale 13 7
+gHarmonicMinor = harmonicMinor <| d2f cMinor 4
+
+aHarmonicMinor :: Scale 13 7
+aHarmonicMinor = harmonicMinor <| d2f cMinor 5
+
+bHarmonicMinor :: Scale 13 7
+bHarmonicMinor = harmonicMinor <| d2f cMinor 6
+
+-------------------------
+-- Harmonic Major Scales
+
+harmonicMajor :: Float -> Scale 13 7
 harmonicMajor rootFreq =
   Scale equalTemperament {0, 2, 4, 5, 7, 8, 11} rootFreq
 
-cHarmonicMajor :: Scale 12 7
+cHarmonicMajor :: Scale 13 7
 cHarmonicMajor = harmonicMajor middleC
 
+dHarmonicMajor :: Scale 13 7
+dHarmonicMajor = harmonicMajor <| d2f cMajor 1
+
+eHarmonicMajor :: Scale 13 7
+eHarmonicMajor = harmonicMajor <| d2f cMajor 2
+
+fHarmonicMajor :: Scale 13 7
+fHarmonicMajor = harmonicMajor <| d2f cMajor 3
+
+gHarmonicMajor :: Scale 13 7
+gHarmonicMajor = harmonicMajor <| d2f cMajor 4
+
+aHarmonicMajor :: Scale 13 7
+aHarmonicMajor = harmonicMajor <| d2f cMajor 5
+
+bHarmonicMajor :: Scale 13 7
+bHarmonicMajor = harmonicMajor <| d2f cMajor 6
+
 -- NOTE / TODO: This root of 200 business makes little sense! Had it like this for part of piece, but that's not even used anymore...
-justChromatic :: Scale 12 12
+justChromatic :: Scale 13 12
 justChromatic =
   -- Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 150
   Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 200
@@ -9194,15 +9285,15 @@ justChromatic =
 --   Scale justTuning {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 266.668
 --
 
-chromatic :: Scale 12 12
+chromatic :: Scale 13 12
 chromatic =
   Scale equalTemperament {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 261.6255653006
 
-coleJI :: Scale 12 12
+coleJI :: Scale 13 12
 coleJI =
-  Scale {1,10/9,9/8,8/7,6/5,4/3,11/8,3/2,8/5,7/4,16/9,9/5} {0,1,2,3,4,5,6,7,8,9,10,11} 261.6255653006
+  Scale {1,10/9,9/8,8/7,6/5,4/3,11/8,3/2,8/5,7/4,16/9,9/5, 2} {0,1,2,3,4,5,6,7,8,9,10,11} 261.6255653006
 
-partch43 :: Scale 43 43
+partch43 :: Scale 44 43
 partch43 =
   -- Scale partch43Tuning {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42} 250
   Scale partch43Tuning {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42} 300
@@ -9212,10 +9303,14 @@ degreeToFrequency :: Scale t d -> Int -> Float
 degreeToFrequency (Scale tuning degrees rootFreq) degree =
   pitch * octave * rootFreq
   where
-    numDegrees = arrayLength NatVal degrees |> fromUInt
-    octave     = fromInt (max (div degree numDegrees) 0) |> pow 2.0
-    degree'    = lookupArray (fromInt (rem degree numDegrees)) degrees |> fromMaybe 0
-    pitch      = lookupArray degree' tuning |> fromMaybe 0
+    numTuningFreqs   = (arrayLength NatVal tuning - 1) |> max 1 -- subtract 1 as the last tuning frequency is the scale repetition ratio
+    scaleRepeatRatio = lookupArray numTuningFreqs tuning |> fromMaybe 0
+    numDegrees       = arrayLength NatVal degrees |> fromUInt
+    octave           = fromInt degree / fromInt numDegrees |> floor |> pow scaleRepeatRatio
+    degreeRem        = rem degree numDegrees
+    degreeWrap       = if degreeRem < 0 then degreeRem + numDegrees else degreeRem
+    degree'          = rem (lookupArray (fromInt degreeWrap) degrees |> fromMaybe 0) numTuningFreqs
+    pitch            = lookupArray degree' tuning |> fromMaybe 0
 
 d2f :: Scale t d -> Int -> Float
 d2f = degreeToFrequency

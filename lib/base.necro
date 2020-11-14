@@ -9287,11 +9287,11 @@ justChromatic =
 
 chromatic :: Scale 13 12
 chromatic =
-  Scale equalTemperament {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} 261.6255653006
+  Scale equalTemperament {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} middleC
 
 coleJI :: Scale 13 12
 coleJI =
-  Scale {1,10/9,9/8,8/7,6/5,4/3,11/8,3/2,8/5,7/4,16/9,9/5, 2} {0,1,2,3,4,5,6,7,8,9,10,11} 261.6255653006
+  Scale {1,10/9,9/8,8/7,6/5,4/3,11/8,3/2,8/5,7/4,16/9,9/5, 2} {0,1,2,3,4,5,6,7,8,9,10,11} middleC
 
 partch43 :: Scale 44 43
 partch43 =
@@ -9800,4 +9800,5 @@ complexByComplexTest f w = printArraySpaced (map complexByComplex testComplexTup
 --     * Percussive simulations
 --     * Strange attractors in FFT?
 --     * Cool FFT effects we used: Convolution with voices, Long time stretching
+
 

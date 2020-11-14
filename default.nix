@@ -1,6 +1,7 @@
 with import <nixpkgs> {};
 
 let
+  IS_DEBUG = false;
   mkCmakeFlag = optSet: flag: if optSet then "-D${flag}=ON" else "-D${flag}=OFF";
   mkFlag = cond: name: if cond then "--enable-${name}" else "--disable-${name}";
   stdenvCompiler = overrideCC stdenv clang_7;
@@ -12,15 +13,15 @@ in
 
 
     llvm_7 = pkgs.llvm_7.overrideAttrs (attrs: {
-        separateDebugInfo = true;
+        separateDebugInfo = IS_DEBUG;
         });
 
     buildInputs = [ llvm_7 valgrind bear portaudio libsndfile ];
     propagatedBuildInputs = with pkgs; [ xorg.xlibsWrapper ];
     nativeBuildInputs = [ bear cmake ];
-    debugVersion = true;
-    enableDebugging = true;
-    enableDebugInfo = true;
+    debugVersion = IS_DEBUG;
+    enableDebugging = IS_DEBUG;
+    enableDebugInfo = IS_DEBUG;
     enableSharedExecutables = false;
     hardeningDisable = [ "all" ];
 
@@ -30,11 +31,11 @@ in
       '';
 
     configureFlags = [
-      (mkFlag true "debug")
-      (mkFlag true "debug-symbols")
+      (mkFlag IS_DEBUG "debug")
+      (mkFlag IS_DEBUG "debug-symbols")
     ];
 
-    cmakeBuildType = "Debug";
+    cmakeBuildType = if IS_DEBUG then "Debug" else "Release";
 
     installPhase = ''
       mkdir -p $out/build
@@ -46,8 +47,8 @@ in
       cp ./compile_commands.json $out/compile_commands.json
       '';
 
-    dontStrip = true;
-    dontPatchELF = true;
+    dontStrip = IS_DEBUG;
+    dontPatchELF = IS_DEBUG;
 
     meta = with stdenv.lib; {
       description = "Necronomicon is a pure functional data flow language for music and audio DSP.";

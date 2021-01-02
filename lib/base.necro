@@ -5938,14 +5938,17 @@ linLin :: AudioFormat f => Float -> Float -> Float -> Float -> f Audio -> f Audi
 linLin low high newLow newHigh cs =
   map (mapAudio f) cs
   where
-    f  x = ((x - low) * (newHigh - newLow) / (high - low)) + newLow
+    scale = (newHigh - newLow) / (high - low)
+    f  x = ((x - low) * scale) + newLow
 
 linCurve :: AudioFormat f => Float -> Float -> Float -> Float -> Float -> f Audio -> f Audio
 linCurve low high newLow newHigh curve cs =
   map (mapAudio f) cs
   where
+    nHminNl = newHigh - newLow
+    hminl = high - low
     curve' = if curve < 0 then 1 / ((curve * -1) + 1) else curve + 1
-    f  x   = (newHigh - newLow) * pow ((x - low) / (high - low)) curve + newLow
+    f  x   = nHminNl * pow ((x - low) / hminl) curve' + newLow
 
 
 -------------
@@ -6768,6 +6771,21 @@ fourSec = Seconds
 
 fiveSec :: Seconds 5
 fiveSec = Seconds
+
+sixSec :: Seconds 6
+sixSec = Seconds
+
+sevenSec :: Seconds 7
+sevenSec = Seconds
+
+eightSec :: Seconds 8
+eightSec = Seconds
+
+nineSec :: Seconds 9
+nineSec = Seconds
+
+tenSec :: Seconds 10
+tenSec = Seconds
 
 
 -----------

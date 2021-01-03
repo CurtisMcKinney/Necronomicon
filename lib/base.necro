@@ -2014,6 +2014,34 @@ instance Functor (Array n) where
         loop a' = unsafeEmptyArray () for i <- each do
           writeArray i (f (readArray i a)) a'
 
+
+--------------------
+-- Slice
+--------------------
+
+data Slice a = Slice (Ptr a) UInt
+
+slice :: Array n a -> UInt -> Slice a
+slice array sliceSize =
+  Slice (unsafeArrayToPtr array) (min (arrayLength NatVal array) sliceSize)
+
+instance Print a => Print (Slice a) where
+  print (Slice p n) w =
+    fst' <| loop (#w', i#) = (#w, 0#) while i < n do
+      (#print (unsafePtrPeek i p) w', i + 1#)
+
+maxSlice :: Array n a -> Slice a
+maxSlice array =
+  Slice (unsafeArrayToPtr array) (arrayLength NatVal array)
+
+instance Foldable Slice where
+  fold (Slice p n) =
+    fst' <| loop (#x, i#) = (#mempty, 0#) while i < n do
+      (#x <> (unsafePtrPeek i p), i + 1#)
+  foldl f init (Slice p n) =
+    fst' <| loop (#x, i#) = (#init, 0#) while i < n do
+      (#f x (unsafePtrPeek i p), i + 1#)
+
 --------------------
 -- Index
 --------------------
@@ -4286,8 +4314,8 @@ unsafeAudioFileOpen :: Ptr Char -> UInt -> Ptr ()
 unsafeAudioFileOpen fileNamePtr fileNameLength =
   primUndefined
 
-audioFileOpen :: Array n Char -> Maybe AudioFile
-audioFileOpen fileName =
+audioFileOpen' :: Ptr Char -> UInt -> Maybe AudioFile
+audioFileOpen' fileName fileNameLength =
   snd' maybeMaybeAudioFile
   where
     maybeMaybeAudioFile ~ (#0, Nothing#) =
@@ -4296,7 +4324,7 @@ audioFileOpen fileName =
       else
         let
           AudioFile# numChannels numSamples dataPtr =
-            unsafeAudioFileOpen (unsafeArrayToPtr fileName) (arrayLength NatVal fileName)
+            unsafeAudioFileOpen fileName fileNameLength
             |> unsafePtrCast
             |> unsafePtrPeek 0
         in
@@ -4305,6 +4333,9 @@ audioFileOpen fileName =
           else
             (#1, Just (AudioFile# numChannels numSamples dataPtr)#)
 
+audioFileOpen :: Array n Char -> Maybe AudioFile
+audioFileOpen fileName =
+  audioFileOpen' (unsafeArrayToPtr fileName) (arrayLength NatVal fileName)
 
 
 -- TODO: Loop type!
@@ -4368,21 +4399,25 @@ audioBufferDuration audioBuffers =
 -- NOTE: This dynamically allocates memory which IS NOT reclaimed by the memory management system!!!
 audioBufferFromFileGo :: AudioFormat f => AudioFile -> f AudioBuffer
 audioBufferFromFileGo (AudioFile# fileNumChannels numSamples audioData) =
-  map f channelNums
-  where
-    nChannels    = numChannels channelNums
-    f channelNum =
-      AudioBuffer# (unsafePtrCast bufferData) numSamples
-      where
-        numFrames            = fileNumChannels * numSamples
-        (#_, _, bufferData#) =
-          -- Deep copy interleaved data
-          loop (#fileIndex, bufferIndex, bufferData0#) = (#0, 0, ptrMalloc numSamples#) while fileIndex < numFrames do
-            let
-              sample      = unsafePtrPeek (fileIndex + (channelNum % nChannels)) audioData
-              bufferData1 = unsafePtrPoke bufferIndex sample bufferData0
-            in
-              (#fileIndex + fileNumChannels, bufferIndex + 1, bufferData1#)
+  if numSamples == 0 then
+    silentAudioBuffer
+  else
+    let
+      nChannels    = numChannels channelNums
+      f channelNum =
+        AudioBuffer# (unsafePtrCast bufferData) numSamples
+        where
+          numFrames            = fileNumChannels * numSamples
+          (#_, _, bufferData#) =
+            -- Deep copy interleaved data
+            loop (#fileIndex, bufferIndex, bufferData0#) = (#0, 0, ptrMalloc numSamples#) while fileIndex < numFrames do
+              let
+                sample      = unsafePtrPeek (fileIndex + (channelNum % nChannels)) audioData
+                bufferData1 = unsafePtrPoke bufferIndex sample bufferData0
+              in
+                (#fileIndex + fileNumChannels, bufferIndex + 1, bufferData1#)
+    in
+      map f channelNums
 
 audioBufferFromFile :: AudioFormat f => AudioFile -> f AudioBuffer
 audioBufferFromFile af =
@@ -4679,6 +4714,48 @@ audioBufferPlayWithAperture freq start end audioBuffers =
     f (AudioBuffer# audioBuffer numSamples) fc sc ec =
       if numSamples == 0 then 0 else
         accumulateAudio3 (audioBufferPlayWithApertureTick (AudioBuffer# audioBuffer numSamples)) constTrue fc sc ec
+
+
+----------------------
+-- Sample Bank
+----------------------
+
+data SampleBank n = SampleBank (Array n (Stereo AudioBuffer))
+
+sampleBank :: Array n (Slice Char) -> SampleBank n
+sampleBank filePaths =
+  doOnce (map' loadSample) filePaths |> SampleBank
+  where
+    loadSample (Slice pFilePath filePathSize) =
+      audioFileOpen' pFilePath filePathSize
+      |> fromMaybe silentAudioFile
+      |> audioBufferFromFileGo
+    map' f a = freezeArray b
+      where
+        b =
+          loop a' = unsafeEmptyArray () for i <- each do
+            writeArray i (f (readArray i a)) a'
+
+-- Wrapped indexing into sample bank
+selectSample :: SampleBank n -> Int -> Stereo AudioBuffer
+selectSample (SampleBank bank) index =
+  readArray (unsafeUIntToIndex index') bank
+  where
+    bankLength = arrayLength NatVal bank |> uintToInt
+    modIndex = index % bankLength
+    index' = if modIndex < 0 then fromInt (modIndex + bankLength) else fromInt modIndex
+
+-- Generate audio from a sample bank and sequence of integers
+sampleSeq :: SampleBank n -> Seq Int -> Stereo Audio
+sampleSeq bank seq =
+  poly sampleSynth seq
+  where
+    sampleSynth index =
+      playFor duration synth
+      where
+        buffer = selectSample bank index
+        duration = audioBufferDuration buffer
+        synth _ = audioBufferPlay DontLoop 1 buffer
 
 ----------------------
 -- Record Audio

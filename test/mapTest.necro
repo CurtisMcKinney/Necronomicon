@@ -1,0 +1,4 @@
+
+mapTest :: Array n Float -> Array n Float
+mapTest a =
+  map sqr a

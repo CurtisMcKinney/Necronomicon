@@ -4720,16 +4720,24 @@ audioBufferPlayWithAperture freq start end audioBuffers =
 -- Sample Bank
 ----------------------
 
-data SampleBank n = SampleBank (Array n (Stereo AudioBuffer))
+-- TODO:
+-- Tuning play back for scalar sample sets, with pitch shift for pitches outside the sample set
+-- Tuning mapping, to take a set of samples in one tuning and pitch shift them to fit a different tuning (for example: equal to 7-limit)
 
-sampleBank :: Array n (Slice Char) -> SampleBank n
-sampleBank filePaths =
-  doOnce (map' loadSample) filePaths |> SampleBank
+data SampleData a = SampleData (Stereo AudioBuffer) a
+data SampleBank n a = SampleBank (Array n (SampleData a)) -- a is user metadata, passed through for use with sampleSeq
+
+sampleBank :: Array n ((Slice Char), a) -> SampleBank n a
+sampleBank filePathsAndMetadata =
+  doOnce (map' loadSample) filePathsAndMetadata |> SampleBank
   where
-    loadSample (Slice pFilePath filePathSize) =
-      audioFileOpen' pFilePath filePathSize
-      |> fromMaybe silentAudioFile
-      |> audioBufferFromFileGo
+    loadSample ((Slice pFilePath filePathSize), metadata) =
+      SampleData buffer metadata
+      where
+        buffer =
+          audioFileOpen' pFilePath filePathSize
+          |> fromMaybe silentAudioFile
+          |> audioBufferFromFileGo
     map' f a = freezeArray b
       where
         b =
@@ -4737,7 +4745,7 @@ sampleBank filePaths =
             writeArray i (f (readArray i a)) a'
 
 -- Wrapped indexing into sample bank
-selectSample :: SampleBank n -> Int -> Stereo AudioBuffer
+selectSample :: SampleBank n a -> Int -> SampleData a
 selectSample (SampleBank bank) index =
   readArray (unsafeUIntToIndex index') bank
   where
@@ -4746,16 +4754,16 @@ selectSample (SampleBank bank) index =
     index' = if modIndex < 0 then fromInt (modIndex + bankLength) else fromInt modIndex
 
 -- Generate audio from a sample bank and sequence of integers
-sampleSeq :: SampleBank n -> Seq Int -> Stereo Audio
-sampleSeq bank seq =
+sampleSeq :: SampleBank n a -> (Stereo Audio -> a -> Stereo Audio) -> Seq Int -> Stereo Audio
+sampleSeq bank modifier seq =
   poly sampleSynth seq
   where
     sampleSynth index =
       playFor duration synth
       where
-        buffer = selectSample bank index
+        (SampleData buffer metadata) = selectSample bank index
         duration = audioBufferDuration buffer
-        synth _ = audioBufferPlay DontLoop 1 buffer
+        synth _ = modifier (audioBufferPlay DontLoop 1 buffer) metadata
 
 ----------------------
 -- Record Audio
@@ -9006,6 +9014,8 @@ oscTest f =
 
 ------------------------------------------------------------------------------------------------
 -- Tunings
+
+-- TODO: Tonality Lattices/Diamonds
 
 -- Scale (Tuning --> last index is repeat ratio, typically 2.0 for an octave) (Degrees) rootFreq
 data Scale (t :: Nat) (d :: Nat) = Scale (Array t Float) (Array d UInt) Float

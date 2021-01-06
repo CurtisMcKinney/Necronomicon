@@ -7606,6 +7606,139 @@ latch tr a =
   where
     f trc ac = accumulateAudio2 latchTick constTrue trc ac
 
+
+----------------------
+-- Score
+----------------------
+
+-- Basic idea:
+--    * Global tick
+--    * Global Score
+--    * Global Musical time calculated via global tick + global score.
+--    * Score typeclass which provides everything you'll need
+--    * Seqs are pure Time and parametrized by score type.
+--    * Seqs are passed in their subdivision and return their expected duration
+--    * Seqs are re-evaluated after their duration or at section changes. They *should* be pure, so evaulating extra *shouldn't* cause any issues
+
+data Alphabet    = A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
+data SectionType = Coda | Head | Prime | First | Trans | Repeated
+data Tempo       = Tempo Rational | TempoChange Rational Rational Rational
+data MusicalTime = Beats UInt | Bars Rational UInt
+data Score s     = Score UInt (Slice (MusicalTime, s, Tempo))
+
+-- Alphabet
+instance Enum Alphabet where
+  toEnum n =
+    case n of
+      0  -> A
+      1  -> B
+      2  -> C
+      3  -> D
+      4  -> E
+      5  -> F
+      6  -> G
+      7  -> H
+      8  -> I
+      9  -> J
+      10 -> K
+      11 -> L
+      12 -> M
+      13 -> N
+      14 -> O
+      15 -> P
+      16 -> Q
+      17 -> R
+      18 -> S
+      19 -> T
+      20 -> U
+      21 -> V
+      22 -> W
+      23 -> X
+      24 -> Y
+      _  -> Z
+
+  fromEnum s =
+    case s of
+      A     -> 0
+      B     -> 1
+      C     -> 2
+      D     -> 3
+      E     -> 4
+      F     -> 5
+      G     -> 6
+      H     -> 7
+      I     -> 8
+      J     -> 9
+      K     -> 10
+      L     -> 11
+      M     -> 12
+      N     -> 13
+      O     -> 14
+      P     -> 15
+      Q     -> 16
+      R     -> 17
+      S     -> 18
+      T     -> 19
+      U     -> 20
+      V     -> 21
+      W     -> 22
+      X     -> 23
+      Y     -> 24
+      Z     -> 25
+
+instance Eq Alphabet where
+  eq  x y = fromEnum x == fromEnum y
+  neq x y = fromEnum x /= fromEnum y
+
+instance Default Alphabet where
+  default = A
+
+-- SectionType
+instance Enum SectionType where
+  toEnum n =
+    case n of
+      0 -> Coda
+      1 -> Head
+      2 -> Prime
+      3 -> First
+      4 -> Trans
+
+  fromEnum n =
+    case n of
+      Coda  -> 0
+      Head  -> 1
+      Prime -> 2
+      First -> 3
+      Trans -> 4
+
+instance Eq SectionType where
+  eq  x y = fromEnum x == fromEnum y
+  neq x y = fromEnum x /= fromEnum y
+
+instance Default SectionType where
+  default = First
+
+-- Score
+class (Eq s, Default s) => ScoreSection s where
+
+toScore :: ScoreSection s => Array n (MusicalTime, s, Tempo) -> Score s
+toScore a =
+  Score 0 (maxSlice a)
+
+scoreSection :: ScoreSection s => Score s -> s
+scoreSection (Score slice sectionIndex) =
+  case lookupSlice slice sectionIndex of
+    Nothing              -> default
+    Just (_, section, _) -> section
+
+playDuringSection :: (AudioFormat f, ScoreSection s) => Score s -> s -> (() -> f Audio) -> f Audio
+playDuringSection score sectionToPlayAt playFunction =
+  if scoreSection score == sectionToPlayAt then
+    playFunction ()
+  else
+    pure (BlockRate 0)
+
+
 --------------------
 -- Seq
 --------------------

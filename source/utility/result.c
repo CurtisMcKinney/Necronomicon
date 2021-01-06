@@ -102,6 +102,11 @@ NecroResult(void) necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourc
     return necro_error_map(bool, void, necro_default_lex_error(NECRO_LEX_MIXED_BRACES, source_loc, end_loc));
 }
 
+NecroResult(void) necro_malformed_formatting_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_error_map(bool, void, necro_default_lex_error(NECRO_LEX_MALFORMED_FORMATTING, source_loc, end_loc));
+}
+
 NecroResult(void) necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     necro_error_single_break_point();
@@ -779,6 +784,12 @@ void necro_print_mixed_braces_error(NecroResultError* error, const char* source_
 {
     const char* explanation = "Necrolang uses significant whitespace which converts into implicit opening and closing braces.\nYou're likely adding an explicit closing brace where none is required.";
     necro_print_default_error_format("Mixed Braces", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
+}
+
+void necro_print_malformed_formatting_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "Necrolang uses significant whitespace. Check for correct indentation and formatting keyword usage.";
+    necro_print_default_error_format("Malformed Formatting", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
 void necro_print_parse_error(NecroResultError* error, const char* source_str, const char* source_name)
@@ -1532,6 +1543,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_LEX_MALFORMED_STRING:                            necro_print_malformed_string_error(error, source_str, source_name); break;
     case NECRO_LEX_UNRECOGNIZED_CHARACTER_SEQUENCE:             necro_print_unrecognized_character_sequence_error(error, source_str, source_name); break;
     case NECRO_LEX_MIXED_BRACES:                                necro_print_mixed_braces_error(error, source_str, source_name); break;
+    case NECRO_LEX_MALFORMED_FORMATTING:                        necro_print_malformed_formatting_error(error, source_str, source_name); break;
 
     case NECRO_PARSE_ERROR:                                     necro_print_parse_error(error, source_str, source_name); break;
     case NECRO_PARSE_DECLARATIONS_MISSING_RIGHT_BRACE:          necro_print_declarations_missing_right_brace_error(error, source_str, source_name); break;

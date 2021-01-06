@@ -33,6 +33,7 @@ typedef enum
     NECRO_LEX_MALFORMED_STRING,
     NECRO_LEX_UNRECOGNIZED_CHARACTER_SEQUENCE,
     NECRO_LEX_MIXED_BRACES,
+    NECRO_LEX_MALFORMED_FORMATTING,
 
     NECRO_PARSE_ERROR,
     NECRO_PARSE_DECLARATIONS_MISSING_RIGHT_BRACE,
@@ -354,6 +355,7 @@ NecroResult(bool)                  necro_malformed_string_error(NecroSourceLoc s
 NecroResult(bool)                  necro_malformed_float_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)                  necro_unrecognized_character_sequence_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)                  necro_mixed_braces_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(void)                  necro_malformed_formatting_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(void)                  necro_parse_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 
 // Parse

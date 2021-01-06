@@ -821,6 +821,8 @@ NecroResult(void) necro_lex_fixup_layout(NecroLexer* lexer)
             }
             else if (n < m)
             {
+                if (stack_pos == 0)
+                    return necro_malformed_formatting_error(loc, end_loc);
                 NecroLexToken token = { .token = NECRO_LEX_RIGHT_BRACE, .source_loc = loc, .end_loc = end_loc };
                 necro_push_lex_token_vector(&lexer->layout_fixed_tokens, &token);
                 stack_pos--;
@@ -836,6 +838,8 @@ NecroResult(void) necro_lex_fixup_layout(NecroLexer* lexer)
                  (lexer->tokens.data[pos - 1].token != NECRO_LEX_CONTROL_WHITE_MARKER &&
                   lexer->tokens.data[pos - 1].token != NECRO_LEX_RIGHT_BRACE))
         {
+            if (stack_pos == 0)
+                return necro_malformed_formatting_error(loc, end_loc);
             NecroLexToken token = { .token = NECRO_LEX_RIGHT_BRACE, .source_loc = loc, .end_loc = end_loc };
             necro_push_lex_token_vector(&lexer->layout_fixed_tokens, &token);
             necro_push_lex_token_vector(&lexer->layout_fixed_tokens, lexer->tokens.data + pos);
@@ -879,6 +883,8 @@ NecroResult(void) necro_lex_fixup_layout(NecroLexer* lexer)
 
             if (m == 0)
             {
+                if (stack_pos == 0)
+                    return necro_malformed_formatting_error(loc, end_loc);
                 NecroLexToken token = { .token = NECRO_LEX_RIGHT_BRACE, .source_loc = loc, .end_loc = end_loc };
                 necro_push_lex_token_vector(&lexer->layout_fixed_tokens, &token);
                 stack_pos--;

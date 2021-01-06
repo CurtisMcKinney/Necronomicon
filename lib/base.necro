@@ -1772,20 +1772,27 @@ instance Alternative Maybe where
       Nothing -> y
       Just _  -> x
 
--- This are wrong, wtf is going on? Is it parsing wrong? Is it inferring wrong?
+-- NOTE: Is this still wrong?
+-- This is wrong, wtf is going on? Is it parsing wrong? Is it inferring wrong?
 maybe :: .b -> .(.a -> .b) -> Maybe .a -> .b
 maybe defaultValue f m =
   case m of
     Nothing -> defaultValue
     Just x  -> f x
 
--- This are wrong, wtf is going on? Is it parsing wrong? Is it inferring wrong?
+-- NOTE: Is this still wrong?
+-- This is wrong, wtf is going on? Is it parsing wrong? Is it inferring wrong?
 fromMaybe :: .a -> Maybe .a -> .a
 fromMaybe defaultValue m =
   case m of
     Nothing -> defaultValue
     Just x  -> x
 
+unwrapOrDefault :: Default a => Maybe a -> a
+unwrapOrDefault m =
+  case m of
+    Nothing -> default
+    Just x  -> x
 
 --------------------
 -- Either
@@ -2019,28 +2026,36 @@ instance Functor (Array n) where
 -- Slice
 --------------------
 
-data Slice a = Slice (Ptr a) UInt
+data Slice a = Slice# (Ptr a) UInt
 
 slice :: Array n a -> UInt -> Slice a
 slice array sliceSize =
-  Slice (unsafeArrayToPtr array) (min (arrayLength NatVal array) sliceSize)
+  Slice# (unsafeArrayToPtr array) (min (arrayLength NatVal array) sliceSize)
 
 instance Print a => Print (Slice a) where
-  print (Slice p n) w =
+  print (Slice# p n) w =
     fst' <| loop (#w', i#) = (#w, 0#) while i < n do
       (#print (unsafePtrPeek i p) w', i + 1#)
 
 maxSlice :: Array n a -> Slice a
 maxSlice array =
-  Slice (unsafeArrayToPtr array) (arrayLength NatVal array)
+  Slice# (unsafeArrayToPtr array) (arrayLength NatVal array)
 
 instance Foldable Slice where
-  fold (Slice p n) =
+  fold (Slice# p n) =
     fst' <| loop (#x, i#) = (#mempty, 0#) while i < n do
       (#x <> (unsafePtrPeek i p), i + 1#)
-  foldl f init (Slice p n) =
+  foldl f init (Slice# p n) =
     fst' <| loop (#x, i#) = (#init, 0#) while i < n do
       (#f x (unsafePtrPeek i p), i + 1#)
+
+lookupSlice :: UInt -> Slice a -> Maybe a
+lookupSlice index (Slice# ptr len) =
+  if index < len then
+    Just (unsafePtrPeek index ptr)
+  else
+    Nothing
+
 
 --------------------
 -- Index
@@ -4731,7 +4746,7 @@ sampleBank :: Array n ((Slice Char), a) -> SampleBank n a
 sampleBank filePathsAndMetadata =
   doOnce (map' loadSample) filePathsAndMetadata |> SampleBank
   where
-    loadSample ((Slice pFilePath filePathSize), metadata) =
+    loadSample ((Slice# pFilePath filePathSize), metadata) =
       SampleData buffer metadata
       where
         buffer =
@@ -8572,6 +8587,7 @@ seqToAudio s =
         in
           (#i1, writeArray (Index i0) (fromFloat value) a#)
 
+-- TODO: Either make poly only accept unboxed types, or making poly ACTUALLY accept boxed types correctly! Or does it do this and I forgot implementing? Double check!
 poly :: Poly b => (a -> b) -> Seq a -> b
 poly f s =
   case mutRefTake (\_ -> dynArrayEmpty 8) of

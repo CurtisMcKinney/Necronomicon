@@ -1444,7 +1444,7 @@ void necro_defunctionalize_test_result(const char* test_name, const char* str)
     necro_core_ast_pre_simplify(info, &intern, &base, &core_ast);
 
     // Print
-    necro_core_ast_pretty_print(core_ast.root);
+    // necro_core_ast_pretty_print(core_ast.root);
     printf("Core %s test: Passed\n", test_name);
 
     // Clean up

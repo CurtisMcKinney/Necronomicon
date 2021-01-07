@@ -2056,6 +2056,9 @@ lookupSlice index (Slice# ptr len) =
   else
     Nothing
 
+sliceLength :: Slice a -> UInt
+sliceLength (Slice# _ len) =
+  len
 
 --------------------
 -- Index
@@ -2114,7 +2117,10 @@ audioBlocksPerSecond :: UInt
 audioBlocksPerSecond = audioSampleRate / audioBlockSize
 
 audioBlockDelta :: Rational
-audioBlockDelta = 1 // fromUInt audioBlocksPerSecond
+audioBlockDelta =
+  1 / (fromUInt audioSampleRate // fromUInt audioBlockSize)
+  -- = 1 // fromUInt audioBlocksPerSecond
+  -- |> traceLn2 "audioBlockDelta: "
 
 audioBlockDeltaF :: Float
 audioBlockDeltaF = rationalToFloat audioBlockDelta
@@ -2133,9 +2139,12 @@ audioSampleOffset = 0
 
 currBlockTime :: Rational
 currBlockTime =
-  t
+  (t // 1) * audioBlockDelta -- |> traceLn2 "currBlockTime: "
   where
-    t ~ 0 = t + audioBlockDelta
+    t ~ -1 = t + 1 -- First result is 0
+
+-- currBlockTimeWithOffset :: Rational -> Rational
+-- currBlockTimeWithOffse
 
 localTime :: () -> Float
 localTime _ =
@@ -7720,23 +7729,23 @@ instance Default SectionType where
 
 -- Score
 class (Eq s, Default s) => ScoreSection s where
+  timeToScoreSection :: Rational -> s
 
 toScore :: ScoreSection s => Array n (MusicalTime, s, Tempo) -> Score s
 toScore a =
   Score 0 (maxSlice a)
 
-scoreSection :: ScoreSection s => Score s -> s
-scoreSection (Score slice sectionIndex) =
-  case lookupSlice slice sectionIndex of
-    Nothing              -> default
-    Just (_, section, _) -> section
+-- playDuringSection :: (AudioFormat f, ScoreSection s) => Score s -> s -> (() -> f Audio) -> f Audio
+-- playDuringSection score sectionToPlayAt playFunction =
+--   if scoreSection score == sectionToPlayAt then
+--     playFunction ()
+--   else
+--     pure (BlockRate 0)
 
-playDuringSection :: (AudioFormat f, ScoreSection s) => Score s -> s -> (() -> f Audio) -> f Audio
-playDuringSection score sectionToPlayAt playFunction =
-  if scoreSection score == sectionToPlayAt then
-    playFunction ()
-  else
-    pure (BlockRate 0)
+scoreSection :: ScoreSection s => Seq s
+scoreSection =
+  Seq (\_ -> pure (timeToScoreSection 0))
+  -- Seq (\(SeqValue# t) -> pure (timeToScoreSection t))
 
 
 --------------------
@@ -7744,6 +7753,7 @@ playDuringSection score sectionToPlayAt playFunction =
 --------------------
 data SeqControl = SeqEnd | SeqBlockEnd | SeqNormal | SeqLoopEnd | SeqPure
 data SeqValue a = SeqValue# Rational SeqControl (Maybe a)
+data SeqParam   = SeqParam# Rational
 data Seq a      = Seq (() -> SeqValue a)
 
 mergeSeqValueTimes :: Rational -> SeqControl -> Rational -> SeqControl -> Rational
@@ -7991,6 +8001,22 @@ instance FunctorN Seq where
   map2 f sx sy       = Seq (\_ -> let (#x, y#)       = runSeq2 sx sy       in map2 f x y)
   map3 f sx sy sz    = Seq (\_ -> let (#x, y, z#)    = runSeq3 sx sy sz    in map3 f x y z)
   map4 f sw sx sy sz = Seq (\_ -> let (#w, x, y, z#) = runSeq4 sw sx sy sz in map4 f w x y z)
+
+instance Monad Seq where
+  bind aSeq f =
+    Seq go
+    where
+      go _ =
+        let
+          SeqValue# at ac av = runSeq aSeq ()
+        in
+          case av of
+            Nothing -> SeqValue# at ac nothing
+            Just a  ->
+              let
+                SeqValue# bt bc bv = runSeq (f a) ()
+              in
+                SeqValue# (mergeSeqValueTimes at ac bt bc) (ac <> bc) bv
 
 instance Eq a => Eq (Seq a) where
   eq  sx sy = let (#x, y#) = runSeq2 sx sy in x == y
@@ -8693,6 +8719,7 @@ instance Poly a => Poly (Stereo a) where
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
   (fromInt n / fromInt d) * fromUInt audioBlockSize
+  -- |> traceLn2 "calculateAudioSampleOffset: "
   where
     Rational# n d =
       (valueTime - (tickTime - audioBlockDelta)) / audioBlockDelta

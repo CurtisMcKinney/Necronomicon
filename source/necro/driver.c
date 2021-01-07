@@ -71,18 +71,17 @@ void necro_compile_begin_phase(NecroCompileInfo compile_info, NECRO_PHASE phase)
     // if (info.verbosity > 1 || (compile_info.compilation_phase == phase && compile_info.verbosity > 0))
     //     necro_announce_phase(necro_phase_string(phase));
     UNUSED(phase);
-    if (compile_info.compilation_phase != NECRO_PHASE_JIT && compile_info.verbosity > 1)
-    {
+    // if (compile_info.compilation_phase != NECRO_PHASE_JIT && compile_info.verbosity > 1) {
         necro_timer_start(compile_info.timer);
-    }
+    // }
 }
 
 bool necro_compile_end_phase(NecroCompileInfo compile_info, NECRO_PHASE phase)
 {
-    if (compile_info.compilation_phase != NECRO_PHASE_JIT && compile_info.verbosity > 1)
-    {
+    // if (compile_info.compilation_phase != NECRO_PHASE_JIT && compile_info.verbosity > 1)
+    // {
         necro_timer_stop_and_report(compile_info.timer, necro_compile_phase_string(phase));
-    }
+    // }
     return compile_info.compilation_phase == phase;
 }
 
@@ -275,7 +274,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     // Compile
     //--------------------
     struct NecroTimer* timer  = necro_timer_create();
-    NecroCompileInfo   info   = { .verbosity = 1, .timer = timer, .compilation_phase = compilation_phase, .opt_level = opt_level };
+    NecroCompileInfo   info   = { .verbosity = 0, .timer = timer, .compilation_phase = compilation_phase, .opt_level = opt_level };
     NecroResult(void)  result = necro_compile_go(
         info,
         input_string,

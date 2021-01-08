@@ -717,22 +717,22 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
         necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, "@>@", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "rightConstSeqOnBoth", NECRO_VAR_VAR), NULL)));
     }
 
-    // // >>=
-    // {
-    //     NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
-    //     NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
-    //     NecroAst* m_var       = necro_ast_create_var(arena, intern, "m", NECRO_VAR_TYPE_FREE_VAR);
-    //     NecroAst* bind_op_sig =
-    //         necro_ast_create_fn_type_sig(arena, intern, ">>=", necro_ast_create_context(arena, intern, "Monad", "m", NULL),
-    //             necro_ast_create_type_fn(arena,
-    //                 necro_ast_create_type_app(arena, m_var, a_var),
-    //                 necro_ast_create_type_fn(arena,
-    //                     necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_app(arena, m_var, b_var)),
-    //                     necro_ast_create_type_app(arena, m_var, b_var))),
-    //             NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
-    //     necro_append_top(arena, top, bind_op_sig);
-    //     necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, ">>=", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "bind", NECRO_VAR_VAR), NULL)));
-    // }
+    // >>=
+    {
+        NecroAst* a_var       = necro_ast_create_var(arena, intern, "a", NECRO_VAR_TYPE_FREE_VAR);
+        NecroAst* b_var       = necro_ast_create_var(arena, intern, "b", NECRO_VAR_TYPE_FREE_VAR);
+        NecroAst* m_var       = necro_ast_create_var(arena, intern, "m", NECRO_VAR_TYPE_FREE_VAR);
+        NecroAst* bind_op_sig =
+            necro_ast_create_fn_type_sig(arena, intern, ">>=", necro_ast_create_context(arena, intern, "Monad", "m", NULL),
+                necro_ast_create_type_fn(arena,
+                    necro_ast_create_type_app(arena, m_var, a_var),
+                    necro_ast_create_type_fn(arena,
+                        necro_ast_create_type_fn(arena, a_var, necro_ast_create_type_app(arena, m_var, b_var)),
+                        necro_ast_create_type_app(arena, m_var, b_var))),
+                NECRO_VAR_SIG, NECRO_SIG_DECLARATION);
+        necro_append_top(arena, top, bind_op_sig);
+        necro_append_top(arena, top, necro_ast_create_simple_assignment(arena, intern, ">>=", necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "bind", NECRO_VAR_VAR), NULL)));
+    }
 
     // >> , no longer monadic bind operator, co-opted by forwards compose operator
     // {
@@ -1029,6 +1029,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     base.seq_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Seq"));
     base.seq_con                = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "Seq"));
     base.seq_value_type         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "SeqValue"));
+    base.seq_param_type         = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "SeqParam"));
     // base.list_type              = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "[]"));
     base.int_type               = necro_symtable_get_type_ast_symbol(scoped_symtable, necro_intern_string(intern, "Int"));
     base.int_con                = necro_symtable_get_top_level_ast_symbol(scoped_symtable, necro_intern_string(intern, "_Int"));

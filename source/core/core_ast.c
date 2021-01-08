@@ -1199,10 +1199,16 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_if_then_else(NecroCoreAstT
 // Sequence Expressions
 //--------------------
 // TODO: Make sure to tell Chad that nodes cannot be shared across AST tree, since mutation can occur!
+// TODO: SeqParam, fml
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_seq_expression(NecroCoreAstTransform* context, NecroAst* ast)
 {
     assert(context != NULL);
     assert(ast->type == NECRO_AST_SEQ_EXPRESSION);
+
+    //--------------------
+    // Create lambda SeqParam arg symbol
+    NecroCoreAstSymbol* lambda_arg_seq_param_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "seqParam"), context->base->seq_param_type->type);
+
     //--------------------
     // Create types and count expressions
     NecroType* seq_type       = necro_type_strip_for_all(necro_type_find(ast->necro_type));
@@ -1247,7 +1253,8 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_seq_expression(NecroCoreAs
         NecroCoreAst* run_seq_ast    = necro_core_ast_create_var(context->arena, ast->sequence_expression.run_seq_symbol->core_ast_symbol, run_seq_type);
         expression_ast               = necro_core_ast_create_app(context->arena, run_seq_ast, expression_ast);
         expression_ast->necro_type   = run_seq_type->fun.type2;
-        expression_ast               = necro_core_ast_create_app(context->arena, expression_ast, necro_core_ast_create_var(context->arena, context->base->unit_con->core_ast_symbol, context->base->unit_type->type));
+        // expression_ast               = necro_core_ast_create_app(context->arena, expression_ast, necro_core_ast_create_var(context->arena, context->base->unit_con->core_ast_symbol, context->base->unit_type->type));
+        expression_ast               = necro_core_ast_create_app(context->arena, expression_ast, necro_core_ast_create_var(context->arena, lambda_arg_seq_param_symbol, context->base->seq_param_type->type));
         expression_ast->necro_type   = run_seq_type->fun.type2->fun.type2;
         NecroCoreAst* pat_ast        = necro_core_ast_create_lit(context->arena, (NecroAstConstant) { .int_literal = expression_index, .type = NECRO_AST_CONSTANT_INTEGER });
         pat_ast->necro_type          = context->base->int_type->type;
@@ -1283,8 +1290,11 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_seq_expression(NecroCoreAs
     let_ast->necro_type       = seq_value_type;
     //--------------------
     // Create Seq
-    NecroType*    lam_type                   = necro_type_fn_create(context->arena, context->base->unit_type->type, seq_value_type);
-    NecroCoreAst* lam_arg_ast                = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "wildcard"), context->base->unit_type->type), context->base->unit_type->type);
+    // NecroType*    lam_type                   = necro_type_fn_create(context->arena, context->base->unit_type->type, seq_value_type);
+    NecroType*    lam_type                   = necro_type_fn_create(context->arena, context->base->seq_param_type->type, seq_value_type);
+    // TODO: Replace this with SeqParam
+    // NecroCoreAst* lam_arg_ast                = necro_core_ast_create_var(context->arena, necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "wildcard"), context->base->unit_type->type), context->base->unit_type->type);
+    NecroCoreAst* lam_arg_ast                = necro_core_ast_create_var(context->arena, lambda_arg_seq_param_symbol, context->base->seq_param_type->type);
     lam_arg_ast->var.ast_symbol->is_wildcard = true;
     NecroCoreAst* lam_ast                    = necro_core_ast_create_lam(context->arena, lam_arg_ast, let_ast);
     NecroType*    seq_con_type               = necro_type_fn_create(context->arena, lam_type, seq_type);

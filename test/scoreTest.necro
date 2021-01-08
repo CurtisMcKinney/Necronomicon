@@ -1,0 +1,143 @@
+
+----------------------
+-- Score API usage example
+----------------------
+
+----------------------
+-- Simple Score
+----------------------
+
+data SimpleScore = SimpleScore Alphabet
+
+-- NOTE: This boilerplate won't need to be here once we have 'deriving' capability in the compiler!
+instance Eq SimpleScore where
+  eq  (SimpleScore xSection) (SimpleScore ySection) = xSection == ySection
+  neq (SimpleScore xSection) (SimpleScore ySection) = xSection /= ySection
+
+-- NOTE: This boilerplate won't need to be here once we have 'deriving' capability in the compiler!
+instance Default SimpleScore where
+  default = SimpleScore A
+
+-- TODO: End?
+instance ScoreType SimpleScore where
+  score =
+    {
+      (Beats 4, SimpleScore A, Tempo 120),
+      (Beats 4, SimpleScore B, Tempo 120),
+      (Beats 4, SimpleScore A, Tempo 120),
+      (Beats 4, SimpleScore C, Tempo 180),
+    }
+    |> scoreNew
+
+simpleScore :: Score SimpleScore
+simpleScore =
+  score
+
+simpleScoreSection :: Seq SimpleScore
+simpleScoreSection =
+  Seq (\p -> pure (scoreSectionAtTime score (seqParamGetTime p)))
+
+-- TODO: Seq control flow (case, if/then/else)?
+-- TODO: Actually synchronizing using Score
+-- TODO: Actually using Score sections without fuckin' crashing
+-- TODO: Lambda lift compiler bug on scoreSection (fml)
+-- TODO: monadic control flow (case, if/then/else)
+-- TODO: HOF returned from control structures DOESN'T WORK CURRENTLY! WHICH CAUSES THIS NOT TO WORK CURRENTLY!
+-- scoreSection >>= \s ->
+-- simpleScoreSection >>= \s ->
+
+-- simpleScoreSeq :: Seq Float
+-- simpleScoreSeq = Seq go
+--   where
+--     go p =
+--       case runSeq simpleScoreSection p |> seqValueValue of
+--         Just (SimpleScore A) -> runSeq [1 2 3 5] p
+--         Just (SimpleScore B) -> runSeq [6 3 2 1] p
+--         Just (SimpleScore C) -> runSeq [4 2 1 2] p
+--         _                    -> Nothing
+
+-- -- During lambda lift, detect functions returned by control structures and then
+-- simpleScoreSeq :: Seq Float
+-- simpleScoreSeq =
+--   case scoreSectionAtTime simpleScore currBlockTime of
+--     SimpleScore A -> [1 2 3 5]
+--     SimpleScore B -> [6 3 2 1]
+--     SimpleScore C -> [4 2 1 2]
+--     _             -> [6 1]
+
+-- During lambda lift, detect functions returned by control structures and then
+simpleScoreSeq :: Seq Float
+simpleScoreSeq =
+  simpleScoreSection >>= \s ->
+  case s of
+    SimpleScore A -> [1 2 3 5]
+    SimpleScore B -> [6 3 2 1]
+    SimpleScore C -> [4 2 1 2]
+    _             -> [6 1]
+
+simpleScoreTest :: Stereo Audio
+simpleScoreTest =
+  sin (simpleScoreSeq |> seqSpeed 2 |> mul 110 |> seqToAudio)
+  |> mul 0.1
+
+-- ----------------------
+-- -- Complex Score
+-- ----------------------
+--
+-- data ComplexScore = ComplexScore Alphabet UInt SectionType
+--
+-- -- NOTE: This boilerplate won't need to be here once we have 'deriving' capability in the compiler!
+-- instance Eq ComplexScore where
+--   eq (ComplexScore xSection xSubSection xSectionMod) (ComplexScore ySection ySubSection ySectionMod) =
+--     xSection == ySection && xSubSection == ySubSection && xSectionMod == ySectionMod
+--   neq (ComplexScore xSection xSubSection xSectionMod) (ComplexScore ySection ySubSection ySectionMod) =
+--     xSection /= ySection || xSubSection /= ySubSection || xSectionMod /= ySectionMod
+--
+-- instance Default ComplexScore where
+--   default = ComplexScore A 1 First
+--
+-- instance Print ComplexScore where
+--   print _ w =
+--     print "ComplexScore" w
+--
+-- instance ScoreType ComplexScore where
+--   score =
+--     {
+--       (Beats 24, ComplexScore A 1 First, Tempo 180),
+--       (Beats  8, ComplexScore A 1 Trans, TempoChange 180 90 3),
+--       (Beats 32, ComplexScore A 2 First, Tempo  90),
+--       (Beats 64, ComplexScore B 1 First, TempoChange 90 120 -1),
+--       (Beats 64, ComplexScore B 2 First, Tempo 120),
+--       (Beats 64, ComplexScore B 2 Trans, TempoChange 120 180 -4),
+--       (Beats 32, ComplexScore A 1 Prime, Tempo 180),
+--       (Beats 16, ComplexScore A 2 Prime, Tempo 180),
+--       (Beats 32, ComplexScore A 3 Prime, Tempo 180)
+--     }
+--     |> scoreNew
+--
+-- complexScore :: Score ComplexScore
+-- complexScore = score
+--
+-- -- complexScoreSeq :: Seq ComplexScore Float
+-- -- complexScoreSeq =
+-- --   caseM section of
+-- --     ComplexSection A 1 First -> [0 1 2 3]
+-- --     ComplexSection A 1 Trans -> [0 1 2 3]
+-- --     ComplexSection A 2 _     -> [3 2 1 0]
+-- --     ComplexSection B 1 First -> [4 _ 4 _]
+-- --     ComplexSection B 2 First -> [_ 4 _ 4]
+-- --     ComplexSection B 2 Trans -> [4 5 6 7]
+-- --     ComplexSection A 1 Prime -> [0 1 8 3]
+-- --     ComplexSection A 3 Prime -> [3 2 8 9]
+-- --     _                        -> rest
+-- --
+
+
+----------------------
+-- Main
+----------------------
+
+main :: *World -> *World
+main w =
+  outAudio 0 simpleScoreTest w
+

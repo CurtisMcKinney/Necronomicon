@@ -242,16 +242,16 @@ void necro_core_scope_print(NecroCoreScope* scope)
     for (size_t i = 0; i < scope->size; ++i)
     {
         NecroCoreAstSymbol* ast_symbol         = scope->data[i].ast_symbol;
-        NecroCoreAstSymbol* renamed_ast_symbol = scope->data[i].renamed_ast_symbol;
-        NecroType*          necro_type         = scope->data[i].necro_type;
-        if (ast_symbol == NULL)
-            continue;
-        if (renamed_ast_symbol != NULL)
-            printf("  %s => %s :: ", ast_symbol->name->str, renamed_ast_symbol->name->str);
-        else
-            printf("  %s => NULL :: ", ast_symbol->name->str);
-        necro_type_print(necro_type);
-        printf("\n");
+NecroCoreAstSymbol* renamed_ast_symbol = scope->data[i].renamed_ast_symbol;
+NecroType* necro_type = scope->data[i].necro_type;
+if (ast_symbol == NULL)
+continue;
+if (renamed_ast_symbol != NULL)
+printf("  %s => %s :: ", ast_symbol->name->str, renamed_ast_symbol->name->str);
+else
+printf("  %s => NULL :: ", ast_symbol->name->str);
+necro_type_print(necro_type);
+printf("\n");
     }
     printf("}\n");
 }
@@ -267,7 +267,7 @@ NecroCoreAstSymbol* necro_core_lambda_lift_create_renamed_symbol(NecroLambdaLift
 
 void necro_core_lambda_lift_push_scope(NecroLambdaLift* ll)
 {
-    ll->scope            = necro_core_scope_create(&ll->ll_arena, ll->scope);
+    ll->scope = necro_core_scope_create(&ll->ll_arena, ll->scope);
     ll->scope->free_vars = necro_core_scope_create(&ll->ll_arena, NULL);
 }
 
@@ -277,7 +277,7 @@ void necro_core_lambda_lift_pop_scope(NecroLambdaLift* ll)
     for (size_t i = 0; i < ll->scope->free_vars->size; ++i)
     {
         NecroCoreAstSymbol* ast_symbol = ll->scope->free_vars->data[i].ast_symbol;
-        NecroType*          necro_type = ll->scope->free_vars->data[i].necro_type;
+        NecroType* necro_type = ll->scope->free_vars->data[i].necro_type;
         if (ast_symbol == NULL || necro_core_scope_find_in_this_scope(ll->scope->parent, ast_symbol))
             continue;
         // Rename and insert

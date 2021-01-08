@@ -110,8 +110,8 @@ fst3 (x, _, _) = x
 snd3 :: (.a, .b, .c) -> .b
 snd3 (_, y, _) = y
 
-thd3 :: (.a, .b, .c) -> .c
-thd3 (_, _, z) = z
+thd :: (.a, .b, .c) -> .c
+thd (_, _, z) = z
 
 fst3' :: (#.a, .b, .c#) -> .a
 fst3' (#x, _, _#) = x
@@ -119,8 +119,8 @@ fst3' (#x, _, _#) = x
 snd3' :: (#.a, .b, .c#) -> .b
 snd3' (#_, y, _#) = y
 
-thd3' :: (#.a, .b, .c#) -> .c
-thd3' (#_, _, z#) = z
+thd' :: (#.a, .b, .c#) -> .c
+thd' (#_, _, z#) = z
 
 flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
 flip f y x = f x y
@@ -462,7 +462,8 @@ class Ring a => EuclideanRing a where
 
 class (EuclideanRing a, DivisionRing a) => Field a where
 
-class (Eq a, Ring a) => Num a where
+-- class (Eq a, Ring a) => Num a where
+class (Ring a) => Num a where
   abs      :: a -> a
   signum   :: a -> a
   copysign :: a -> a -> a
@@ -1782,8 +1783,8 @@ maybe defaultValue f m =
 
 -- NOTE: Is this still wrong?
 -- This is wrong, wtf is going on? Is it parsing wrong? Is it inferring wrong?
-fromMaybe :: .a -> Maybe .a -> .a
-fromMaybe defaultValue m =
+unwrapOr :: .a -> Maybe .a -> .a
+unwrapOr defaultValue m =
   case m of
     Nothing -> defaultValue
     Just x  -> x
@@ -1793,6 +1794,12 @@ unwrapOrDefault m =
   case m of
     Nothing -> default
     Just x  -> x
+
+isNothing :: Maybe a -> Bool
+isNothing m =
+  case m of
+    Nothing -> True
+    _       -> False
 
 --------------------
 -- Either
@@ -1924,6 +1931,46 @@ unsafeIndexToIndex :: Index n -> Index m
 unsafeIndexToIndex (Index i) =
   Index i
 
+indexLength' :: Index n -> NatVal n -> UInt
+indexLength' _ n =
+  natVal n
+
+indexLength :: Index n -> UInt
+indexLength i =
+  indexLength' i NatVal
+
+indexZero :: Index n
+indexZero =
+  Index 0
+
+indexAddWithWrap :: Index n -> UInt -> Index n
+indexAddWithWrap i a =
+  Index ((ui + a) % indexLength i)
+  where
+    Index ui = i
+
+indexAddWithMin :: Index n -> UInt -> Index n
+indexAddWithMin i a =
+  Index (min (ui + a) (indexLength i - 1))
+  where
+    Index ui = i
+
+uintToIndexWithWrap' :: UInt -> NatVal n -> Index n
+uintToIndexWithWrap' ui n =
+  Index (ui % natVal n)
+
+uintToIndexWithWrap :: UInt -> Index n
+uintToIndexWithWrap ui =
+  uintToIndexWithWrap' ui NatVal
+
+uintToIndexWithMin' :: UInt -> NatVal n -> Index n
+uintToIndexWithMin' ui n =
+  Index (min ui (natVal n - 1))
+
+uintToIndexWithMin :: UInt -> Index n
+uintToIndexWithMin ui =
+  uintToIndexWithMin' ui NatVal
+
 unsafeEmptyArray :: () -> *Array n a
 unsafeEmptyArray u = primUndefined
 
@@ -1932,6 +1979,10 @@ freezeArray a = primUndefined
 
 readArray :: Index n -> Array n a -> a
 readArray i a = primUndefined
+
+readArrayClamped :: UInt -> Array n a -> a
+readArrayClamped ui a =
+  readArray (uintToIndexWithMin ui) a
 
 readArrayU :: Index n -> .Array n a -> (#a, .Array n a#)
 readArrayU i a = primUndefined
@@ -2066,7 +2117,8 @@ sliceLength (Slice# _ len) =
 -- TODO: Hide Index constructor outside of base.necro for safety
 -- TODO: Use Max to restrict UInt to range?
 unsafeUIntToIndex :: UInt -> Index n
-unsafeUIntToIndex i = Index i
+unsafeUIntToIndex i =
+  Index i
 
 indexToUInt :: Index n -> UInt
 indexToUInt (Index i) = i
@@ -2120,7 +2172,6 @@ audioBlockDelta :: Rational
 audioBlockDelta =
   1 / (fromUInt audioSampleRate // fromUInt audioBlockSize)
   -- = 1 // fromUInt audioBlocksPerSecond
-  -- |> traceLn2 "audioBlockDelta: "
 
 audioBlockDeltaF :: Float
 audioBlockDeltaF = rationalToFloat audioBlockDelta
@@ -2139,7 +2190,7 @@ audioSampleOffset = 0
 
 currBlockTime :: Rational
 currBlockTime =
-  (t // 1) * audioBlockDelta -- |> traceLn2 "currBlockTime: "
+  (t // 1) * audioBlockDelta
   where
     t ~ -1 = t + 1 -- First result is 0
 
@@ -4450,7 +4501,7 @@ audioBufferFromFile af =
 audioBufferOpen :: Array n Char -> Mono AudioBuffer
 audioBufferOpen name =
   audioFileOpen name
-  |> fromMaybe silentAudioFile
+  |> unwrapOr silentAudioFile
   |> audioBufferFromFile
 
 audioBufferFromArray :: AudioFormat f => f (Array n Float) -> f AudioBuffer
@@ -4760,7 +4811,7 @@ sampleBank filePathsAndMetadata =
       where
         buffer =
           audioFileOpen' pFilePath filePathSize
-          |> fromMaybe silentAudioFile
+          |> unwrapOr silentAudioFile
           |> audioBufferFromFileGo
     map' f a = freezeArray b
       where
@@ -7623,17 +7674,18 @@ latch tr a =
 -- Basic idea:
 --    * Global tick
 --    * Global Score
---    * Global Musical time calculated via global tick + global score.
+--    * Global music clock calculated via global tick + global score.
 --    * Score typeclass which provides everything you'll need
---    * Seqs are pure Time and parametrized by score type.
---    * Seqs are passed in their subdivision and return their expected duration
---    * Seqs are re-evaluated after their duration or at section changes. They *should* be pure, so evaulating extra *shouldn't* cause any issues
+--    * Seqs are lazy accumulator functions and are passed in relevant information in a monadic fashion.
+--    * runSeq quantization parameter (poly and seqToAudio quant parameter)
 
-data Alphabet    = A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
-data SectionType = Coda | Head | Prime | First | Trans | Repeated
-data Tempo       = Tempo Rational | TempoChange Rational Rational Rational
-data MusicalTime = Beats UInt | Bars Rational UInt
-data Score s     = Score UInt (Slice (MusicalTime, s, Tempo))
+data Alphabet      = A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
+data SectionType   = Coda | Head | Prime | First | Trans | Repeated
+data Tempo         = Tempo Rational | TempoChange Rational Rational Rational
+data Meter         = Meter UInt UInt
+data SectionLength = Beats UInt | Bars Meter UInt | SectionTime Rational | HoldUntil Bool | HoldForever
+data ScoreBeat     = ScoreBeat# UInt Rational Rational UInt -- Beat Number, Beat Start Time, Beat End Time, Beat Section Index
+data Score s       = Score (#ScoreBeat, (SectionLength, s, Tempo)#) (#ScoreBeat, (SectionLength, s, Tempo)#) -- Start Beat, End Beat
 
 -- Alphabet
 instance Enum Alphabet where
@@ -7727,26 +7779,115 @@ instance Eq SectionType where
 instance Default SectionType where
   default = First
 
--- Score
-class (Eq s, Default s) => ScoreSection s where
-  timeToScoreSection :: Rational -> s
+class (Eq s, Default s) => ScoreType s where
+  score :: Score s
 
-toScore :: ScoreSection s => Array n (MusicalTime, s, Tempo) -> Score s
-toScore a =
-  Score 0 (maxSlice a)
+scoreBeatInit :: Array n (SectionLength, s, Tempo) -> ScoreBeat
+scoreBeatInit sectionArray =
+  ScoreBeat# 0 0 (calculateNextBeatEndTime 0 tempo) 0
+  where
+    tempo = readArrayClamped 0 sectionArray |> thd
 
--- playDuringSection :: (AudioFormat f, ScoreSection s) => Score s -> s -> (() -> f Audio) -> f Audio
+scoreBeatEndTime :: ScoreBeat -> Rational
+scoreBeatEndTime (ScoreBeat# _ _ endTime _) =
+  endTime
+
+scoreBeatSection :: ScoreBeat -> UInt
+scoreBeatSection (ScoreBeat# _ _ _ section) =
+  section
+
+isNextSection :: SectionLength -> UInt -> Rational -> Bool
+isNextSection sectionLength beatNumber beatStartTime =
+  case sectionLength of
+    Beats numBeats ->
+      beatNumber >= numBeats
+      -- traceLn2 "beatNumber: " beatNumber >= numBeats
+    Bars (Meter numBeats beatLength) numBars ->
+      beatNumber >= numBeats * numBars
+    SectionTime sectionTime ->
+      beatStartTime >= sectionTime
+    HoldUntil condition ->
+      condition
+    HoldForever ->
+      False
+
+-- TODO: name shadow warning / error?
+-- TODO: Handle tempo curves!
+calculateNextBeatEndTime :: Rational -> Tempo -> Rational
+calculateNextBeatEndTime beatStartTime tempo =
+  case tempo of
+    Tempo tempoBpm ->
+      beatStartTime + recip (tempoBpm / 60)
+    TempoChange tempoStart tempoEnd tempoCurve ->
+      beatStartTime + recip (tempoStart / 60)
+
+scoreBeatTick :: Array n (SectionLength, s, Tempo) -> Rational -> ScoreBeat -> ScoreBeat
+scoreBeatTick sectionArray time (ScoreBeat# prevBeatNumber prevBeatStartTime prevBeatEndTime prevSectionIndex) =
+  if time < prevBeatEndTime then ScoreBeat# prevBeatNumber prevBeatStartTime prevBeatEndTime prevSectionIndex else
+    let
+      (sectionLength, _, tempo) = readArrayClamped prevSectionIndex sectionArray
+      beatNumber                = prevBeatNumber + 1
+      beatStartTime             = prevBeatEndTime
+    in
+      if isNextSection sectionLength beatNumber beatStartTime then
+        let
+          nextSectionIndex = min (prevSectionIndex + 1) (arrayLength NatVal sectionArray)
+          nextTempo        = readArrayClamped nextSectionIndex sectionArray |> thd
+        in
+          ScoreBeat# 0 beatStartTime (calculateNextBeatEndTime beatStartTime nextTempo) nextSectionIndex
+      else
+        ScoreBeat# beatNumber beatStartTime (calculateNextBeatEndTime beatStartTime tempo) prevSectionIndex
+
+scoreBeatStartAndEndTick :: Array n (SectionLength, s, Tempo) -> Rational -> ScoreBeat -> (#ScoreBeat, ScoreBeat#)
+scoreBeatStartAndEndTick sectionArray nextBlockTime prevEndBeat =
+  (#newStartBeat, newEndBeat#)
+  where
+    newStartBeat =
+      loop startBeat = prevEndBeat while scoreBeatEndTime startBeat <= currBlockTime do
+        scoreBeatTick sectionArray (scoreBeatEndTime startBeat) startBeat
+    newEndBeat =
+      loop endBeat = newStartBeat while scoreBeatEndTime endBeat < nextBlockTime do
+        scoreBeatTick sectionArray (scoreBeatEndTime endBeat) endBeat
+
+scoreNew :: Array n (SectionLength, s, Tempo) -> Score s
+scoreNew sectionArray =
+  case tickBeats of
+    Nothing ->
+      let shouldNeverHappen = (#scoreBeatInit sectionArray, readArrayClamped 0 sectionArray#) in Score shouldNeverHappen shouldNeverHappen
+    Just (#startBeat, endBeat#) ->
+      Score (#startBeat, readArrayClamped (scoreBeatSection startBeat) sectionArray#) (#endBeat, readArrayClamped (scoreBeatSection startBeat) sectionArray#)
+  where
+    nextBlockTime       = currBlockTime + audioBlockDelta
+    tickBeats ~ Nothing =
+      Just <| scoreBeatStartAndEndTick sectionArray nextBlockTime <|
+      case tickBeats of
+        Just (#_, endBeat#) -> endBeat
+        Nothing             -> scoreBeatInit sectionArray
+
+scoreSectionAtTime :: Score s -> Rational -> s
+scoreSectionAtTime s time =
+  case s of
+    Score (#startBeat, (_, startBeatSection, _)#) (#_, (_, endBeatSection, _)#) ->
+      if currBlockTime > scoreBeatEndTime startBeat then
+        startBeatSection
+      else
+        endBeatSection
+
+scoreSection :: ScoreType s => Seq s
+scoreSection =
+  Seq (\p -> pure (scoreSectionAtTime score (seqParamGetTime p)))
+
+
+-- TODO: How to handle SLOW bpm?
+
+-- TODO: gcd optimization
+
+-- playDuringSection :: (AudioFormat f, ScoreType s) => Score s -> s -> (() -> f Audio) -> f Audio
 -- playDuringSection score sectionToPlayAt playFunction =
 --   if scoreSection score == sectionToPlayAt then
 --     playFunction ()
 --   else
 --     pure (BlockRate 0)
-
-scoreSection :: ScoreSection s => Seq s
-scoreSection =
-  Seq (\_ -> pure (timeToScoreSection 0))
-  -- Seq (\(SeqValue# t) -> pure (timeToScoreSection t))
-
 
 --------------------
 -- Seq
@@ -7754,7 +7895,19 @@ scoreSection =
 data SeqControl = SeqEnd | SeqBlockEnd | SeqNormal | SeqLoopEnd | SeqPure
 data SeqValue a = SeqValue# Rational SeqControl (Maybe a)
 data SeqParam   = SeqParam# Rational
-data Seq a      = Seq (() -> SeqValue a)
+data Seq a      = Seq (SeqParam -> SeqValue a)
+
+getSeqParamAtExactTime :: Rational -> SeqParam
+getSeqParamAtExactTime time =
+  SeqParam# time
+
+seqParamGetTime :: SeqParam -> Rational
+seqParamGetTime (SeqParam# time) =
+  time
+
+-- seqTime :: Seq Rational
+-- seqTime =
+--   Seq (\p -> pure (seqParamGetTime p))
 
 mergeSeqValueTimes :: Rational -> SeqControl -> Rational -> SeqControl -> Rational
 mergeSeqValueTimes xt xc yt yc =
@@ -7908,11 +8061,12 @@ instance Floating a => Floating (SeqValue a) where
   -- fmin      x y = map2 fmin x y
   -- fmax      x y = map2 fmax x y
 
-runSeq :: Seq a -> () -> SeqValue a
-runSeq (Seq stepFunc) _ = stepFunc ()
+runSeq :: Seq a -> SeqParam -> SeqValue a
+runSeq (Seq stepFunc) p =
+  stepFunc p
 
-runSeq2 :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
-runSeq2 sx sy =
+runSeq2 :: Seq a -> Seq b -> SeqParam -> (#SeqValue a, SeqValue b#)
+runSeq2 sx sy p =
   acc
   where
     acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
@@ -7920,13 +8074,13 @@ runSeq2 sx sy =
         (#SeqValue# xt xc xv, SeqValue# yt yc yv#) ->
           let
             t = min xt yt
-            x = if xt <= t then runSeq sx () else SeqValue# (xt - t) xc xv
-            y = if yt <= t then runSeq sy () else SeqValue# (yt - t) yc yv
+            x = if xt <= t then runSeq sx p else SeqValue# (xt - t) xc xv
+            y = if yt <= t then runSeq sy p else SeqValue# (yt - t) yc yv
           in
             (#x, y#)
 
-runSeq3 :: Seq a -> Seq b -> Seq c -> (#SeqValue a, SeqValue b, SeqValue c#)
-runSeq3 sx sy sz =
+runSeq3 :: Seq a -> Seq b -> Seq c -> SeqParam -> (#SeqValue a, SeqValue b, SeqValue c#)
+runSeq3 sx sy sz p =
   acc
   where
     acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
@@ -7934,14 +8088,14 @@ runSeq3 sx sy sz =
         (#SeqValue# xt xc xv, SeqValue# yt yc yv, SeqValue# zt zc zv#) ->
           let
             t = min (min xt yt) zt
-            x = if xt <= t then runSeq sx () else SeqValue# (xt - t) xc xv
-            y = if yt <= t then runSeq sy () else SeqValue# (yt - t) yc yv
-            z = if zt <= t then runSeq sz () else SeqValue# (zt - t) zc zv
+            x = if xt <= t then runSeq sx p else SeqValue# (xt - t) xc xv
+            y = if yt <= t then runSeq sy p else SeqValue# (yt - t) yc yv
+            z = if zt <= t then runSeq sz p else SeqValue# (zt - t) zc zv
           in
             (#x, y, z#)
 
-runSeq4 :: Seq a -> Seq b -> Seq c -> Seq d -> (#SeqValue a, SeqValue b, SeqValue c, SeqValue d#)
-runSeq4 sw sx sy sz =
+runSeq4 :: Seq a -> Seq b -> Seq c -> Seq d -> SeqParam -> (#SeqValue a, SeqValue b, SeqValue c, SeqValue d#)
+runSeq4 sw sx sy sz p =
   acc
   where
     acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
@@ -7949,10 +8103,10 @@ runSeq4 sw sx sy sz =
         (#SeqValue# wt wc wv, SeqValue# xt xc xv, SeqValue# yt yc yv, SeqValue# zt zc zv#) ->
           let
             t = min (min (min wt xt) yt) zt
-            w = if wt <= t then runSeq sw () else SeqValue# (wt - t) wc wv
-            x = if xt <= t then runSeq sx () else SeqValue# (xt - t) xc xv
-            y = if yt <= t then runSeq sy () else SeqValue# (yt - t) yc yv
-            z = if zt <= t then runSeq sz () else SeqValue# (zt - t) zc zv
+            w = if wt <= t then runSeq sw p else SeqValue# (wt - t) wc wv
+            x = if xt <= t then runSeq sx p else SeqValue# (xt - t) xc xv
+            y = if yt <= t then runSeq sy p else SeqValue# (yt - t) yc yv
+            z = if zt <= t then runSeq sz p else SeqValue# (zt - t) zc zv
           in
             (#w, x, y, z#)
 
@@ -7962,8 +8116,11 @@ seqValueDuration (SeqValue# t _ _) = t
 seqValueControl :: SeqValue a -> SeqControl
 seqValueControl (SeqValue# _ c _) = c
 
-runSeqOnLeft :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
-runSeqOnLeft ls rs =
+seqValueValue :: SeqValue a -> Maybe a
+seqValueValue (SeqValue# _ _ v) = v
+
+runSeqOnLeft :: Seq a -> Seq b -> SeqParam -> (#SeqValue a, SeqValue b#)
+runSeqOnLeft ls rs p =
   acc
   where
     acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
@@ -7971,13 +8128,13 @@ runSeqOnLeft ls rs =
         (#SeqValue# lt lc _, SeqValue# rt rc rv#) ->
           let
             t = min lt rt
-            l = if lt <= t then runSeq ls () else SeqValue# (lt - t) lc nothing
-            r = if rt <= t then runSeq rs () else SeqValue# (rt - t) rc rv
+            l = if lt <= t then runSeq ls p else SeqValue# (lt - t) lc nothing
+            r = if rt <= t then runSeq rs p else SeqValue# (rt - t) rc rv
           in
             (#l, r#)
 
-runSeqOnRight :: Seq a -> Seq b -> (#SeqValue a, SeqValue b#)
-runSeqOnRight ls rs =
+runSeqOnRight :: Seq a -> Seq b -> SeqParam -> (#SeqValue a, SeqValue b#)
+runSeqOnRight ls rs p =
   acc
   where
     acc ~ (#SeqValue# 0 SeqNormal Nothing, SeqValue# 0 SeqNormal Nothing#) =
@@ -7985,70 +8142,70 @@ runSeqOnRight ls rs =
         (#SeqValue# lt lc lv, SeqValue# rt rc _#) ->
           let
             t = min lt rt
-            l = if lt <= t then runSeq ls () else SeqValue# (lt - t) lc lv
-            r = if rt <= t then runSeq rs () else SeqValue# (rt - t) rc nothing
+            l = if lt <= t then runSeq ls p else SeqValue# (lt - t) lc lv
+            r = if rt <= t then runSeq rs p else SeqValue# (rt - t) rc nothing
           in
           (#l, r#)
 
 instance Functor Seq where
-  map f s = Seq (\_ -> map f (runSeq s ()))
+  map f s = Seq (\p -> map f (runSeq s p))
 
 instance Applicative Seq where
   pure x   = Seq (\_ -> pure x)
-  ap fs xs = Seq (\_ -> ap (runSeq fs ()) (runSeq xs ()))
+  ap fs xs = Seq (\p -> ap (runSeq fs p) (runSeq xs p))
 
 instance FunctorN Seq where
-  map2 f sx sy       = Seq (\_ -> let (#x, y#)       = runSeq2 sx sy       in map2 f x y)
-  map3 f sx sy sz    = Seq (\_ -> let (#x, y, z#)    = runSeq3 sx sy sz    in map3 f x y z)
-  map4 f sw sx sy sz = Seq (\_ -> let (#w, x, y, z#) = runSeq4 sw sx sy sz in map4 f w x y z)
+  map2 f sx sy       = Seq (\p -> let (#x, y#)       = runSeq2 sx sy p       in map2 f x y)
+  map3 f sx sy sz    = Seq (\p -> let (#x, y, z#)    = runSeq3 sx sy sz p    in map3 f x y z)
+  map4 f sw sx sy sz = Seq (\p -> let (#w, x, y, z#) = runSeq4 sw sx sy sz p in map4 f w x y z)
 
 instance Monad Seq where
   bind aSeq f =
     Seq go
     where
-      go _ =
+      go p =
         let
-          SeqValue# at ac av = runSeq aSeq ()
+          SeqValue# at ac av = runSeq aSeq p
         in
           case av of
             Nothing -> SeqValue# at ac nothing
             Just a  ->
               let
-                SeqValue# bt bc bv = runSeq (f a) ()
+                SeqValue# bt bc bv = runSeq (f a) p
               in
                 SeqValue# (mergeSeqValueTimes at ac bt bc) (ac <> bc) bv
 
-instance Eq a => Eq (Seq a) where
-  eq  sx sy = let (#x, y#) = runSeq2 sx sy in x == y
-  neq sx sy = let (#x, y#) = runSeq2 sx sy in x == y
+-- instance Eq a => Eq (Seq a) where
+--   eq  sx sy = let (#x, y#) = runSeq2 sx sy in x == y
+--   neq sx sy = let (#x, y#) = runSeq2 sx sy in x == y
 
 instance Semiring a => Semiring (Seq a) where
   zero      = Seq (\_ -> pure zero)
   one       = Seq (\_ -> pure one)
-  add sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 add x y)
-  mul sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 mul x y)
+  add sx sy = Seq (\p -> let (#x, y#) = runSeq2 sx sy p in map2 add x y)
+  mul sx sy = Seq (\p -> let (#x, y#) = runSeq2 sx sy p in map2 mul x y)
 
 instance Ring a => Ring (Seq a) where
-  sub sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 sub x y)
+  sub sx sy = Seq (\p -> let (#x, y#) = runSeq2 sx sy p in map2 sub x y)
   fromInt i = Seq (\_ -> pure (fromInt i))
 
 instance EuclideanRing a => EuclideanRing (Seq a) where
-  div sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 div x y)
-  rem sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in map2 rem x y)
+  div sx sy = Seq (\p -> let (#x, y#) = runSeq2 sx sy p in map2 div x y)
+  rem sx sy = Seq (\p -> let (#x, y#) = runSeq2 sx sy p in map2 rem x y)
 
 instance DivisionRing a => DivisionRing (Seq a) where
-  recip x = Seq (\_ -> map recip (runSeq x ()))
+  recip x = Seq (\p -> map recip (runSeq x p))
 
 instance Num a => Num (Seq a) where
-  signum x  = map signum x
-  abs x     = map abs x
+  signum x        = map signum x
+  abs x           = map abs x
   copysign x sign = map2 copysign x sign
 
 instance Field a => Field (Seq a) where
 
 instance Floating a => Floating (Seq a) where
   fromFloat f = Seq (\_ -> pure (fromFloat f))
-  sqrt f = map sqrt f
+  sqrt      f = map sqrt f
   floor     x = map floor x
   ceil      x = map ceil x
   truncate  x = map truncate x
@@ -8064,7 +8221,7 @@ instance Monoid (Seq a) where
 
 instance Alternative Seq where
   empty             = Seq (\_ -> SeqValue# 1 SeqPure nothing)
-  alternative sx sy = Seq (\_ -> let (#x, y#) = runSeq2 sx sy in alternative x y)
+  alternative sx sy = Seq (\p -> let (#x, y#) = runSeq2 sx sy p in alternative x y)
 
 -- TODO: <|>
 
@@ -8086,46 +8243,46 @@ rightConst :: a -> b -> b
 rightConst _ y = y
 
 addSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
-addSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 add l r)
+addSeqOnLeft ls rs = Seq (\p -> let (#l, r#) = runSeqOnLeft ls rs p in map2 add l r)
 
 addSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
-addSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 add l r)
+addSeqOnRight ls rs = Seq (\p -> let (#l, r#) = runSeqOnRight ls rs p in map2 add l r)
 
 subSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
-subSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 sub l r)
+subSeqOnLeft ls rs = Seq (\p -> let (#l, r#) = runSeqOnLeft ls rs p in map2 sub l r)
 
 subSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
-subSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 sub l r)
+subSeqOnRight ls rs = Seq (\p -> let (#l, r#) = runSeqOnRight ls rs p in map2 sub l r)
 
 mulSeqOnLeft :: Num a => Seq a -> Seq a -> Seq a
-mulSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 mul l r)
+mulSeqOnLeft ls rs = Seq (\p -> let (#l, r#) = runSeqOnLeft ls rs p in map2 mul l r)
 
 mulSeqOnRight :: Num a => Seq a -> Seq a -> Seq a
-mulSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 mul l r)
+mulSeqOnRight ls rs = Seq (\p -> let (#l, r#) = runSeqOnRight ls rs p in map2 mul l r)
 
 divSeqOnLeft :: EuclideanRing a => Seq a -> Seq a -> Seq a
-divSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 div l r)
+divSeqOnLeft ls rs = Seq (\p -> let (#l, r#) = runSeqOnLeft ls rs p in map2 div l r)
 
 divSeqOnRight :: EuclideanRing a => Seq a -> Seq a -> Seq a
-divSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 div l r)
+divSeqOnRight ls rs = Seq (\p -> let (#l, r#) = runSeqOnRight ls rs p in map2 div l r)
 
 leftConstSeqOnLeft :: Seq a -> Seq b -> Seq a
 leftConstSeqOnLeft ls _ = ls
 
 leftConstSeqOnRight :: Seq a -> Seq b -> Seq a
-leftConstSeqOnRight ls rs = Seq (\_ -> let (#l, r#) = runSeqOnRight ls rs in map2 leftConst l r)
+leftConstSeqOnRight ls rs = Seq (\p -> let (#l, r#) = runSeqOnRight ls rs p in map2 leftConst l r)
 
 rightConstSeqOnLeft :: Seq a -> Seq b -> Seq b
-rightConstSeqOnLeft ls rs = Seq (\_ -> let (#l, r#) = runSeqOnLeft ls rs in map2 rightConst l r)
+rightConstSeqOnLeft ls rs = Seq (\p -> let (#l, r#) = runSeqOnLeft ls rs p in map2 rightConst l r)
 
 rightConstSeqOnRight :: Seq a -> Seq b -> Seq b
 rightConstSeqOnRight _ rs = rs
 
 leftConstSeqOnBoth :: Seq a -> Seq b -> Seq a
-leftConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 leftConst l r)
+leftConstSeqOnBoth ls rs = Seq (\p -> let (#l, r#) = runSeq2 ls rs p in map2 leftConst l r)
 
 rightConstSeqOnBoth :: Seq a -> Seq b -> Seq b
-rightConstSeqOnBoth ls rs = Seq (\_ -> let (#l, r#) = runSeq2 ls rs in map2 rightConst l r)
+rightConstSeqOnBoth ls rs = Seq (\p -> let (#l, r#) = runSeq2 ls rs p in map2 rightConst l r)
 
 
 -- addSeqOnLeftTest :: Seq Int
@@ -8149,8 +8306,8 @@ rest =
 restDuring :: Seq a -> Seq a
 restDuring s = Seq go
   where
-    go _ =
-      case runSeq s () of
+    go p =
+      case runSeq s p of
         SeqValue# dur con _ ->
           SeqValue# dur con nothing
 
@@ -8162,7 +8319,7 @@ seqValueDurationMul speed (SeqValue# t c v) =
 
 seqSpeed :: Rational -> Seq a -> Seq a
 seqSpeed speed seq =
-  Seq (\_ -> seqValueDurationMul (recip speed) (runSeq seq ()))
+  Seq (\p -> seqValueDurationMul (recip speed) (runSeq seq p))
 
 bpm :: Int -> Rational
 bpm tempoInBPM =
@@ -8205,8 +8362,8 @@ seqRepeat :: UInt -> Seq a -> Seq a
 seqRepeat repetitions s =
   Seq go
   where
-    go _ =
-      case runSeq s () of
+    go p =
+      case runSeq s p of
         SeqValue# dur control value ->
           case control of
             SeqLoopEnd ->
@@ -8230,14 +8387,14 @@ seqStutter :: UInt -> Seq a -> Seq a
 seqStutter repetitions s =
   Seq go
   where
-    go _ =
+    go p =
       snd3' acc
       where
         acc ~ (#1, SeqValue# 0 SeqNormal Nothing, SeqNormal#) =
           case acc of
             (#i, SeqValue# dur control value, prevControl#) ->
               if i == 0 || repetitions <= 1 then
-                case runSeq s () of
+                case runSeq s p of
                   SeqValue# dur' control' value' ->
                     if repetitions <= 1 then
                       (#0, SeqValue# dur' control' value', control'#)
@@ -8253,7 +8410,7 @@ seqStutter repetitions s =
 endAtLoop :: Seq a -> Seq a
 endAtLoop s = Seq go
   where
-    go _ =
+    go p =
       value
       where
         value ~ SeqValue# 0 SeqNormal Nothing =
@@ -8263,7 +8420,7 @@ endAtLoop s = Seq go
                 SeqEnd     -> SeqValue# maxRational SeqEnd nothing
                 SeqLoopEnd -> SeqValue# maxRational SeqEnd nothing
                 SeqPure    -> SeqValue# maxRational SeqEnd nothing
-                _          -> runSeq s ()
+                _          -> runSeq s p
 
 
 --------------------
@@ -8323,7 +8480,7 @@ instance Print a => Print (Seq a) where
             if nextValueTime >= tick then
               (#False, 0, w'#)
             else
-              case runSeq s () of
+              case runSeq s (getSeqParamAtExactTime nextValueTime) of
                 SeqValue# t c mx ->
                   case mx of
                     Just x -> (#True, t, print x w' |> print ' ' |> printBarOnLoop c#)
@@ -8352,6 +8509,13 @@ instance Print (FFT k) where
     |> print c
     |> print ']'
     |> printNewline
+
+-- instance Print Alphabet where
+--   print alphabet w =
+--     print c w
+--     where
+--       c :: Char
+--       c = fromEnum alphabet |> add 65 |> toEnum
 
 -- foldp :: (b -> a -> b) -> f a -> b
 
@@ -8719,10 +8883,17 @@ instance Poly a => Poly (Stereo a) where
 calculateAudioSampleOffset :: Rational -> Rational -> Float
 calculateAudioSampleOffset valueTime tickTime =
   (fromInt n / fromInt d) * fromUInt audioBlockSize
-  -- |> traceLn2 "calculateAudioSampleOffset: "
   where
     Rational# n d =
       (valueTime - (tickTime - audioBlockDelta)) / audioBlockDelta
+
+calculateCurrBlockTimeOffset :: Rational -> Rational -> Rational
+calculateCurrBlockTimeOffset valueTime tickTime =
+  valueTime - (tickTime - audioBlockDelta)
+
+-- TODO:
+--    * Reference global time!
+--    * Reference global phase/beat!
 
 seqToAudio :: (AudioFormat f) => Seq Float -> f Audio
 seqToAudio s =
@@ -8734,12 +8905,13 @@ seqToAudio s =
           i1        = i0 + 1
           time ~ 0  = time + audioSampleDelta
           value ~ 0 =
-            thd3' <| loop (#cont, seqDuration0, prevValue#) = (#True, 0, value#) while cont do
+            thd' <| loop (#cont, seqDuration0, prevValue#) = (#True, 0, value#) while cont do
               let
                 nextValueTime ~ 0 = nextValueTime + seqDuration0
+                -- blockTimeOffset   = calculateCurrBlockTimeOffset nextValueTime time
               in
                 if nextValueTime >= time then (#False, 0, prevValue#) else
-                  case runSeq s () of
+                  case runSeq s (getSeqParamAtExactTime nextValueTime) of
                     SeqValue# seqDuration1 _ msv ->
                       case msv of
                         Just seqValue -> (#True, seqDuration1, seqValue#)
@@ -8756,12 +8928,15 @@ poly f s =
         tick ~ 0                = tick + audioBlockDelta
         (#_, _, acc', thunks4#) =
           loop (#cont, time, acc, thunks1#) = (#True, 0, mempty, dynArrayIterator thunks0#) while cont do
-            let nextValueTime ~ 0 = nextValueTime + time in
+            let
+              nextValueTime ~ 0 = nextValueTime + time
+              audioSampleOffset = calculateAudioSampleOffset nextValueTime tick
+            in
               if nextValueTime < tick then
-                case runSeq s () of
+                case runSeq s (getSeqParamAtExactTime nextValueTime) of
                   SeqValue# t _ mx ->
                     case mx of
-                      Just x  -> (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x (calculateAudioSampleOffset nextValueTime tick)) (polyThunkAlloc x (calculateAudioSampleOffset nextValueTime tick)) thunks1#)
+                      Just x  -> (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x audioSampleOffset) (polyThunkAlloc x audioSampleOffset) thunks1#)
                       Nothing -> (#True, t, acc, thunks1#)
               else
                 case dynArrayIteratorWithElement (polyThunkEval f) thunks1 of
@@ -9585,13 +9760,13 @@ degreeToFrequency (Scale tuning degrees rootFreq) degree =
   pitch * octave * rootFreq
   where
     numTuningFreqs   = (arrayLength NatVal tuning - 1) |> max 1 -- subtract 1 as the last tuning frequency is the scale repetition ratio
-    scaleRepeatRatio = lookupArray numTuningFreqs tuning |> fromMaybe 0
+    scaleRepeatRatio = lookupArray numTuningFreqs tuning |> unwrapOr 0
     numDegrees       = arrayLength NatVal degrees |> fromUInt
     octave           = fromInt degree / fromInt numDegrees |> floor |> pow scaleRepeatRatio
     degreeRem        = rem degree numDegrees
     degreeWrap       = if degreeRem < 0 then degreeRem + numDegrees else degreeRem
-    degree'          = rem (lookupArray (fromInt degreeWrap) degrees |> fromMaybe 0) numTuningFreqs
-    pitch            = lookupArray degree' tuning |> fromMaybe 0
+    degree'          = rem (lookupArray (fromInt degreeWrap) degrees |> unwrapOr 0) numTuningFreqs
+    pitch            = lookupArray degree' tuning |> unwrapOr 0
 
 d2f :: Scale t d -> Int -> Float
 d2f = degreeToFrequency

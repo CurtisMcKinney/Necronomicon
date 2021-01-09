@@ -7782,11 +7782,12 @@ instance Default SectionType where
 class (Eq s, Default s) => ScoreType s where
   score :: Score s
 
-scoreBeatInit :: Array n (SectionLength, s, Tempo) -> ScoreBeat
-scoreBeatInit sectionArray =
-  ScoreBeat# 0 0 (calculateNextBeatEndTime 0 tempo) 0
+-- Calculate new time from section!?!?!?
+scoreBeatInit :: Array n (SectionLength, s, Tempo) -> UInt -> ScoreBeat
+scoreBeatInit sectionArray initialSection =
+  ScoreBeat# 0 0 (calculateNextBeatEndTime 0 tempo) initialSection
   where
-    tempo = readArrayClamped 0 sectionArray |> thd
+    tempo = readArrayClamped initialSection sectionArray |> thd
 
 scoreBeatEndTime :: ScoreBeat -> Rational
 scoreBeatEndTime (ScoreBeat# _ _ endTime _) =
@@ -7849,11 +7850,11 @@ scoreBeatStartAndEndTick sectionArray nextBlockTime prevEndBeat =
       loop endBeat = newStartBeat while scoreBeatEndTime endBeat < nextBlockTime do
         scoreBeatTick sectionArray (scoreBeatEndTime endBeat) endBeat
 
-scoreNew :: Array n (SectionLength, s, Tempo) -> Score s
-scoreNew sectionArray =
+scoreNewWith :: UInt -> Array n (SectionLength, s, Tempo) -> Score s
+scoreNewWith startingSection sectionArray =
   case tickBeats of
     Nothing ->
-      let shouldNeverHappen = (#scoreBeatInit sectionArray, readArrayClamped 0 sectionArray#) in Score shouldNeverHappen shouldNeverHappen
+      let shouldNeverHappen = (#scoreBeatInit sectionArray startingSection, readArrayClamped startingSection sectionArray#) in Score shouldNeverHappen shouldNeverHappen
     Just (#startBeat, endBeat#) ->
       Score (#startBeat, readArrayClamped (scoreBeatSection startBeat) sectionArray#) (#endBeat, readArrayClamped (scoreBeatSection startBeat) sectionArray#)
   where
@@ -7862,7 +7863,11 @@ scoreNew sectionArray =
       Just <| scoreBeatStartAndEndTick sectionArray nextBlockTime <|
       case tickBeats of
         Just (#_, endBeat#) -> endBeat
-        Nothing             -> scoreBeatInit sectionArray
+        Nothing             -> scoreBeatInit sectionArray startingSection
+
+scoreNew :: Array n (SectionLength, s, Tempo) -> Score s
+scoreNew sectionArray =
+  scoreNewWith 0 sectionArray
 
 scoreSectionAtTime :: Score s -> Rational -> s
 scoreSectionAtTime s time =

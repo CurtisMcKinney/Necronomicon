@@ -18,6 +18,7 @@ instance Eq SimpleScore where
 instance Default SimpleScore where
   default = SimpleScore A
 
+-- Score determined Quantization?
 -- TODO: End?
 instance ScoreType SimpleScore where
   score =
@@ -30,6 +31,8 @@ instance ScoreType SimpleScore where
     }
     |> scoreNew
 
+    -- |> scoreNewWith 2
+
 simpleScore :: Score SimpleScore
 simpleScore =
   score
@@ -38,28 +41,32 @@ simpleScoreSection :: Seq SimpleScore
 simpleScoreSection =
   Seq (\p -> pure (scoreSectionAtTime score (seqParamGetTime p)))
 
--- TODO: Seq control flow (case, if/then/else)?
+-- TODO: monadic control flow (case, if/then/else)
 -- TODO: Actually synchronizing using Score
 -- TODO: Actually using Score sections without fuckin' crashing
 -- TODO: Lambda lift compiler bug on scoreSection (fml)
--- TODO: monadic control flow (case, if/then/else)
--- TODO: HOF returned from control structures DOESN'T WORK CURRENTLY! WHICH CAUSES THIS NOT TO WORK CURRENTLY!
 -- scoreSection >>= \s ->
--- simpleScoreSection >>= \s ->
 
--- During lambda lift, detect functions returned by control structures and then
 simpleScoreSeq :: Seq Float
 simpleScoreSeq =
   simpleScoreSection >>= \s ->
   case s of
-    SimpleScore A -> [1 2 3 5]
-    SimpleScore B -> [6 3 2 1]
-    SimpleScore C -> [4 2 1 2]
+    SimpleScore A -> [1 2 [3:3.25] 5]
+    SimpleScore B -> [6 3 2 [0.5:1:1.5]]
+    SimpleScore C -> [4 2 [1:1.5] 2]
     _             -> [7 0.5]
+
+simpleScoreSeq2 :: Seq Float
+simpleScoreSeq2 =
+  simpleScoreSection >>= \s ->
+  case s of
+    SimpleScore A -> [<1 2 3> 5]
+    _             -> [7 _ 0.5]
 
 simpleScoreTest :: Stereo Audio
 simpleScoreTest =
-  poly (\f -> sin (fromFloat f * 110) |> perc 0.01 1.5 -1) (simpleScoreSeq |> seqSpeed 2)
+  poly (\f -> sin (fromFloat f * 110) |> perc 0.01 1.5 -1) (simpleScoreSeq |> seqSpeed 2) +
+  poly (\f -> sin (fromFloat f * 220) |> mul 0.5 |> perc 0.01 1 -1) (simpleScoreSeq2 |> seqSpeed 2)
   |> mul 0.1
 
 -- ----------------------

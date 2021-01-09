@@ -1237,7 +1237,7 @@ void necro_state_analysis_test()
             "seqTest1 :: Seq Bool\n"
             "seqTest1 = pure True\n"
             "seqGo :: SeqValue Bool\n"
-            "seqGo = runSeq seqTest1 ()\n";
+            "seqGo = runSeq seqTest1 default\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
 
@@ -1249,7 +1249,7 @@ void necro_state_analysis_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = map (add 666) seqTest\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq seqTest ()\n";
+            "seqGo = runSeq seqTest default\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
 
@@ -1283,7 +1283,7 @@ void necro_state_analysis_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq ()\n";
+            "seqGo = runSeq coolSeq default\n";
         necro_state_analysis_test_string(test_name, test_source);
     }
 

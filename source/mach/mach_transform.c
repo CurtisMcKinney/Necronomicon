@@ -3943,7 +3943,7 @@ void necro_mach_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq ()\n"
+            "seqGo = runSeq coolSeq default\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);
@@ -4000,7 +4000,7 @@ void necro_mach_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq (coolSeq + coolSeq) ()\n"
+            "seqGo = runSeq (coolSeq + coolSeq) default\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_mach_test_string(test_name, test_source);

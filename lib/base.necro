@@ -7910,6 +7910,9 @@ seqParamGetTime :: SeqParam -> Rational
 seqParamGetTime (SeqParam# time) =
   time
 
+instance Default SeqParam where
+  default = SeqParam# 0
+
 -- seqTime :: Seq Rational
 -- seqTime =
 --   Seq (\p -> pure (seqParamGetTime p))

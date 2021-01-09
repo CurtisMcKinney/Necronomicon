@@ -1975,7 +1975,7 @@ void necro_core_defunctionalize_test()
             "seqTest :: Seq Bool\n"
             "seqTest = pure True\n"
             "seqGo :: SeqValue Bool\n"
-            "seqGo = runSeq seqTest ()\n";
+            "seqGo = runSeq seqTest default\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -1987,7 +1987,7 @@ void necro_core_defunctionalize_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = map (add 1) seqTest\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq seqTest ()\n";
+            "seqGo = runSeq seqTest default\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -2023,7 +2023,7 @@ void necro_core_defunctionalize_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = map (add 1) seqTest\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq ()\n";
+            "seqGo = runSeq coolSeq default\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -2035,7 +2035,7 @@ void necro_core_defunctionalize_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = map2 add seqTest seqTest\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq ()\n";
+            "seqGo = runSeq coolSeq default\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -2045,7 +2045,7 @@ void necro_core_defunctionalize_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = 666 * 22 + 33\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq coolSeq ()\n";
+            "seqGo = runSeq coolSeq default\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -2055,7 +2055,7 @@ void necro_core_defunctionalize_test()
             "coolSeq :: Seq Float\n"
             "coolSeq = 77.7 - 666 * 22 + fromInt mouseX * 4 - 256 * 10 + 33.3\n"
             "seqGo :: SeqValue Float\n"
-            "seqGo = runSeq coolSeq ()\n";
+            "seqGo = runSeq coolSeq default\n";
         necro_defunctionalize_test_result(test_name, test_source);
     }
 
@@ -2065,7 +2065,7 @@ void necro_core_defunctionalize_test()
             "coolSeq :: Seq Int\n"
             "coolSeq = 666 * 22 + 3 * 4 - 256 * 10\n"
             "seqGo :: SeqValue Int\n"
-            "seqGo = runSeq (coolSeq + coolSeq) ()\n"
+            "seqGo = runSeq (coolSeq + coolSeq) default\n"
             "main :: *World -> *World\n"
             "main w = w\n";
         necro_defunctionalize_test_result(test_name, test_source);

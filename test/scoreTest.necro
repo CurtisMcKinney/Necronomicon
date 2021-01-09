@@ -23,11 +23,11 @@ instance Default SimpleScore where
 instance ScoreType SimpleScore where
   score =
     {
-      (Beats 12, SimpleScore A, Tempo 120),
-      (Beats 12, SimpleScore B, Tempo 120),
-      (Beats  4, SimpleScore D, Tempo 120),
-      (Beats 12, SimpleScore A, Tempo 120),
-      (Beats 12, SimpleScore C, Tempo 120), -- TODO: Test 180 or other tempo change!
+      Section (Beats 12) (SimpleScore A) (Tempo 120),
+      Section (Beats 12) (SimpleScore B) (Tempo 120),
+      Section (Beats  4) (SimpleScore D) (Tempo 120),
+      Section (Beats 12) (SimpleScore A) (Tempo 120),
+      Section (Beats 12) (SimpleScore C) (Tempo 120), -- TODO: Test 180 or other tempo change!
     }
     |> scoreNew
 
@@ -88,22 +88,22 @@ simpleScoreTest =
 -- instance Print ComplexScore where
 --   print _ w =
 --     print "ComplexScore" w
---
+
 -- instance ScoreType ComplexScore where
 --   score =
 --     {
---       (Beats 24, ComplexScore A 1 First, Tempo 180),
---       (Beats  8, ComplexScore A 1 Trans, TempoChange 180 90 3),
---       (Beats 32, ComplexScore A 2 First, Tempo  90),
---       (Beats 64, ComplexScore B 1 First, TempoChange 90 120 -1),
---       (Beats 64, ComplexScore B 2 First, Tempo 120),
---       (Beats 64, ComplexScore B 2 Trans, TempoChange 120 180 -4),
---       (Beats 32, ComplexScore A 1 Prime, Tempo 180),
---       (Beats 16, ComplexScore A 2 Prime, Tempo 180),
---       (Beats 32, ComplexScore A 3 Prime, Tempo 180)
+--       Section (Beats 24) (ComplexScore A 1 First) (Tempo 180),
+--       Section (Beats  8) (ComplexScore A 1 Trans) (TempoChange 180 90 3),
+--       Section (Beats 32) (ComplexScore A 2 First) (Tempo  90),
+--       Section (Beats 64) (ComplexScore B 1 First) (TempoChange 90 120 -1),
+--       Section (Beats 64) (ComplexScore B 2 First) (Tempo 120),
+--       Section (Beats 64) (ComplexScore B 2 Trans) (TempoChange 120 180 -4),
+--       Section (Beats 32) (ComplexScore A 1 Prime) (Tempo 180),
+--       Section (Beats 16) (ComplexScore A 2 Prime) (Tempo 180),
+--       Section (Beats 32) (ComplexScore A 3 Prime) (Tempo 180)
 --     }
 --     |> scoreNew
---
+
 -- complexScore :: Score ComplexScore
 -- complexScore = score
 --

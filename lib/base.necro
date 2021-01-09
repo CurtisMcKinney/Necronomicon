@@ -2079,8 +2079,8 @@ instance Functor (Array n) where
 
 data Slice a = Slice# (Ptr a) UInt
 
-slice :: Array n a -> UInt -> Slice a
-slice array sliceSize =
+subSlice :: Array n a -> UInt -> Slice a
+subSlice array sliceSize =
   Slice# (unsafeArrayToPtr array) (min (arrayLength NatVal array) sliceSize)
 
 instance Print a => Print (Slice a) where
@@ -2088,8 +2088,8 @@ instance Print a => Print (Slice a) where
     fst' <| loop (#w', i#) = (#w, 0#) while i < n do
       (#print (unsafePtrPeek i p) w', i + 1#)
 
-maxSlice :: Array n a -> Slice a
-maxSlice array =
+toSlice :: Array n a -> Slice a
+toSlice array =
   Slice# (unsafeArrayToPtr array) (arrayLength NatVal array)
 
 instance Foldable Slice where
@@ -2100,8 +2100,12 @@ instance Foldable Slice where
     fst' <| loop (#x, i#) = (#init, 0#) while i < n do
       (#f x (unsafePtrPeek i p), i + 1#)
 
-lookupSlice :: UInt -> Slice a -> Maybe a
-lookupSlice index (Slice# ptr len) =
+sliceReadClamped :: UInt -> Slice a -> a
+sliceReadClamped index (Slice# ptr len) =
+  unsafePtrPeek (min index len) ptr
+
+sliceLookup :: UInt -> Slice a -> Maybe a
+sliceLookup index (Slice# ptr len) =
   if index < len then
     Just (unsafePtrPeek index ptr)
   else
@@ -2194,8 +2198,11 @@ currBlockTime =
   where
     t ~ -1 = t + 1 -- First result is 0
 
--- currBlockTimeWithOffset :: Rational -> Rational
--- currBlockTimeWithOffse
+localTimeR :: () -> Rational
+localTimeR _ =
+  t
+  where
+    t ~ 0 = t + audioBlockDelta
 
 localTime :: () -> Float
 localTime _ =
@@ -7685,7 +7692,8 @@ data Tempo         = Tempo Rational | TempoChange Rational Rational Rational
 data Meter         = Meter UInt UInt
 data SectionLength = Beats UInt | Bars Meter UInt | SectionTime Rational | HoldUntil Bool | HoldForever
 data ScoreBeat     = ScoreBeat# UInt Rational Rational UInt -- Beat Number, Beat Start Time, Beat End Time, Beat Section Index
-data Score s       = Score (#ScoreBeat, (SectionLength, s, Tempo)#) (#ScoreBeat, (SectionLength, s, Tempo)#) -- Start Beat, End Beat
+data Section s     = Section SectionLength s Tempo
+data Score s       = Score ScoreBeat ScoreBeat (Slice (Section s)) -- Start Beat, End Beat, Section Data
 
 -- Alphabet
 instance Enum Alphabet where
@@ -7782,27 +7790,43 @@ instance Default SectionType where
 class (Eq s, Default s) => ScoreType s where
   score :: Score s
 
+sectionLength :: Section s -> SectionLength
+sectionLength (Section l _ _) = l
+
+sectionSection :: Section s -> s
+sectionSection (Section _ s _) = s
+
+sectionTempo :: Section s -> Tempo
+sectionTempo (Section _ _ t) = t
+
 -- Calculate new time from section!?!?!?
-scoreBeatInit :: Array n (SectionLength, s, Tempo) -> UInt -> ScoreBeat
+scoreBeatInit :: Array n (Section s) -> UInt -> ScoreBeat
 scoreBeatInit sectionArray initialSection =
   ScoreBeat# 0 0 (calculateNextBeatEndTime 0 tempo) initialSection
   where
-    tempo = readArrayClamped initialSection sectionArray |> thd
+    tempo = readArrayClamped initialSection sectionArray |> sectionTempo
+
+scoreBeatStartTime :: ScoreBeat -> Rational
+scoreBeatStartTime (ScoreBeat# _ startTime _ _) =
+  startTime
 
 scoreBeatEndTime :: ScoreBeat -> Rational
 scoreBeatEndTime (ScoreBeat# _ _ endTime _) =
   endTime
 
-scoreBeatSection :: ScoreBeat -> UInt
-scoreBeatSection (ScoreBeat# _ _ _ section) =
+scoreBeatSectionIndex :: ScoreBeat -> UInt
+scoreBeatSectionIndex (ScoreBeat# _ _ _ section) =
   section
+
+scoreBeatSection :: Slice (Section s) -> ScoreBeat -> Section s
+scoreBeatSection sectionSlice scoreBeat =
+  sliceReadClamped (scoreBeatSectionIndex scoreBeat) sectionSlice
 
 isNextSection :: SectionLength -> UInt -> Rational -> Bool
 isNextSection sectionLength beatNumber beatStartTime =
   case sectionLength of
     Beats numBeats ->
       beatNumber >= numBeats
-      -- traceLn2 "beatNumber: " beatNumber >= numBeats
     Bars (Meter numBeats beatLength) numBars ->
       beatNumber >= numBeats * numBars
     SectionTime sectionTime ->
@@ -7818,70 +7842,78 @@ calculateNextBeatEndTime :: Rational -> Tempo -> Rational
 calculateNextBeatEndTime beatStartTime tempo =
   case tempo of
     Tempo tempoBpm ->
-      beatStartTime + recip (tempoBpm / 60)
+      beatStartTime + (60 / tempoBpm)
     TempoChange tempoStart tempoEnd tempoCurve ->
-      beatStartTime + recip (tempoStart / 60)
+      beatStartTime + (60 / tempoStart)
 
-scoreBeatTick :: Array n (SectionLength, s, Tempo) -> Rational -> ScoreBeat -> ScoreBeat
-scoreBeatTick sectionArray time (ScoreBeat# prevBeatNumber prevBeatStartTime prevBeatEndTime prevSectionIndex) =
-  if time < prevBeatEndTime then ScoreBeat# prevBeatNumber prevBeatStartTime prevBeatEndTime prevSectionIndex else
+calculateNextBeat :: Slice (Section s) -> ScoreBeat -> ScoreBeat
+calculateNextBeat sectionSlice (ScoreBeat# prevBeatNumber prevBeatStartTime prevBeatEndTime prevSectionIndex) =
+  if isNextSection sLength beatNumber beatStartTime then
     let
-      (sectionLength, _, tempo) = readArrayClamped prevSectionIndex sectionArray
-      beatNumber                = prevBeatNumber + 1
-      beatStartTime             = prevBeatEndTime
+      nextSectionIndex = min (prevSectionIndex + 1) (sliceLength sectionSlice)
+      nextTempo        = sliceReadClamped nextSectionIndex sectionSlice |> sectionTempo
     in
-      if isNextSection sectionLength beatNumber beatStartTime then
-        let
-          nextSectionIndex = min (prevSectionIndex + 1) (arrayLength NatVal sectionArray)
-          nextTempo        = readArrayClamped nextSectionIndex sectionArray |> thd
-        in
-          ScoreBeat# 0 beatStartTime (calculateNextBeatEndTime beatStartTime nextTempo) nextSectionIndex
-      else
-        ScoreBeat# beatNumber beatStartTime (calculateNextBeatEndTime beatStartTime tempo) prevSectionIndex
+      ScoreBeat# 0 beatStartTime (calculateNextBeatEndTime beatStartTime nextTempo) nextSectionIndex
+  else
+    ScoreBeat# beatNumber beatStartTime (calculateNextBeatEndTime beatStartTime sTempo) prevSectionIndex
+  where
+    Section sLength _ sTempo = sliceReadClamped prevSectionIndex sectionSlice
+    beatNumber               = prevBeatNumber + 1
+    beatStartTime            = prevBeatEndTime
 
-scoreBeatStartAndEndTick :: Array n (SectionLength, s, Tempo) -> Rational -> ScoreBeat -> (#ScoreBeat, ScoreBeat#)
-scoreBeatStartAndEndTick sectionArray nextBlockTime prevEndBeat =
+scoreBeatTick :: Slice (Section s) -> Rational -> ScoreBeat -> ScoreBeat
+scoreBeatTick sectionSlice time scoreBeat =
+  if time < scoreBeatEndTime scoreBeat then
+    scoreBeat
+  else
+    calculateNextBeat sectionSlice scoreBeat
+
+scoreBeatStartAndEndTick :: Slice (Section s) -> Rational -> ScoreBeat -> (#ScoreBeat, ScoreBeat#)
+scoreBeatStartAndEndTick sectionSlice nextBlockTime prevEndBeat =
   (#newStartBeat, newEndBeat#)
   where
     newStartBeat =
       loop startBeat = prevEndBeat while scoreBeatEndTime startBeat <= currBlockTime do
-        scoreBeatTick sectionArray (scoreBeatEndTime startBeat) startBeat
+        scoreBeatTick sectionSlice (scoreBeatEndTime startBeat) startBeat
     newEndBeat =
       loop endBeat = newStartBeat while scoreBeatEndTime endBeat < nextBlockTime do
-        scoreBeatTick sectionArray (scoreBeatEndTime endBeat) endBeat
+        scoreBeatTick sectionSlice (scoreBeatEndTime endBeat) endBeat
 
-scoreNewWith :: UInt -> Array n (SectionLength, s, Tempo) -> Score s
+scoreNewWith :: UInt -> Array n (Section s) -> Score s
 scoreNewWith startingSection sectionArray =
   case tickBeats of
-    Nothing ->
-      let shouldNeverHappen = (#scoreBeatInit sectionArray startingSection, readArrayClamped startingSection sectionArray#) in Score shouldNeverHappen shouldNeverHappen
-    Just (#startBeat, endBeat#) ->
-      Score (#startBeat, readArrayClamped (scoreBeatSection startBeat) sectionArray#) (#endBeat, readArrayClamped (scoreBeatSection startBeat) sectionArray#)
+    Nothing                     -> panicWithMessage "Impossible: scoreNewWith"
+    Just (#startBeat, endBeat#) -> Score startBeat endBeat sectionSlice
   where
+    sectionSlice        = toSlice sectionArray
     nextBlockTime       = currBlockTime + audioBlockDelta
     tickBeats ~ Nothing =
-      Just <| scoreBeatStartAndEndTick sectionArray nextBlockTime <|
+      Just <| scoreBeatStartAndEndTick sectionSlice nextBlockTime <|
       case tickBeats of
         Just (#_, endBeat#) -> endBeat
         Nothing             -> scoreBeatInit sectionArray startingSection
 
-scoreNew :: Array n (SectionLength, s, Tempo) -> Score s
+scoreNew :: Array n (Section s) -> Score s
 scoreNew sectionArray =
   scoreNewWith 0 sectionArray
 
 scoreSectionAtTime :: Score s -> Rational -> s
-scoreSectionAtTime s time =
-  case s of
-    Score (#startBeat, (_, startBeatSection, _)#) (#_, (_, endBeatSection, _)#) ->
-      if currBlockTime > scoreBeatEndTime startBeat then
-        startBeatSection
-      else
-        endBeatSection
+scoreSectionAtTime (Score startBeat endBeat sectionSlice) time =
+  if currBlockTime > scoreBeatEndTime startBeat then
+    sectionSection (scoreBeatSection sectionSlice startBeat)
+  else
+    sectionSection (scoreBeatSection sectionSlice endBeat)
+
+scoreGetNextBeat :: Score s -> ScoreBeat
+scoreGetNextBeat (Score startBeat _ sectionSlice) =
+  if scoreBeatStartTime startBeat == currBlockTime then
+    startBeat
+  else
+    calculateNextBeat sectionSlice startBeat
 
 scoreSection :: ScoreType s => Seq s
 scoreSection =
   Seq (\p -> pure (scoreSectionAtTime score (seqParamGetTime p)))
-
 
 -- TODO: How to handle SLOW bpm?
 
@@ -8899,10 +8931,6 @@ calculateCurrBlockTimeOffset :: Rational -> Rational -> Rational
 calculateCurrBlockTimeOffset valueTime tickTime =
   valueTime - (tickTime - audioBlockDelta)
 
--- TODO:
---    * Reference global time!
---    * Reference global phase/beat!
-
 seqToAudio :: (AudioFormat f) => Seq Float -> f Audio
 seqToAudio s =
   pure (AudioRate (freezeArray aout))
@@ -8966,6 +8994,46 @@ poly2 f x y = poly (uncurry' f) (map2 (\x' y' -> (#x', y'#)) x y)
 
 poly3 :: Poly d => (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> d
 poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
+
+-- TODO:
+--    * Score tempo sync
+--    * Score quantization sync
+--    * Handle interruptions (nuclear: Keep "pulling" until we catch up")
+
+-- poly' :: (ScoreType s, Poly b) => Score s -> (a -> b) -> Seq a -> b
+-- poly' scr f s =
+--   case mutRefTake (\_ -> dynArrayEmpty 8) of
+--     (#thunks0, mref#) ->
+--       let
+--         startingGlobalTime      = doOnce (\_ -> currBlockTime)
+--         firstBeatTime           = scoreGetNextBeat scr
+--         thisLocalTime           = localTimeR ()
+--         (#_, _, acc', thunks4#) =
+--           loop (#cont, time, acc, thunks1#) = (#True, 0, mempty, dynArrayIterator thunks0#) while cont do
+--             let
+--               nextValueTime ~ 0 = nextValueTime + time
+--               audioSampleOffset = calculateAudioSampleOffset nextValueTime thisLocalTime
+--             in
+--               if nextValueTime < thisLocalTime then
+--                 case runSeq s (getSeqParamAtExactTime nextValueTime) of
+--                   SeqValue# t _ mx ->
+--                     case mx of
+--                       Just x  -> (#True, t, acc, dynArrayIteratorEmplaceOrAppend (polyThunkInit x audioSampleOffset) (polyThunkAlloc x audioSampleOffset) thunks1#)
+--                       Nothing -> (#True, t, acc, thunks1#)
+--               else
+--                 case dynArrayIteratorWithElement (polyThunkEval f) thunks1 of
+--                   (#maybeEvalResult, thunks2#) ->
+--                     case maybeEvalResult of
+--                       DynArrayJust evalResult ->
+--                         if isRunning evalResult then
+--                           (#True, 0, append acc evalResult, dynArrayIteratorNext thunks2#)
+--                         else
+--                           (#True, 0, acc, dynArrayIteratorFree thunks2#)
+--                       DynArrayNothing -> (#True,  0, acc, dynArrayIteratorNext thunks2#)
+--                       DynArrayEnd     -> (#False, 0, acc, thunks2#)
+--       in
+--         case mutRefPut (dynArrayIteratorEnd thunks4) mref of
+--           _ -> acc'
 
 -- testJit :: *World -> *World
 -- testJit w = w

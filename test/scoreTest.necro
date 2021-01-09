@@ -22,10 +22,11 @@ instance Default SimpleScore where
 instance ScoreType SimpleScore where
   score =
     {
-      (Beats 4, SimpleScore A, Tempo 120),
-      (Beats 4, SimpleScore B, Tempo 120),
-      (Beats 4, SimpleScore A, Tempo 120),
-      (Beats 4, SimpleScore C, Tempo 180),
+      (Beats 12, SimpleScore A, Tempo 120),
+      (Beats 12, SimpleScore B, Tempo 120),
+      (Beats  4, SimpleScore D, Tempo 120),
+      (Beats 12, SimpleScore A, Tempo 120),
+      (Beats 12, SimpleScore C, Tempo 120), -- TODO: Test 180 or other tempo change!
     }
     |> scoreNew
 
@@ -46,25 +47,6 @@ simpleScoreSection =
 -- scoreSection >>= \s ->
 -- simpleScoreSection >>= \s ->
 
--- simpleScoreSeq :: Seq Float
--- simpleScoreSeq = Seq go
---   where
---     go p =
---       case runSeq simpleScoreSection p |> seqValueValue of
---         Just (SimpleScore A) -> runSeq [1 2 3 5] p
---         Just (SimpleScore B) -> runSeq [6 3 2 1] p
---         Just (SimpleScore C) -> runSeq [4 2 1 2] p
---         _                    -> Nothing
-
--- -- During lambda lift, detect functions returned by control structures and then
--- simpleScoreSeq :: Seq Float
--- simpleScoreSeq =
---   case scoreSectionAtTime simpleScore currBlockTime of
---     SimpleScore A -> [1 2 3 5]
---     SimpleScore B -> [6 3 2 1]
---     SimpleScore C -> [4 2 1 2]
---     _             -> [6 1]
-
 -- During lambda lift, detect functions returned by control structures and then
 simpleScoreSeq :: Seq Float
 simpleScoreSeq =
@@ -73,11 +55,11 @@ simpleScoreSeq =
     SimpleScore A -> [1 2 3 5]
     SimpleScore B -> [6 3 2 1]
     SimpleScore C -> [4 2 1 2]
-    _             -> [6 1]
+    _             -> [7 0.5]
 
 simpleScoreTest :: Stereo Audio
 simpleScoreTest =
-  sin (simpleScoreSeq |> seqSpeed 2 |> mul 110 |> seqToAudio)
+  poly (\f -> sin (fromFloat f * 110) |> perc 0.01 1.5 -1) (simpleScoreSeq |> seqSpeed 2)
   |> mul 0.1
 
 -- ----------------------

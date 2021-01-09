@@ -520,38 +520,61 @@ NecroCoreAstList* necro_core_ast_pre_simplify_case_alts(NecroCorePreSimplify* co
     return necro_cons_core_ast_list(context->arena, necro_core_ast_pre_simplify_inline_wrapper_types(context, new_ast), next);
 }
 
-// Lift Functions returned by Case Expressions
-NecroCoreAst* necro_core_ast_pre_simplify_case_lambda(NecroCorePreSimplify* context, NecroCoreAst* ast)
+// Eta expand Functions returned by Case Expressions (Necessary for correct function handling).
+NecroCoreAst* necro_core_ast_pre_simplify_eta_expand_case_functions(NecroCorePreSimplify* context, NecroCoreAst* ast)
 {
     //--------------------
-    // TODO: MOVE TO SIMPLIFY
-    // SPECIAL LOGIC FOR RETURNING LAMBDAS FROM CONTROL STRUCTURES:
-    // * Wrap the entire thing in lambda
-    // * Add arguments as needed to match arity
-    // * Apply those arguments at the terminals of each case expression
+    // RETURNING FUNCTIONS FROM CASE EXPRESSIONS:
+    //   1. ETA expand new lambdas around case expression
+    //   2. Apply new lambda args to each case arg
     //--------------------
-
-    NecroType* fn_type = necro_type_strip_for_all(necro_type_find(ast->case_expr.alts->data->case_alt.expr->necro_type));
-
-    // TODO / NOTE: ASSUMING ONE PARAMETER FOR NOW!
-    // TODO: MAKE THIS WORK WITH MORE THAN ONE PARAMETER!
+    static const char*  arg_string    = "caseEta";
+    NecroType*          fn_type       = necro_type_strip_for_all(necro_type_find(ast->case_expr.alts->data->case_alt.expr->necro_type));
     NecroType*          fn_arg_type   = necro_type_find(fn_type->fun.type1);
-    NecroCoreAstSymbol* fn_arg_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, "caseFnArg"), fn_arg_type);
+    NecroCoreAstSymbol* fn_arg_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, arg_string), fn_arg_type);
     NecroCoreAst*       fn_arg        = necro_core_ast_create_var(context->arena, fn_arg_symbol, fn_arg_type);
+    NecroCoreAst*       lambda_ast    = necro_core_ast_create_lam(context->arena, fn_arg, NULL);
+    lambda_ast->necro_type            = fn_type;
 
-    // necro_core_lambda_lift_go(context, ast->case_expr.expr);
-    NecroCoreAstList* alts = ast->case_expr.alts;
-    while (alts != NULL)
+    // 1. Build up Lambdas
     {
-        NecroCoreAst* alt_expr                = alts->data->case_alt.expr;
-        NecroCoreAst* alt_fn_arg              = necro_core_ast_create_var(context->arena, fn_arg_symbol, fn_arg_type);
-        alts->data->case_alt.expr             = necro_core_ast_create_app(context->arena, alt_expr, alt_fn_arg);
-        alts->data->case_alt.expr->necro_type = fn_type->fun.type2;
-        alts = alts->next;
+        NecroType*    curr_fn_type  = fn_type;
+        NecroCoreAst* curr_lambda   = lambda_ast;
+
+        while (necro_type_find(curr_fn_type->fun.type2)->type == NECRO_TYPE_FUN)
+        {
+            curr_fn_type                           = curr_fn_type->fun.type2;
+            NecroCoreAstSymbol* curr_fn_arg_symbol = necro_core_ast_symbol_create(context->arena, necro_intern_unique_string(context->intern, arg_string), curr_fn_type->fun.type1);
+            NecroCoreAst*       curr_fn_arg        = necro_core_ast_create_var(context->arena, curr_fn_arg_symbol, curr_fn_type->fun.type1);
+            curr_lambda->lambda.expr               = necro_core_ast_create_lam(context->arena, curr_fn_arg, NULL);
+            curr_lambda                            = curr_lambda->lambda.expr;
+            curr_lambda->necro_type                = curr_fn_type;
+        }
+        // Set Final lambda expression lambda to the case ast, and update its type
+        curr_lambda->lambda.expr = ast;
+        ast->necro_type          = necro_type_find(curr_fn_type->fun.type2);
     }
 
-    NecroCoreAst* lambda_ast = necro_core_ast_create_lam(context->arena, fn_arg, ast);
-    lambda_ast->necro_type   = fn_type;
+    // 2. Apply eta expansion args
+    {
+        NecroCoreAstList* alts = ast->case_expr.alts;
+        while (alts != NULL)
+        {
+            NecroCoreAst* curr_lambda = lambda_ast;
+            while (curr_lambda->ast_type == NECRO_CORE_AST_LAM)
+            {
+                assert(necro_type_find(curr_lambda->necro_type)->type == NECRO_TYPE_FUN);
+                NecroCoreAst*       alt_expr          = alts->data->case_alt.expr;
+                NecroCoreAstSymbol* arg_symbol        = curr_lambda->lambda.arg->var.ast_symbol;
+                NecroCoreAst*       alt_fn_arg        = necro_core_ast_create_var(context->arena, arg_symbol, arg_symbol->type);
+                alts->data->case_alt.expr             = necro_core_ast_create_app(context->arena, alt_expr, alt_fn_arg);
+                alts->data->case_alt.expr->necro_type = necro_type_find(curr_lambda->necro_type)->fun.type2;
+                curr_lambda                           = curr_lambda->lambda.expr;
+            }
+            alts = alts->next;
+        }
+    }
+    // necro_core_ast_pretty_print_go(lambda_ast, 0);
     return necro_core_ast_pre_simplify_inline_wrapper_types(context, lambda_ast);
 }
 
@@ -604,10 +627,10 @@ NecroCoreAst* necro_core_ast_pre_simplify_case(NecroCorePreSimplify* context, Ne
         new_let                         = necro_core_ast_pre_simplify_inline_wrapper_types(context, new_let);
         return new_let;
     }
-    // Lift Functions returned by Case Expressions
+    // Eta expand Functions returned by Case Expressions (Necessary for correct function handling).
     else if (necro_type_strip_for_all(necro_type_find(ast->case_expr.alts->data->case_alt.expr->necro_type))->type == NECRO_TYPE_FUN)
     {
-        return necro_core_ast_pre_simplify_case_lambda(context, ast);
+        return necro_core_ast_pre_simplify_eta_expand_case_functions(context, ast);
     }
     NecroCoreAst*     case_expr = necro_core_ast_pre_simplify_go(context, ast->case_expr.expr);
     NecroCoreAstList* case_alts = necro_core_ast_pre_simplify_case_alts(context, ast->case_expr.alts);

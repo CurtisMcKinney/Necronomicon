@@ -3,6 +3,22 @@
 -- Score API usage example
 ----------------------
 
+-- TODO: monadic control flow (case, if/then/else)
+-- TODO: Actually synchronizing using Score
+-- TODO: Actually using Score sections without fuckin' crashing
+-- TODO: Lambda lift compiler bug on scoreSection (fml)
+-- TODO: Score determined Quantization?
+-- TODO: End?
+-- TODO: scoreSection >>= \s ->
+
+----------------------
+-- No Score
+----------------------
+
+-- data NoScore = NoScore
+-- instance ScoreType NoScore where
+--   score = scoreNew {Section HoldForever A (Tempo 12)}
+
 ----------------------
 -- Simple Score
 ----------------------
@@ -18,20 +34,17 @@ instance Eq SimpleScore where
 instance Default SimpleScore where
   default = SimpleScore A
 
--- Score determined Quantization?
--- TODO: End?
 instance ScoreType SimpleScore where
   score =
     {
-      Section (Beats 12) (SimpleScore A) (Tempo 120),
-      Section (Beats 12) (SimpleScore B) (Tempo 120),
-      Section (Beats  4) (SimpleScore D) (Tempo 120),
-      Section (Beats 12) (SimpleScore A) (Tempo 120),
-      Section (Beats 12) (SimpleScore C) (Tempo 120), -- TODO: Test 180 or other tempo change!
+      Section (Beats 999) (SimpleScore A) (Tempo (113 * 99//90)),
+      -- Section (Beats 12) (SimpleScore B) (Tempo  90),
+      -- Section (Beats  4) (SimpleScore D) (Tempo 135),
+      -- Section (Beats 12) (SimpleScore A) (Tempo 135),
+      -- Section (Beats 12) (SimpleScore C) (Tempo  90),
     }
     |> scoreNew
-
-    -- |> scoreNewWith 2
+    -- |> scoreNewWith 1
 
 simpleScore :: Score SimpleScore
 simpleScore =
@@ -39,13 +52,7 @@ simpleScore =
 
 simpleScoreSection :: Seq SimpleScore
 simpleScoreSection =
-  Seq (\p -> pure (scoreSectionAtTime score (seqParamGetTime p)))
-
--- TODO: monadic control flow (case, if/then/else)
--- TODO: Actually synchronizing using Score
--- TODO: Actually using Score sections without fuckin' crashing
--- TODO: Lambda lift compiler bug on scoreSection (fml)
--- scoreSection >>= \s ->
+  Seq (\p -> pure (scoreSectionWithOffset score (seqParamGetTimeOffset p)))
 
 simpleScoreSeq :: Seq Float
 simpleScoreSeq =
@@ -63,11 +70,33 @@ simpleScoreSeq2 =
     SimpleScore A -> [<1 2 3> 5]
     _             -> [7 _ 0.5]
 
+simpleSynth1 :: Float -> Stereo Audio
+simpleSynth1 f =
+  sin (fromFloat f * 110) |> perc 0.01 1.5 -1
+
+simpleSynth2 :: Float -> Stereo Audio
+simpleSynth2 f =
+  sin (fromFloat f * 220) |> mul 0.5 |> perc 0.01 1 -1
+
 simpleScoreTest :: Stereo Audio
 simpleScoreTest =
-  poly (\f -> sin (fromFloat f * 110) |> perc 0.01 1.5 -1) (simpleScoreSeq |> seqSpeed 2) +
-  poly (\f -> sin (fromFloat f * 220) |> mul 0.5 |> perc 0.01 1 -1) (simpleScoreSeq2 |> seqSpeed 2)
-  |> mul 0.1
+  polyScore simpleScore simpleSynth1 simpleScoreSeq * 0.1 + s2
+  where
+    s2 =
+      if currBlockCount < 2 then 0 else
+        polyScore simpleScore simpleSynth1 simpleScoreSeq
+        -- poly simpleScore simpleSynth2 simpleScoreSeq2
+        |> mul 0.1
+
+-- simpleScoreTest :: Stereo Audio
+-- simpleScoreTest =
+--   poly simpleSynth1 (simpleScoreSeq |> seqSpeed (bpm 135)) * 0.1 + s2
+--   where
+--     s2 =
+--       if currBlockTime < 2 then 0 else
+--         poly simpleSynth1 (simpleScoreSeq |> seqSpeed (bpm 135))
+--         -- poly simpleScore simpleSynth2 simpleScoreSeq2
+--         |> mul 0.1
 
 -- ----------------------
 -- -- Complex Score

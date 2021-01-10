@@ -9045,7 +9045,7 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 polyScore :: (ScoreType s, Poly b) => Score s -> (a -> b) -> Seq a -> b
 polyScore scr f s =
   if firstBeatTime >= nextBlockTime then mempty else
-    polyGo (fby firstBeatOffset 0) scr f s
+    polyGo (fby (firstBeatTime - currBlockTime) 0) scr f s
     -- polyGo 0 scr f s
   where
     firstBeat       = doOnce scoreGetNextBeat scr
@@ -9069,7 +9069,7 @@ polyGo valueTimeOffset scr f s =
             if nextValueTime < audioBlockDelta then
               case runSeq s (SeqParam# nextValueTime) of
                 SeqValue# dur _ mx ->
-                  let nextValueTime' = nextValueTime + dur * scoreGetTempoWithOffset scr nextValueTime in
+                  let nextValueTime' = traceLn2 "runSeq on: " nextValueTime + dur * scoreGetTempoWithOffset scr nextValueTime in
                   case mx of
                     Just x  -> (#True, nextValueTime', acc, polyEmplace x nextValueTime thunks1#)
                     Nothing -> (#True, nextValueTime', acc, thunks1#)

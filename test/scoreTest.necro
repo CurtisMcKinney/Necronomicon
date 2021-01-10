@@ -37,7 +37,7 @@ instance Default SimpleScore where
 instance ScoreType SimpleScore where
   score =
     {
-      Section (Beats 999) (SimpleScore A) (Tempo (113 * 99//90)),
+      Section (Beats 999) (SimpleScore A) (Tempo 103),
       -- Section (Beats 12) (SimpleScore B) (Tempo  90),
       -- Section (Beats  4) (SimpleScore D) (Tempo 135),
       -- Section (Beats 12) (SimpleScore A) (Tempo 135),
@@ -78,14 +78,19 @@ simpleSynth2 :: Float -> Stereo Audio
 simpleSynth2 f =
   sin (fromFloat f * 220) |> mul 0.5 |> perc 0.01 1 -1
 
+-- weirdTempo
+
 simpleScoreTest :: Stereo Audio
 simpleScoreTest =
   polyScore simpleScore simpleSynth1 simpleScoreSeq * 0.1 + s2
+  -- poly simpleSynth1 (simpleScoreSeq |> seqSpeed (bpm 103)) * 0.1 + s2
+  -- s2
   where
     s2 =
-      if currBlockCount < 2 then 0 else
+      if currBlockTime < 1 then 0 else
         polyScore simpleScore simpleSynth1 simpleScoreSeq
-        -- poly simpleScore simpleSynth2 simpleScoreSeq2
+        -- poly simpleSynth1 (simpleScoreSeq |> seqSpeed (bpm 103))
+        -- polyScore simpleScore simpleSynth2 simpleScoreSeq2
         |> mul 0.1
 
 -- simpleScoreTest :: Stereo Audio

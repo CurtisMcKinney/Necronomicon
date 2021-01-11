@@ -2045,7 +2045,6 @@ zip a b = freezeArray <|
     in
       writeArray i (va, vb) c
 
-
 zipWith :: (a -> b -> c) -> Array n a -> Array n b -> Array n c
 zipWith f a b = freezeArray <|
   loop c = unsafeEmptyArray () for i <- each do
@@ -2193,14 +2192,15 @@ audioBlocksPerSecond = audioSampleRate / audioBlockSize
 
 audioBlockDelta :: Rational
 audioBlockDelta =
-  1 / (fromUInt audioSampleRate // fromUInt audioBlockSize)
+  recip (fromUInt audioSampleRate // fromUInt audioBlockSize)
   -- = 1 // fromUInt audioBlocksPerSecond
 
 audioBlockDeltaF :: Float
 audioBlockDeltaF = rationalToFloat audioBlockDelta
 
 audioSampleDelta :: Rational
-audioSampleDelta = 1 // fromUInt audioSampleRate
+audioSampleDelta = audioBlockDelta / fromUInt audioBlockSize
+-- audioSampleDelta = 1 // fromUInt audioSampleRate
 
 -- -- NOTE: Assumes audioBlockSize is a power of 2!
 -- audioBlockSizeLog2 :: UInt
@@ -7912,7 +7912,7 @@ scoreNew sectionArray =
 
 scoreGetNextBeat :: Score s -> ScoreBeat
 scoreGetNextBeat (Score startBeat endBeat sectionSlice) =
-  if scoreBeatStartTime startBeat == currBlockTime then
+  if currBlockTime <= scoreBeatStartTime startBeat then
     startBeat
   else
     calculateNextBeat sectionSlice startBeat
@@ -8987,7 +8987,7 @@ seqToAudio s =
                 nextValueTime ~ 0 = nextValueTime + seqDuration0
                 -- blockTimeOffset   = calculateCurrBlockTimeOffset nextValueTime time
               in
-                if nextValueTime >= time then (#False, 0, prevValue#) else
+                if nextValueTime > time then (#False, 0, prevValue#) else
                   case runSeq s (getSeqParamAtExactTime nextValueTime) of
                     SeqValue# seqDuration1 _ msv ->
                       case msv of
@@ -9036,11 +9036,6 @@ poly2 f x y = poly (uncurry' f) (map2 (\x' y' -> (#x', y'#)) x y)
 poly3 :: Poly d => (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> d
 poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 
--- TODO:
---    * Score tempo sync
---    * Score quantization sync
---    * Handle interruptions (nuclear: Keep "pulling" until we catch up")
-
 polyEmplace :: a -> Rational -> *DynArrayIterator a -> *DynArrayIterator a
 polyEmplace x nextValueTime thunks =
   dynArrayIteratorEmplaceOrAppend (polyThunkInit x audioSampleOffset) (polyThunkAlloc x audioSampleOffset) thunks
@@ -9048,11 +9043,12 @@ polyEmplace x nextValueTime thunks =
     audioSampleOffset = (fromInt n / fromInt d) * fromUInt audioBlockSize
     Rational#     n d = nextValueTime / audioBlockDelta
 
-polyGo :: (ScoreType s, Poly b) => Rational -> Score s -> (a -> b) -> Seq a -> b
-polyGo firstBeatOffset scr f s =
-  case mutRefTake (\_ -> (#dynArrayEmpty 8, 0#)) of
-    (#(#thunks0, prevValueTime0#), mref#) ->
+polyScore :: (ScoreType s, Poly b) => Score s -> (a -> b) -> Seq a -> b
+polyScore scr f s =
+  case mutRefTake (\_ -> (#dynArrayEmpty 8, 0, True#)) of
+    (#(#thunks0, prevValueTime0, isFirstBeat#), mref#) ->
       let
+        firstBeatOffset = if isFirstBeat then scoreBeatStartTime (scoreGetNextBeat scr) - currBlockTime else 0
         (#_, prevValueTime1, acc', thunks4#) =
           loop (#cont, nextValueTime, acc, thunks1#) = (#True, prevValueTime0 + firstBeatOffset, mempty, dynArrayIterator thunks0#) while cont do
             if nextValueTime < audioBlockDelta then
@@ -9074,14 +9070,33 @@ polyGo firstBeatOffset scr f s =
                     DynArrayNothing -> (#True,  nextValueTime, acc, dynArrayIteratorNext thunks2#)
                     DynArrayEnd     -> (#False, nextValueTime - audioBlockDelta, acc, thunks2#)
       in
-        case mutRefPut (#dynArrayIteratorEnd thunks4, prevValueTime1#) mref of
+        case mutRefPut (#dynArrayIteratorEnd thunks4, prevValueTime1, False#) mref of
           _ -> acc'
 
-polyScore :: (ScoreType s, Poly b) => Score s -> (a -> b) -> Seq a -> b
-polyScore scr f s =
-  polyGo firstBeatOffset scr f s
-  where
-    firstBeatOffset = doFby (\s -> scoreBeatStartTime (scoreGetNextBeat s) - currBlockTime) scr 0
+seqToAudioScore :: (ScoreType s, AudioFormat f) => Score s -> Seq Float -> f Audio
+seqToAudioScore scr s =
+  case mutRefTake (\_ -> (#1, 0, True#)) of
+    (#(#prevValue0, prevValueTime0, isFirstTime#), mref#) ->
+      let
+        firstBeatOffset = if isFirstTime then scoreBeatStartTime (scoreGetNextBeat scr) - currBlockTime else 0
+        (#_, aout, nextValue, nextValueTime#)  =
+          loop (#i0, a, prevValue, prevValueTime#) = (#0, unsafeEmptyArray (), prevValue0, prevValueTime0 + firstBeatOffset#) while i0 < audioBlockSize do
+            let
+              i1                   = i0 + 1
+              sampleTime           = fromUInt i0 // fromUInt audioSampleRate
+              (#value, valueTime#) =
+                if prevValueTime > sampleTime then (#prevValue, prevValueTime#) else
+                  case runSeq s (SeqParam# prevValueTime) of
+                    SeqValue# dur _ msv ->
+                      let nextValueTime' = prevValueTime + dur * scoreGetTempoWithOffset scr prevValueTime in
+                      case msv of
+                        Just seqValue -> (#seqValue,  nextValueTime'#)
+                        Nothing       -> (#prevValue, nextValueTime'#)
+            in
+              (#i1, writeArray (Index i0) value a, value, valueTime #)
+      in
+        case mutRefPut (#nextValue, nextValueTime - audioBlockDelta, False#) mref of
+          _ -> pure (AudioRate (freezeArray aout))
 
 -- testJit :: *World -> *World
 -- testJit w = w

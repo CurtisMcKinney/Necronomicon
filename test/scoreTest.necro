@@ -3,21 +3,14 @@
 -- Score API usage example
 ----------------------
 
+-- TODO: Fix compiling complex case expressions
+-- TODO: Deriving capability
 -- TODO: Pitch detection
 -- TODO: "Tonal" Remapper via pitch detection
 -- TODO: Frequency shifting
--- TODO: Monomorphization lambda lift bug
 -- TODO: seqToAudioScore
 -- TODO: default score
--- TODO: monadic control flow (case, if/then/else)
--- TODO: Lambda lift compiler bug on scoreSection (fml)
--- TODO: Score determined Quantization?
 -- TODO: End?
--- TODO: scoreSection >>= \s ->
-
--- DONE: Seq is instance of Monad
--- DONE: Return functions from if/case
--- DONE: Partially, Score system
 
 ----------------------
 -- Simple Score
@@ -55,8 +48,8 @@ simpleScore =
 -------------
 -- Usage --
 
-simpleScoreSeq :: Seq Float
-simpleScoreSeq =
+simpleScoreSeq1 :: Seq Float
+simpleScoreSeq1 =
   scoreSection >>= \s ->
   case s of
     SimpleScore A -> [1 2 [3:2] 5]
@@ -69,7 +62,7 @@ simpleScoreSeq2 =
   scoreSection >>= \s ->
   case s of
     SimpleScore A -> [<1 2 3> 5]
-    _             -> [7 _ 0.5]
+    _             -> [7 _ 0.5 8]
 
 simpleSynth1 :: Float -> Stereo Audio
 simpleSynth1 f =
@@ -79,22 +72,40 @@ simpleSynth2 :: Float -> Stereo Audio
 simpleSynth2 f =
   sin (fromFloat f * 220) |> mul 0.5 |> perc 0.01 1 -1
 
+simpleSynth3 :: Stereo Audio
+simpleSynth3 =
+  sin (seqToAudioScore simpleScore simpleScoreSeq1 * 110)
+  |> mul 0.5 |> asr 1 1000 1 1 |> silenceAtEnd
+
+simpleSynth4 :: Stereo Audio
+simpleSynth4 =
+  sin (seqToAudioScore simpleScore simpleScoreSeq2 * 220)
+  |> mul 0.5 |> asr 1 1000 1 1 |> silenceAtEnd
+
 -- defaultScore :: Score SimpleScore
 
--- Normal test
+-- polyScore test
 simpleScoreTest :: Stereo Audio
 simpleScoreTest =
-  polyScore simpleScore simpleSynth1 simpleScoreSeq +
+  polyScore simpleScore simpleSynth1 simpleScoreSeq1 +
   polyScore simpleScore simpleSynth2 simpleScoreSeq2
   |> mul 0.1
 
+-- -- seqToAudioScore test
+-- simpleScoreTest :: Stereo Audio
+-- simpleScoreTest =
+--   simpleSynth3 +
+--   simpleSynth4
+--   |> mul 0.1
+
+-- -- ...great. Crash. fml
 -- -- Offset test
 -- simpleScoreTest :: Stereo Audio
 -- simpleScoreTest =
---   polyScore simpleScore simpleSynth1 simpleScoreSeq * 0.1 + s2
+--   polyScore simpleScore simpleSynth1 simpleScoreSeq1 * 0.1 + s2
 --   where
 --     s2 = if currBlockTime < 3 then 0 else
---       polyScore simpleScore simpleSynth2 simpleScoreSeq
+--       polyScore simpleScore simpleSynth2 simpleScoreSeq1
 --       |> mul 0.1
 
 -- ----------------------

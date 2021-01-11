@@ -274,7 +274,7 @@ void necro_compile(const char* file_name, const char* input_string, size_t input
     // Compile
     //--------------------
     struct NecroTimer* timer  = necro_timer_create();
-    NecroCompileInfo   info   = { .verbosity = 0, .timer = timer, .compilation_phase = compilation_phase, .opt_level = opt_level };
+    NecroCompileInfo   info   = { .verbosity = 1, .timer = timer, .compilation_phase = compilation_phase, .opt_level = opt_level };
     NecroResult(void)  result = necro_compile_go(
         info,
         input_string,

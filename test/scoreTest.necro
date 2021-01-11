@@ -3,26 +3,28 @@
 -- Score API usage example
 ----------------------
 
+-- TODO: Pitch detection
+-- TODO: "Tonal" Remapper via pitch detection
+-- TODO: Frequency shifting
+-- TODO: Monomorphization lambda lift bug
+-- TODO: seqToAudioScore
+-- TODO: default score
 -- TODO: monadic control flow (case, if/then/else)
--- TODO: Actually synchronizing using Score
--- TODO: Actually using Score sections without fuckin' crashing
 -- TODO: Lambda lift compiler bug on scoreSection (fml)
 -- TODO: Score determined Quantization?
 -- TODO: End?
 -- TODO: scoreSection >>= \s ->
 
-----------------------
--- No Score
-----------------------
-
--- data NoScore = NoScore
--- instance ScoreType NoScore where
---   score = scoreNew {Section HoldForever A (Tempo 12)}
+-- DONE: Seq is instance of Monad
+-- DONE: Return functions from if/case
+-- DONE: Partially, Score system
 
 ----------------------
 -- Simple Score
 ----------------------
 
+-------------
+-- Set up --
 data SimpleScore = SimpleScore Alphabet
 
 -- NOTE: This boilerplate won't need to be here once we have 'deriving' capability in the compiler!
@@ -37,35 +39,34 @@ instance Default SimpleScore where
 instance ScoreType SimpleScore where
   score =
     {
-      Section (Beats 999) (SimpleScore A) (Tempo 103),
-      -- Section (Beats 12) (SimpleScore B) (Tempo  90),
-      -- Section (Beats  4) (SimpleScore D) (Tempo 135),
-      -- Section (Beats 12) (SimpleScore A) (Tempo 135),
-      -- Section (Beats 12) (SimpleScore C) (Tempo  90),
+      Section (Beats 12) (SimpleScore A) (Tempo 103),
+      Section (Beats 12) (SimpleScore B) (Tempo 150),
+      Section (Beats  4) (SimpleScore D) (Tempo 122),
+      Section (Beats 12) (SimpleScore A) (Tempo 122),
+      Section (Beats 12) (SimpleScore C) (Tempo  80),
     }
     |> scoreNew
-    -- |> scoreNewWith 1
+    -- |> scoreNewAt 4
 
 simpleScore :: Score SimpleScore
 simpleScore =
   score
 
-simpleScoreSection :: Seq SimpleScore
-simpleScoreSection =
-  Seq (\p -> pure (scoreSectionWithOffset score (seqParamGetTimeOffset p)))
+-------------
+-- Usage --
 
 simpleScoreSeq :: Seq Float
 simpleScoreSeq =
-  simpleScoreSection >>= \s ->
+  scoreSection >>= \s ->
   case s of
-    SimpleScore A -> [1 2 [3:3.25] 5]
-    SimpleScore B -> [6 3 2 [0.5:1:1.5]]
-    SimpleScore C -> [4 2 [1:1.5] 2]
-    _             -> [7 0.5]
+    SimpleScore A -> [1 2 [3:2] 5]
+    SimpleScore B -> [6 3 2 [3:1:2]]
+    SimpleScore C -> [4 2 <1 3> 2]
+    _             -> [5 0.5 4 1]
 
 simpleScoreSeq2 :: Seq Float
 simpleScoreSeq2 =
-  simpleScoreSection >>= \s ->
+  scoreSection >>= \s ->
   case s of
     SimpleScore A -> [<1 2 3> 5]
     _             -> [7 _ 0.5]
@@ -78,30 +79,23 @@ simpleSynth2 :: Float -> Stereo Audio
 simpleSynth2 f =
   sin (fromFloat f * 220) |> mul 0.5 |> perc 0.01 1 -1
 
--- weirdTempo
+-- defaultScore :: Score SimpleScore
 
+-- Normal test
 simpleScoreTest :: Stereo Audio
 simpleScoreTest =
-  polyScore simpleScore simpleSynth1 simpleScoreSeq * 0.1 + s2
-  -- poly simpleSynth1 (simpleScoreSeq |> seqSpeed (bpm 103)) * 0.1 + s2
-  -- s2
-  where
-    s2 =
-      if currBlockTime < 1 then 0 else
-        polyScore simpleScore simpleSynth1 simpleScoreSeq
-        -- poly simpleSynth1 (simpleScoreSeq |> seqSpeed (bpm 103))
-        -- polyScore simpleScore simpleSynth2 simpleScoreSeq2
-        |> mul 0.1
+  polyScore simpleScore simpleSynth1 simpleScoreSeq +
+  polyScore simpleScore simpleSynth2 simpleScoreSeq2
+  |> mul 0.1
 
+-- -- Offset test
 -- simpleScoreTest :: Stereo Audio
 -- simpleScoreTest =
---   poly simpleSynth1 (simpleScoreSeq |> seqSpeed (bpm 135)) * 0.1 + s2
+--   polyScore simpleScore simpleSynth1 simpleScoreSeq * 0.1 + s2
 --   where
---     s2 =
---       if currBlockTime < 2 then 0 else
---         poly simpleSynth1 (simpleScoreSeq |> seqSpeed (bpm 135))
---         -- poly simpleScore simpleSynth2 simpleScoreSeq2
---         |> mul 0.1
+--     s2 = if currBlockTime < 3 then 0 else
+--       polyScore simpleScore simpleSynth2 simpleScoreSeq
+--       |> mul 0.1
 
 -- ----------------------
 -- -- Complex Score

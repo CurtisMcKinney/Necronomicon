@@ -57,6 +57,7 @@ bool                necro_core_scope_find_in_this_scope(NecroCoreScope* scope, N
 NecroCoreAstSymbol* necro_core_scope_find_renamed_in_this_scope(NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol);
 void                necro_core_scope_insert(NecroPagedArena* arena, NecroCoreScope* scope, NecroCoreAstSymbol* ast_symbol, NecroType* necro_type);
 void                necro_core_scope_print(NecroCoreScope* scope);
+void                necro_core_lambda_lift_populate_global_scope(NecroLambdaLift* ll, NecroCoreAst* ast);
 
 //--------------------
 // NecroLambdaLift
@@ -101,6 +102,7 @@ void necro_lambda_lift_destroy(NecroLambdaLift* ll)
 void necro_core_lambda_lift(NecroCompileInfo info, NecroIntern* intern, NecroBase* base, NecroCoreAstArena* core_ast_arena)
 {
     NecroLambdaLift ll = necro_lambda_lift_create(&core_ast_arena->arena, intern, base);
+    // necro_core_lambda_lift_populate_global_scope(&ll, core_ast_arena->root);
     necro_core_lambda_lift_go(&ll, core_ast_arena->root);
     necro_lambda_lift_destroy(&ll);
     if ((info.compilation_phase == NECRO_PHASE_LAMBDA_LIFT && info.verbosity > 0) || info.verbosity > 1)
@@ -350,6 +352,7 @@ void necro_core_lambda_lift_var(NecroLambdaLift* ll, NecroCoreAst* ast)
         return;
     //--------------------
     // If free var, add to free_var list, and switch var to use renamed symbol
+
     if (!ast->var.ast_symbol->is_constructor && necro_core_lambda_lift_is_free_var(ll, ast->var.ast_symbol))
     {
         NecroCoreAstSymbol* renamed = necro_core_scope_find_renamed_in_this_scope(ll->scope->free_vars, ast->var.ast_symbol);
@@ -430,6 +433,17 @@ void necro_core_lambda_lift_let(NecroLambdaLift* ll, NecroCoreAst* ast)
     }
 }
 
+void necro_core_lambda_lift_populate_global_scope(NecroLambdaLift* ll, NecroCoreAst* ast)
+{
+    while (ast != NULL && ast->ast_type == NECRO_CORE_AST_LET)
+    {
+        NecroCoreAst* bind_ast = ast->let.bind;
+        necro_core_scope_insert(&ll->ll_arena, ll->scope, bind_ast->bind.ast_symbol, bind_ast->bind.ast_symbol->type);
+        ast = ast->let.expr;
+    }
+    // necro_core_scope_print(ll->global_scope);
+}
+
 // NOTE: This is only used for anonymous lambdas
 void necro_core_lambda_lift_lam(NecroLambdaLift* ll, NecroCoreAst* ast)
 {
@@ -492,6 +506,7 @@ void necro_core_lambda_lift_bind(NecroLambdaLift* ll, NecroCoreAst* ast)
         return;
     }
     // Lift and insert into global scope
+    // TODO: Fill global scope with (initial) global scope values
     necro_core_scope_insert(&ll->ll_arena, ll->global_scope, ast->bind.ast_symbol, ast->bind.ast_symbol->type);
     necro_core_lambda_lift_push_scope(ll);
     necro_core_lambda_lift_bound_lam(ll, ast->bind.expr);

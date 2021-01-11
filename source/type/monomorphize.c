@@ -35,6 +35,7 @@ typedef struct
     NecroPagedArena*     arena;
     NecroSnapshotArena   snapshot_arena;
     NecroConstraintEnv   con_env;
+    NecroAst*            lift_point;
 } NecroMonomorphize;
 
 NecroMonomorphize necro_monomorphize_empty()
@@ -48,6 +49,7 @@ NecroMonomorphize necro_monomorphize_empty()
         .base            = NULL,
         .ast_arena       = NULL,
         .con_env         = necro_constraint_env_empty(),
+        .lift_point      = NULL,
     };
     return monomorphize;
 }
@@ -63,6 +65,7 @@ NecroMonomorphize necro_monomorphize_create(NecroIntern* intern, NecroScopedSymT
         .base            = base,
         .ast_arena       = ast_arena,
         .con_env         = necro_constraint_env_create(),
+        .lift_point      = NULL,
     };
     return monomorphize;
 }
@@ -196,6 +199,7 @@ NecroAstSymbol* necro_ast_specialize_method(NecroMonomorphize* monomorphize, Nec
     return NULL;
 }
 
+// TODO: Add usage point and lift specialized ast up into global scope right before usage point
 NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSymbol* ast_symbol, NecroInstSub* subs)
 {
     assert(monomorphize != NULL);
@@ -232,17 +236,41 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     }
 
     //--------------------
-    // Find DeclarationGroupList, Make new DeclarationGroup
+    // Find and create specialized ast insertion point
+    // This is handled differently for global bindings and local bindings
+    // This is necessitated by the semantics of local bindings and the nature of specializing class methods defined in different modules (such as base)
     //--------------------
-    NecroAst* declaration_group = ast_symbol->declaration_group;
-    assert(declaration_group != NULL);
-    assert(declaration_group->type == NECRO_AST_DECL);
-    while (declaration_group->declaration.next_declaration != NULL) // Append
-        declaration_group = declaration_group->declaration.next_declaration;
-    NecroAst* new_declaration                           = necro_ast_create_decl(monomorphize->arena, ast_symbol->ast, declaration_group->declaration.next_declaration);
-    declaration_group->declaration.next_declaration     = new_declaration;
-    new_declaration->declaration.declaration_group_list = declaration_group->declaration.declaration_group_list;
-    new_declaration->declaration.declaration_impl       = NULL; // Removing dummy argument
+    bool      is_lift_method1            = true;
+    NecroAst* new_declaration            = NULL;
+    NecroAst* new_declaration_group_list = NULL;
+    if (monomorphize->lift_point == NULL || ast_symbol->ast->scope->parent != NULL)
+    {
+        // Monomorphize local bindings
+        NecroAst* declaration_group = ast_symbol->declaration_group;
+        assert(declaration_group != NULL);
+        assert(declaration_group->type == NECRO_AST_DECL);
+        while (declaration_group->declaration.next_declaration != NULL) // Append
+            declaration_group = declaration_group->declaration.next_declaration;
+        new_declaration                                     = necro_ast_create_decl(monomorphize->arena, ast_symbol->ast, declaration_group->declaration.next_declaration);
+        declaration_group->declaration.next_declaration     = new_declaration;
+        new_declaration->declaration.declaration_group_list = declaration_group->declaration.declaration_group_list;
+        new_declaration->declaration.declaration_impl       = NULL; // Removing dummy argument
+    }
+    else
+    {
+        // Monomorphize global bindings (potentially out of order global bindings, due to type classes, thus the difference in handling).
+        // Lift global bindings at right before the USE point (instead of in the original declaration group).
+        is_lift_method1 = false;
+        assert(monomorphize->lift_point != NULL);
+        assert(monomorphize->lift_point->type == NECRO_AST_DECLARATION_GROUP_LIST);
+        NecroAst* prev_declaration_group_list                    = monomorphize->lift_point;
+        NecroAst* next_declaration_group_list                    = prev_declaration_group_list->declaration_group_list.next;
+        new_declaration                                          = necro_ast_create_decl(monomorphize->arena, ast_symbol->ast, NULL);
+        new_declaration_group_list                               = necro_ast_create_declaration_group_list_with_next(monomorphize->arena, new_declaration, next_declaration_group_list);
+        prev_declaration_group_list->declaration_group_list.next = new_declaration_group_list;
+        new_declaration->declaration.declaration_group_list      = new_declaration_group_list;
+        new_declaration->declaration.declaration_impl            = NULL;
+    }
 
     //--------------------
     // Deep Copy Ast
@@ -297,6 +325,8 @@ NecroAstSymbol* necro_ast_specialize(NecroMonomorphize* monomorphize, NecroAstSy
     //--------------------
     specialized_ast_symbol->type = necro_type_replace_with_subs_deep_copy(monomorphize->arena, &monomorphize->con_env, monomorphize->base, ast_symbol->type, subs);
     unwrap(void, necro_monomorphize_go(monomorphize, specialized_ast_symbol->ast, subs));
+    if (!is_lift_method1)
+        monomorphize->lift_point = new_declaration_group_list; // Move lift point to the newly created Declaration Group for the specialized ast.
 
     monomorphize->scoped_symtable->current_scope      = prev_scope;
     monomorphize->scoped_symtable->current_type_scope = prev_type_scope;
@@ -411,11 +441,19 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
 
     case NECRO_AST_DECLARATION_GROUP_LIST:
     {
-        NecroAst* group_list = ast;
+        const bool is_top_level = monomorphize->lift_point == NULL;
+        NecroAst* prev_group_list = NULL;
+        NecroAst* group_list      = ast;
         while (group_list != NULL)
         {
+            // We're caching this here since the "next" point will likely be altered during the course of monomorphization, which lifts ast's to the top level
+            NecroAst* next_group_list = group_list->declaration_group_list.next;
+            if (is_top_level)
+                monomorphize->lift_point = prev_group_list;
             necro_try(void, necro_monomorphize_go(monomorphize, group_list->declaration_group_list.declaration_group, subs));
-            group_list = group_list->declaration_group_list.next;
+            // group_list = group_list->declaration_group_list.next;
+            prev_group_list = group_list;
+            group_list      = next_group_list;
         }
         return ok_void();
     }

@@ -219,6 +219,13 @@ fby x y =
   where
     isFirstTime ~ 0 = isFirstTime + 1
 
+doFby :: (.a -> b) -> .a -> b -> b
+doFby f x y =
+  if isFirstTime <= 1 then f x else y
+  where
+    isFirstTime ~ 0 = isFirstTime + 1
+
+
 -- TODO: take combinator?
 
 ----------------------
@@ -7696,9 +7703,8 @@ latch tr a =
 ----------------------
 
 -- Basic idea:
---    * Global tick
---    * Global Score
---    * Global music clock calculated via global tick + global score.
+--    * Score tick
+--    * Score clock calculated via score tick + score tempo
 --    * Score typeclass which provides everything you'll need
 --    * Seqs are lazy accumulator functions and are passed in relevant information in a monadic fashion.
 --    * runSeq quantization parameter (poly and seqToAudio quant parameter)
@@ -7816,7 +7822,6 @@ sectionSection (Section _ s _) = s
 sectionTempo :: Section s -> Tempo
 sectionTempo (Section _ _ t) = t
 
--- Calculate new time from section!?!?!?
 scoreBeatInit :: Array n (Section s) -> UInt -> ScoreBeat
 scoreBeatInit sectionArray initialSection =
   ScoreBeat# 0 0 (calculateNextBeatEndTime 0 tempo) initialSection
@@ -7878,13 +7883,6 @@ calculateNextBeat sectionSlice (ScoreBeat# prevBeatNumber prevBeatStartTime prev
     beatNumber               = prevBeatNumber + 1
     beatStartTime            = prevBeatEndTime
 
-scoreBeatTick :: Slice (Section s) -> Rational -> ScoreBeat -> ScoreBeat
-scoreBeatTick sectionSlice time scoreBeat =
-  if time < scoreBeatEndTime scoreBeat then
-    scoreBeat
-  else
-    calculateNextBeat sectionSlice scoreBeat
-
 scoreBeatStartAndEndTick :: Slice (Section s) -> ScoreBeat -> (#ScoreBeat, ScoreBeat#)
 scoreBeatStartAndEndTick sectionSlice prevEndBeat =
   (#newStartBeat, newEndBeat#)
@@ -7892,15 +7890,13 @@ scoreBeatStartAndEndTick sectionSlice prevEndBeat =
     newStartBeat =
       loop startBeat = prevEndBeat while scoreBeatEndTime startBeat <= currBlockTime do
         calculateNextBeat sectionSlice startBeat
-        -- scoreBeatTick sectionSlice (scoreBeatEndTime startBeat) startBeat
     newEndBeat =
       loop endBeat = newStartBeat while scoreBeatEndTime endBeat < nextBlockTime do
         calculateNextBeat sectionSlice endBeat
-        -- scoreBeatTick sectionSlice (scoreBeatEndTime endBeat) endBeat
 
-scoreNewWith :: UInt -> Array n (Section s) -> Score s
-scoreNewWith startingSection sectionArray =
-  case unwrapOrPanic "scoreNewWith" tickBeats of
+scoreNewAt :: UInt -> Array n (Section s) -> Score s
+scoreNewAt startingSection sectionArray =
+  case unwrapOrPanic "scoreNewAt" tickBeats of
     (#startBeat, endBeat#) -> Score startBeat endBeat sectionSlice
   where
     sectionSlice        = toSlice sectionArray
@@ -7912,7 +7908,7 @@ scoreNewWith startingSection sectionArray =
 
 scoreNew :: Array n (Section s) -> Score s
 scoreNew sectionArray =
-  scoreNewWith 0 sectionArray
+  scoreNewAt 0 sectionArray
 
 scoreGetNextBeat :: Score s -> ScoreBeat
 scoreGetNextBeat (Score startBeat endBeat sectionSlice) =
@@ -7943,8 +7939,6 @@ scoreSection :: ScoreType s => Seq s
 scoreSection =
   Seq (\p -> pure (scoreSectionWithOffset score (seqParamGetTimeOffset p)))
 
--- TODO: How to handle SLOW bpm?
-
 -- TODO: gcd optimization
 
 -- playDuringSection :: (AudioFormat f, ScoreType s) => Score s -> s -> (() -> f Audio) -> f Audio
@@ -7953,6 +7947,11 @@ scoreSection =
 --     playFunction ()
 --   else
 --     pure (BlockRate 0)
+
+-- data DefaultScore = DefaultScore
+-- instance ScoreType DefaultScore where
+--   score = scoreNew {Section HoldForever DefaultScore (Tempo 60)}
+
 
 --------------------
 -- Seq
@@ -9042,16 +9041,6 @@ poly3 f x y z = poly (uncurry3' f) (map3 (\x' y' z' -> (#x', y', z'#)) x y z)
 --    * Score quantization sync
 --    * Handle interruptions (nuclear: Keep "pulling" until we catch up")
 
-polyScore :: (ScoreType s, Poly b) => Score s -> (a -> b) -> Seq a -> b
-polyScore scr f s =
-  if firstBeatTime >= nextBlockTime then mempty else
-    polyGo (fby (firstBeatTime - currBlockTime) 0) scr f s
-    -- polyGo 0 scr f s
-  where
-    firstBeat       = doOnce scoreGetNextBeat scr
-    firstBeatTime   = scoreBeatStartTime firstBeat
-    firstBeatOffset = doOnce (\_ -> traceLn2 "firstBeatOffset: " <| traceLn2 "firstBeatTime: " firstBeatTime - traceLn2 "currBlockTime: " currBlockTime) ()
-
 polyEmplace :: a -> Rational -> *DynArrayIterator a -> *DynArrayIterator a
 polyEmplace x nextValueTime thunks =
   dynArrayIteratorEmplaceOrAppend (polyThunkInit x audioSampleOffset) (polyThunkAlloc x audioSampleOffset) thunks
@@ -9060,16 +9049,16 @@ polyEmplace x nextValueTime thunks =
     Rational#     n d = nextValueTime / audioBlockDelta
 
 polyGo :: (ScoreType s, Poly b) => Rational -> Score s -> (a -> b) -> Seq a -> b
-polyGo valueTimeOffset scr f s =
+polyGo firstBeatOffset scr f s =
   case mutRefTake (\_ -> (#dynArrayEmpty 8, 0#)) of
     (#(#thunks0, prevValueTime0#), mref#) ->
       let
         (#_, prevValueTime1, acc', thunks4#) =
-          loop (#cont, nextValueTime, acc, thunks1#) = (#True, prevValueTime0 + valueTimeOffset, mempty, dynArrayIterator thunks0#) while cont do
+          loop (#cont, nextValueTime, acc, thunks1#) = (#True, prevValueTime0 + firstBeatOffset, mempty, dynArrayIterator thunks0#) while cont do
             if nextValueTime < audioBlockDelta then
               case runSeq s (SeqParam# nextValueTime) of
                 SeqValue# dur _ mx ->
-                  let nextValueTime' = traceLn2 "runSeq on: " nextValueTime + dur * scoreGetTempoWithOffset scr nextValueTime in
+                  let nextValueTime' = nextValueTime + dur * scoreGetTempoWithOffset scr nextValueTime in
                   case mx of
                     Just x  -> (#True, nextValueTime', acc, polyEmplace x nextValueTime thunks1#)
                     Nothing -> (#True, nextValueTime', acc, thunks1#)
@@ -9087,6 +9076,12 @@ polyGo valueTimeOffset scr f s =
       in
         case mutRefPut (#dynArrayIteratorEnd thunks4, prevValueTime1#) mref of
           _ -> acc'
+
+polyScore :: (ScoreType s, Poly b) => Score s -> (a -> b) -> Seq a -> b
+polyScore scr f s =
+  polyGo firstBeatOffset scr f s
+  where
+    firstBeatOffset = doFby (\s -> scoreBeatStartTime (scoreGetNextBeat s) - currBlockTime) scr 0
 
 -- testJit :: *World -> *World
 -- testJit w = w

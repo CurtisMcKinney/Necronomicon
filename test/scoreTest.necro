@@ -3,12 +3,13 @@
 -- Score API usage example
 ----------------------
 
+-- TODO: Look at defunctionalization sharing
 -- TODO: Fix compiling complex case expressions
+-- TODO: playDuringSection, playAtSection, playRange, playThenFadeRange, etc
 -- TODO: Deriving capability
 -- TODO: Pitch detection
 -- TODO: "Tonal" Remapper via pitch detection
 -- TODO: Frequency shifting
--- TODO: seqToAudioScore
 -- TODO: default score
 -- TODO: End?
 
@@ -39,11 +40,13 @@ instance ScoreType SimpleScore where
       Section (Beats 12) (SimpleScore C) (Tempo  80),
     }
     |> scoreNew
-    -- |> scoreNewAt 4
+    -- |> scoreNewAt 1
 
 simpleScore :: Score SimpleScore
 simpleScore =
   score
+
+-- defaultScore :: Score SimpleScore
 
 -------------
 -- Usage --
@@ -82,14 +85,12 @@ simpleSynth4 =
   sin (seqToAudioScore simpleScore simpleScoreSeq2 * 220)
   |> mul 0.5 |> asr 1 1000 1 1 |> silenceAtEnd
 
--- defaultScore :: Score SimpleScore
-
--- polyScore test
-simpleScoreTest :: Stereo Audio
-simpleScoreTest =
-  polyScore simpleScore simpleSynth1 simpleScoreSeq1 +
-  polyScore simpleScore simpleSynth2 simpleScoreSeq2
-  |> mul 0.1
+-- -- polyScore test
+-- simpleScoreTest :: Stereo Audio
+-- simpleScoreTest =
+--   polyScore simpleScore simpleSynth1 simpleScoreSeq1 +
+--   polyScore simpleScore simpleSynth2 simpleScoreSeq2
+--   |> mul 0.1
 
 -- -- seqToAudioScore test
 -- simpleScoreTest :: Stereo Audio
@@ -108,57 +109,66 @@ simpleScoreTest =
 --       polyScore simpleScore simpleSynth2 simpleScoreSeq1
 --       |> mul 0.1
 
--- ----------------------
--- -- Complex Score
--- ----------------------
---
--- data ComplexScore = ComplexScore Alphabet UInt SectionType
---
--- -- NOTE: This boilerplate won't need to be here once we have 'deriving' capability in the compiler!
--- instance Eq ComplexScore where
---   eq (ComplexScore xSection xSubSection xSectionMod) (ComplexScore ySection ySubSection ySectionMod) =
---     xSection == ySection && xSubSection == ySubSection && xSectionMod == ySectionMod
---   neq (ComplexScore xSection xSubSection xSectionMod) (ComplexScore ySection ySubSection ySectionMod) =
---     xSection /= ySection || xSubSection /= ySubSection || xSectionMod /= ySectionMod
---
--- instance Default ComplexScore where
---   default = ComplexScore A 1 First
---
--- instance Print ComplexScore where
---   print _ w =
---     print "ComplexScore" w
+----------------------
+-- Complex Score
+----------------------
 
--- instance ScoreType ComplexScore where
---   score =
---     {
---       Section (Beats 24) (ComplexScore A 1 First) (Tempo 180),
---       Section (Beats  8) (ComplexScore A 1 Trans) (TempoChange 180 90 3),
---       Section (Beats 32) (ComplexScore A 2 First) (Tempo  90),
---       Section (Beats 64) (ComplexScore B 1 First) (TempoChange 90 120 -1),
---       Section (Beats 64) (ComplexScore B 2 First) (Tempo 120),
---       Section (Beats 64) (ComplexScore B 2 Trans) (TempoChange 120 180 -4),
---       Section (Beats 32) (ComplexScore A 1 Prime) (Tempo 180),
---       Section (Beats 16) (ComplexScore A 2 Prime) (Tempo 180),
---       Section (Beats 32) (ComplexScore A 3 Prime) (Tempo 180)
---     }
---     |> scoreNew
+data ComplexScore = ComplexScore Alphabet Int SectionType
 
--- complexScore :: Score ComplexScore
--- complexScore = score
---
--- -- complexScoreSeq :: Seq ComplexScore Float
--- -- complexScoreSeq =
--- --   caseM section of
--- --     ComplexSection A 1 First -> [0 1 2 3]
--- --     ComplexSection A 1 Trans -> [0 1 2 3]
--- --     ComplexSection A 2 _     -> [3 2 1 0]
--- --     ComplexSection B 1 First -> [4 _ 4 _]
--- --     ComplexSection B 2 First -> [_ 4 _ 4]
--- --     ComplexSection B 2 Trans -> [4 5 6 7]
--- --     ComplexSection A 1 Prime -> [0 1 8 3]
--- --     ComplexSection A 3 Prime -> [3 2 8 9]
--- --     _                        -> rest
--- --
+-- NOTE: This boilerplate won't need to be here once we have 'deriving' capability in the compiler!
+instance Eq ComplexScore where
+  eq (ComplexScore xSection xSubSection xSectionMod) (ComplexScore ySection ySubSection ySectionMod) =
+    xSection == ySection && xSubSection == ySubSection && xSectionMod == ySectionMod
+  neq (ComplexScore xSection xSubSection xSectionMod) (ComplexScore ySection ySubSection ySectionMod) =
+    xSection /= ySection || xSubSection /= ySubSection || xSectionMod /= ySectionMod
+
+instance Default ComplexScore where
+  default = ComplexScore A 1 First
+
+instance Print ComplexScore where
+  print _ w =
+    print "ComplexScore" w
+
+instance ScoreType ComplexScore where
+  score =
+    {
+      Section (Beats 12) (ComplexScore A 1 First) (Tempo 180),
+      Section (Beats  8) (ComplexScore A 1 Trans) (Tempo 120),
+      Section (Beats 12) (ComplexScore A 2 First) (Tempo  90),
+      Section (Beats 12) (ComplexScore B 1 First) (Tempo 150),
+      Section (Beats 12) (ComplexScore B 2 First) (Tempo 120),
+      Section (Beats  8) (ComplexScore B 2 Trans) (Tempo  90),
+      Section (Beats 12) (ComplexScore A 1 Prime) (Tempo 180),
+      Section (Beats  8) (ComplexScore A 2 Prime) (Tempo 180),
+      Section (Beats 16) (ComplexScore A 3 Prime) (Tempo 180)
+    }
+    |> scoreNew
+
+complexScore :: Score ComplexScore
+complexScore = score
+
+-- Seq optimization: [0 1 2 3] Seq expression with all contants contained into it is desugared into
+-- Seq (\_ -> let i ~ 0 = i + 1 in readArray (Index (i - 1)) {0, 1, 2, 3})
+
+complexScoreSeq :: Seq Float
+complexScoreSeq =
+  scoreSection >>= \s ->
+  case s of
+    ComplexScore A 1 First -> [0 1 2 3]
+    ComplexScore A 1 Trans -> [0 1 2 3]
+    ComplexScore A 2 _     -> [3 2 1 2]
+    ComplexScore B 1 First -> [4 _ 4 _]
+    ComplexScore B 2 First -> [_ 4 _ 4]
+    ComplexScore B 2 Trans -> [4 5 6 7]
+    ComplexScore A 1 Prime -> [2 1 8 3]
+    ComplexScore A 3 Prime -> [3 2 8 9]
+    _                      -> rest
+
+-- Complex polyScore test
+complexScoreTest :: Stereo Audio
+complexScoreTest =
+  polyScore complexScore simpleSynth1 complexScoreSeq
+  |> mul 0.2
 
 
 ----------------------
@@ -167,5 +177,6 @@ simpleScoreTest =
 
 main :: *World -> *World
 main w =
-  outAudio 0 simpleScoreTest w
+  outAudio 0 complexScoreTest w
+  -- outAudio 0 simpleScoreTest w
 

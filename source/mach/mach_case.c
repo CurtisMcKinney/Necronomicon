@@ -11,6 +11,9 @@
 
 /*
     TODO:
+        * Case simplify pass in core (with exhaustiveness checking)
+        * simplified case handling in mach case
+
         * More testing
         * Redundant patterns error in case statements!
         * Handle top better?
@@ -193,12 +196,34 @@ NecroPattern* necro_pattern_create(NecroMachProgram* program, NecroPattern* pare
     }
     case NECRO_CORE_AST_APP:
     {
-        NecroCoreAst*       unwrapped  = necro_core_ast_unwrap_apps(pat_ast);
-        NecroCoreAstSymbol* ast_symbol = unwrapped->var.ast_symbol;
+        // TODO: Experimental: Taking this out to see if it addresses issues with pattern matching!
+        NecroMachType*      core_pat_type = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, pat_ast->necro_type));
+        NecroCoreAst*       unwrapped     = necro_core_ast_unwrap_apps(pat_ast);
+        NecroCoreAstSymbol* ast_symbol    = unwrapped->var.ast_symbol;
         assert(ast_symbol->mach_symbol != NULL);
-        NecroMachType*      con_type   = ast_symbol->mach_symbol->mach_type->fn_type.parameters[0];
-        NecroPattern*       pat        = necro_pattern_alloc(program, parent, slot, NULL, con_type, pat_ast, NECRO_PATTERN_APP);
-        return pat;
+
+        // Figure out if we're a specific constructor for a sum type, or a non-sum type
+        NecroMachType*      symbol_mach_type = ast_symbol->mach_symbol->mach_type;
+        NecroMachType*      con_type         = NULL;
+        if (symbol_mach_type->type == NECRO_MACH_TYPE_FN)
+            con_type = symbol_mach_type->fn_type.parameters[0];
+        else
+            con_type = symbol_mach_type;
+
+        if (necro_mach_type_is_sum_type(con_type))
+        {
+            // if (symbol_mach_type->type != NECRO_MACH_TYPE_FN)
+            //     printf("WTF!?\n");
+            NecroPattern* pat = necro_pattern_alloc(program, parent, slot, NULL, con_type, pat_ast, NECRO_PATTERN_APP);
+            return pat;
+        }
+        else
+        {
+            // necro_mach_type_print_go(con_type, false);
+            // puts("");
+            NecroPattern* pat = necro_pattern_alloc(program, parent, slot, NULL, core_pat_type, pat_ast, NECRO_PATTERN_APP);
+            return pat;
+        }
     }
     case NECRO_CORE_AST_LIT:
     {
@@ -295,11 +320,11 @@ NecroPatternMatrix necro_pattern_matrix_create(NecroMachProgram* program, size_t
     }
     return (NecroPatternMatrix)
     {
-        .rows = rows,
-            .columns = columns,
-            .patterns = patterns,
-            .expressions = expressions,
-            .bindings = NULL,
+        .rows        = rows,
+        .columns     = columns,
+        .patterns    = patterns,
+        .expressions = expressions,
+        .bindings    = NULL,
     };
 }
 
@@ -330,7 +355,9 @@ NecroPatternMatrix necro_pattern_matrix_create_from_case(NecroMachProgram* progr
         assert(alt->case_alt.pat != NULL);
         matrix.patterns[this_rows][0] = necro_pattern_create(program, case_expr_pattern, alt->case_alt.pat, 0);
         if (matrix.patterns[this_rows][0]->pattern_type == NECRO_PATTERN_VAR)
+        {
             matrix.bindings = necro_cons_pattern_list(&program->arena, matrix.patterns[this_rows][0], matrix.bindings);
+        }
         matrix.expressions[this_rows] = alt->case_alt.expr;
         this_rows++;
         alts = alts->next;
@@ -400,7 +427,9 @@ NecroPatternMatrix necro_pattern_matrix_specialize(NecroMachProgram* program, Ne
                 NecroCoreAst* pat                       = apps->app.expr2;
                 specialized_matrix.patterns[new_r][c_d] = necro_pattern_create(program, row_head, pat, c_d);
                 if (specialized_matrix.patterns[new_r][c_d]->pattern_type == NECRO_PATTERN_VAR)
+                {
                     specialized_matrix.bindings = necro_cons_pattern_list(&program->arena, specialized_matrix.patterns[new_r][c_d], specialized_matrix.bindings);
+                }
                 apps = apps->app.expr1;
             }
             assert(unwrapped->ast_type == NECRO_CORE_AST_VAR);
@@ -1015,7 +1044,18 @@ NecroMachAst* necro_decision_tree_to_mach(NecroMachProgram* program, NecroDecisi
             {
                 if (tree->tree_lit_switch.constants[i].type == NECRO_AST_CONSTANT_STRING)
                 {
-                    // NOTE: WTF is up with using this to represent Wildcards / vars!?!?!
+                    if (tree->tree_lit_switch.cases[i]->block != NULL)
+                    {
+                        // This block already exists (due to maximal sharing).
+                        if (switch_value->else_block)
+                        {
+                            // We should only ever overwrite the error block
+                            assert(switch_value->else_block->block.is_error_block);
+                        }
+                        switch_value->else_block = tree->tree_lit_switch.cases[i]->block;
+                        break;
+                    }
+                    // NOTE: WTF is up with using NECRO_AST_CONSTANT_STRING enum value to represent Wildcards / vars!?!?!
                     const char*   case_name  = "default";
                     NecroMachAst* case_block = necro_mach_block_insert_before(program, outer->machine_def.update_fn, case_name, term_case_block);
                     switch_value->else_block = case_block;
@@ -1106,7 +1146,7 @@ NecroMachAst* necro_core_transform_to_mach_3_case(NecroMachProgram* program, Nec
     NecroDecisionTree* tree            = necro_pattern_matrix_compile(program, &matrix, ast);
     // TODO: Maximal sharing? Or not maximal sharing? Is it really that beneficial? Cost/Benefit analysis needed...
     // necro_decision_tree_print(program, tree);
-    // tree                               = necro_decision_tree_maximal_sharing(tree);
+    tree                               = necro_decision_tree_maximal_sharing(tree);
     // necro_decision_tree_print(program, tree);
 
     if (!necro_decision_tree_is_branchless(tree))
@@ -1129,6 +1169,7 @@ NecroMachAst* necro_core_transform_to_mach_3_case(NecroMachProgram* program, Nec
         {
             NecroMachAst* next_error_block = term_case_block->block.next_block;
             err_block = (next_error_block == NULL) ? necro_mach_block_append(program, outer->machine_def.update_fn, "error") : necro_mach_block_insert_before(program, outer->machine_def.update_fn, "error", next_error_block);
+            err_block->block.is_error_block = true;
             necro_mach_block_move_to(program, outer->machine_def.update_fn, err_block);
             if (program->current_binding != NULL)
             {

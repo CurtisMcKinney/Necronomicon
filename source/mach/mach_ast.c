@@ -303,6 +303,7 @@ NecroMachAst* necro_mach_block_create(NecroMachProgram* program, const char* nam
     ast->block.statements_size = 4;
     ast->block.terminator      = NULL;
     ast->block.next_block      = next_block;
+    ast->block.is_error_block  = false;
     ast->necro_machine_type    = NULL;
     return ast;
 }
@@ -847,6 +848,21 @@ void necro_mach_build_unreachable(NecroMachProgram* program, NecroMachAst* fn_de
 
 void necro_mach_add_case_to_switch(NecroMachProgram* program, NecroMachSwitchTerminator* switch_term, NecroMachAst* block, size_t value)
 {
+    // Duplicate and conflicting cases check
+    NecroMachSwitchList* switch_list = switch_term->values;
+    while (switch_list != NULL)
+    {
+        // assert(switch_list->data.value != value && "Redundant case found!");
+        if (switch_list->data.value == value)
+        {
+            // Assert that they aren't conflicting cases
+            assert(switch_list->data.block == block);
+            // Redundant case early return
+            return;
+        }
+        switch_list = switch_list->next;
+    }
+    // while
     switch_term->values = necro_cons_mach_switch_list(&program->arena, (NecroMachSwitchData) { .block = block, .value = value }, switch_term->values);
 }
 

@@ -15,6 +15,9 @@
 #include "utility.h"
 #include "type.h"
 
+// Reference:
+// https://www.haskell.org/onlinereport/haskell2010/haskellch11.html
+
 // void necro_derive_show(NecroInfer* infer, NecroASTNode* data_ast);
 // void necro_derive_eq(NecroInfer* infer, NecroASTNode* data_ast);
 // void necro_derive_ord(NecroInfer* infer, NecroASTNode* data_ast);

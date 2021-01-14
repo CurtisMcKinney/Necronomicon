@@ -322,6 +322,7 @@ void necro_core_transform_to_mach_1_bind(NecroMachProgram* program, NecroCoreAst
             NecroMachType*      mk_fn_type   = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), NULL, 0);
             NecroMachAst*       mk_fn_body   = necro_mach_block_create(program, "entry", NULL);
             NecroMachAst*       mk_fn_def    = necro_mach_create_fn(program, mk_fn_symbol, mk_fn_body, mk_fn_type);
+            assert(program->functions.length > 0);
             program->functions.length--; // HACK: Don't want the mk function in the functions list, instead it belongs to the machine
             machine_def->machine_def.mk_fn   = mk_fn_def;
         }
@@ -332,6 +333,7 @@ void necro_core_transform_to_mach_1_bind(NecroMachProgram* program, NecroCoreAst
             NecroMachType*      init_fn_type   = necro_mach_type_create_fn(&program->arena, necro_mach_type_create_void(program), (NecroMachType*[]) { program->type_cache.word_uint_type }, 1);
             NecroMachAst*       init_fn_body   = necro_mach_block_create(program, "entry", NULL);
             NecroMachAst*       init_fn_def    = necro_mach_create_fn(program, init_fn_symbol, init_fn_body, init_fn_type);
+            assert(program->functions.length > 0);
             program->functions.length--; // HACK: Don't want the mk function in the functions list, instead it belongs to the machine
             machine_def->machine_def.init_fn   = init_fn_def;
         }
@@ -1430,14 +1432,15 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
 
     case NECRO_PRIMOP_UNBOXED_CON:
     {
-        size_t             arg_index = arg_count - 1;
+        size_t             arg_index = arg_count;
         NecroMachAst*      con       = necro_mach_value_create_undefined(program, necro_mach_type_from_necro_type(program, app_ast->necro_type));
         while (app_ast->ast_type == NECRO_CORE_AST_APP)
         {
+            assert(arg_index > 0);
+            arg_index--;
             NecroMachAst* member = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
             con                  = necro_mach_build_insert_value(program, outer->machine_def.update_fn, con, member, arg_index, "unboxed_con");
             app_ast              = app_ast->app.expr1;
-            arg_index--;
         }
         return con;
     }
@@ -1625,13 +1628,14 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
     {
         NecroArenaSnapshot snapshot  = necro_snapshot_arena_get(&program->snapshot_arena);
         NecroMachAst**     args      = necro_snapshot_arena_alloc(&program->snapshot_arena, arg_count * sizeof(NecroMachAst*));
-        size_t             arg_index = arg_count - 1;
+        size_t             arg_index = arg_count;
         NecroCoreAst*      function  = app_ast;
         while (function->ast_type == NECRO_CORE_AST_APP)
         {
+            assert(arg_index > 0);
+            arg_index--;
             args[arg_index] = necro_core_transform_to_mach_3_go(program, function->app.expr2, outer);
             function        = function->app.expr1;
-            arg_index--;
         }
         NecroMachType*     call_type = necro_mach_type_from_necro_type(program, function->necro_type);
         NecroMachAst*      result    = necro_mach_build_call_intrinsic(program, outer->machine_def.update_fn, primop_type, call_type, args, arg_count, "fma_result");
@@ -1796,14 +1800,15 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
 NecroMachAst* necro_core_transform_to_mach_3_unboxed_con(NecroMachProgram* program, NecroCoreAst* core_ast, size_t arg_count, NecroMachAst* outer)
 {
     NecroMachAst* unboxed_con = necro_mach_value_create_undefined(program, necro_mach_type_from_necro_type(program, core_ast->necro_type));
-    size_t        arg_index   = arg_count - 1;
+    size_t        arg_index   = arg_count;
     NecroCoreAst* function    = core_ast;
     while (function->ast_type == NECRO_CORE_AST_APP)
     {
+        assert(arg_index > 0);
+        arg_index--;
         NecroMachAst* arg = necro_core_transform_to_mach_3_go(program, function->app.expr2, outer);
         unboxed_con       = necro_mach_build_insert_value(program, outer->machine_def.update_fn, unboxed_con, arg, arg_index, "unboxed_con");
         function          = function->app.expr1;
-        arg_index--;
     }
     return unboxed_con;
 }
@@ -1864,13 +1869,14 @@ NecroMachAst* necro_core_transform_to_mach_3_app(NecroMachProgram* program, Necr
     assert(fn_value->necro_machine_type->fn_type.num_parameters == arg_count);
     NecroArenaSnapshot snapshot  = necro_snapshot_arena_get(&program->snapshot_arena);
     NecroMachAst**     args      = necro_snapshot_arena_alloc(&program->snapshot_arena, arg_count * sizeof(NecroMachAst*));
-    size_t             arg_index = arg_count - 1;
+    size_t             arg_index = arg_count;
     function                     = core_ast;
     while (function->ast_type == NECRO_CORE_AST_APP)
     {
+        assert(arg_index > 0);
+        arg_index--;
         args[arg_index] = necro_core_transform_to_mach_3_go(program, function->app.expr2, outer);
         function        = function->app.expr1;
-        arg_index--;
     }
     //--------------------
     // Pass in state struct
@@ -2012,6 +2018,7 @@ NecroMachAst* necro_core_transform_to_mach_3_bind(NecroMachProgram* program, Nec
     NecroMachType* update_fn_type = necro_mach_type_create_fn(&program->arena, necro_mach_type_make_ptr_if_boxed(program, machine_def->machine_def.value_type), update_params, num_update_params);
     NecroMachAst*  update_fn_body = necro_mach_block_create(program, "entry", NULL);
     NecroMachAst*  update_fn_def  = necro_mach_create_fn(program, update_symbol, update_fn_body, update_fn_type);
+    assert(program->functions.length > 0);
     program->functions.length--; // HACK: Don't want the update function in the functions list, instead it belongs to the machine
     machine_def->machine_def.update_fn = update_fn_def;
     for (size_t i = 0; i < machine_def->machine_def.num_arg_names; ++i)
@@ -2231,6 +2238,7 @@ void necro_mach_construct_main(NecroMachProgram* program)
         NecroMachAst*       necro_init_entry  = necro_mach_block_create(program, "entry", NULL);
         NecroMachAst*       necro_init_fn     = necro_mach_create_fn(program, necro_init_symbol, necro_init_entry, necro_init_type);
         program->necro_init                   = necro_init_fn;
+        assert(program->functions.length > 0);
         program->functions.length--; // Hack...
 
         //--------------------
@@ -2302,6 +2310,7 @@ void necro_mach_construct_main(NecroMachProgram* program)
         NecroMachAst*       necro_main_entry  = necro_mach_block_create(program, "entry", NULL);
         NecroMachAst*       necro_main_fn     = necro_mach_create_fn(program, necro_main_symbol, necro_main_entry, necro_main_type);
         program->necro_main                   = necro_main_fn;
+        assert(program->functions.length > 0);
         program->functions.length--; // Hack...
 
         //--------------------
@@ -2354,6 +2363,7 @@ void necro_mach_construct_main(NecroMachProgram* program)
         NecroMachAst*       necro_shutdown_entry  = necro_mach_block_create(program, "entry", NULL);
         NecroMachAst*       necro_shutdown_fn     = necro_mach_create_fn(program, necro_shutdown_symbol, necro_shutdown_entry, necro_shutdown_type);
         program->necro_shutdown                   = necro_shutdown_fn;
+        assert(program->functions.length > 0);
         program->functions.length--; // Hack...
         // Entry
         for (size_t i = 0; i < program->machine_defs.length; ++i)

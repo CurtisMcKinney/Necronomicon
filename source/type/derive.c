@@ -11,3 +11,6 @@
 #include "type.h"
 #include "arena.h"
 
+
+// Reference:
+// https://www.haskell.org/onlinereport/haskell2010/haskellch11.html

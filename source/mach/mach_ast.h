@@ -195,6 +195,7 @@ typedef struct NecroMachBlock
     size_t                statements_size;
     NecroMachTerminator*  terminator;
     struct NecroMachAst*  next_block;
+    bool                  is_error_block;
 } NecroMachBlock;
 
 

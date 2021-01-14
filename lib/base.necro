@@ -7957,6 +7957,7 @@ scoreSection =
 -- Seq
 --------------------
 data SeqControl = SeqEnd | SeqBlockEnd | SeqNormal | SeqLoopEnd | SeqPure
+-- data SeqValue a = SeqValue# Rational SeqControl (Maybe a)
 data SeqValue a = SeqValue# Rational SeqControl (Maybe a)
 data SeqParam   = SeqParam# Rational -- Block Time Offset
 data Seq a      = Seq (SeqParam -> SeqValue a)
@@ -8758,22 +8759,36 @@ dynTierPromotePop (DynTier# capacity count highWaterMark ptr) =
   else
     (#DynTierPromotePopEmpty, DynTier# capacity count highWaterMark ptr#)
 
--- TODO: Nested case branching seems broken!?!?!?
 dynArrayPromoteElement :: *DynArray a -> *DynArray a
 dynArrayPromoteElement (DynArray# low (DynTier# capacity count highWaterMark ptr)) =
   case dynTierPromotePop low of
-    (#m, low'#) ->
-      case m of
-        DynTierPromotePopEmpty ->
-          DynArray# low' (DynTier# capacity count highWaterMark ptr)
+    (#DynTierPromotePopEmpty, low'#) ->
+      DynArray# low' (DynTier# capacity count highWaterMark ptr)
 
-        DynTierPromotePopInactive element ->
-          DynArray# low' (DynTier# capacity count (highWaterMark + 1) (unsafePtrPoke highWaterMark element ptr))
+    (#DynTierPromotePopInactive element, low'#) ->
+      DynArray# low' (DynTier# capacity count (highWaterMark + 1) (unsafePtrPoke highWaterMark element ptr))
 
-        DynTierPromotePopLive element ->
-          case unsafePtrSwapElement count element ptr of
-            (#hwmElement, ptr'#) ->
-              DynArray# low' (DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPoke highWaterMark hwmElement ptr'))
+    (#DynTierPromotePopLive element, low'#) ->
+      case unsafePtrSwapElement count element ptr of
+        (#hwmElement, ptr'#) ->
+          DynArray# low' (DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPoke highWaterMark hwmElement ptr'))
+
+-- -- TODO: Nested case branching seems broken!?!?!?
+-- dynArrayPromoteElement :: *DynArray a -> *DynArray a
+-- dynArrayPromoteElement (DynArray# low (DynTier# capacity count highWaterMark ptr)) =
+--   case dynTierPromotePop low of
+--     (#m, low'#) ->
+--       case m of
+--         DynTierPromotePopEmpty ->
+--           DynArray# low' (DynTier# capacity count highWaterMark ptr)
+--
+--         DynTierPromotePopInactive element ->
+--           DynArray# low' (DynTier# capacity count (highWaterMark + 1) (unsafePtrPoke highWaterMark element ptr))
+--
+--         DynTierPromotePopLive element ->
+--           case unsafePtrSwapElement count element ptr of
+--             (#hwmElement, ptr'#) ->
+--               DynArray# low' (DynTier# capacity (count + 1) (highWaterMark + 1) (unsafePtrPoke highWaterMark hwmElement ptr'))
 
 -- NOTE: This assumes that the low tier has been completely moved to the high tier
 dynArrayResize :: *DynArray a -> *DynArray a
@@ -8989,10 +9004,8 @@ seqToAudio s =
               in
                 if nextValueTime > time then (#False, 0, prevValue#) else
                   case runSeq s (getSeqParamAtExactTime nextValueTime) of
-                    SeqValue# seqDuration1 _ msv ->
-                      case msv of
-                        Just seqValue -> (#True, seqDuration1, seqValue#)
-                        Nothing       -> (#True, seqDuration1, prevValue#)
+                    SeqValue# seqDuration1 _ (Just seqValue) -> (#True, seqDuration1, seqValue#)
+                    SeqValue# seqDuration1 _ _               -> (#True, seqDuration1, prevValue#)
         in
           (#i1, writeArray (Index i0) (fromFloat value) a#)
 

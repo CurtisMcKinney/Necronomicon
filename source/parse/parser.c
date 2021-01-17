@@ -9,6 +9,7 @@
 #include "intern.h"
 #include "parser.h"
 #include "parse_ast.h"
+#include "utility/utility.h"
 
 // #define PARSE_DEBUG_PRINT 1
 
@@ -39,7 +40,7 @@ NecroParser necro_parser_create(NecroLexToken* tokens, size_t num_tokens, NecroI
     return (NecroParser)
     {
         .current_token          = 0,
-        .ast                    = (NecroParseAstArena) { .arena = necro_arena_create(num_tokens * sizeof(NecroParseAst)), .root = 0, .module_name = module_name },
+        .ast                    = (NecroParseAstArena) { .arena = necro_parse_arena_create(num_tokens), .root = 0, .module_name = module_name },
         .tokens                 = tokens,
         .descent_state          = NECRO_PARSING,
         .intern                 = intern,
@@ -59,17 +60,60 @@ void necro_parser_destroy(NecroParser* parser)
 
 NecroParseAstArena necro_parse_ast_arena_empty()
 {
-    return (NecroParseAstArena) { .arena = necro_arena_empty(), .root = 0, .module_name = NULL };
+    return (NecroParseAstArena) { .arena = necro_parse_arena_empty(), .root = 0, .module_name = NULL };
 }
 
 NecroParseAstArena necro_parse_ast_arena_create(size_t capacity)
 {
-    return (NecroParseAstArena) { .arena = necro_arena_create(capacity), .root = 0, .module_name = NULL };
+    return (NecroParseAstArena) { .arena = necro_parse_arena_create(capacity), .root = 0, .module_name = NULL };
 }
 
 void necro_parse_ast_arena_destroy(NecroParseAstArena* ast)
 {
-    necro_arena_destroy(&ast->arena);
+    // necro_arena_destroy(&ast->arena);
+    necro_parse_arena_destroy(&ast->arena);
+    *ast = necro_parse_ast_arena_empty();
+}
+
+///////////////////////////////////////////////////////
+// NecroParseArena
+///////////////////////////////////////////////////////
+
+// NOTE: index 0 == null_local_ptr!
+NecroParseArena necro_parse_arena_empty()
+{
+    return (NecroParseArena) { .data = NULL, .capacity = 0, .count =  0 };
+}
+
+NecroParseArena necro_parse_arena_create(size_t capacity)
+{
+    capacity            = next_highest_pow_of_2((uint32_t) capacity) * 2;
+    NecroParseAst* data = emalloc(sizeof(NecroParseAst) * capacity);
+    memset(data, 0, sizeof(NecroParseAst) * capacity);
+    return (NecroParseArena) { .data = data, .capacity = capacity, .count =  1 };
+}
+
+void necro_parse_arena_destroy(NecroParseArena* arena)
+{
+    assert(arena != NULL);
+    if (arena->data != NULL)
+    {
+        free(arena->data);
+    }
+    *arena = necro_parse_arena_empty();
+}
+
+NecroParseAst* necro_parse_arena_alloc(NecroParseArena* arena, NecroParseAstLocalPtr* out_local_ptr)
+{
+    if (arena->count + 1 >= arena->capacity)
+    {
+        arena->capacity *= 2;
+        arena->data      = realloc(arena->data, sizeof(NecroParseAst) * arena->capacity);
+    }
+    NecroParseAst* ast = arena->data + arena->count;
+    *out_local_ptr     = arena->count;
+    arena->count++;
+    return ast;
 }
 
 ///////////////////////////////////////////////////////
@@ -79,13 +123,14 @@ NecroParseAst* necro_parse_ast_get_node(NecroParseAstArena* ast, NecroParseAstLo
 {
     assert(ast != NULL);
     assert(local_ptr != null_local_ptr);
-    return ((NecroParseAst*) ast->arena.region) + local_ptr;
+    // return ((NecroParseAst*) ast->arena.region) + local_ptr;
+    return ast->arena.data + local_ptr;
 }
 
 NecroParseAst* necro_parse_ast_get_root_node(NecroParseAstArena* ast)
 {
     assert(ast != NULL);
-    return (NecroParseAst*) ast->arena.region;
+    return ast->arena.data + 1;
 }
 
 // Snap shot of parser state for back tracking
@@ -97,13 +142,13 @@ typedef struct
 
 static inline NecroParserSnapshot necro_parse_snapshot(NecroParser* parser)
 {
-    return (NecroParserSnapshot) { parser->current_token, parser->ast.arena.size };
+    return (NecroParserSnapshot) { parser->current_token, parser->ast.arena.count };
 }
 
 static inline void necro_parse_restore(NecroParser* parser, NecroParserSnapshot snapshot)
 {
-    parser->current_token = snapshot.current_token;
-    parser->ast.arena.size = snapshot.ast_size;
+    parser->current_token   = snapshot.current_token;
+    parser->ast.arena.count = snapshot.ast_size;
 }
 
 static inline NecroLexToken* necro_parse_peek_token(NecroParser* parser)
@@ -202,15 +247,15 @@ const char* necro_con_type_string(NECRO_CON_TYPE con_type)
 // =====================================================
 // Abstract Syntax Tree
 // =====================================================
-NecroParseAst* necro_parse_ast_alloc(NecroArena* arena, NecroParseAstLocalPtr* local_ptr)
-{
-    NecroParseAst* node = (NecroParseAst*)necro_arena_alloc(arena, sizeof(NecroParseAst), NECRO_ARENA_REALLOC);
-    const size_t offset = node - ((NecroParseAst*)arena->region);
-    assert(offset < MAX_LOCAL_PTR);
-    assert((((NecroParseAst*)arena->region) + offset) == node);
-    *local_ptr = offset;
-    return node;
-}
+// NecroParseAst* necro_parse_ast_alloc(NecroArena* arena, NecroParseAstLocalPtr* local_ptr)
+// {
+//     // NecroParseAst* node = (NecroParseAst*)necro_arena_alloc(arena, sizeof(NecroParseAst));
+//     // const size_t offset = node - ((NecroParseAst*)arena->region);
+//     // assert(offset < MAX_LOCAL_PTR);
+//     // assert((((NecroParseAst*)arena->region) + offset) == node);
+//     // *local_ptr = offset;
+//     // return node;
+// }
 
 void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, uint32_t depth)
 {
@@ -516,6 +561,12 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
         for (uint32_t i = 0;  i < depth; ++i) printf(STRING_TAB);
         puts(" = ");
         necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->data_declaration.constructor_list), depth + 1);
+        if (ast_node->data_declaration.deriving_list != null_local_ptr)
+        {
+            for (uint32_t i = 0; i < depth; ++i) printf(STRING_TAB);
+            puts("(deriving)");
+            necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->data_declaration.deriving_list), depth + 1);
+        }
         break;
 
     case NECRO_AST_SIMPLE_TYPE:
@@ -3573,6 +3624,11 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_list_type(NecroParser* parser);
 NecroResult(NecroParseAstLocalPtr) necro_parse_atype(NecroParser* parser, NECRO_VAR_TYPE tyvar_var_type);
 NecroResult(NecroParseAstLocalPtr) necro_parse_constr(NecroParser* parser);
 
+NecroResult(NecroParseAstLocalPtr) necro_parse_tycon_with_con_var(NecroParser* parser)
+{
+    return ok(NecroParseAstLocalPtr, necro_parse_tycon(parser, NECRO_CON_TYPE_VAR));
+}
+
 NecroResult(NecroParseAstLocalPtr) necro_parse_top_level_data_declaration(NecroParser* parser)
 {
     NecroParserSnapshot snapshot = necro_parse_snapshot(parser);
@@ -3601,8 +3657,30 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_top_level_data_declaration(NecroP
     if (constructor_list == null_local_ptr)
         return necro_data_expected_data_con_error(necro_parse_peek_token(parser)->source_loc, necro_parse_peek_token(parser)->end_loc);
 
+    // deriving
+    NecroParseAstLocalPtr deriving_list = null_local_ptr;
+    if (necro_parse_peek_token_type(parser) == NECRO_LEX_DERIVING)
+    {
+        NecroSourceLoc deriving_loc = necro_parse_peek_token(parser)->source_loc;
+        necro_parse_consume_token(parser);
+        // '('
+        NecroLexToken* look_ahead_token = necro_parse_peek_token(parser);
+        if (look_ahead_token->token != NECRO_LEX_LEFT_PAREN)
+            return necro_data_malformed_deriving_error(deriving_loc, look_ahead_token->end_loc);
+        necro_parse_consume_token(parser);
+        // Class list
+        deriving_list = necro_try_result(NecroParseAstLocalPtr, necro_parse_list(parser, NECRO_LEX_COMMA, necro_parse_tycon_with_con_var));
+        if (deriving_list == null_local_ptr)
+            return necro_data_malformed_deriving_error(deriving_loc, look_ahead_token->end_loc);
+        // ')'
+        look_ahead_token = necro_parse_peek_token(parser);
+        if (look_ahead_token->token != NECRO_LEX_RIGHT_PAREN)
+            return necro_data_malformed_deriving_error(deriving_loc, look_ahead_token->end_loc);
+        necro_parse_consume_token(parser);
+    }
+
     // Finish
-    NecroParseAstLocalPtr ptr = necro_parse_ast_create_data_declaration(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, simpletype, constructor_list);
+    NecroParseAstLocalPtr ptr = necro_parse_ast_create_data_declaration(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, simpletype, constructor_list, deriving_list);
     return ok_NecroParseAstLocalPtr(ptr);
 }
 

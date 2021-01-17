@@ -64,6 +64,8 @@ void                               necro_print_type_classes(struct NecroInfer* i
 NecroResult(NecroType)             necro_create_type_class(struct NecroInfer* infer, NecroAst* type_class_ast);
 NecroResult(NecroType)             necro_create_type_class_instance(struct NecroInfer* infer, NecroAst* instance_ast);
 
+NecroResult(void)                  necro_infer_deriving_declaration(struct NecroInfer* infer, NecroAst* ast);
+
 struct NecroConstraintList*        necro_constraint_list_union(NecroPagedArena* arena, struct NecroConstraintList* constraints1, struct NecroConstraintList* constraints2);
 NecroResult(NecroConstraintList)   necro_constraint_list_from_ast(struct NecroInfer* infer, NecroAst* constraints_ast);
 NecroResult(NecroType)             necro_constraint_ambiguous_type_class_check(NecroAstSymbol* type_sig_name, struct NecroConstraintList* constraints, NecroType* type);

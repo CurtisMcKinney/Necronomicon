@@ -997,9 +997,7 @@ void necro_parse_test()
         NecroParseAstArena ast    = necro_parse_ast_arena_create(100 * sizeof(NecroParseAst));
         ast.root                  =
             necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
-
                 necro_parse_ast_create_data_declaration(&ast.arena, zero_loc, zero_loc,
-
                     necro_parse_ast_create_simple_type(&ast.arena, zero_loc, zero_loc,
                         necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Either"), NECRO_CON_TYPE_DECLARATION),
                         necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
@@ -1007,7 +1005,6 @@ void necro_parse_test()
                             necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                 necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_VAR_DECLARATION, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
                                 null_local_ptr))),
-
                     necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                         necro_parse_ast_create_constructor(&ast.arena, zero_loc, zero_loc,
                             necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Left"), NECRO_CON_DATA_DECLARATION),
@@ -1020,11 +1017,52 @@ void necro_parse_test()
                                 necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
                                     necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
                                     null_local_ptr)),
-                            null_local_ptr))),
-
+                            null_local_ptr)), null_local_ptr),
                 null_local_ptr);
         necro_parse_ast_test("Data", "data Either a b = Left a | Right b\n", &intern, &ast);
     }
+
+    {
+        NecroIntern        intern = necro_intern_create();
+        NecroParseAstArena ast    = necro_parse_ast_arena_create(100 * sizeof(NecroParseAst));
+        ast.root                  =
+            necro_parse_ast_create_top_decl(&ast.arena, zero_loc, zero_loc,
+                necro_parse_ast_create_data_declaration(&ast.arena, zero_loc, zero_loc,
+                    necro_parse_ast_create_simple_type(&ast.arena, zero_loc, zero_loc,
+                        necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Either"), NECRO_CON_TYPE_DECLARATION),
+                        necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                            necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_VAR_DECLARATION, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
+                            necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                                necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_VAR_DECLARATION, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
+                                null_local_ptr))),
+                    necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                        necro_parse_ast_create_constructor(&ast.arena, zero_loc, zero_loc,
+                            necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Left"), NECRO_CON_DATA_DECLARATION),
+                            necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                                necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "a"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
+                                null_local_ptr)),
+                        necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                            necro_parse_ast_create_constructor(&ast.arena, zero_loc, zero_loc,
+                                necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Right"), NECRO_CON_DATA_DECLARATION),
+                                necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                                    necro_parse_ast_create_var(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "b"), NECRO_VAR_TYPE_FREE_VAR, null_local_ptr, NECRO_TYPE_ZERO_ORDER),
+                                    null_local_ptr)),
+                            null_local_ptr)),
+                    necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                        necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Eq"), NECRO_CON_TYPE_VAR),
+                            necro_parse_ast_create_list(&ast.arena, zero_loc, zero_loc,
+                                necro_parse_ast_create_conid(&ast.arena, zero_loc, zero_loc, necro_intern_string(&intern, "Ord"), NECRO_CON_TYPE_VAR), null_local_ptr))
+                    ),
+                null_local_ptr);
+        necro_parse_ast_test("Deriving", "data Either a b = Left a | Right b deriving (Eq, Ord)\n", &intern, &ast);
+    }
+
+    necro_parse_ast_test_error("Deriving Error 1", "data Either a b = Left a | Right b deriving (\n", NECRO_PARSE_DATA_MALFORMED_DERIVING_DECLARATION);
+    necro_parse_ast_test_error("Deriving Error 2", "data Either a b = Left a | Right b deriving ()\n", NECRO_PARSE_DATA_MALFORMED_DERIVING_DECLARATION);
+    // TODO: Trailing commas should be an error, but it's not currently. Fairly benign, but should be fixed eventually...
+    // necro_parse_ast_test_error("Deriving Error 3", "data Either a b = Left a | Right b deriving (Eq, )\n", NECRO_PARSE_DATA_MALFORMED_DERIVING_DECLARATION);
+    necro_parse_ast_test_error("Deriving Error 4", "data Either a b = Left a | Right b deriving )\n", NECRO_PARSE_DATA_MALFORMED_DERIVING_DECLARATION);
+    necro_parse_ast_test_error("Deriving Error 5", "data Either a b = Left a | Right b deriving (Eq z)\n", NECRO_PARSE_DATA_MALFORMED_DERIVING_DECLARATION);
 
     {
         NecroIntern        intern = necro_intern_create();

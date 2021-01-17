@@ -35,13 +35,7 @@ void       necro_arena_destroy(NecroArena* arena);
 #define necro_arena_create(CAPACITY) __necro_arena_create(CAPACITY)
 #endif // DEBUG_MEMORY
 
-typedef enum
-{
-    NECRO_ARENA_FIXED,
-    NECRO_ARENA_REALLOC
-} NECRO_ARENA_ALLOC_POLICY;
-
-void* necro_arena_alloc(NecroArena* arena, size_t size, NECRO_ARENA_ALLOC_POLICY alloc_policy);
+void* necro_arena_alloc(NecroArena* arena, size_t size);
 
 //=====================================================
 // NecroPagedArena

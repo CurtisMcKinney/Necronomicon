@@ -1780,7 +1780,8 @@ NecroResult(NecroType) necro_type_generalize(NecroPagedArena* arena, NecroConstr
     necro_try_map(void, NecroType, necro_kind_infer_default(arena, base, type, NULL_LOC, NULL_LOC));
 
     // TODO: Normal and post inference constraint solving queues?
-    necro_constraint_simplify(arena, con_env, base, intern);
+    // necro_constraint_simplify(arena, con_env, base, intern);
+    necro_try_map(void, NecroType, necro_constraint_simplify(arena, con_env, base, intern));
 
     NecroType* for_alls   = NULL;
     NecroType* gen_type   = necro_type_gen_go(arena, base, intern, type, scope, &for_alls);

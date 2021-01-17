@@ -974,6 +974,8 @@ NecroResult(NecroType) necro_infer_simple_type(NecroInfer* infer, NecroAst* ast)
     return ok(NecroType, ast->necro_type);
 }
 
+// https://www.haskell.org/onlinereport/haskell2010/haskellch11.html
+
 //=====================================================
 // FreeVars
 //=====================================================
@@ -2358,6 +2360,7 @@ NecroResult(NecroType) necro_infer_declaration(NecroInfer* infer, NecroAst* decl
         {
             necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, ast->data_declaration.simpletype->necro_type, NULL, ast->data_declaration.simpletype->simple_type.type_con->source_loc, ast->data_declaration.simpletype->simple_type.type_con->end_loc));
             necro_kind_default_type_kinds(infer->arena, infer->base, ast->data_declaration.simpletype->necro_type);
+            // necro_try_map(void, NecroType, necro_infer_deriving_declaration(infer, ast));
             break;
         }
         case NECRO_AST_TYPE_SIGNATURE:
@@ -3503,7 +3506,7 @@ void necro_test_infer()
                 ),
                 NULL
             )
-        );
+        ,NULL);
 
         NecroAst* not_book = necro_ast_create_data_declaration_with_ast_symbol(
             &ast.arena,
@@ -3536,7 +3539,7 @@ void necro_test_infer()
                 ),
                 NULL
             )
-        );
+        , NULL);
 
         ast.root =
             necro_ast_create_declaration_group_list_with_next(&ast.arena,
@@ -3724,7 +3727,7 @@ void necro_test_infer()
                 ),
                 NULL
             )
-        );
+        , NULL);
 
         NecroAst* not_book = necro_ast_create_data_declaration_with_ast_symbol(
             &ast.arena,
@@ -3757,7 +3760,7 @@ void necro_test_infer()
                 ),
                 NULL
             )
-        );
+        , NULL);
 
         ast.root =
             necro_ast_create_declaration_group_list_with_next(&ast.arena,
@@ -3985,7 +3988,7 @@ void necro_test_infer()
                 ),
                 NULL
             )
-        );
+        , NULL);
 
         NecroAst* eq_instance = NULL;
         {

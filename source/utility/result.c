@@ -341,6 +341,11 @@ NecroResult(NecroParseAstLocalPtr) necro_data_expected_data_con_error(NecroSourc
     return necro_default_parse_error(NECRO_PARSE_DATA_EXPECTED_DATA_CON, source_loc, end_loc);
 }
 
+NecroResult(NecroParseAstLocalPtr) necro_data_malformed_deriving_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
+{
+    return necro_default_parse_error(NECRO_PARSE_DATA_MALFORMED_DERIVING_DECLARATION, source_loc, end_loc);
+}
+
 NecroResult(NecroParseAstLocalPtr) necro_type_expected_type_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc)
 {
     return necro_default_parse_error(NECRO_PARSE_TYPE_EXPECTED_TYPE, source_loc, end_loc);
@@ -1068,6 +1073,12 @@ void necro_print_data_expected_data_con_error(NecroResultError* error, const cha
     necro_print_default_error_format("Malformed Data Declaration", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
 }
 
+void necro_print_data_deriving_declaration_error(NecroResultError* error, const char* source_str, const char* source_name)
+{
+    const char* explanation = "Deriving declarations take the form: ...deriving (ClassName1, ClassName2)";
+    necro_print_default_error_format("Malformed Deriving Declaration", error->default_error_data.source_loc, error->default_error_data.end_loc, source_str, source_name, explanation);
+}
+
 void necro_print_type_expected_type_error(NecroResultError* error, const char* source_str, const char* source_name)
 {
     const char* explanation = "Expected Type after \'->\'. Function type signatures take the form: Type1 -> Type2";
@@ -1590,6 +1601,7 @@ void necro_result_error_print(NecroResultError* error, const char* source_str, c
     case NECRO_PARSE_DATA_EXPECTED_TYPE:                        necro_print_data_expected_type_error(error, source_str, source_name); break;
     case NECRO_PARSE_DATA_EXPECTED_ASSIGN:                      necro_print_data_expected_assign_error(error, source_str, source_name); break;
     case NECRO_PARSE_DATA_EXPECTED_DATA_CON:                    necro_print_data_expected_data_con_error(error, source_str, source_name); break;
+    case NECRO_PARSE_DATA_MALFORMED_DERIVING_DECLARATION:       necro_print_data_deriving_declaration_error(error, source_str, source_name); break;
     case NECRO_PARSE_TYPE_EXPECTED_TYPE:                        necro_print_type_expected_type_error(error, source_str, source_name); break;
     case NECRO_PARSE_TYPE_LIST_EXPECTED_RIGHT_BRACKET:          necro_print_type_list_expected_right_bracket_error(error, source_str, source_name); break;
     case NECRO_PARSE_CLASS_EXPECTED_RIGHT_BRACE:                necro_print_class_expected_right_brace_error(error, source_str, source_name); break;

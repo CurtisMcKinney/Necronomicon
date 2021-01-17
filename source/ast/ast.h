@@ -49,6 +49,7 @@ typedef struct
     struct NecroAst* declarations; // Points to the next in the list, null_local_ptr if the end
     struct NecroAst* declaration_group;
     NecroAstSymbol*  ast_symbol;
+    bool             is_derived_instance;
 } NecroAstTypeClassInstance;
 
 //=====================================================
@@ -92,6 +93,7 @@ typedef struct
 {
     struct NecroAst* simpletype;
     struct NecroAst* constructor_list; // Points to the next in the list, null_local_ptr if the end
+    struct NecroAst* deriving_list; // optional, null if not present
     struct NecroAst* declaration_group;
     bool             is_recursive;
     NecroAstSymbol*  ast_symbol;
@@ -623,8 +625,8 @@ NecroAst* necro_ast_create_constructor(NecroPagedArena* arena, NecroAst* conid, 
 NecroAst* necro_ast_create_simple_type(NecroPagedArena* arena, NecroIntern* intern, const char* simple_type_name, NecroAst* ty_var_list);
 NecroAst* necro_ast_create_simple_type_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* simple_type_name, NecroAst* ty_var_list);
 NecroAst* necro_ast_create_simple_type_with_type_con(NecroPagedArena* arena, NecroAst* type_con, NecroAst* ty_var_list);
-NecroAst* necro_ast_create_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroAst* simple_type, NecroAst* constructor_list);
-NecroAst* necro_ast_create_data_declaration_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* simple_type, NecroAst* constructor_list);
+NecroAst* necro_ast_create_data_declaration(NecroPagedArena* arena, NecroIntern* intern, NecroAst* simple_type, NecroAst* constructor_list, NecroAst* deriving_list);
+NecroAst* necro_ast_create_data_declaration_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* simple_type, NecroAst* constructor_list, NecroAst* deriving_list);
 NecroAst* necro_ast_create_type_app(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2);
 NecroAst* necro_ast_create_type_fn(NecroPagedArena* arena, NecroAst* type1, NecroAst* type2);
 NecroAst* necro_ast_create_fexpr(NecroPagedArena* arena, NecroAst* f_ast, NecroAst* x_ast);

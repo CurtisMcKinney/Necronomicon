@@ -3,15 +3,22 @@
 -- Score API usage example
 ----------------------
 
+-- TODO: Deriving capability (Enum, Ord)
+
+-- TODO: Complex class constraints
 -- TODO: Look at defunctionalization sharing
 -- TODO: Fix compiling complex case expressions
 -- TODO: playDuringSection, playAtSection, playRange, playThenFadeRange, etc
--- TODO: Deriving capability
 -- TODO: Pitch detection
 -- TODO: "Tonal" Remapper via pitch detection
 -- TODO: Frequency shifting
 -- TODO: default score
 -- TODO: End?
+-- TODO: Seq optimization: [0 1 2 3] Seq expression with all contants contained into it is desugared into: Seq (\_ -> let i ~ 0 = i + 1 in readArray (Index (i - 1)) {0, 1, 2, 3})
+
+
+-- defaultScore :: Score SimpleScore
+
 
 ----------------------
 -- Simple Score
@@ -19,16 +26,7 @@
 
 -------------
 -- Set up --
-data SimpleScore = SimpleScore Alphabet
-
--- NOTE: This boilerplate won't need to be here once we have 'deriving' capability in the compiler!
-instance Eq SimpleScore where
-  eq  (SimpleScore xSection) (SimpleScore ySection) = xSection == ySection
-  neq (SimpleScore xSection) (SimpleScore ySection) = xSection /= ySection
-
--- NOTE: This boilerplate won't need to be here once we have 'deriving' capability in the compiler!
-instance Default SimpleScore where
-  default = SimpleScore A
+data SimpleScore = SimpleScore Alphabet deriving (Eq, Default)
 
 instance ScoreType SimpleScore where
   score =
@@ -40,13 +38,10 @@ instance ScoreType SimpleScore where
       Section (Beats 12) (SimpleScore C) (Tempo  80),
     }
     |> scoreNew
-    -- |> scoreNewAt 1
 
 simpleScore :: Score SimpleScore
 simpleScore =
   score
-
--- defaultScore :: Score SimpleScore
 
 -------------
 -- Usage --
@@ -113,21 +108,7 @@ simpleSynth4 =
 -- Complex Score
 ----------------------
 
-data ComplexScore = ComplexScore Alphabet Int SectionType
-
--- NOTE: This boilerplate won't need to be here once we have 'deriving' capability in the compiler!
-instance Eq ComplexScore where
-  eq (ComplexScore xSection xSubSection xSectionMod) (ComplexScore ySection ySubSection ySectionMod) =
-    xSection == ySection && xSubSection == ySubSection && xSectionMod == ySectionMod
-  neq (ComplexScore xSection xSubSection xSectionMod) (ComplexScore ySection ySubSection ySectionMod) =
-    xSection /= ySection || xSubSection /= ySubSection || xSectionMod /= ySectionMod
-
-instance Default ComplexScore where
-  default = ComplexScore A 1 First
-
-instance Print ComplexScore where
-  print _ w =
-    print "ComplexScore" w
+data ComplexScore = ComplexScore Alphabet Int SectionType deriving (Default, Eq)
 
 instance ScoreType ComplexScore where
   score =
@@ -146,9 +127,6 @@ instance ScoreType ComplexScore where
 
 complexScore :: Score ComplexScore
 complexScore = score
-
--- Seq optimization: [0 1 2 3] Seq expression with all contants contained into it is desugared into
--- Seq (\_ -> let i ~ 0 = i + 1 in readArray (Index (i - 1)) {0, 1, 2, 3})
 
 complexScoreSeq :: Seq Float
 complexScoreSeq =
@@ -169,7 +147,6 @@ complexScoreTest :: Stereo Audio
 complexScoreTest =
   polyScore complexScore simpleSynth1 complexScoreSeq
   |> mul 0.2
-
 
 ----------------------
 -- Main

@@ -720,6 +720,7 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
     case NECRO_AST_DATA_DECLARATION:
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->data_declaration.simpletype));
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->data_declaration.constructor_list));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->data_declaration.deriving_list));
         ast->data_declaration.ast_symbol      = ast->data_declaration.simpletype->simple_type.type_con->conid.ast_symbol;
         ast->data_declaration.ast_symbol->ast = ast;
         if (ast->data_declaration.ast_symbol->declaration_group == NULL)
@@ -1860,7 +1861,7 @@ void necro_rename_test()
                             )
                         )
                     )
-                ),
+                , NULL),
                 NULL
             );
 

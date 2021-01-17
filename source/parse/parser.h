@@ -21,7 +21,8 @@
 
 // Local offset into AST arena
 typedef size_t NecroParseAstLocalPtr;
-static const NecroParseAstLocalPtr null_local_ptr = (size_t) -1;
+// static const NecroParseAstLocalPtr null_local_ptr = (size_t) -1;
+static const NecroParseAstLocalPtr null_local_ptr = (size_t) 0;
 
 typedef enum
 {
@@ -71,6 +72,7 @@ typedef enum
     NECRO_AST_TYPE_ATTRIBUTE,
     NECRO_AST_FOR_LOOP,
     NECRO_AST_WHILE_LOOP,
+    NECRO_AST_DERIVING,
     // NECRO_AST_MODULE,
 } NECRO_AST_TYPE;
 
@@ -139,6 +141,7 @@ typedef struct
 {
     NecroParseAstLocalPtr simpletype;
     NecroParseAstLocalPtr constructor_list; // Points to the next in the list, null_local_ptr if the end
+    NecroParseAstLocalPtr deriving_list;    // null_local_ptr if empty
 } NecroParseAstDataDeclaration;
 
 //=====================================================
@@ -710,7 +713,19 @@ typedef struct
 //=====================================================
 typedef struct
 {
-    NecroArena            arena;
+    NecroParseAst* data;
+    size_t         capacity;
+    size_t         count;
+} NecroParseArena;
+
+NecroParseArena necro_parse_arena_empty();
+NecroParseArena necro_parse_arena_create(size_t capacity);
+void            necro_parse_arena_destroy(NecroParseArena* arena);
+NecroParseAst*  necro_parse_arena_alloc(NecroParseArena* arena, NecroParseAstLocalPtr* out_local_ptr);
+
+typedef struct
+{
+    NecroParseArena       arena;
     NecroParseAstLocalPtr root;
     NecroSymbol           module_name;
 } NecroParseAstArena;
@@ -719,7 +734,7 @@ NecroParseAstArena  necro_parse_ast_arena_create(size_t capacity);
 void                necro_parse_ast_arena_destroy(NecroParseAstArena* ast);
 NecroParseAst*      necro_parse_ast_get_node(NecroParseAstArena* ast, NecroParseAstLocalPtr local_ptr);
 NecroParseAst*      necro_parse_ast_get_root_node(NecroParseAstArena* ast);
-NecroParseAst*      necro_parse_ast_alloc(NecroArena* arena, NecroParseAstLocalPtr* local_ptr);
+// NecroParseAst*      necro_parse_ast_alloc(NecroArena* arena, NecroParseAstLocalPtr* local_ptr);
 void                necro_parse_ast_print(NecroParseAstArena* ast);
 
 //=====================================================

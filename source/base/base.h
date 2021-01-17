@@ -101,6 +101,7 @@ typedef struct NecroBase
     NecroAstSymbol* applicative_type_class;
     NecroAstSymbol* monad_type_class;
     NecroAstSymbol* default_type_class;
+    NecroAstSymbol* enum_type_class;
     NecroAstSymbol* audio_type_class;
     NecroAstSymbol* mono_type;
     NecroAstSymbol* prev_fn;

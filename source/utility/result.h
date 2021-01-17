@@ -80,6 +80,7 @@ typedef enum
     NECRO_PARSE_DATA_EXPECTED_TYPE,
     NECRO_PARSE_DATA_EXPECTED_ASSIGN,
     NECRO_PARSE_DATA_EXPECTED_DATA_CON,
+    NECRO_PARSE_DATA_MALFORMED_DERIVING_DECLARATION,
     NECRO_PARSE_TYPE_EXPECTED_TYPE,
     NECRO_PARSE_TYPE_LIST_EXPECTED_RIGHT_BRACKET,
     NECRO_PARSE_CLASS_EXPECTED_RIGHT_BRACE,
@@ -406,6 +407,7 @@ NecroResult(NecroParseAstLocalPtr) necro_fn_op_expected_accent_error(NecroSource
 NecroResult(NecroParseAstLocalPtr) necro_data_expected_type_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_data_expected_assign_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_data_expected_data_con_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
+NecroResult(NecroParseAstLocalPtr) necro_data_malformed_deriving_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_type_expected_type_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_type_list_expected_right_bracket(NecroSourceLoc source_loc, NecroSourceLoc end_loc);
 NecroResult(NecroParseAstLocalPtr) necro_class_expected_right_brace_error(NecroSourceLoc source_loc, NecroSourceLoc end_loc);

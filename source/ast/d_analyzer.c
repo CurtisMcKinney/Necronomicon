@@ -417,6 +417,7 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
         necro_strong_connect1(ast->data_declaration.declaration_group);
         d_analyze_go(d_analyzer, ast->data_declaration.simpletype);
         d_analyze_go(d_analyzer, ast->data_declaration.constructor_list);
+        d_analyze_go(d_analyzer, ast->data_declaration.deriving_list);
         necro_strong_connect2(d_analyzer->arena, ast->data_declaration.declaration_group);
         break;
 

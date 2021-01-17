@@ -1,0 +1,100 @@
+
+----------------------
+-- Deriving Test
+----------------------
+
+-- TODO: More Tests
+-- TODO: Eq
+-- TODO: Ord
+-- TODO: Enum
+-- TODO: Print?
+-- TODO: More?
+
+-- Tests should be folded into infer tests
+
+----------------------
+-- Default
+
+-- -- ERROR
+-- data NoDefaultHere  = NoDefaultHere Int
+-- data TooSmallToFail = TooSmallToFail NoDefaultHere deriving (Default)
+
+-- -- OK
+-- data DefaultHere  = DefaultHere Int
+-- instance Default DefaultHere where
+--   default = DefaultHere 666
+-- data NeverFail = NeverFail DefaultHere deriving (Default)
+
+-- -- OK
+-- data NeverFail a b = NeverFail a b UInt deriving (Default)
+-- dontFailNow :: NeverFail Bool Bool
+-- dontFailNow =
+--   default
+
+-- -- OK
+-- data SumThing = SumThingLeft | SumThingRight deriving (Default)
+-- usedThing :: SumThing
+-- usedThing =
+--   default
+
+-- -- ERROR
+-- data DoubleDown = DoubleDown Int deriving (Default)
+-- instance Default DoubleDown where
+--   default = DoubleDown 33
+
+
+----------------------
+-- Enum
+
+-- OK
+-- TODO: max on toEnum value!
+data NotANum  = NotANum deriving (Enum, Default)
+notANum :: NotANum
+notANum =
+  toEnum 0
+
+
+----------------------
+-- Eq
+
+-- -- ERROR
+-- data NoThereThere   = NoThereThere Int
+-- data TooSmallToFail = TooSmallToFail NotMember deriving (Eq)
+
+-- -- OK
+-- data Equalizer  = Equalizer Int deriving(Eq)
+-- greatEQ :: Bool
+-- greatEQ =
+--   Equalizer 45 == Equalizer 33
+
+-- -- OK
+-- data NeverFail a b = NeverFail a b Bool | Yep deriving (Eq, Default)
+-- dontFailNow :: NeverFail Int UInt -> NeverFail Int UInt -> Bool
+-- dontFailNow x y =
+--   x == y
+
+-- -- OK
+-- data SumThing = SumThingLeft | SumThingRight deriving (Eq)
+-- usedThing :: Bool
+-- usedThing =
+--   SumThingLeft == SumThingRight
+
+-- -- OK
+-- data SumThing = SumThingLeft Int | SumThingRight Int deriving (Eq)
+-- usedThing :: Bool
+-- usedThing =
+--   SumThingLeft 6 == SumThingRight 7
+
+-- -- OK
+-- data SumThing = SumThingLeft Int | SumThingRight deriving (Eq)
+-- usedThing :: Bool
+-- usedThing =
+--   SumThingLeft 6 == SumThingRight
+
+-- -- ERROR
+-- data DoubleDown = DoubleDown Int deriving (Eq)
+-- instance Eq DoubleDown where
+--   eq (DoubleDown x) (DoubleDown y) =
+--     x == y
+
+

@@ -60,26 +60,28 @@ void necro_arena_destroy(NecroArena* arena)
     arena->capacity = 0;
 }
 
-void* necro_arena_alloc(NecroArena* arena, size_t size, NECRO_ARENA_ALLOC_POLICY alloc_policy)
+// NOTE: Arena now ALWAYS reallocs
+void* necro_arena_alloc(NecroArena* arena, size_t size)
 {
-    bool canFit = arena->capacity > (arena->size + size);
-    if (!canFit && (alloc_policy == NECRO_ARENA_REALLOC))
+    // Branchless Align
+    assert(arena->capacity > 0);
+    assert(arena->region != NULL);
+    size +=
+        ((size & (sizeof(size_t) - 1)) != 0) *
+        (sizeof(size_t) - (size & (sizeof(size_t) - 1)));
+    if (arena->size + size >= arena->capacity)
     {
-        size_t new_capacity = MAX(arena->capacity * 2, arena->capacity + size);
-        char* new_region = (arena->region != NULL) ? (char*) realloc(arena->region, new_capacity) : (char*) emalloc(new_capacity);
-        arena->region    = new_region;
+        size_t new_capacity = arena->capacity * 2;
+        while (arena->capacity + size >= new_capacity)
+            new_capacity *= 2;
+        // arena->region    = (char*) realloc(arena->region, new_capacity);
+        free(arena->region);
+        arena->region    = (char*) emalloc(new_capacity);
         arena->capacity  = new_capacity;
-        canFit = true;
     }
-
-    if (canFit)
-    {
-        void* local_region = (void*) (arena->region + arena->size);
-        arena->size += size;
-        return local_region;
-    }
-
-    return 0;
+    void* local_region = (void*) (arena->region + arena->size);
+    arena->size += size;
+    return local_region;
 }
 
 //=====================================================
@@ -154,6 +156,7 @@ void* __necro_paged_arena_alloc(NecroPagedArena* arena, size_t size)
         (sizeof(size_t) - (size & (sizeof(size_t) - 1)));
     if (arena->count + size >= arena->size)
     {
+        arena->size *= 2;
         while (arena->count + size >= arena->size)
             arena->size *= 2;
         TRACE_ARENA("allocating new page of size: %d\n", arena->size);

@@ -10,7 +10,6 @@
 #include "infer.h"
 #include "symtable.h"
 #include "kind.h"
-#include "type/derive.h"
 #include "base.h"
 
 /*
@@ -167,6 +166,11 @@ void necro_print_type_classes(NecroInfer* infer)
     printf("}\n");
 }
 
+
+///////////////////////////////////////////////////////
+// Type Class Declarations
+///////////////////////////////////////////////////////
+
 NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type_class_ast)
 {
     assert(infer != NULL);
@@ -292,6 +296,54 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
     return ok(NecroType, NULL);
 }
 
+
+///////////////////////////////////////////////////////
+// Type Class Instances
+///////////////////////////////////////////////////////
+
+NecroResult(NecroConstraintList) necro_infer_deriving_declaration_member_check(NecroInfer* infer, NecroAst* data_ast, NecroAstSymbol* type_class_symbol, NecroType* instantiated_data_type)
+{
+    assert(infer != NULL);
+    assert(data_ast != NULL);
+    assert(data_ast->type == NECRO_AST_DATA_DECLARATION);
+    assert(type_class_symbol != NULL);
+    assert(type_class_symbol->type_class != NULL);
+    // 1. Add type class constraints to members for each constructor
+    NecroSourceLoc       source_loc       = data_ast->data_declaration.deriving_list->source_loc;
+    NecroSourceLoc       end_loc          = data_ast->data_declaration.deriving_list->end_loc;
+    NecroConstraintList* constraints      = NULL;
+    NecroAst*            constructor_list = data_ast->data_declaration.constructor_list;
+    while (constructor_list != NULL)
+    {
+        NecroAst* con = constructor_list->list.item;
+        assert(con->type == NECRO_AST_CONSTRUCTOR);
+        // NecroAst* con_args = con->constructor.arg_list;
+        NecroType* con_type = necro_type_instantiate(infer->arena, &infer->con_env, infer->base, con->necro_type, NULL, source_loc, end_loc);
+        // while (con_args != NULL)
+        while (con_type->type == NECRO_TYPE_FUN)
+        {
+            // NecroType* member_type = necro_type_instantiate(infer->arena, &infer->con_env, infer->base, con_args->list.item->necro_type, NULL, data_ast->data_declaration.deriving_list->source_loc, data_ast->data_declaration.deriving_list->end_loc);
+            NecroType* member_type = necro_type_find(con_type->fun.type1);
+            constraints            =
+                necro_constraint_append_class_constraint_and_queue_push_back(
+                    infer->arena,
+                    &infer->con_env,
+                    type_class_symbol->type_class,
+                    member_type,
+                    source_loc,
+                    end_loc,
+                    constraints);
+            // con_args                         = con_args->list.next_item;
+            con_type = necro_type_find(con_type->fun.type2);
+        }
+        necro_try_map(NecroType, NecroConstraintList, necro_type_unify_with_full_info(infer->arena, &infer->con_env, infer->base, con_type, instantiated_data_type, NULL, source_loc, end_loc, con_type, instantiated_data_type));
+        constructor_list = constructor_list->list.next_item;
+    }
+    // 2. Solve constraints to ensure well-formed deriving
+    necro_try_map(void, NecroConstraintList, necro_constraint_simplify(infer->arena, &infer->con_env, infer->base, infer->intern));
+    return ok(NecroConstraintList, constraints);
+}
+
 NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, NecroAst* ast)
 {
     assert(infer != NULL);
@@ -338,14 +390,11 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     //------------------
     // Create instance
     NecroTypeClassInstance* const instance = necro_paged_arena_alloc(infer->arena, sizeof(NecroTypeClassInstance));
-    // instance->instance_name            = ast->type_class_instance.ast_symbol;
     instance->type_class_name              = type_class_name;
     instance->data_type_name               = data_type_name;
-    // instance->context                      = necro_try_map_result(NecroTypeClassContext, NecroType, necro_ast_to_context(infer, ast->type_class_instance.context));
     instance->dictionary_prototype         = NULL;
     instance->ast                          = ast;
     instance->data_type                    = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, instance->ast->type_class_instance.inst, NECRO_TYPE_ATTRIBUTE_NONE));
-    // instance->super_instances              = NULL;
     data->type_class_instance              = instance;
 
     // Add to instance list
@@ -357,11 +406,23 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     necro_try(NecroType, necro_kind_infer(infer->arena, infer->base, instance->data_type, instance->ast->source_loc, instance->ast->end_loc));
     necro_try(NecroType, necro_kind_unify_with_info(class_var->kind, instance->data_type->kind, NULL, ast->type_class_instance.inst->source_loc, ast->type_class_instance.inst->end_loc));
 
-    // Apply constraints
-    // necro_apply_constraints(infer->arena, instance->data_type, instance->context);
-    instance->data_type              = necro_try_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, infer->intern, instance->data_type, NULL));
-    NecroConstraintList* constraints = necro_try_map_result(NecroConstraintList, NecroType, necro_constraint_list_from_ast(infer, ast->type_class_instance.context));
-    necro_constraint_list_apply(infer->arena, instance->data_type, constraints);
+    //--------------------
+    // Constraints
+    if (ast->type_class_instance.is_derived_instance)
+    {
+        // Derived instance: Check for correctness and generate constraints
+        necro_try_map(NecroConstraintList, NecroType, necro_infer_deriving_declaration_member_check(infer, instance->data_type_name->ast, instance->type_class_name, instance->data_type));
+        instance->data_type = necro_try_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, infer->intern, instance->data_type, NULL));
+        necro_try_map(void, NecroType, necro_kind_infer_default(infer->arena, infer->base, instance->data_type, instance->ast->source_loc, instance->ast->end_loc));
+    }
+    else
+    {
+        // Apply constraints
+        instance->data_type = necro_try_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, infer->intern, instance->data_type, NULL));
+        necro_try_map(void, NecroType, necro_kind_infer_default(infer->arena, infer->base, instance->data_type, instance->ast->source_loc, instance->ast->end_loc));
+        NecroConstraintList* constraints = necro_try_map_result(NecroConstraintList, NecroType, necro_constraint_list_from_ast(infer, ast->type_class_instance.context));
+        necro_constraint_list_apply(infer->arena, instance->data_type, constraints);
+    }
 
     //---------------------------------
     // Super classes check
@@ -443,6 +504,11 @@ NecroResult(NecroType) necro_create_type_class_instance(NecroInfer* infer, Necro
     if (instance->ast->type_class_instance.declarations != NULL)
     {
         necro_try(NecroType, necro_infer_go(infer, instance->ast->type_class_instance.declarations));
+        // if (ast->type_class_instance.is_derived_instance)
+        // {
+        //     necro_type_print(instance->ast->type_class_instance.declarations->declaration_group_list.declaration_group->declaration.declaration_impl->necro_type);
+        //     puts("");
+        // }
     }
 
     //--------------------------------
@@ -898,3 +964,4 @@ NecroResult(void) necro_constraint_simplify_class_constraint(NecroPagedArena* ar
         necro_unreachable(void);
     }
 }
+

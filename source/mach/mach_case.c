@@ -196,31 +196,24 @@ NecroPattern* necro_pattern_create(NecroMachProgram* program, NecroPattern* pare
     }
     case NECRO_CORE_AST_APP:
     {
-        // TODO: Experimental: Taking this out to see if it addresses issues with pattern matching!
-        NecroMachType*      core_pat_type = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, pat_ast->necro_type));
-        NecroCoreAst*       unwrapped     = necro_core_ast_unwrap_apps(pat_ast);
-        NecroCoreAstSymbol* ast_symbol    = unwrapped->var.ast_symbol;
-        assert(ast_symbol->mach_symbol != NULL);
-
         // Figure out if we're a specific constructor for a sum type, or a non-sum type
+        NecroMachType*      core_pat_type    = necro_mach_type_make_ptr_if_boxed(program, necro_mach_type_from_necro_type(program, pat_ast->necro_type));
+        NecroCoreAst*       unwrapped        = necro_core_ast_unwrap_apps(pat_ast);
+        NecroCoreAstSymbol* ast_symbol       = unwrapped->var.ast_symbol;
+        assert(ast_symbol->mach_symbol != NULL);
         NecroMachType*      symbol_mach_type = ast_symbol->mach_symbol->mach_type;
-        NecroMachType*      con_type         = NULL;
+        NecroMachType*      con_type         = symbol_mach_type;
         if (symbol_mach_type->type == NECRO_MACH_TYPE_FN)
             con_type = symbol_mach_type->fn_type.parameters[0];
-        else
-            con_type = symbol_mach_type;
-
         if (necro_mach_type_is_sum_type(con_type))
         {
-            // if (symbol_mach_type->type != NECRO_MACH_TYPE_FN)
-            //     printf("WTF!?\n");
+            // Use the specific Sum constructor type
             NecroPattern* pat = necro_pattern_alloc(program, parent, slot, NULL, con_type, pat_ast, NECRO_PATTERN_APP);
             return pat;
         }
         else
         {
-            // necro_mach_type_print_go(con_type, false);
-            // puts("");
+            // Use the pattern type
             NecroPattern* pat = necro_pattern_alloc(program, parent, slot, NULL, core_pat_type, pat_ast, NECRO_PATTERN_APP);
             return pat;
         }

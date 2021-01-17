@@ -122,7 +122,6 @@ set(project_SOURCES
     source/type/type_class.c
     source/type/monomorphize.c
     source/type/alias_analysis.c
-    source/type/derive.c
 
     source/core/core_ast.c
     source/core/defunctionalization.c
@@ -181,7 +180,6 @@ set(project_HEADERS
     source/type/type_class.h
     source/type/monomorphize.h
     source/type/alias_analysis.h
-    source/type/derive.h
 
     source/core/core_ast.h
     source/core/defunctionalization.h

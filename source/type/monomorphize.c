@@ -178,6 +178,10 @@ NecroAstSymbol* necro_ast_specialize_method(NecroMonomorphize* monomorphize, Nec
             assert(sub_con->type == NECRO_TYPE_CON);
             NecroSymbol     instance_method_name       = necro_intern_create_type_class_instance_symbol(monomorphize->intern, ast_symbol->source_name, sub_con->con.con_symbol->source_name);
             NecroAstSymbol* instance_method_ast_symbol = necro_scope_find_ast_symbol(monomorphize->scoped_symtable->top_scope, instance_method_name);
+            if (instance_method_ast_symbol == NULL)
+            {
+                printf("Uh oh!");
+            }
             assert(instance_method_ast_symbol != NULL);
             if (necro_type_is_polymorphic(instance_method_ast_symbol->type))
             {

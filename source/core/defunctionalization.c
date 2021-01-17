@@ -1104,7 +1104,6 @@ NecroStaticValue* necro_defunctionalize_app(NecroDefunctionalizeContext* context
     }
     else
     {
-
         assert(app->var.ast_symbol->static_value != NULL);
         fn_static_value = app->var.ast_symbol->static_value;
     }

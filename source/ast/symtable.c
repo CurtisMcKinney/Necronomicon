@@ -401,6 +401,7 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_scoped_symtable_new_scope(scoped_symtable);
         necro_build_scopes_go(scoped_symtable, input_node->data_declaration.simpletype);
         necro_build_scopes_go(scoped_symtable, input_node->data_declaration.constructor_list);
+        necro_build_scopes_go(scoped_symtable, input_node->data_declaration.deriving_list);
         necro_scoped_symtable_pop_scope(scoped_symtable);
         necro_scoped_symtable_pop_type_scope(scoped_symtable);
         break;

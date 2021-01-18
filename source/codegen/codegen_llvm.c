@@ -87,20 +87,21 @@ NecroLLVM necro_llvm_empty()
 {
     return (NecroLLVM)
     {
-        .arena                   = necro_paged_arena_empty(),
-        .snapshot_arena          = necro_snapshot_arena_empty(),
-        .intern                  = NULL,
-        .base                    = NULL,
-        .context                 = NULL,
-        .builder                 = NULL,
-        .mod                     = NULL,
-        .target                  = NULL,
-        .target_machine          = NULL,
-        .fn_pass_manager         = NULL,
-        .mod_pass_manager        = NULL,
-        .engine                  = NULL,
-        .should_optimize         = false,
-        .delayed_phi_node_values = necro_empty_delayed_phi_node_value_vector(),
+        .arena                    = necro_paged_arena_empty(),
+        .snapshot_arena           = necro_snapshot_arena_empty(),
+        .intern                   = NULL,
+        .base                     = NULL,
+        .context                  = NULL,
+        .builder                  = NULL,
+        .mod                      = NULL,
+        .target                   = NULL,
+        .target_machine           = NULL,
+        .fn_pass_manager          = NULL,
+        .mod_pass_manager         = NULL,
+        .engine                   = NULL,
+        .should_optimize          = false,
+        .delayed_phi_node_values  = necro_empty_delayed_phi_node_value_vector(),
+        .unsafe_fp_math_attribute = NULL,
     };
 }
 
@@ -112,10 +113,11 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
     LLVMInitializeNativeAsmParser();
 
     // Context/Mod/Engine
-    LLVMContextRef         context          = LLVMContextCreate();
-    LLVMModuleRef          mod              = LLVMModuleCreateWithNameInContext("necro", context);
-    LLVMExecutionEngineRef engine           = NULL;
-    LLVMCodeGenOptLevel    opt_level        = should_optimize ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
+    LLVMContextRef         context                  = LLVMContextCreate();
+    LLVMModuleRef          mod                      = LLVMModuleCreateWithNameInContext("necro", context);
+    LLVMExecutionEngineRef engine                   = NULL;
+    LLVMCodeGenOptLevel    opt_level                = should_optimize ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
+    LLVMAttributeRef       unsafe_fp_math_attribute = NULL;
 
     // Machine
     const char*   target_triple    = LLVMGetDefaultTargetTriple();
@@ -143,6 +145,7 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
 
     if (should_optimize)
     {
+        unsafe_fp_math_attribute = LLVMCreateStringAttribute(context, "unsafe-fp-math", 14, "true", 4);
         // LLVMAddDeadStoreEliminationPass(fn_pass_manager);
         // LLVMAddAggressiveDCEPass(fn_pass_manager);
         // LLVMAddTailCallEliminationPass(fn_pass_manager);
@@ -228,22 +231,23 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
     }
     return (NecroLLVM)
     {
-        .arena                   = necro_paged_arena_create(),
-        .snapshot_arena          = necro_snapshot_arena_create(),
-        .intern                  = intern,
-        .base                    = base,
-        .context                 = context,
-        .builder                 = LLVMCreateBuilderInContext(context),
-        .mod                     = mod,
-        .target                  = target_data,
-        .target_machine          = target_machine,
-        .fn_pass_manager         = fn_pass_manager,
-        .mod_pass_manager        = mod_pass_manager,
-        .should_optimize         = should_optimize,
-        .engine                  = engine,
-        .program                 = program,
-        .delayed_phi_node_values = necro_create_delayed_phi_node_value_vector(),
-        .opt_level               = opt_level,
+        .arena                    = necro_paged_arena_create(),
+        .snapshot_arena           = necro_snapshot_arena_create(),
+        .intern                   = intern,
+        .base                     = base,
+        .context                  = context,
+        .builder                  = LLVMCreateBuilderInContext(context),
+        .mod                      = mod,
+        .target                   = target_data,
+        .target_machine           = target_machine,
+        .fn_pass_manager          = fn_pass_manager,
+        .mod_pass_manager         = mod_pass_manager,
+        .should_optimize          = should_optimize,
+        .engine                   = engine,
+        .program                  = program,
+        .delayed_phi_node_values  = necro_create_delayed_phi_node_value_vector(),
+        .opt_level                = opt_level,
+        .unsafe_fp_math_attribute = unsafe_fp_math_attribute,
     };
 }
 
@@ -1359,6 +1363,10 @@ void necro_llvm_declare_function(NecroLLVM* context, NecroMachAst* ast)
         LLVMSetFunctionCallConv(fn_value, LLVMCCallConv);
         LLVMSetLinkage(fn_value, LLVMExternalLinkage);
     }
+    if (context->unsafe_fp_math_attribute != NULL)
+    {
+        LLVMAddAttributeAtIndex(fn_value, (LLVMAttributeIndex) LLVMAttributeFunctionIndex, context->unsafe_fp_math_attribute);
+    }
 }
 
 void necro_llvm_codegen_function(NecroLLVM* context, NecroMachAst* ast)
@@ -1427,6 +1435,10 @@ LLVMValueRef necro_llvm_codegen_call(NecroLLVM* context, NecroMachAst* ast)
         LLVMSetInstructionCallConv(result, LLVMCCallConv);
     else
         LLVMSetInstructionCallConv(result, LLVMFastCallConv);
+    if (context->unsafe_fp_math_attribute != NULL)
+    {
+        LLVMAddCallSiteAttribute(result, 0, context->unsafe_fp_math_attribute);
+    }
     if (!is_void)
     {
         NecroLLVMSymbol* symbol = necro_llvm_symbol_get(&context->arena, ast->call.result_reg->value.reg_symbol);

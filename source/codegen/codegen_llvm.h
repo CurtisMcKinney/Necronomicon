@@ -48,6 +48,7 @@ typedef struct NecroLLVM
     LLVMPassManagerRef             mod_pass_manager;
     LLVMExecutionEngineRef         engine;
     LLVMCodeGenOptLevel            opt_level;
+    LLVMAttributeRef               unsafe_fp_math_attribute;
 
     bool                           should_optimize;
     NecroDelayedPhiNodeValueVector delayed_phi_node_values;

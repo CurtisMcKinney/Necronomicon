@@ -1240,8 +1240,6 @@ instance Floating (FloatVec n) where
   ceil      x = primUndefined
   truncate  x = primUndefined
   round     x = primUndefined
-  -- fmin      x y = primUndefined
-  -- fmax      x y = primUndefined
 
 -- instance Trig (FloatVec n) where
 --   sine   x = primUndefined
@@ -1471,8 +1469,6 @@ instance Floating Complex where
   ceil      (Complex# r i) = Complex# (ceil r) (ceil i)
   truncate  (Complex# r i) = Complex# (truncate r) (truncate i)
   round     (Complex# r i) = Complex# (round r) (round i)
-  -- fmin      x y = if (magnitude x < magnitude y) then x else y -- TODO: branchless versions?
-  -- fmax      x y = if (magnitude x > magnitude y) then x else y
 
 instance Trig Complex where
   sine (Complex# r i) = Complex# (sine r * cosineh i) (cosine r * sineh i)
@@ -8059,8 +8055,6 @@ instance Floating a => Floating (SeqValue a) where
   ceil      x = map ceil x
   truncate  x = map truncate x
   round     x = map round x
-  -- fmin      x y = map2 fmin x y
-  -- fmax      x y = map2 fmax x y
 
 runSeq :: Seq a -> SeqParam -> SeqValue a
 runSeq (Seq stepFunc) p =
@@ -8211,8 +8205,6 @@ instance Floating a => Floating (Seq a) where
   ceil      x = map ceil x
   truncate  x = map truncate x
   round     x = map round x
-  -- fmin      x y = map2 fmin x y
-  -- fmax      x y = map2 fmax x y
 
 instance Semigroup (Seq a) where
   append sx sy = [sx sy]

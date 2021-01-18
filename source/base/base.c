@@ -386,7 +386,10 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
             necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "lt"),
                 necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "gt"),
                     necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "lte"),
-                        necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "gte"), NULL))));
+                        necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "gte"),
+                            necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "min"),
+                                necro_ast_create_decl(arena, necro_ast_create_prim_bin_op_method_ast(arena, intern, "max"),
+                                    NULL))))));
         necro_append_top(arena, top, necro_ast_create_instance(arena, intern, "Ord", necro_base_make_num_con(arena, intern, "()", false), necro_base_make_num_context(arena, intern, "Ord", false), ord_method_list));
     }
 
@@ -1178,6 +1181,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "lt<Int>",      NULL, NECRO_PRIMOP_CMP_LT);
     necro_base_setup_primitive(scoped_symtable, intern, "gte<Int>",     NULL, NECRO_PRIMOP_CMP_GE);
     necro_base_setup_primitive(scoped_symtable, intern, "lte<Int>",     NULL, NECRO_PRIMOP_CMP_LE);
+    necro_base_setup_primitive(scoped_symtable, intern, "min<Int>",     &base.smin, NECRO_PRIMOP_INTR_SMIN);
+    necro_base_setup_primitive(scoped_symtable, intern, "max<Int>",     &base.smax, NECRO_PRIMOP_INTR_SMAX);
 
     // UInt
     necro_base_setup_primitive(scoped_symtable, intern, "add<UInt>",            NULL, NECRO_PRIMOP_BINOP_UADD);
@@ -1203,6 +1208,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "bitShiftRightA<UInt>", NULL, NECRO_PRIMOP_BINOP_SHRA);
     necro_base_setup_primitive(scoped_symtable, intern, "bitReverse<UInt>",     &base.bit_reverse_uint, NECRO_PRIMOP_INTR_BREV);
     necro_base_setup_primitive(scoped_symtable, intern, "uintToInt",            NULL, NECRO_PRIMOP_UOP_UTOI);
+    necro_base_setup_primitive(scoped_symtable, intern, "min<UInt>",            &base.umin, NECRO_PRIMOP_INTR_UMIN);
+    necro_base_setup_primitive(scoped_symtable, intern, "max<UInt>",            &base.umax, NECRO_PRIMOP_INTR_UMAX);
 
     // Float
     necro_base_setup_primitive(scoped_symtable, intern, "add<Float>",            NULL,                          NECRO_PRIMOP_BINOP_FADD);
@@ -1249,8 +1256,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "truncate<Float>",       &base.truncate_float,          NECRO_PRIMOP_INTR_FTRNC);
     necro_base_setup_primitive(scoped_symtable, intern, "round<Float>",          &base.round_float,             NECRO_PRIMOP_INTR_FRND);
     necro_base_setup_primitive(scoped_symtable, intern, "copysign<Float>",       &base.copy_sign_float,         NECRO_PRIMOP_INTR_FCPYSGN);
-    /* necro_base_setup_primitive(scoped_symtable, intern, "fmin<Float>",           &base.min_float,             NECRO_PRIMOP_INTR_FMIN); */
-    /* necro_base_setup_primitive(scoped_symtable, intern, "fmax<Float>",           &base.max_float,             NECRO_PRIMOP_INTR_FMAX); */
+    necro_base_setup_primitive(scoped_symtable, intern, "min<Float>",            &base.min_float,               NECRO_PRIMOP_INTR_FMIN);
+    necro_base_setup_primitive(scoped_symtable, intern, "max<Float>",            &base.max_float,               NECRO_PRIMOP_INTR_FMAX);
     necro_base_setup_primitive(scoped_symtable, intern, "floatToUInt",           NULL,                          NECRO_PRIMOP_UOP_FTRU);
 
     // FloatVec
@@ -1279,6 +1286,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "lt<()>",  NULL, NECRO_PRIMOP_CMP_LT);
     necro_base_setup_primitive(scoped_symtable, intern, "gte<()>", NULL, NECRO_PRIMOP_CMP_GE);
     necro_base_setup_primitive(scoped_symtable, intern, "lte<()>", NULL, NECRO_PRIMOP_CMP_LE);
+    necro_base_setup_primitive(scoped_symtable, intern, "min<()>", NULL, NECRO_PRIMOP_INTR_UMIN);
+    necro_base_setup_primitive(scoped_symtable, intern, "max<()>", NULL, NECRO_PRIMOP_INTR_UMAX);
 
     // Bool
     necro_base_setup_primitive(scoped_symtable, intern, "eq<Bool>",  NULL, NECRO_PRIMOP_CMP_EQ);
@@ -1287,6 +1296,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "lt<Bool>",  NULL, NECRO_PRIMOP_CMP_LT);
     necro_base_setup_primitive(scoped_symtable, intern, "gte<Bool>", NULL, NECRO_PRIMOP_CMP_GE);
     necro_base_setup_primitive(scoped_symtable, intern, "lte<Bool>", NULL, NECRO_PRIMOP_CMP_LE);
+    necro_base_setup_primitive(scoped_symtable, intern, "min<Bool>", NULL, NECRO_PRIMOP_INTR_UMIN);
+    necro_base_setup_primitive(scoped_symtable, intern, "max<Bool>", NULL, NECRO_PRIMOP_INTR_UMAX);
     necro_base_setup_primitive(scoped_symtable, intern, "&&",        NULL, NECRO_PRIMOP_BINOP_AND);
     necro_base_setup_primitive(scoped_symtable, intern, "||",        NULL, NECRO_PRIMOP_BINOP_OR);
     necro_base_setup_primitive(scoped_symtable, intern, "boolToInt", NULL, NECRO_PRIMOP_UOP_UTOI);

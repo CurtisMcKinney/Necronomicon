@@ -434,9 +434,9 @@ typedef enum
     NECRO_MACH_CMP,
     NECRO_MACH_PHI,
     NECRO_MACH_SIZE_OF,
+    NECRO_MACH_SELECT,
 
     // NECRO_MACH_ALLOCA, // TODO: Maybe remove
-    // NECRO_MACH_SELECT, // TODO: Maybe remove
 
     // Defs
     NECRO_MACH_STRUCT_DEF,
@@ -626,7 +626,7 @@ void                       necro_mach_add_incoming_to_phi(NecroMachProgram* prog
 void                       necro_mach_build_unreachable(NecroMachProgram* program, NecroMachAst* fn_def);
 void                       necro_mach_add_case_to_switch(NecroMachProgram* program, NecroMachSwitchTerminator* switch_term, NecroMachAst* block, size_t value);
 NecroMachSwitchTerminator* necro_mach_build_switch(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* choice_val, NecroMachSwitchList* values, NecroMachAst* else_block);
-// NecroMachAst* necro_build_select(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cmp_value, NecroMachAst* left, NecroMachAst* right);
+NecroMachAst*              necro_mach_build_select(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cmp_value, NecroMachAst* left, NecroMachAst* right);
 
 //--------------------
 // Defs

@@ -229,6 +229,10 @@ void necro_mach_print_call_intrinsic(NecroMachAst* ast, size_t depth)
     case NECRO_PRIMOP_INTR_FCPYSGN: printf("fcpysgn "); break;
     case NECRO_PRIMOP_INTR_FMIN:    printf("fmin ");    break;
     case NECRO_PRIMOP_INTR_FMAX:    printf("fmax ");    break;
+    case NECRO_PRIMOP_INTR_SMIN:    printf("smin ");    break;
+    case NECRO_PRIMOP_INTR_SMAX:    printf("smax ");    break;
+    case NECRO_PRIMOP_INTR_UMIN:    printf("umin ");    break;
+    case NECRO_PRIMOP_INTR_UMAX:    printf("umax ");    break;
     default:                        assert(false);      break;
     }
     printf("(");
@@ -543,17 +547,17 @@ void necro_mach_print_cmp(NecroMachAst* ast, size_t depth)
     necro_mach_print_value(ast->cmp.right, NECRO_PRINT_VALUE_TYPE);
 }
 
-// void necro_machine_print_select(NecroMachAst* ast, size_t depth)
-// {
-//     assert(ast->type == NECRO_MACH_SELECT);
-//     print_white_space(depth);
-//     printf("%%%s = select", ast->select.result->value.reg_symbol->name->str);
-//     necro_mach_print_value(ast->select.cmp_value, NECRO_DONT_PRINT_VALUE_TYPE);
-//     printf(" ");
-//     necro_mach_print_value(ast->select.left, NECRO_PRINT_VALUE_TYPE);
-//     printf(" ");
-//     necro_mach_print_value(ast->select.right, NECRO_PRINT_VALUE_TYPE);
-// }
+void necro_machine_print_select(NecroMachAst* ast, size_t depth)
+{
+    assert(ast->type == NECRO_MACH_SELECT);
+    print_white_space(depth);
+    printf("%%%s = select", ast->select.result->value.reg_symbol->name->str);
+    necro_mach_print_value(ast->select.cmp_value, NECRO_DONT_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_mach_print_value(ast->select.left, NECRO_PRINT_VALUE_TYPE);
+    printf(" ");
+    necro_mach_print_value(ast->select.right, NECRO_PRINT_VALUE_TYPE);
+}
 
 void necro_mach_print_ast_go(NecroMachAst* ast, size_t depth)
 {
@@ -634,9 +638,9 @@ void necro_mach_print_ast_go(NecroMachAst* ast, size_t depth)
     // case NECRO_MACH_ALLOCA:
     //     necro_mach_print_alloca(ast, depth);
     //     return;
-    // case NECRO_MACH_SELECT:
-    //     necro_machine_print_select(ast, depth);
-    //     return;
+    case NECRO_MACH_SELECT:
+        necro_machine_print_select(ast, depth);
+        return;
     default:
         assert(false);
         return;

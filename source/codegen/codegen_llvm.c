@@ -204,6 +204,7 @@ NecroLLVM necro_llvm_create(NecroIntern* intern, NecroBase* base, NecroMachProgr
 
         // LLVMAddGlobalOptimizerPass(mod_pass_manager);
         LLVMPassManagerBuilderRef pass_manager_builder = LLVMPassManagerBuilderCreate();
+        // Fast
         LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, 0);
         // LLVMPassManagerBuilderUseInlinerWithThreshold(pass_manager_builder, 1);
         // LLVMPassManagerBuilderSetOptLevel(pass_manager_builder, opt_level);
@@ -542,6 +543,21 @@ LLVMValueRef necro_llvm_codegen_extract_value(NecroLLVM* context, NecroMachAst* 
     return value;
 }
 
+LLVMValueRef necro_llvm_codegen_select(NecroLLVM* context, NecroMachAst* ast)
+{
+    assert(context != NULL);
+    assert(ast != NULL);
+    assert(ast->type == NECRO_MACH_SELECT);
+    LLVMValueRef     cmp_value   = necro_llvm_codegen_value(context, ast->select.cmp_value);
+    LLVMValueRef     left_value  = necro_llvm_codegen_value(context, ast->select.left);
+    LLVMValueRef     right_value = necro_llvm_codegen_value(context, ast->select.right);
+    LLVMValueRef     value       = LLVMBuildSelect(context->builder, cmp_value, left_value, right_value, ast->select.result->value.reg_symbol->name->str);
+    NecroLLVMSymbol* symbol      = necro_llvm_symbol_get(&context->arena, ast->select.result->value.reg_symbol);
+    symbol->type                 = necro_llvm_type_from_mach_type(context, ast->select.result->necro_machine_type);
+    symbol->value                = value;
+    necro_llvm_codegen_delayed_phi_node(context, symbol);
+    return value;
+}
 
 #define NECRO_CODEGEN_FLOAT_X_FLOAT_BIT_BINOP(BIT_BINOP)\
 {\
@@ -593,32 +609,32 @@ LLVMValueRef necro_llvm_codegen_binop(NecroLLVM* context, NecroMachAst* ast)
     LLVMValueRef right = necro_llvm_codegen_value(context, ast->binop.right);
     switch (ast->binop.binop_type)
     {
-    case NECRO_PRIMOP_BINOP_IADD: value = LLVMBuildAdd(context->builder, left, right, name);  break;
-    case NECRO_PRIMOP_BINOP_ISUB: value = LLVMBuildSub(context->builder, left, right, name);  break;
-    case NECRO_PRIMOP_BINOP_IMUL: value = LLVMBuildMul(context->builder, left, right, name);  break;
-    case NECRO_PRIMOP_BINOP_IDIV: value = LLVMBuildSDiv(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_IREM: value = LLVMBuildSRem(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_UADD: value = LLVMBuildAdd(context->builder, left, right, name);  break;
-    case NECRO_PRIMOP_BINOP_USUB: value = LLVMBuildSub(context->builder, left, right, name);  break;
-    case NECRO_PRIMOP_BINOP_UMUL: value = LLVMBuildMul(context->builder, left, right, name);  break;
-    case NECRO_PRIMOP_BINOP_UDIV: value = LLVMBuildUDiv(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_UREM: value = LLVMBuildURem(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_FADD: value = LLVMBuildFAdd(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_FSUB: value = LLVMBuildFSub(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_FMUL: value = LLVMBuildFMul(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_FDIV: value = LLVMBuildFDiv(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_FREM: value = LLVMBuildFRem(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_IADD:  value = LLVMBuildAdd(context->builder, left, right, name);  break;
+    case NECRO_PRIMOP_BINOP_ISUB:  value = LLVMBuildSub(context->builder, left, right, name);  break;
+    case NECRO_PRIMOP_BINOP_IMUL:  value = LLVMBuildMul(context->builder, left, right, name);  break;
+    case NECRO_PRIMOP_BINOP_IDIV:  value = LLVMBuildSDiv(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_IREM:  value = LLVMBuildSRem(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_UADD:  value = LLVMBuildAdd(context->builder, left, right, name);  break;
+    case NECRO_PRIMOP_BINOP_USUB:  value = LLVMBuildSub(context->builder, left, right, name);  break;
+    case NECRO_PRIMOP_BINOP_UMUL:  value = LLVMBuildMul(context->builder, left, right, name);  break;
+    case NECRO_PRIMOP_BINOP_UDIV:  value = LLVMBuildUDiv(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_UREM:  value = LLVMBuildURem(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FADD:  value = LLVMBuildFAdd(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FSUB:  value = LLVMBuildFSub(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FMUL:  value = LLVMBuildFMul(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FDIV:  value = LLVMBuildFDiv(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_FREM:  value = LLVMBuildFRem(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FVADD: value = LLVMBuildFAdd(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FVSUB: value = LLVMBuildFSub(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FVMUL: value = LLVMBuildFMul(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FVDIV: value = LLVMBuildFDiv(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FVREM: value = LLVMBuildFRem(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_AND:  value = LLVMBuildAnd(context->builder, left, right, name);  break;
-    case NECRO_PRIMOP_BINOP_OR:   value = LLVMBuildOr(context->builder, left, right, name);   break;
-    case NECRO_PRIMOP_BINOP_XOR:  value = LLVMBuildXor(context->builder, left, right, name);  break;
-    case NECRO_PRIMOP_BINOP_SHL:  value = LLVMBuildShl(context->builder, left, right, name);  break;
-    case NECRO_PRIMOP_BINOP_SHR:  value = LLVMBuildLShr(context->builder, left, right, name); break;
-    case NECRO_PRIMOP_BINOP_SHRA: value = LLVMBuildAShr(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_AND:   value = LLVMBuildAnd(context->builder, left, right, name);  break;
+    case NECRO_PRIMOP_BINOP_OR:    value = LLVMBuildOr(context->builder, left, right, name);   break;
+    case NECRO_PRIMOP_BINOP_XOR:   value = LLVMBuildXor(context->builder, left, right, name);  break;
+    case NECRO_PRIMOP_BINOP_SHL:   value = LLVMBuildShl(context->builder, left, right, name);  break;
+    case NECRO_PRIMOP_BINOP_SHR:   value = LLVMBuildLShr(context->builder, left, right, name); break;
+    case NECRO_PRIMOP_BINOP_SHRA:  value = LLVMBuildAShr(context->builder, left, right, name); break;
     case NECRO_PRIMOP_BINOP_FAND:
       NECRO_CODEGEN_FLOAT_X_FLOAT_BIT_BINOP(LLVMBuildAnd);
       break;
@@ -1314,10 +1330,10 @@ LLVMValueRef necro_llvm_codegen_block_statement(NecroLLVM* codegen, NecroMachAst
     case NECRO_MACH_CALL:          return necro_llvm_codegen_call(codegen, ast);
     case NECRO_MACH_CALLI:         return necro_llvm_codegen_call_intrinsic(codegen, ast);
     case NECRO_MACH_SIZE_OF:       return necro_llvm_codegen_size_of(codegen, ast);
+    case NECRO_MACH_SELECT:        return necro_llvm_codegen_select(codegen, ast);
 
     // Not currently supported
     // case NECRO_MACH_ALLOCA:   return necro_codegen_alloca(codegen, ast);
-    // case NECRO_MACH_SELECT:   return necro_codegen_select(codegen, ast);
 
     default:                     assert(false); return NULL;
     }
@@ -1511,16 +1527,56 @@ LLVMValueRef necro_llvm_codegen_call_intrinsic(NecroLLVM* context, NecroMachAst*
     case NECRO_PRIMOP_INTR_FCPYSGN:
         necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->copy_sign_float, context->base->copy_sign_float, "llvm.copysign.f32", "llvm.copysign.f64", f32_type, &fn_type, &fn_value);
         break;
+
+    // case NECRO_PRIMOP_INTR_FMIN:
+    //     necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->min_float, context->base->min_float, "llvm.minimum.f32", "llvm.minimum.f64", f32_type, &fn_type, &fn_value);
+    //     break;
+    // case NECRO_PRIMOP_INTR_FMAX:
+    //     necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->max_float, context->base->max_float, "llvm.maximum.f32", "llvm.maximum.f64", f32_type, &fn_type, &fn_value);
+    //     break;
+    // case NECRO_PRIMOP_INTR_SMIN:
+    //     necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->smin, context->base->smin, "llvm.minimum.s32", "llvm.minimum.s64", int32_type, &fn_type, &fn_value);
+    //     break;
+    // case NECRO_PRIMOP_INTR_SMAX:
+    //     necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->smax, context->base->smax, "llvm.maximum.s32", "llvm.maximum.s64", int32_type, &fn_type, &fn_value);
+    //     break;
+    // case NECRO_PRIMOP_INTR_UMIN:
+    //     necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->umin, context->base->umin, "llvm.minimum.u32", "llvm.minimum.u64", int32_type, &fn_type, &fn_value);
+    //     break;
+    // case NECRO_PRIMOP_INTR_UMAX:
+    //     necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->umax, context->base->umax, "llvm.maximum.u32", "llvm.maximum.u64", int32_type, &fn_type, &fn_value);
+    //     break;
+
     case NECRO_PRIMOP_INTR_FMIN:
-        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->min_float, context->base->min_float, "llvm.minimum.f32", "llvm.minimum.f64", f32_type, &fn_type, &fn_value);
+        assert(false && "trying compare/select");
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->min_float, context->base->min_float, "llvm.minnum.f32", "llvm.minnum.f64", f32_type, &fn_type, &fn_value);
         break;
     case NECRO_PRIMOP_INTR_FMAX:
-        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->max_float, context->base->max_float, "llvm.maximum.f32", "llvm.maximum.f64", f32_type, &fn_type, &fn_value);
+        assert(false && "trying compare/select");
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->max_float, context->base->max_float, "llvm.maxnum.f32", "llvm.maxnum.f64", f32_type, &fn_type, &fn_value);
         break;
+    case NECRO_PRIMOP_INTR_SMIN:
+        assert(false && "trying compare/select");
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->smin, context->base->smin, "llvm.smin.s32", "llvm.smin.s64", int32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_SMAX:
+        assert(false && "trying compare/select");
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->smax, context->base->smax, "llvm.smax.s32", "llvm.smax.s64", int32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_UMIN:
+        assert(false && "trying compare/select");
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->umin, context->base->umin, "llvm.umin.u32", "llvm.umin.u64", int32_type, &fn_type, &fn_value);
+        break;
+    case NECRO_PRIMOP_INTR_UMAX:
+        assert(false && "trying compare/select");
+        necro_llvm_set_intrinsic_binop_type_and_value(context, ast->necro_machine_type, context->base->umax, context->base->umax, "llvm.umax.u32", "llvm.umax.u64", int32_type, &fn_type, &fn_value);
+        break;
+
     default:
         assert(false);
         break;
     }
+        // TODO: Calling convention related maybe?
     size_t        num_params  = ast->call_intrinsic.num_parameters;
     LLVMValueRef* params      = necro_paged_arena_alloc(&context->arena, num_params * sizeof(LLVMValueRef));
     for (size_t i = 0; i < num_params; ++i)

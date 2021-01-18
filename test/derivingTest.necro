@@ -48,10 +48,34 @@
 
 -- OK
 -- TODO: max on toEnum value!
-data NotANum  = NotANum deriving (Enum, Default)
+data NotANum  = NotANum | NoReally deriving (Enum, Default)
 notANum :: NotANum
 notANum =
   toEnum 0
+
+overTheNum :: NotANum
+overTheNum =
+  toEnum 300
+
+maximumOverdrive :: Float
+maximumOverdrive =
+  max 1000 666
+
+maximumUnderdrive :: UInt
+maximumUnderdrive =
+  min 1000 666
+
+maximumSignderdrive :: Int
+maximumSignderdrive =
+  max 1000 666
+
+maxArg :: Int -> Int
+maxArg x =
+  max x 666
+
+toTheMax :: Int
+toTheMax =
+  maxArg 45
 
 
 ----------------------

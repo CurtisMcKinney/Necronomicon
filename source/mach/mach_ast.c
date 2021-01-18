@@ -866,22 +866,22 @@ void necro_mach_add_case_to_switch(NecroMachProgram* program, NecroMachSwitchTer
     switch_term->values = necro_cons_mach_switch_list(&program->arena, (NecroMachSwitchData) { .block = block, .value = value }, switch_term->values);
 }
 
-// NecroMachAst* necro_mach_build_select(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cmp_value, NecroMachAst* left, NecroMachAst* right)
-// {
-//     assert(program != NULL);
-//     assert(fn_def != NULL);
-//     assert(fn_def->type == NECRO_MACH_FN_DEF);
-//     assert(cmp_value->type == NECRO_MACH_TYPE_UINT1);
-//     necro_type_check(program, left->necro_machine_type, right->necro_machine_type);
-//     NecroMachAst* ast  = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
-//     ast->type             = NECRO_MACH_SELECT;
-//     ast->select.cmp_value = cmp_value;
-//     ast->select.left      = left;
-//     ast->select.right     = right;
-//     ast->select.result    = necro_create_reg(program, left->necro_machine_type, "sel_result");
-//     necro_add_statement_to_block(program, fn_def->fn_def._curr_block, ast);
-//     return ast->select.result;
-// }
+NecroMachAst* necro_mach_build_select(NecroMachProgram* program, NecroMachAst* fn_def, NecroMachAst* cmp_value, NecroMachAst* left, NecroMachAst* right)
+{
+    assert(program != NULL);
+    assert(fn_def != NULL);
+    assert(fn_def->type == NECRO_MACH_FN_DEF);
+    assert(cmp_value->type == NECRO_MACH_TYPE_UINT1);
+    necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
+    NecroMachAst* ast     = necro_paged_arena_alloc(&program->arena, sizeof(NecroMachAst));
+    ast->type             = NECRO_MACH_SELECT;
+    ast->select.cmp_value = cmp_value;
+    ast->select.left      = left;
+    ast->select.right     = right;
+    ast->select.result    = necro_mach_value_create_reg(program, left->necro_machine_type, "sel_result");
+    necro_mach_block_add_statement(program, fn_def->fn_def._curr_block, ast);
+    return ast->select.result;
+}
 
 NecroMachAst* necro_mach_create_string_global_constant(NecroMachProgram* program, NecroSymbol string_symbol)
 {

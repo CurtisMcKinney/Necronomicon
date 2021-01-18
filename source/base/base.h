@@ -170,6 +170,10 @@ typedef struct NecroBase
     NecroAstSymbol* copy_sign_float;
     NecroAstSymbol* min_float;
     NecroAstSymbol* max_float;
+    NecroAstSymbol* smin;
+    NecroAstSymbol* smax;
+    NecroAstSymbol* umin;
+    NecroAstSymbol* umax;
     NecroAstSymbol* floor_to_int_float;
     NecroAstSymbol* ceil_to_int_float;
     NecroAstSymbol* truncate_to_int_float;

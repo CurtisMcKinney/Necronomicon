@@ -125,22 +125,6 @@ thd' (#_, _, z#) = z
 flip :: .(.a -> .b -> .c) -> .b -> .a -> .c
 flip f y x = f x y
 
--- TODO: Fold into Ord class
-min :: Ord a => a -> a -> a
-min x y =
-  if x < y then
-    x
-  else
-    y
-
--- TODO: Fold into Ord class
-max :: Ord a => a -> a -> a
-max x y =
-  if x > y then
-    x
-  else
-    y
-
 clamp :: Ord a => a -> a -> a -> a
 clamp x low high =
   max (min x high) low
@@ -308,6 +292,8 @@ class Eq a => Ord a where
   gt  :: a -> a -> Bool
   lte :: a -> a -> Bool
   gte :: a -> a -> Bool
+  max :: a -> a -> a
+  min :: a -> a -> a
 
 class Default a where
   default :: a
@@ -500,8 +486,6 @@ class (Num a, Field a) => Floating a where
   ceil :: a -> a
   truncate :: a -> a
   round :: a -> a
-  -- fmin :: a -> a -> a -- TODO: Remove these for Ord instances once min/max is in Ord
-  -- fmax :: a -> a -> a
 
 class Floating a => Trig a where
   sine     :: a -> a
@@ -575,6 +559,8 @@ instance Ord Bool where
   gt  x y = primUndefined
   lte x y = primUndefined
   gte x y = primUndefined
+  min x y = primUndefined
+  max x y = primUndefined
 
 instance Semiring Bool where
   zero    = False
@@ -604,6 +590,8 @@ instance Ord Int where
   gt  x y = primUndefined
   lte x y = primUndefined
   gte x y = primUndefined
+  min x y = primUndefined
+  max x y = primUndefined
 
 -- TODO: prim zero / one instances
 instance Semiring Int where
@@ -660,6 +648,8 @@ instance Ord UInt where
   gt  x y = primUndefined
   lte x y = primUndefined
   gte x y = primUndefined
+  min x y = primUndefined
+  max x y = primUndefined
 
 -- TODO: prim zero / one instances
 instance Semiring UInt where
@@ -723,6 +713,8 @@ instance Ord Float where
   gt  x y = primUndefined
   lte x y = primUndefined
   gte x y = primUndefined
+  min x y = primUndefined
+  max x y = primUndefined
 
 -- TODO: prim zero / one instances
 instance Semiring Float where
@@ -756,8 +748,6 @@ instance Floating Float where
   ceil      x = primUndefined
   truncate  x = primUndefined
   round     x = primUndefined
-  -- fmin      x y = primUndefined
-  -- fmax      x y = primUndefined
 
 lerp :: Floating a => a -> a -> Float -> a
 lerp x y deltaF =
@@ -1335,6 +1325,8 @@ instance Ord Rational where
   lte (Rational# xn xd) (Rational# yn yd) = lte (xn * yd) (yn * xd)
   gt  (Rational# xn xd) (Rational# yn yd) = gt  (xn * yd) (yn * xd)
   gte (Rational# xn xd) (Rational# yn yd) = gte (xn * yd) (yn * xd)
+  min x                 y                 = if x < y then x else y
+  max x                 y                 = if x > y then x else y
 
 instance Semiring Rational where
   zero = Rational# 0 1
@@ -1550,6 +1542,8 @@ instance Ord Vector2D where
   lte v0 v1 = lte (magnitudeSquared2D v0) (magnitudeSquared2D v1)
   gt  v0 v1 = gt  (magnitudeSquared2D v0) (magnitudeSquared2D v1)
   gte v0 v1 = gte (magnitudeSquared2D v0) (magnitudeSquared2D v1)
+  min x  y  = if x < y then x else y
+  max x  y  = if x > y then x else y
 
 instance Semiring Vector2D where
   zero                                    = Vector2D# 0 0
@@ -1582,8 +1576,6 @@ instance Floating Vector2D where
   ceil     (Vector2D# x y) = Vector2D# (ceil x) (ceil y)
   truncate (Vector2D# x y) = Vector2D# (truncate x) (truncate y)
   round    (Vector2D# x y) = Vector2D# (round x) (round y)
-  -- fmin     (Mono x) (Mono y) = Mono (fmin x y)
-  -- fmax     (Mono x) (Mono y) = Mono (fmax x y)
 
 instance Semigroup Vector2D where
   append x y = x + y
@@ -1629,6 +1621,8 @@ instance Ord Vector3D where
   lte v0 v1 = lte (magnitudeSquared3D v0) (magnitudeSquared3D v1)
   gt  v0 v1 = gt  (magnitudeSquared3D v0) (magnitudeSquared3D v1)
   gte v0 v1 = gte (magnitudeSquared3D v0) (magnitudeSquared3D v1)
+  min x  y  = if x < y then x else y
+  max x  y  = if x > y then x else y
 
 instance Semiring Vector3D where
   zero                                          = Vector3D# 0 0 0
@@ -1661,8 +1655,6 @@ instance Floating Vector3D where
   ceil     (Vector3D# x y z) = Vector3D# (ceil x) (ceil y) (ceil z)
   truncate (Vector3D# x y z) = Vector3D# (truncate x) (truncate y) (truncate z)
   round    (Vector3D# x y z) = Vector3D# (round x) (round y) (round z)
-  -- fmin     (Mono x) (Mono y) = Mono (fmin x y)
-  -- fmax     (Mono x) (Mono y) = Mono (fmax x y)
 
 instance Semigroup Vector3D where
   append x y = x + y
@@ -2848,8 +2840,6 @@ instance Floating Audio where
   ceil      x = mapAudio ceil x
   truncate  x = mapAudio truncate x
   round     x = mapAudio round x
-  -- fmin      x y = mapAudio fmin x y
-  -- fmax      x y = mapAudio copysign x y
 
 instance Semigroup Audio where
   append x y = x + y
@@ -4308,8 +4298,16 @@ instance AudioFormat Stereo where
 
 -- Mono
 instance Eq a => Eq (Mono a) where
-  eq  (Mono x) (Mono y) = eq x y
+  eq  (Mono x) (Mono y) = eq  x y
   neq (Mono x) (Mono y) = neq x y
+
+instance Ord a => Ord (Mono a) where
+  lt  (Mono x) (Mono y) = lt  x y
+  gt  (Mono x) (Mono y) = gt  x y
+  lte (Mono x) (Mono y) = lte x y
+  gte (Mono x) (Mono y) = gte x y
+  max (Mono x) (Mono y) = Mono (max x y)
+  min (Mono x) (Mono y) = Mono (min x y)
 
 instance Semiring a => Semiring (Mono a) where
   zero                  = Mono zero
@@ -4342,8 +4340,6 @@ instance Floating a => Floating (Mono a) where
   ceil     (Mono x) = Mono (ceil x)
   truncate (Mono x) = Mono (truncate x)
   round    (Mono x) = Mono (round x)
-  -- fmin     (Mono x) (Mono y) = Mono (fmin x y)
-  -- fmax     (Mono x) (Mono y) = Mono (fmax x y)
 
 instance Semigroup a => Semigroup (Mono a) where
   append (Mono x) (Mono y) = Mono (append x y)
@@ -4351,10 +4347,20 @@ instance Semigroup a => Semigroup (Mono a) where
 instance Monoid a => Monoid (Mono a) where
   mempty = Mono mempty
 
+-- TODO: Eq and Ord instances Audio!
+
 -- Stereo
 instance Eq a => Eq (Stereo a) where
-  eq  (Stereo# xl xr) (Stereo# yl yr) = eq xl yl && eq xr yr
+  eq  (Stereo# xl xr) (Stereo# yl yr) = eq  xl yl && eq  xr yr
   neq (Stereo# xl xr) (Stereo# yl yr) = neq xl yl || neq xr yr
+
+instance Ord a => Ord (Stereo a) where
+  lt  (Stereo# xl xr) (Stereo# yl yr) = lt  xl yl && lt  xr yr
+  gt  (Stereo# xl xr) (Stereo# yl yr) = gt  xl yl && gt  xr yr
+  lte (Stereo# xl xr) (Stereo# yl yr) = lte xl yl && lte xr yr
+  gte (Stereo# xl xr) (Stereo# yl yr) = gte xl yl && gte xr yr
+  min (Stereo# xl xr) (Stereo# yl yr) = Stereo# (min xl yl) (min xr yr)
+  max (Stereo# xl xr) (Stereo# yl yr) = Stereo# (max xl yl) (max xr yr)
 
 instance Semiring a => Semiring (Stereo a) where
   zero                                = Stereo# zero zero
@@ -4381,20 +4387,19 @@ instance Num a => Num (Stereo a) where
 instance Field a => Field (Stereo a) where
 
 instance Floating a => Floating (Stereo a) where
-  fromFloat f        = let c = (fromFloat f) in Stereo# c c
-  sqrt (Stereo# l r) = Stereo# (sqrt l) (sqrt r)
+  fromFloat f            = let c = (fromFloat f) in Stereo# c c
+  sqrt     (Stereo# l r) = Stereo# (sqrt l) (sqrt r)
   floor    (Stereo# l r) = Stereo# (floor l) (floor r)
   ceil     (Stereo# l r) = Stereo# (ceil l) (ceil r)
   truncate (Stereo# l r) = Stereo# (truncate l) (truncate r)
   round    (Stereo# l r) = Stereo# (round l) (round r)
-  -- fmin     (Stereo# lx ry) (Stereo# ly ry) = Stereo# (fmin lx ly) (fmin ry ry)
-  -- fmax     (Stereo# lx ry) (Stereo# ly ry) = Stereo# (fmax lx ly) (fmax ry ry)
 
 instance Semigroup a => Semigroup (Stereo a) where
   append (Stereo# xl xr) (Stereo# yl yr)  = Stereo# (append xl yl) (append xr yr)
 
 instance Monoid a => Monoid (Stereo a) where
   mempty = Stereo# mempty mempty
+
 
 
 --------------------
@@ -5029,8 +5034,8 @@ chooseOnceT seed arr =
     len = arrayLength NatVal arr
     ix  = trandOnceF seed 0 (fromUInt len) |> floatToUInt |> min (len - 1)
 
-whiteNoise :: Mono Audio
-whiteNoise =
+whiteNoise :: () -> Mono Audio
+whiteNoise _ =
   Mono <| AudioRate <| freezeArray <| fst' <|
   loop (#a, s#) = (#audioInitArray (), seed#) for i <- offsetToEndRange do
     (#writeArray i (noiseF s -1 1) a, s + 1#)
@@ -7718,106 +7723,25 @@ latch tr a =
 --    * Seqs are lazy accumulator functions and are passed in relevant information in a monadic fashion.
 --    * runSeq quantization parameter (poly and seqToAudio quant parameter)
 
-data Alphabet      = A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z deriving (Enum)
-data SectionType   = Coda | Head | Prime | First | Trans | Repeated
+data Alphabet      = A | B | C | D | E | F | G | H | I | J | K | L | M | N | O | P | Q | R | S | T | U | V | W | X | Y | Z deriving (Default, Enum)
+data SectionType   = First | Coda | Head | Prime | Trans | Repeated deriving (Default, Enum)
 data Tempo         = Tempo Rational | TempoChange Rational Rational Rational
-data Meter         = Meter UInt UInt
-data SectionLength = Beats UInt | Bars Meter UInt | SectionTime Rational | HoldUntil Bool | HoldForever
+data Meter         = Meter UInt UInt deriving (Eq)
+data SectionLength = Beats UInt | Bars Meter UInt | SectionTime Rational | HoldUntil Bool | HoldForever deriving (Eq)
 data ScoreBeat     = ScoreBeat# UInt Rational Rational UInt -- Beat Number, Beat Start Time, Beat End Time, Beat Section Index
 data Section s     = Section SectionLength s Tempo
 data Score s       = Score ScoreBeat ScoreBeat (Slice (Section s)) -- Start Beat, End Beat, Section Data
-
--- -- Alphabet
--- instance Enum Alphabet where
---   toEnum n =
---     case n of
---       0  -> A
---       1  -> B
---       2  -> C
---       3  -> D
---       4  -> E
---       5  -> F
---       6  -> G
---       7  -> H
---       8  -> I
---       9  -> J
---       10 -> K
---       11 -> L
---       12 -> M
---       13 -> N
---       14 -> O
---       15 -> P
---       16 -> Q
---       17 -> R
---       18 -> S
---       19 -> T
---       20 -> U
---       21 -> V
---       22 -> W
---       23 -> X
---       24 -> Y
---       _  -> Z
---
---   fromEnum s =
---     case s of
---       A     -> 0
---       B     -> 1
---       C     -> 2
---       D     -> 3
---       E     -> 4
---       F     -> 5
---       G     -> 6
---       H     -> 7
---       I     -> 8
---       J     -> 9
---       K     -> 10
---       L     -> 11
---       M     -> 12
---       N     -> 13
---       O     -> 14
---       P     -> 15
---       Q     -> 16
---       R     -> 17
---       S     -> 18
---       T     -> 19
---       U     -> 20
---       V     -> 21
---       W     -> 22
---       X     -> 23
---       Y     -> 24
---       Z     -> 25
 
 instance Eq Alphabet where
   eq  x y = fromEnum x == fromEnum y
   neq x y = fromEnum x /= fromEnum y
 
-instance Default Alphabet where
-  default = A
-
--- SectionType
-instance Enum SectionType where
-  toEnum n =
-    case n of
-      0 -> Coda
-      1 -> Head
-      2 -> Prime
-      3 -> First
-      4 -> Trans
-
-  fromEnum n =
-    case n of
-      Coda  -> 0
-      Head  -> 1
-      Prime -> 2
-      First -> 3
-      Trans -> 4
-
 instance Eq SectionType where
   eq  x y = fromEnum x == fromEnum y
   neq x y = fromEnum x /= fromEnum y
 
-instance Default SectionType where
-  default = First
+instance Default Meter where
+  default = Meter 4 4
 
 class (Eq s, Default s) => ScoreType s where
   score :: Score s

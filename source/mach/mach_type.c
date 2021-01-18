@@ -1253,7 +1253,6 @@ void necro_mach_ast_type_check_cmp(NecroMachProgram* program, NecroMachAst* ast)
     NecroMachAst* result = ast->cmp.result;
     necro_mach_ast_type_check(program, left);
     necro_mach_ast_type_check(program, right);
-    necro_mach_ast_type_check(program, result);
     assert(left != NULL);
     assert(left->type == NECRO_MACH_VALUE);
     assert(right != NULL);
@@ -1270,8 +1269,34 @@ void necro_mach_ast_type_check_cmp(NecroMachProgram* program, NecroMachAst* ast)
         left->necro_machine_type->type == NECRO_MACH_TYPE_F64    ||
         left->necro_machine_type->type == NECRO_MACH_TYPE_PTR);
     assert(left->necro_machine_type->type == right->necro_machine_type->type);
+    necro_mach_ast_type_check(program, result);
     assert(ast->cmp.result->type == NECRO_MACH_VALUE);
     assert(ast->cmp.result->value.value_type == NECRO_MACH_VALUE_REG);
+}
+
+void necro_mach_ast_type_check_select(NecroMachProgram* program, NecroMachAst* ast)
+{
+    assert(program != NULL);
+    assert(ast->type == NECRO_MACH_SELECT);
+    NecroMachAst* cmp    = ast->select.cmp_value;
+    NecroMachAst* left   = ast->select.left;
+    NecroMachAst* right  = ast->select.right;
+    NecroMachAst* result = ast->select.result;
+    necro_mach_ast_type_check(program, cmp);
+    necro_mach_ast_type_check(program, left);
+    necro_mach_ast_type_check(program, right);
+    assert(cmp != NULL);
+    assert(cmp->type == NECRO_MACH_VALUE);
+    assert(left != NULL);
+    assert(left->type == NECRO_MACH_VALUE);
+    assert(right != NULL);
+    assert(right->type == NECRO_MACH_VALUE);
+    assert(cmp->necro_machine_type->type == NECRO_MACH_TYPE_UINT1);
+    necro_mach_type_check(program, left->necro_machine_type, right->necro_machine_type);
+    necro_mach_ast_type_check(program, result);
+    assert(result != NULL);
+    assert(result->type == NECRO_MACH_VALUE);
+    assert(result->value.value_type == NECRO_MACH_VALUE_REG);
 }
 
 void necro_mach_ast_type_check_phi(NecroMachProgram* program, NecroMachAst* ast)
@@ -1353,6 +1378,7 @@ void necro_mach_ast_type_check(NecroMachProgram* program, NecroMachAst* ast)
     case NECRO_MACH_INSERT_VALUE:  necro_mach_ast_type_check_insert_value(program, ast);   return;
     case NECRO_MACH_BINOP:         necro_mach_ast_type_check_binop(program, ast);          return;
     case NECRO_MACH_UOP:           necro_mach_ast_type_check_uop(program, ast);            return;
+    case NECRO_MACH_SELECT:        necro_mach_ast_type_check_select(program, ast);         return;
     case NECRO_MACH_CMP:           necro_mach_ast_type_check_cmp(program, ast);            return;
     case NECRO_MACH_PHI:           necro_mach_ast_type_check_phi(program, ast);            return;
     case NECRO_MACH_SIZE_OF:       necro_mach_ast_type_check_size_of(program, ast);        return;

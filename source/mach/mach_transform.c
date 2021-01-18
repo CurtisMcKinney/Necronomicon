@@ -1611,8 +1611,6 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
 
     case NECRO_PRIMOP_INTR_POW:
     case NECRO_PRIMOP_INTR_FCPYSGN:
-    case NECRO_PRIMOP_INTR_FMIN:
-    case NECRO_PRIMOP_INTR_FMAX:
     {
         assert(arg_count == 2);
         assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
@@ -1620,6 +1618,24 @@ NecroMachAst* necro_core_transform_to_mach_3_primop(NecroMachProgram* program, N
         NecroMachAst*  y_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
         NecroMachType* call_type = necro_mach_type_from_necro_type(program, app_ast->app.expr1->app.expr1->necro_type);
         NecroMachAst*  result    = necro_mach_build_call_intrinsic(program, outer->machine_def.update_fn, primop_type, call_type, (NecroMachAst*[]) {x_value, y_value}, 2, "intr_result");
+        return result;
+    }
+
+    // Compare select method for min / max
+    case NECRO_PRIMOP_INTR_FMIN:
+    case NECRO_PRIMOP_INTR_FMAX:
+    case NECRO_PRIMOP_INTR_SMIN:
+    case NECRO_PRIMOP_INTR_SMAX:
+    case NECRO_PRIMOP_INTR_UMIN:
+    case NECRO_PRIMOP_INTR_UMAX:
+    {
+        assert(arg_count == 2);
+        assert(app_ast->app.expr1->ast_type == NECRO_CORE_AST_APP);
+        NECRO_PRIMOP_TYPE cmp_type = (primop_type == NECRO_PRIMOP_INTR_FMIN || primop_type == NECRO_PRIMOP_INTR_SMIN || primop_type == NECRO_PRIMOP_INTR_UMIN) ? NECRO_PRIMOP_CMP_LT : NECRO_PRIMOP_CMP_GT;
+        NecroMachAst*     x_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr1->app.expr2, outer);
+        NecroMachAst*     y_value   = necro_core_transform_to_mach_3_go(program, app_ast->app.expr2, outer);
+        NecroMachAst*     cmp_value = necro_mach_build_cmp(program, outer->machine_def.update_fn, cmp_type, x_value, y_value);
+        NecroMachAst*     result    = necro_mach_build_select(program, outer->machine_def.update_fn, cmp_value, x_value, y_value);
         return result;
     }
 

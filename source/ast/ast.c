@@ -807,21 +807,20 @@ NecroAst* necro_reify_create_derived_instance_enum(NecroPagedArena* arena, Necro
     NecroSourceLoc end_loc          = ast->data_declaration.deriving_list->end_loc;
 
     // is_enum check
-    NecroAst*      constructor_list = ast->data_declaration.constructor_list;
-    if (constructor_list != NULL)
+    NecroAst* constructor_list  = ast->data_declaration.constructor_list;
+    size_t    constructor_count = 0;
+    while (constructor_list != NULL)
     {
         NecroAst* con_ast = constructor_list->list.item;
         if (con_ast->type == NECRO_AST_CONSTRUCTOR && con_ast->constructor.arg_list != NULL)
         {
             // TODO: Return error here!
-            assert(false && "TODO");
+            assert(false && "TODO: A beautiful \"Not an Enum data type\" error should be here!");
             return NULL;
         }
+        constructor_count++;
         constructor_list = constructor_list->list.next_item;
     }
-
-    // NecroAst* constructor      = ast->data_declaration.constructor_list->list.item;
-    // assert(constructor->type == NECRO_AST_CONID);
 
     NecroAst* method_decls_ast = NULL;
 
@@ -845,8 +844,11 @@ NecroAst* necro_reify_create_derived_instance_enum(NecroPagedArena* arena, Necro
         NecroAst* arg_pat            = necro_ast_create_var(arena, intern, "x", NECRO_VAR_DECLARATION);
         NecroAst* apats              = necro_ast_create_apats(arena, arg_pat, NULL);
         NecroAst* arg_var            = necro_ast_create_var(arena, intern, "x", NECRO_VAR_VAR);
+        NecroAst* min_var            = necro_ast_create_var(arena, intern, "min", NECRO_VAR_VAR);
+        NecroAst* max_con_num        = necro_ast_create_constant(arena, (NecroParseAstConstant) { .int_literal = (constructor_count - 1), .type = NECRO_AST_CONSTANT_INTEGER });
+        NecroAst* min_con            = necro_ast_create_fexpr(arena, necro_ast_create_fexpr(arena, min_var, max_con_num), arg_var);
         NecroAst* unsafe_to_enum     = necro_ast_create_var(arena, intern, "unsafeToEnum", NECRO_VAR_VAR);
-        NecroAst* expr               = necro_ast_create_fexpr(arena, unsafe_to_enum, arg_var);
+        NecroAst* expr               = necro_ast_create_fexpr(arena, unsafe_to_enum, min_con);
         unsafe_to_enum->source_loc   = source_loc;
         unsafe_to_enum->end_loc      = end_loc;
         NecroAst* method_ast         = necro_ast_create_apats_assignment(arena, intern, "toEnum", apats, necro_ast_create_rhs(arena, expr, NULL));
@@ -896,9 +898,7 @@ NecroAst* necro_reify_deriving_declaration(NecroPagedArena* arena, NecroIntern* 
         // }
         else
         {
-            assert(false && "TODO");
-            // Error, ??? is not a derivable type class
-            // TODO: Create Dummy instance which will throw an error later in necro_infer
+            assert(false && "TODO: A beautiful \"Not A Derivable Class\" error should be here!");
         }
         deriving_list = deriving_list->list.next_item;
     }

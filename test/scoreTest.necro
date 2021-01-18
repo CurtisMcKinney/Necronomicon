@@ -4,11 +4,12 @@
 ----------------------
 
 -- TODO: Deriving capability (Enum, Ord)
+-- TODO: Not used from main stripping removal optimization
+-- TODO: Section coordination with long synths
+-- TODO: playDuringSection, playAtSection, playRange, playThenFadeRange, etc
 
 -- TODO: Complex class constraints
 -- TODO: Look at defunctionalization sharing
--- TODO: Fix compiling complex case expressions
--- TODO: playDuringSection, playAtSection, playRange, playThenFadeRange, etc
 -- TODO: Pitch detection
 -- TODO: "Tonal" Remapper via pitch detection
 -- TODO: Frequency shifting
@@ -26,6 +27,7 @@
 
 -------------
 -- Set up --
+--
 data SimpleScore = SimpleScore Alphabet deriving (Eq, Default)
 
 instance ScoreType SimpleScore where

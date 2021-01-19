@@ -7881,46 +7881,48 @@ scoreSection =
 -- instance ScoreType DefaultScore where
 --   score = scoreNew {Section HoldForever DefaultScore (Tempo 60)}
 
--- TODO: Finish!
-data PlayControl  = Play | Stop | FadeIn Float Float | FadeOut Float Float | NoChange deriving (Default)
-data PlayState    = PlayState# Bool Float
+----------------------
+-- Play
+----------------------
+
+data PlayControl  = Play | Stop | FadeIn Float Float | FadeOut Float Float | NoChange
+data PlayState    = PlayState# Bool Float Float Float
+
+playStateTick :: PlayState -> PlayState
+playStateTick (PlayState# isPlaying amplitude fadeRate fadeCurve) =
+  if not isPlaying then
+    PlayState# False 0 0 0
+  else
+    let
+      amplitude' = min 1 (amplitude + audioBlockDeltaF * fadeRate)
+    in
+      if fadeRate <= 0 && amplitude' <= 0 then
+        PlayState# False 0 0 0
+      else
+        PlayState# True amplitude' fadeRate fadeCurve
 
 -- NOTE: Currently only block accurate!!!
 -- TODO: Sub block timing!
 play :: (ScoreType s, Floating a) => (s -> PlayControl) -> (() -> a) -> a
 play s f =
-  if shouldPlay then
-    f () * fromFloat amplitude
-  else
-    0
+  case state of
+    PlayState# True amplitude _ _ -> f () * fromFloat amplitude
+    _                             -> 0
   where
-    amplitude  =
-      case state of
-        PlayState# _ a -> a
-
-    shouldPlay =
-      case state of
-        PlayState# isPlaying _ -> isPlaying
-
-    state ~ PlayState# False 0 =
+    state ~ PlayState# False 0 0 0 =
+      playStateTick <|
       case s (scoreSectionWithOffset score 0) of
-        Play                       -> PlayState# True  1
-        Stop                       -> PlayState# False 0
+        Play                       -> PlayState# True  1 0 0
+        Stop                       -> PlayState# False 0 0 0
         NoChange                   -> state
         FadeIn  fadeTime fadeCurve ->
           case state of
-            PlayState# _ a ->
-              PlayState# True (min 1 (a + audioBlockDeltaF * (1 / fadeTime)))
+            PlayState# _ a _ _ ->
+              PlayState# True a (1 / fadeTime) fadeCurve
         FadeOut fadeTime fadeCurve ->
           case state of
-            PlayState# _ a ->
-              let
-                a' = a - audioBlockDeltaF * (1 / fadeTime)
-              in
-                if a' > 0 then
-                  PlayState# True a'
-                else
-                  PlayState# False 0
+            PlayState# _ a _ _ ->
+              PlayState# True a (-1 / fadeTime) fadeCurve
 
 --------------------
 -- Seq

@@ -4330,8 +4330,8 @@ instance Num a => Num (Mono a) where
 instance Field a => Field (Mono a) where
 
 instance Floating a => Floating (Mono a) where
-  fromFloat f   = Mono (fromFloat f)
-  sqrt (Mono c) = Mono (sqrt c)
+  fromFloat f       = Mono (fromFloat f)
+  sqrt     (Mono c) = Mono (sqrt c)
   floor    (Mono x) = Mono (floor x)
   ceil     (Mono x) = Mono (ceil x)
   truncate (Mono x) = Mono (truncate x)
@@ -7881,6 +7881,46 @@ scoreSection =
 -- instance ScoreType DefaultScore where
 --   score = scoreNew {Section HoldForever DefaultScore (Tempo 60)}
 
+-- TODO: Finish!
+data PlayControl  = Play | Stop | FadeIn Float Float | FadeOut Float Float | NoChange deriving (Default)
+data PlayState    = PlayState# Bool Float
+
+-- NOTE: Currently only block accurate!!!
+-- TODO: Sub block timing!
+play :: (ScoreType s, Floating a) => (s -> PlayControl) -> (() -> a) -> a
+play s f =
+  if shouldPlay then
+    f () * fromFloat amplitude
+  else
+    0
+  where
+    amplitude  =
+      case state of
+        PlayState# _ a -> a
+
+    shouldPlay =
+      case state of
+        PlayState# isPlaying _ -> isPlaying
+
+    state ~ PlayState# False 0 =
+      case s (scoreSectionWithOffset score 0) of
+        Play                       -> PlayState# True  1
+        Stop                       -> PlayState# False 0
+        NoChange                   -> state
+        FadeIn  fadeTime fadeCurve ->
+          case state of
+            PlayState# _ a ->
+              PlayState# True (min 1 (a + audioBlockDeltaF * (1 / fadeTime)))
+        FadeOut fadeTime fadeCurve ->
+          case state of
+            PlayState# _ a ->
+              let
+                a' = a - audioBlockDeltaF * (1 / fadeTime)
+              in
+                if a' > 0 then
+                  PlayState# True a'
+                else
+                  PlayState# False 0
 
 --------------------
 -- Seq

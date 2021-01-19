@@ -3,10 +3,10 @@
 -- Score API usage example
 ----------------------
 
--- TODO: Deriving capability (Enum, Ord)
+-- TODO: Expression Type Signatures (expr :: Type)
 -- TODO: Not used from main stripping removal optimization
 -- TODO: Section coordination with long synths
--- TODO: playDuringSection, playAtSection, playRange, playThenFadeRange, etc
+-- TODO: mono
 
 -- TODO: Complex class constraints
 -- TODO: Look at defunctionalization sharing
@@ -48,6 +48,18 @@ simpleScore =
 -------------
 -- Usage --
 
+simpleLongSection :: Stereo Audio
+simpleLongSection =
+  play control synth * 0.25
+  where
+    synth   _ = sin (stereo 440 880) * abs (sin 4) + sin (stereo 660 330) * abs (sin 1.5)
+    control s =
+      case s of
+        SimpleScore B -> FadeIn  3 -1
+        SimpleScore D -> FadeOut 1 -1
+        SimpleScore C -> FadeIn  3 -1
+        _             -> NoChange
+
 simpleScoreSeq1 :: Seq Float
 simpleScoreSeq1 =
   scoreSection >>= \s ->
@@ -72,22 +84,22 @@ simpleSynth2 :: Float -> Stereo Audio
 simpleSynth2 f =
   sin (fromFloat f * 220) |> mul 0.5 |> perc 0.01 1 -1
 
-simpleSynth3 :: Stereo Audio
-simpleSynth3 =
-  sin (seqToAudioScore simpleScore simpleScoreSeq1 * 110)
-  |> mul 0.5 |> asr 1 1000 1 1 |> silenceAtEnd
+-- polyScore test
+simpleScoreTest :: Stereo Audio
+simpleScoreTest =
+  polyScore simpleScore simpleSynth1 simpleScoreSeq1 +
+  polyScore simpleScore simpleSynth2 simpleScoreSeq2
+  |> mul 0.1
 
-simpleSynth4 :: Stereo Audio
-simpleSynth4 =
-  sin (seqToAudioScore simpleScore simpleScoreSeq2 * 220)
-  |> mul 0.5 |> asr 1 1000 1 1 |> silenceAtEnd
+-- simpleSynth3 :: Stereo Audio
+-- simpleSynth3 =
+--   sin (seqToAudioScore simpleScore simpleScoreSeq1 * 110)
+--   |> mul 0.5 |> asr 1 1000 1 1 |> silenceAtEnd
 
--- -- polyScore test
--- simpleScoreTest :: Stereo Audio
--- simpleScoreTest =
---   polyScore simpleScore simpleSynth1 simpleScoreSeq1 +
---   polyScore simpleScore simpleSynth2 simpleScoreSeq2
---   |> mul 0.1
+-- simpleSynth4 :: Stereo Audio
+-- simpleSynth4 =
+--   sin (seqToAudioScore simpleScore simpleScoreSeq2 * 220)
+--   |> mul 0.5 |> asr 1 1000 1 1 |> silenceAtEnd
 
 -- -- seqToAudioScore test
 -- simpleScoreTest :: Stereo Audio
@@ -96,6 +108,7 @@ simpleSynth4 =
 --   simpleSynth4
 --   |> mul 0.1
 
+-- TODO: Double check
 -- -- ...great. Crash. fml
 -- -- Offset test
 -- simpleScoreTest :: Stereo Audio
@@ -110,45 +123,45 @@ simpleSynth4 =
 -- Complex Score
 ----------------------
 
-data ComplexScore = ComplexScore Alphabet Int SectionType deriving (Default, Eq)
-
-instance ScoreType ComplexScore where
-  score =
-    {
-      Section (Beats 12) (ComplexScore A 1 First) (Tempo 180),
-      Section (Beats  8) (ComplexScore A 1 Trans) (Tempo 120),
-      Section (Beats 12) (ComplexScore A 2 First) (Tempo  90),
-      Section (Beats 12) (ComplexScore B 1 First) (Tempo 150),
-      Section (Beats 12) (ComplexScore B 2 First) (Tempo 120),
-      Section (Beats  8) (ComplexScore B 2 Trans) (Tempo  90),
-      Section (Beats 12) (ComplexScore A 1 Prime) (Tempo 180),
-      Section (Beats  8) (ComplexScore A 2 Prime) (Tempo 180),
-      Section (Beats 16) (ComplexScore A 3 Prime) (Tempo 180)
-    }
-    |> scoreNew
-
-complexScore :: Score ComplexScore
-complexScore = score
-
-complexScoreSeq :: Seq Float
-complexScoreSeq =
-  scoreSection >>= \s ->
-  case s of
-    ComplexScore A 1 First -> [0 1 2 3]
-    ComplexScore A 1 Trans -> [0 1 2 3]
-    ComplexScore A 2 _     -> [3 2 1 2]
-    ComplexScore B 1 First -> [4 _ 4 _]
-    ComplexScore B 2 First -> [_ 4 _ 4]
-    ComplexScore B 2 Trans -> [4 5 6 7]
-    ComplexScore A 1 Prime -> [2 1 8 3]
-    ComplexScore A 3 Prime -> [3 2 8 9]
-    _                      -> rest
-
--- Complex polyScore test
-complexScoreTest :: Stereo Audio
-complexScoreTest =
-  polyScore complexScore simpleSynth1 complexScoreSeq
-  |> mul 0.2
+-- data ComplexScore = ComplexScore Alphabet Int SectionType deriving (Default, Eq)
+--
+-- instance ScoreType ComplexScore where
+--   score =
+--     {
+--       Section (Beats 12) (ComplexScore A 1 First) (Tempo 180),
+--       Section (Beats  8) (ComplexScore A 1 Trans) (Tempo 120),
+--       Section (Beats 12) (ComplexScore A 2 First) (Tempo  90),
+--       Section (Beats 12) (ComplexScore B 1 First) (Tempo 150),
+--       Section (Beats 12) (ComplexScore B 2 First) (Tempo 120),
+--       Section (Beats  8) (ComplexScore B 2 Trans) (Tempo  90),
+--       Section (Beats 12) (ComplexScore A 1 Prime) (Tempo 180),
+--       Section (Beats  8) (ComplexScore A 2 Prime) (Tempo 180),
+--       Section (Beats 16) (ComplexScore A 3 Prime) (Tempo 180)
+--     }
+--     |> scoreNew
+--
+-- complexScore :: Score ComplexScore
+-- complexScore = score
+--
+-- complexScoreSeq :: Seq Float
+-- complexScoreSeq =
+--   scoreSection >>= \s ->
+--   case s of
+--     ComplexScore A 1 First -> [0 1 2 3]
+--     ComplexScore A 1 Trans -> [0 1 2 3]
+--     ComplexScore A 2 _     -> [3 2 1 2]
+--     ComplexScore B 1 First -> [4 _ 4 _]
+--     ComplexScore B 2 First -> [_ 4 _ 4]
+--     ComplexScore B 2 Trans -> [4 5 6 7]
+--     ComplexScore A 1 Prime -> [2 1 8 3]
+--     ComplexScore A 3 Prime -> [3 2 8 9]
+--     _                      -> rest
+--
+-- -- Complex polyScore test
+-- complexScoreTest :: Stereo Audio
+-- complexScoreTest =
+--   polyScore complexScore simpleSynth1 complexScoreSeq
+--   |> mul 0.2
 
 ----------------------
 -- Main
@@ -156,6 +169,6 @@ complexScoreTest =
 
 main :: *World -> *World
 main w =
-  outAudio 0 complexScoreTest w
-  -- outAudio 0 simpleScoreTest w
+  -- outAudio 0 complexScoreTest w
+  outAudio 0 (simpleScoreTest + simpleLongSection) w
 

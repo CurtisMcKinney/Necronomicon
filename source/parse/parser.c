@@ -1313,15 +1313,16 @@ NecroResult(NecroParseAstLocalPtr) parse_let_expression(NecroParser* parser)
     return ok_NecroParseAstLocalPtr(let_local_ptr);
 }
 
-NecroResult(NecroParseAstLocalPtr) necro_parse_expr_type_signature(NecroParser* parser, NecroParseAstLocalPtr expr_local_ptr);
+NecroResult(NecroParseAstLocalPtr) necro_parse_expr_type_signature(NecroParser* parser, NecroParseAstLocalPtr expr_local_ptr, NecroSourceLoc source_loc);
 
 NecroResult(NecroParseAstLocalPtr) necro_parse_expression_go(NecroParser* parser, NECRO_BINARY_LOOK_AHEAD_TYPE look_ahead_binary)
 {
     if (necro_parse_peek_token_type(parser) == NECRO_LEX_END_OF_STREAM)
         return ok_NecroParseAstLocalPtr(null_local_ptr);
 
-    NecroParserSnapshot   snapshot  = necro_parse_snapshot(parser);
-    NecroParseAstLocalPtr local_ptr = null_local_ptr;
+    NecroParserSnapshot   snapshot   = necro_parse_snapshot(parser);
+    NecroParseAstLocalPtr local_ptr  = null_local_ptr;
+    NecroSourceLoc        source_loc = necro_parse_peek_token(parser)->source_loc;
 
     // Unary Op
     // if (local_ptr == null_local_ptr)
@@ -1349,8 +1350,12 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_expression_go(NecroParser* parser
         return ok_NecroParseAstLocalPtr(null_local_ptr);
     }
 
+    // No Expression type signatures when parsing binary operators
+    if (look_ahead_binary != NECRO_BINARY_LOOK_AHEAD)
+        return ok_NecroParseAstLocalPtr(local_ptr);
+
     // Expr Type Signature: expr :: Context => Type
-    NecroParseAstLocalPtr expr_type_signature_local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_expr_type_signature(parser, local_ptr));
+    NecroParseAstLocalPtr expr_type_signature_local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_expr_type_signature(parser, local_ptr, source_loc));
     if (expr_type_signature_local_ptr != null_local_ptr)
         return ok_NecroParseAstLocalPtr(expr_type_signature_local_ptr);
     else
@@ -1395,7 +1400,7 @@ NecroParseAstLocalPtr necro_parse_variable(NecroParser* parser, NECRO_VAR_TYPE v
         case NECRO_LEX_LT:
         case NECRO_LEX_GTE:
         case NECRO_LEX_LTE:
-        case NECRO_LEX_DOUBLE_COLON:
+        // case NECRO_LEX_DOUBLE_COLON:
         case NECRO_LEX_LEFT_SHIFT:
         case NECRO_LEX_RIGHT_SHIFT:
         case NECRO_LEX_PIPE:
@@ -2252,8 +2257,8 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_binary_expression(NecroParser* pa
         else
             next_min_precedence = bin_op_behavior.precedence;
 
-        rhs_local_ptr                                       = necro_try_result(NecroParseAstLocalPtr, necro_parse_expression_go(parser, NECRO_NO_BINARY_LOOK_AHEAD));
-        NecroLexToken*           look_ahead_token           = necro_parse_peek_token(parser);
+        rhs_local_ptr                                      = necro_try_result(NecroParseAstLocalPtr, necro_parse_expression_go(parser, NECRO_NO_BINARY_LOOK_AHEAD));
+        NecroLexToken*          look_ahead_token           = necro_parse_peek_token(parser);
         NECRO_BIN_OP_TYPE       look_ahead_bin_op_type     = necro_token_to_bin_op_type(look_ahead_token->token);
         NecroParseBinOpBehavior look_ahead_bin_op_behavior = bin_op_behaviors[look_ahead_bin_op_type];
 
@@ -4441,16 +4446,17 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_type_signature(NecroParser* parse
     return ok_NecroParseAstLocalPtr(local_ptr);
 }
 
-NecroResult(NecroParseAstLocalPtr) necro_parse_expr_type_signature(NecroParser* parser, NecroParseAstLocalPtr expr_local_ptr)
+NecroResult(NecroParseAstLocalPtr) necro_parse_expr_type_signature(NecroParser* parser, NecroParseAstLocalPtr expr_local_ptr, NecroSourceLoc source_loc)
 {
     assert(expr_local_ptr != null_local_ptr);
+
+    NecroSourceLoc      expr_end_loc     = necro_parse_peek_token(parser)->source_loc;
 
     // '::'
     NecroParserSnapshot snapshot         = necro_parse_snapshot(parser);
     NecroLexToken*      look_ahead_token = necro_parse_peek_token(parser);
     if (look_ahead_token->token != NECRO_LEX_DOUBLE_COLON)
         return ok_NecroParseAstLocalPtr(null_local_ptr);
-    NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
     necro_parse_consume_token(parser);
 
     // context
@@ -4480,7 +4486,7 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_expr_type_signature(NecroParser* 
     }
 
     // Finish
-    NecroParseAstLocalPtr local_ptr = necro_parse_ast_create_expr_type_signature(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, expr_local_ptr, context, type);
+    NecroParseAstLocalPtr local_ptr    = necro_parse_ast_create_expr_type_signature(&parser->ast.arena, source_loc, expr_end_loc, expr_local_ptr, context, type);
     return ok_NecroParseAstLocalPtr(local_ptr);
 }
 

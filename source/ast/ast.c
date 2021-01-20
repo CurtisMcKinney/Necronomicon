@@ -368,17 +368,19 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_EXPR_TYPE_SIGNATURE:
-        printf("\r");
-        necro_ast_print_go(ast->expr_type_signature.expression, depth + 0);
+        // printf("\r");
+        puts("(ExprTypeSig)");
         for (uint32_t i = 0;  i < depth + 1; ++i) printf(AST_TAB);
-        puts("::");
+        printf(":: ");
         if (ast->expr_type_signature.context != NULL)
         {
-            necro_ast_print_go(ast->expr_type_signature.context, depth + 1);
+            necro_ast_print_go(ast->expr_type_signature.context, 0);
             for (uint32_t i = 0;  i < depth + 2; ++i) printf(AST_TAB);
             puts("=>");
+            for (uint32_t i = 0;  i < depth + 1; ++i) printf(AST_TAB);
         }
-        necro_ast_print_go(ast->expr_type_signature.type, depth + 1);
+        necro_ast_print_go(ast->expr_type_signature.type, 0);
+        necro_ast_print_go(ast->expr_type_signature.expression, depth + 1);
         break;
 
     case NECRO_AST_TYPE_CLASS_CONTEXT:

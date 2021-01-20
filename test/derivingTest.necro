@@ -76,7 +76,20 @@ toTheMax =
   maxArg 45
 
 mightBeAmbiguous =
-  add 5 3 * 4 :: Rational
+  -- Error, correctly
+  -- True && False :: Int
+  -- const False 0 && True :: Int
+  -- const False () :: Int
+  -- () |> const False :: Int
+
+  -- Ok, correctly
+  -- 3 + 4 :: Rational
+  -- const 0 () + 44 :: Rational
+  -- () |> const 6 :: Rational
+  -- 3 + (4 :: Rational)
+  -- 3 + (const 4 () :: Rational)
+  -- () |> \_ -> 4 + 5 :: Rational
+  const True () :: Rational
 
 
 -- resample :: (a : c1) -> (a : c2)

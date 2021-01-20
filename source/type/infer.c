@@ -694,6 +694,7 @@ NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast)
     return ok(NecroType, ast->necro_type);
 }
 
+// TODO: Finish!
 NecroResult(NecroType) necro_infer_expr_type_sig(NecroInfer* infer, NecroAst* ast)
 {
     assert(ast != NULL);
@@ -703,10 +704,10 @@ NecroResult(NecroType) necro_infer_expr_type_sig(NecroInfer* infer, NecroAst* as
     NecroConstraintList* constraints = necro_try_map_result(NecroConstraintList, NecroType, necro_constraint_list_from_ast(infer, ast->expr_type_signature.context));
 
     necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type_sig, ast->scope, ast->expr_type_signature.type->source_loc, ast->expr_type_signature.type->end_loc));
-    necro_try(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, ast->scope, NULL, true, ast->source_loc, ast->end_loc, NECRO_CONSTRAINT_UCOERCE));
+    necro_try(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, ast->scope, NULL, true, ast->expr_type_signature.type->source_loc, ast->end_loc, NECRO_CONSTRAINT_UCOERCE));
 
     necro_try(NecroType, necro_constraint_list_kinds_check(infer->arena, infer->base, constraints, ast->scope));
-    necro_try(NecroType, necro_constraint_ambiguous_type_class_check(ast->source_loc, ast->end_loc, constraints, type_sig));
+    necro_try(NecroType, necro_constraint_ambiguous_type_class_check(ast->expr_type_signature.type->source_loc, ast->expr_type_signature.type->end_loc, constraints, type_sig));
 
     type_sig = necro_try_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, ast->expr_type_signature.type->scope));
 

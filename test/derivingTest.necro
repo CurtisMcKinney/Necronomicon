@@ -75,6 +75,10 @@ toTheMax :: Int
 toTheMax =
   maxArg 45
 
+mightBeAmbiguous =
+  add 5 3 * 4 :: Rational
+
+
 -- resample :: (a : c1) -> (a : c2)
 -- visualSide :: Float : Seq c
 -- audioSide :: Float : Audio

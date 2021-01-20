@@ -493,6 +493,19 @@ NecroParseAstLocalPtr necro_parse_ast_create_type_signature(NecroParseArena* are
     return local_ptr;
 }
 
+NecroParseAstLocalPtr necro_parse_ast_create_expr_type_signature(NecroParseArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr expression_ast, NecroParseAstLocalPtr context_ast, NecroParseAstLocalPtr type_ast)
+{
+    NecroParseAstLocalPtr local_ptr;
+    NecroParseAst*        node           = necro_parse_arena_alloc(arena, &local_ptr);
+    node->type                           = NECRO_AST_EXPR_TYPE_SIGNATURE;
+    node->expr_type_signature.expression = expression_ast;
+    node->expr_type_signature.context    = context_ast;
+    node->expr_type_signature.type       = type_ast;
+    node->source_loc                     = source_loc;
+    node->end_loc                        = end_loc;
+    return local_ptr;
+}
+
 NecroParseAstLocalPtr necro_parse_ast_create_function_type(NecroParseArena* arena, NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroParseAstLocalPtr lhs_ast, NecroParseAstLocalPtr rhs_ast)
 {
     NecroParseAstLocalPtr local_ptr;
@@ -902,6 +915,15 @@ void necro_parse_ast_assert_eq_type_signature(NecroParseAstArena* ast1, NecroPar
     assert(node1->type_signature.sig_type == node2->type_signature.sig_type);
 }
 
+void necro_parse_ast_assert_eq_expr_type_signature(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)
+{
+    assert(node1->type == NECRO_AST_EXPR_TYPE_SIGNATURE);
+    assert(node2->type == NECRO_AST_EXPR_TYPE_SIGNATURE);
+    necro_parse_ast_assert_eq_go(ast1, node1->expr_type_signature.expression, ast2, node2->expr_type_signature.expression);
+    necro_parse_ast_assert_eq_go(ast1, node1->expr_type_signature.context, ast2, node2->expr_type_signature.context);
+    necro_parse_ast_assert_eq_go(ast1, node1->expr_type_signature.type, ast2, node2->expr_type_signature.type);
+}
+
 void necro_parse_ast_assert_eq_function_type(NecroParseAstArena* ast1, NecroParseAst* node1, NecroParseAstArena* ast2, NecroParseAst* node2)
 {
     assert(node1->type == NECRO_AST_FUNCTION_TYPE);
@@ -969,6 +991,7 @@ void necro_parse_ast_assert_eq_go(NecroParseAstArena* ast1, NecroParseAstLocalPt
     case NECRO_AST_TYPE_CLASS_DECLARATION: necro_parse_ast_assert_eq_type_class_declaration(ast1, node1, ast2, node2); break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:    necro_parse_ast_assert_eq_type_class_instance(ast1, node1, ast2, node2); break;
     case NECRO_AST_TYPE_SIGNATURE:         necro_parse_ast_assert_eq_type_signature(ast1, node1, ast2, node2); break;
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:    necro_parse_ast_assert_eq_expr_type_signature(ast1, node1, ast2, node2); break;
     case NECRO_AST_FUNCTION_TYPE:          necro_parse_ast_assert_eq_function_type(ast1, node1, ast2, node2); break;
     case NECRO_AST_TYPE_ATTRIBUTE:         necro_parse_ast_assert_eq_type_attribut (ast1, node1, ast2, node2); break;
     default:

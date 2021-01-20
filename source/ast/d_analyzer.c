@@ -522,6 +522,11 @@ void d_analyze_go(NecroDependencyAnalyzer* d_analyzer, NecroAst* ast)
     //=====================================================
     case NECRO_AST_UNDEFINED:
         break;
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        d_analyze_go(d_analyzer, ast->expr_type_signature.context);
+        d_analyze_go(d_analyzer, ast->expr_type_signature.type);
+        d_analyze_go(d_analyzer, ast->expr_type_signature.expression);
+        break;
     case NECRO_AST_CONSTANT:
         d_analyze_var(d_analyzer, d_analyzer->base->eq_type_class);
         d_analyze_var(d_analyzer, d_analyzer->base->ord_type_class);

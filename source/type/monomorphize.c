@@ -724,6 +724,9 @@ NecroResult(void) necro_monomorphize_go(NecroMonomorphize* monomorphize, NecroAs
         necro_try(void, necro_monomorphize_go(monomorphize, ast->simple_type.type_con, subs));
         return necro_monomorphize_go(monomorphize, ast->simple_type.type_var_list, subs);
 
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        return necro_monomorphize_go(monomorphize, ast->expr_type_signature.expression, subs);
+
     case NECRO_AST_TYPE_CLASS_DECLARATION:
     case NECRO_AST_TYPE_SIGNATURE:
     case NECRO_AST_TYPE_CLASS_CONTEXT:

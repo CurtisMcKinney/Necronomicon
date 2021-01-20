@@ -67,6 +67,7 @@ typedef enum
     NECRO_AST_TYPE_CLASS_DECLARATION,
     NECRO_AST_TYPE_CLASS_INSTANCE,
     NECRO_AST_TYPE_SIGNATURE,
+    NECRO_AST_EXPR_TYPE_SIGNATURE,
     NECRO_AST_FUNCTION_TYPE,
     NECRO_AST_DECLARATION_GROUP_LIST,
     NECRO_AST_TYPE_ATTRIBUTE,
@@ -133,6 +134,13 @@ typedef struct
     NecroParseAstLocalPtr type;
     NECRO_SIG_TYPE        sig_type;
 } NecroParseAstTypeSignature;
+
+typedef struct
+{
+    NecroParseAstLocalPtr expression;
+    NecroParseAstLocalPtr context; // optional, null_local_ptr if not present
+    NecroParseAstLocalPtr type;
+} NecroParseAstExprTypeSignature;
 
 //=====================================================
 // AST DataDeclaration
@@ -697,6 +705,7 @@ typedef struct
         NecroParseAstTypeClassDeclaration type_class_declaration;
         NecroParseAstTypeClassInstance    type_class_instance;
         NecroParseAstTypeSignature        type_signature;
+        NecroParseAstExprTypeSignature    expr_type_signature;
         NecroParseAstFunctionType         function_type;
         NecroParseAstSeqExpression        sequence_expression;
         NecroParseAstTypeAttribute        attribute;

@@ -260,7 +260,8 @@ NecroResult(NecroType) necro_create_type_class(NecroInfer* infer, NecroAst* type
                     return necro_type_ambiguous_class_error(type_class->type_class_name, type_sig, method_ast->source_loc, method_ast->end_loc);
                 // Apply constraints
                 necro_try(NecroType, necro_constraint_list_kinds_check(infer->arena, infer->base, cons, method_ast->scope));
-                necro_try(NecroType, necro_constraint_ambiguous_type_class_check(method_ast->type_signature.var->variable.ast_symbol, cons, type_sig));
+                NecroAst* var_ast = method_ast->type_signature.var->variable.ast_symbol->ast;
+                necro_try(NecroType, necro_constraint_ambiguous_type_class_check(var_ast->source_loc, var_ast->end_loc, cons, type_sig));
                 necro_constraint_list_apply(infer->arena, type_sig, cons);
 
                 //---------------------------------
@@ -765,7 +766,7 @@ bool necro_type_ambig_occurs_over_type_sig(NecroType* type, NecroType* type_sig)
     return false;
 }
 
-NecroResult(NecroType) necro_constraint_ambiguous_type_class_check(NecroAstSymbol* type_sig_name, NecroConstraintList* constraints, NecroType* type_sig)
+NecroResult(NecroType) necro_constraint_ambiguous_type_class_check(NecroSourceLoc source_loc, NecroSourceLoc end_loc, NecroConstraintList* constraints, NecroType* type_sig)
 {
     if (type_sig == NULL)
         return ok(NecroType, NULL);
@@ -779,7 +780,8 @@ NecroResult(NecroType) necro_constraint_ambiguous_type_class_check(NecroAstSymbo
         NecroAstSymbol* class_symbol     = constraints->data->cls.type_class->type_class_name;
         NecroType*      constrained_type = constraints->data->cls.type1;
         if (!necro_type_ambig_occurs_over_type_sig(constrained_type, type_sig))
-            return necro_type_ambiguous_class_error(class_symbol, constrained_type, type_sig_name->ast->source_loc, type_sig_name->ast->end_loc);
+            return necro_type_ambiguous_class_error(class_symbol, constrained_type, source_loc, end_loc);
+            // return necro_type_ambiguous_class_error(class_symbol, constrained_type, type_sig_name->ast->source_loc, type_sig_name->ast->end_loc);
         constraints = constraints->next;
     }
     return ok(NecroType, NULL);

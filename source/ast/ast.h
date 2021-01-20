@@ -80,11 +80,19 @@ typedef struct
 typedef struct
 {
     struct NecroAst* var;
-    struct NecroAst* context; // optional, null_local_ptr if not present
+    struct NecroAst* context; // optional, NULL if not present
     struct NecroAst* type;
     NECRO_SIG_TYPE   sig_type;
     struct NecroAst* declaration_group;
 } NecroAstTypeSignature;
+
+typedef struct
+{
+    struct NecroAst* expression;
+    struct NecroAst* context; // optional, NULL if not present
+    struct NecroAst* type;
+    struct NecroAst* declaration_group;
+} NecroAstExprTypeSignature;
 
 //=====================================================
 // AST DataDeclaration
@@ -580,6 +588,7 @@ typedef struct NecroAst
         NecroAstTypeClassDeclaration type_class_declaration;
         NecroAstTypeClassInstance    type_class_instance;
         NecroAstTypeSignature        type_signature;
+        NecroAstExprTypeSignature    expr_type_signature;
         NecroAstFunctionType         function_type;
         NecroAstSeqExpression        sequence_expression;
         NecroAstDeclarationGroupList declaration_group_list;
@@ -674,6 +683,7 @@ NecroAst* necro_ast_create_left_section_full(NecroPagedArena* arena, NecroAstSym
 NecroAst* necro_ast_create_right_section(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs);
 NecroAst* necro_ast_create_right_section_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* rhs, struct NecroInstSub* inst_subs);
 NecroAst* necro_ast_create_type_signature(NecroPagedArena* arena, NECRO_SIG_TYPE sig_type, NecroAst* var, NecroAst* context, NecroAst* type);
+NecroAst* necro_ast_create_expr_type_signature(NecroPagedArena* arena, NecroAst* expression, NecroAst* context, NecroAst* type);
 NecroAst* necro_ast_create_simple_assignment_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NecroAst* initializer, NecroAst* rhs_ast);
 NecroAst* necro_ast_create_var_with_ast_symbol(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type);
 NecroAst* necro_ast_create_var_full(NecroPagedArena* arena, NecroAstSymbol* ast_symbol, NECRO_VAR_TYPE var_type, struct NecroInstSub* inst_subs, NecroAst* initializer, NECRO_TYPE_ORDER order);

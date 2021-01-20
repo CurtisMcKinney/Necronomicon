@@ -987,6 +987,12 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_wildcard(NecroCoreAstTrans
     return ok(NecroCoreAst, wildcard_ast); // NOTE, from Curtis: Wild cards represented as NULL causes issues, instead we're going to compile them as anonymous variables
 }
 
+NecroResult(NecroCoreAst) necro_ast_transform_to_core_expr_type_signature(NecroCoreAstTransform* context, NecroAst* ast)
+{
+    assert(ast->type == NECRO_AST_EXPR_TYPE_SIGNATURE);
+    return necro_ast_transform_to_core_go(context, ast->expr_type_signature.expression);
+}
+
 NecroResult(NecroCoreAst) necro_ast_transform_to_core_pat(NecroCoreAstTransform* context, NecroAst* ast)
 {
     if (ast == NULL)
@@ -1336,6 +1342,7 @@ NecroResult(NecroCoreAst) necro_ast_transform_to_core_go(NecroCoreAstTransform* 
     case NECRO_AST_IF_THEN_ELSE:           return necro_ast_transform_to_core_if_then_else(context, ast);
     case NECRO_AST_PAT_ASSIGNMENT:         return necro_ast_transform_to_core_pat_assignment(context, ast);
     case NECRO_AST_WILDCARD:               return necro_ast_transform_to_core_wildcard(context, ast);
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:    return necro_ast_transform_to_core_expr_type_signature(context, ast);
     case NECRO_AST_SEQ_EXPRESSION:         return necro_ast_transform_to_core_seq_expression(context, ast);
 
     // Not Implemented / Supported

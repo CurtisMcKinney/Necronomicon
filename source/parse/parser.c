@@ -620,6 +620,20 @@ void necro_parse_ast_print_go(NecroParseAstArena* ast, NecroParseAst* ast_node, 
         necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->type_signature.type), depth + 1);
         break;
 
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        printf("\r");
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->expr_type_signature.expression), depth + 0);
+        for (uint32_t i = 0;  i < depth + 1; ++i) printf(STRING_TAB);
+        puts("::");
+        if (ast_node->expr_type_signature.context != null_local_ptr)
+        {
+            necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->expr_type_signature.context), depth + 1);
+            for (uint32_t i = 0;  i < depth + 2; ++i) printf(STRING_TAB);
+            puts("=>");
+        }
+        necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->expr_type_signature.type), depth + 1);
+        break;
+
     case NECRO_AST_TYPE_CLASS_CONTEXT:
         printf("\r");
         necro_parse_ast_print_go(ast, necro_parse_ast_get_node(ast, ast_node->type_class_context.conid), depth + 0);
@@ -1299,6 +1313,8 @@ NecroResult(NecroParseAstLocalPtr) parse_let_expression(NecroParser* parser)
     return ok_NecroParseAstLocalPtr(let_local_ptr);
 }
 
+NecroResult(NecroParseAstLocalPtr) necro_parse_expr_type_signature(NecroParser* parser, NecroParseAstLocalPtr expr_local_ptr);
+
 NecroResult(NecroParseAstLocalPtr) necro_parse_expression_go(NecroParser* parser, NECRO_BINARY_LOOK_AHEAD_TYPE look_ahead_binary)
 {
     if (necro_parse_peek_token_type(parser) == NECRO_LEX_END_OF_STREAM)
@@ -1333,7 +1349,12 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_expression_go(NecroParser* parser
         return ok_NecroParseAstLocalPtr(null_local_ptr);
     }
 
-    return ok_NecroParseAstLocalPtr(local_ptr);
+    // Expr Type Signature: expr :: Context => Type
+    NecroParseAstLocalPtr expr_type_signature_local_ptr = necro_try_result(NecroParseAstLocalPtr, necro_parse_expr_type_signature(parser, local_ptr));
+    if (expr_type_signature_local_ptr != null_local_ptr)
+        return ok_NecroParseAstLocalPtr(expr_type_signature_local_ptr);
+    else
+        return ok_NecroParseAstLocalPtr(local_ptr);
 }
 
 NecroParseAstLocalPtr necro_parse_variable(NecroParser* parser, NECRO_VAR_TYPE var_type)
@@ -2150,7 +2171,7 @@ NECRO_BIN_OP_TYPE necro_token_to_bin_op_type(NECRO_LEX_TOKEN_TYPE token_type)
     case NECRO_LEX_GTE:                  return NECRO_BIN_OP_GTE;
     case NECRO_LEX_LTE:                  return NECRO_BIN_OP_LTE;
     case NECRO_LEX_COLON:                return NECRO_BIN_OP_COLON;
-    case NECRO_LEX_DOUBLE_COLON:         return NECRO_BIN_OP_DOUBLE_COLON;
+    case NECRO_LEX_DOUBLE_COLON:         return NECRO_BIN_OP_UNDEFINED;
     case NECRO_LEX_LEFT_SHIFT:           return NECRO_BIN_OP_LEFT_SHIFT;
     case NECRO_LEX_RIGHT_SHIFT:          return NECRO_BIN_OP_RIGHT_SHIFT;
     case NECRO_LEX_PIPE:                 return NECRO_BIN_OP_PIPE;
@@ -4417,6 +4438,49 @@ NecroResult(NecroParseAstLocalPtr) necro_parse_type_signature(NecroParser* parse
 
     // Finish
     NecroParseAstLocalPtr local_ptr = necro_parse_ast_create_type_signature(&parser->ast.arena, source_loc, end_loc, var, context, type, sig_type);
+    return ok_NecroParseAstLocalPtr(local_ptr);
+}
+
+NecroResult(NecroParseAstLocalPtr) necro_parse_expr_type_signature(NecroParser* parser, NecroParseAstLocalPtr expr_local_ptr)
+{
+    assert(expr_local_ptr != null_local_ptr);
+
+    // '::'
+    NecroParserSnapshot snapshot         = necro_parse_snapshot(parser);
+    NecroLexToken*      look_ahead_token = necro_parse_peek_token(parser);
+    if (look_ahead_token->token != NECRO_LEX_DOUBLE_COLON)
+        return ok_NecroParseAstLocalPtr(null_local_ptr);
+    NecroSourceLoc source_loc = necro_parse_peek_token(parser)->source_loc;
+    necro_parse_consume_token(parser);
+
+    // context
+    NecroParserSnapshot   context_snapshot = necro_parse_snapshot(parser);
+    NecroParseAstLocalPtr context          = necro_try_result(NecroParseAstLocalPtr, necro_parse_context(parser));
+
+    // =>
+    if (context != null_local_ptr)
+    {
+        if (necro_parse_peek_token_type(parser) != NECRO_LEX_FAT_RIGHT_ARROW)
+        {
+            necro_parse_restore(parser, context_snapshot);
+            context = null_local_ptr;
+        }
+        else
+        {
+            necro_parse_consume_token(parser);
+        }
+    }
+
+    // type
+    NecroParseAstLocalPtr type = necro_try_result(NecroParseAstLocalPtr, necro_parse_type(parser));
+    if (type == null_local_ptr)
+    {
+        necro_parse_restore(parser, snapshot);
+        return ok_NecroParseAstLocalPtr(null_local_ptr);
+    }
+
+    // Finish
+    NecroParseAstLocalPtr local_ptr = necro_parse_ast_create_expr_type_signature(&parser->ast.arena, source_loc, necro_parse_peek_token(parser)->end_loc, expr_local_ptr, context, type);
     return ok_NecroParseAstLocalPtr(local_ptr);
 }
 

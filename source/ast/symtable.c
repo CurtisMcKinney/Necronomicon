@@ -446,6 +446,14 @@ void necro_build_scopes_go(NecroScopedSymTable* scoped_symtable, NecroAst* input
         necro_build_scopes_go(scoped_symtable, input_node->type_signature.type);
         necro_scoped_symtable_pop_type_scope(scoped_symtable);
         break;
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        input_node->scope = scoped_symtable->current_type_scope;
+        necro_build_scopes_go(scoped_symtable, input_node->expr_type_signature.expression);
+        necro_scoped_symtable_new_type_scope(scoped_symtable);
+        necro_build_scopes_go(scoped_symtable, input_node->expr_type_signature.context);
+        necro_build_scopes_go(scoped_symtable, input_node->expr_type_signature.type);
+        necro_scoped_symtable_pop_type_scope(scoped_symtable);
+        break;
     case NECRO_AST_FUNCTION_TYPE:
         input_node->scope = scoped_symtable->current_type_scope;
         necro_build_scopes_go(scoped_symtable, input_node->function_type.type);

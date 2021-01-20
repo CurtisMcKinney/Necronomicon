@@ -679,7 +679,8 @@ NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast)
     necro_try(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, ast->scope, NULL, true, ast->source_loc, ast->end_loc, NECRO_CONSTRAINT_UCOERCE));
 
     necro_try(NecroType, necro_constraint_list_kinds_check(infer->arena, infer->base, constraints, ast->scope));
-    necro_try(NecroType, necro_constraint_ambiguous_type_class_check(ast->type_signature.var->variable.ast_symbol, constraints, type_sig));
+    NecroAst* var_ast = ast->type_signature.var->variable.ast_symbol->ast;
+    necro_try(NecroType, necro_constraint_ambiguous_type_class_check(var_ast->source_loc, var_ast->end_loc, constraints, type_sig));
 
     type_sig = necro_try_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, ast->type_signature.type->scope));
 
@@ -689,6 +690,34 @@ NecroResult(NecroType) necro_infer_type_sig(NecroInfer* infer, NecroAst* ast)
     ast->type_signature.var->variable.ast_symbol->type = type_sig;
     ast->necro_type                                    = type_sig;
     necro_constraint_list_apply(infer->arena, type_sig, constraints);
+
+    return ok(NecroType, ast->necro_type);
+}
+
+NecroResult(NecroType) necro_infer_expr_type_sig(NecroInfer* infer, NecroAst* ast)
+{
+    assert(ast != NULL);
+    assert(ast->type == NECRO_AST_EXPR_TYPE_SIGNATURE);
+
+    NecroType*           type_sig    = necro_try_result(NecroType, necro_ast_to_type_sig_go(infer, ast->expr_type_signature.type, NECRO_TYPE_ATTRIBUTE_NONE));
+    NecroConstraintList* constraints = necro_try_map_result(NecroConstraintList, NecroType, necro_constraint_list_from_ast(infer, ast->expr_type_signature.context));
+
+    necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type_sig, ast->scope, ast->expr_type_signature.type->source_loc, ast->expr_type_signature.type->end_loc));
+    necro_try(NecroType, necro_uniqueness_propagate(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, ast->scope, NULL, true, ast->source_loc, ast->end_loc, NECRO_CONSTRAINT_UCOERCE));
+
+    necro_try(NecroType, necro_constraint_list_kinds_check(infer->arena, infer->base, constraints, ast->scope));
+    necro_try(NecroType, necro_constraint_ambiguous_type_class_check(ast->source_loc, ast->end_loc, constraints, type_sig));
+
+    type_sig = necro_try_result(NecroType, necro_type_generalize(infer->arena, &infer->con_env, infer->base, infer->intern, type_sig, ast->expr_type_signature.type->scope));
+
+    necro_try_map(void, NecroType, necro_kind_infer_default_unify_with_star(infer->arena, infer->base, type_sig, ast->scope, ast->expr_type_signature.type->source_loc, ast->expr_type_signature.type->end_loc));
+
+    type_sig->pre_supplied                             = true;
+    ast->necro_type                                    = type_sig;
+    necro_constraint_list_apply(infer->arena, type_sig, constraints);
+
+    necro_try(NecroType, necro_infer_go(infer, ast->expr_type_signature.expression));
+    necro_try(NecroType, necro_type_unify_with_info(infer->arena, &infer->con_env, infer->base, type_sig, ast->expr_type_signature.expression->necro_type, ast->scope, ast->source_loc, ast->end_loc));
 
     return ok(NecroType, ast->necro_type);
 }
@@ -2433,6 +2462,7 @@ NecroResult(NecroType) necro_infer_go(NecroInfer* infer, NecroAst* ast)
     case NECRO_AST_ARITHMETIC_SEQUENCE:    return necro_infer_arithmetic_sequence(infer, ast);
     case NECRO_AST_DO:                     return necro_infer_do(infer, ast);
     case NECRO_AST_TYPE_SIGNATURE:         return necro_infer_type_sig(infer, ast);
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:    return necro_infer_expr_type_sig(infer, ast);
 
     case NECRO_AST_TOP_DECL:               /* FALLTHROUGH */
     case NECRO_AST_SIMPLE_ASSIGNMENT:      /* FALLTHROUGH */

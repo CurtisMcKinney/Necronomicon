@@ -367,6 +367,20 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         necro_ast_print_go(ast->type_signature.type, depth + 1);
         break;
 
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        printf("\r");
+        necro_ast_print_go(ast->expr_type_signature.expression, depth + 0);
+        for (uint32_t i = 0;  i < depth + 1; ++i) printf(AST_TAB);
+        puts("::");
+        if (ast->expr_type_signature.context != NULL)
+        {
+            necro_ast_print_go(ast->expr_type_signature.context, depth + 1);
+            for (uint32_t i = 0;  i < depth + 2; ++i) printf(AST_TAB);
+            puts("=>");
+        }
+        necro_ast_print_go(ast->expr_type_signature.type, depth + 1);
+        break;
+
     case NECRO_AST_TYPE_CLASS_CONTEXT:
         printf("\r");
         necro_ast_print_go(ast->type_class_context.conid, depth + 0);
@@ -1231,6 +1245,12 @@ NecroAst* necro_reify_go(NecroParseAstArena* parse_ast_arena, NecroParseAstLocal
         reified_ast->type_signature.sig_type          = ast->type_signature.sig_type;
         reified_ast->type_signature.declaration_group = NULL;
         break;
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        reified_ast->expr_type_signature.expression        = necro_reify_go(parse_ast_arena, ast->expr_type_signature.expression, arena, intern);
+        reified_ast->expr_type_signature.context           = necro_reify_go(parse_ast_arena, ast->expr_type_signature.context, arena, intern);
+        reified_ast->expr_type_signature.type              = necro_reify_go(parse_ast_arena, ast->expr_type_signature.type, arena, intern);
+        reified_ast->expr_type_signature.declaration_group = NULL;
+        break;
     case NECRO_AST_FUNCTION_TYPE:
         reified_ast->function_type.type          = necro_reify_go(parse_ast_arena, ast->function_type.type, arena, intern);
         reified_ast->function_type.next_on_arrow = necro_reify_go(parse_ast_arena, ast->function_type.next_on_arrow, arena, intern);
@@ -1836,6 +1856,16 @@ NecroAst* necro_ast_create_type_signature(NecroPagedArena* arena, NECRO_SIG_TYPE
     ast->type_signature.context           = context;
     ast->type_signature.type              = type;
     ast->type_signature.declaration_group = NULL;
+    return ast;
+}
+
+NecroAst* necro_ast_create_expr_type_signature(NecroPagedArena* arena, NecroAst* expression, NecroAst* context, NecroAst* type)
+{
+    NecroAst* ast                              = necro_ast_alloc(arena, NECRO_AST_EXPR_TYPE_SIGNATURE);
+    ast->expr_type_signature.expression        = expression;
+    ast->expr_type_signature.context           = context;
+    ast->expr_type_signature.type              = type;
+    ast->expr_type_signature.declaration_group = NULL;
     return ast;
 }
 
@@ -2447,6 +2477,15 @@ void necro_ast_assert_eq_type_signature(NecroAst* ast1, NecroAst* ast2)
     assert(ast1->type_signature.sig_type == ast2->type_signature.sig_type);
 }
 
+void necro_ast_assert_eq_expr_type_signature(NecroAst* ast1, NecroAst* ast2)
+{
+    assert(ast1->type == NECRO_AST_EXPR_TYPE_SIGNATURE);
+    assert(ast2->type == NECRO_AST_EXPR_TYPE_SIGNATURE);
+    necro_ast_assert_eq_go(ast1->expr_type_signature.expression, ast2->expr_type_signature.expression);
+    necro_ast_assert_eq_go(ast1->expr_type_signature.context, ast2->expr_type_signature.context);
+    necro_ast_assert_eq_go(ast1->expr_type_signature.type, ast2->expr_type_signature.type);
+}
+
 void necro_ast_assert_eq_function_type(NecroAst* ast1, NecroAst* ast2)
 {
     assert(ast1->type == NECRO_AST_FUNCTION_TYPE);
@@ -2504,6 +2543,7 @@ void necro_ast_assert_eq_go(NecroAst* ast1, NecroAst* ast2)
     case NECRO_AST_TYPE_CLASS_DECLARATION: necro_ast_assert_eq_type_class_declaration(ast1, ast2); break;
     case NECRO_AST_TYPE_CLASS_INSTANCE:    necro_ast_assert_eq_type_class_instance(ast1, ast2); break;
     case NECRO_AST_TYPE_SIGNATURE:         necro_ast_assert_eq_type_signature(ast1, ast2); break;
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:    necro_ast_assert_eq_expr_type_signature(ast1, ast2); break;
     case NECRO_AST_FUNCTION_TYPE:          necro_ast_assert_eq_function_type(ast1, ast2); break;
     default:
         assert(false);
@@ -2540,6 +2580,9 @@ NecroAst* necro_ast_copy_basic_info(NecroPagedArena* arena, NecroAst* declaratio
         break;
     case NECRO_AST_TYPE_SIGNATURE:
         ast2->type_signature.declaration_group = declaration_group;
+        break;
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        ast2->expr_type_signature.declaration_group = declaration_group;
         break;
     case NECRO_AST_DATA_DECLARATION:
         ast2->data_declaration.declaration_group = declaration_group;
@@ -2755,6 +2798,11 @@ NecroAst* necro_ast_deep_copy_go(NecroPagedArena* arena, NecroAst* declaration_g
             necro_ast_deep_copy_go(arena, declaration_group, ast->type_signature.var),
             necro_ast_deep_copy_go(arena, declaration_group, ast->type_signature.context),
             necro_ast_deep_copy_go(arena, declaration_group, ast->type_signature.type)));
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_expr_type_signature(arena,
+            necro_ast_deep_copy_go(arena, declaration_group, ast->expr_type_signature.context),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->expr_type_signature.context),
+            necro_ast_deep_copy_go(arena, declaration_group, ast->expr_type_signature.type)));
     case NECRO_AST_TYPE_CLASS_CONTEXT:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_context_full(arena,
             necro_ast_deep_copy_go(arena, declaration_group, ast->type_class_context.conid),
@@ -3092,6 +3140,11 @@ NecroAst* necro_ast_deep_copy_with_new_names_go(NecroPagedArena* arena, NecroInt
             necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_signature.var),
             necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_signature.context),
             necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_signature.type)));
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_expr_type_signature(arena,
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->expr_type_signature.expression),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->expr_type_signature.context),
+            necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->expr_type_signature.type)));
     case NECRO_AST_TYPE_CLASS_CONTEXT:
         return necro_ast_copy_basic_info(arena, declaration_group, ast, necro_ast_create_context_full(arena,
             necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->type_class_context.conid),

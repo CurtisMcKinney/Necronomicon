@@ -474,6 +474,12 @@ NecroResult(NecroAstSymbol) necro_rename_declare(NecroRenamer* renamer, NecroAst
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_signature.type));
         break;
 
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->expr_type_signature.expression));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->expr_type_signature.context));
+        necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->expr_type_signature.type));
+        break;
+
     case NECRO_AST_TYPE_CLASS_CONTEXT:
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_context.conid));
         necro_try(NecroAstSymbol, necro_rename_declare(renamer, ast->type_class_context.varid));
@@ -783,6 +789,12 @@ NecroResult(NecroAstSymbol) necro_rename_var(NecroRenamer* renamer, NecroAst* as
         necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->type_signature.type));
         if (ast->type_signature.declaration_group == NULL)
             ast->type_signature.declaration_group = necro_ast_declaration_group_append(&renamer->ast_arena->arena, ast, NULL);
+        break;
+
+    case NECRO_AST_EXPR_TYPE_SIGNATURE:
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->expr_type_signature.expression));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->expr_type_signature.context));
+        necro_try(NecroAstSymbol, necro_rename_var(renamer, ast->expr_type_signature.type));
         break;
 
     case NECRO_AST_TYPE_CLASS_CONTEXT:

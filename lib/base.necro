@@ -7885,8 +7885,8 @@ scoreSection =
 -- Play
 ----------------------
 
-data PlayControl  = Play | Stop | FadeIn Float Float | FadeOut Float Float | NoChange
-data PlayState    = PlayState# Bool Float Float Float
+data PlayControl = Play | Stop | FadeIn Float Float | FadeOut Float Float | NoChange
+data PlayState   = PlayState# Bool Float Float Float
 
 playStateTick :: PlayState -> PlayState
 playStateTick (PlayState# isPlaying amplitude fadeRate fadeCurve) =
@@ -7901,6 +7901,7 @@ playStateTick (PlayState# isPlaying amplitude fadeRate fadeCurve) =
       else
         PlayState# True amplitude' fadeRate fadeCurve
 
+-- TODO: interpolated fade!
 -- NOTE: Currently only block accurate!!!
 -- TODO: Sub block timing!
 play :: (ScoreType s, Floating a) => (s -> PlayControl) -> (() -> a) -> a

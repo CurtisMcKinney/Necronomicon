@@ -64,11 +64,9 @@ void                               necro_print_type_classes(struct NecroInfer* i
 NecroResult(NecroType)             necro_create_type_class(struct NecroInfer* infer, NecroAst* type_class_ast);
 NecroResult(NecroType)             necro_create_type_class_instance(struct NecroInfer* infer, NecroAst* instance_ast);
 
-NecroResult(void)                  necro_infer_deriving_declaration(struct NecroInfer* infer, NecroAst* ast);
-
 struct NecroConstraintList*        necro_constraint_list_union(NecroPagedArena* arena, struct NecroConstraintList* constraints1, struct NecroConstraintList* constraints2);
 NecroResult(NecroConstraintList)   necro_constraint_list_from_ast(struct NecroInfer* infer, NecroAst* constraints_ast);
-NecroResult(NecroType)             necro_constraint_ambiguous_type_class_check(NecroAstSymbol* type_sig_name, struct NecroConstraintList* constraints, NecroType* type);
+NecroResult(NecroType)             necro_constraint_ambiguous_type_class_check(NecroSourceLoc source_loc, NecroSourceLoc end_loc, struct NecroConstraintList* constraints, NecroType* type);
 NecroResult(NecroType)             necro_constraint_class_variable_check(NecroTypeClass* type_class, NecroAstSymbol* type_var, NecroAstSymbol* type_sig_symbol, struct NecroConstraintList* constraints);
 void                               necro_constraint_list_apply(NecroPagedArena* arena, NecroType* type, struct NecroConstraintList* constraints);
 NecroResult(NecroType)             necro_constraint_list_kinds_check(NecroPagedArena* arena, struct NecroBase* base, struct NecroConstraintList* constraints, NecroScope* scope);

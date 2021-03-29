@@ -147,6 +147,9 @@ mouseX = getMouseX ()
 mouseY :: Int
 mouseY = getMouseY ()
 
+keyPress :: UInt
+keyPress = getKeyPress ()
+
 asTypeOf :: a -> a -> a
 asTypeOf x _ = x
 

@@ -38,6 +38,7 @@ typedef enum
 NECRO_RUNTIME_STATE necro_runtime_state = NECRO_RUNTIME_UNINITIALIZED;
 int                 mouse_x             = 0;
 int                 mouse_y             = 0;
+uint32_t            key_press           = 0;
 bool                is_test_true        = true;
 
 extern DLLEXPORT int necro_runtime_get_mouse_x(size_t _dummy)
@@ -50,6 +51,12 @@ extern DLLEXPORT int necro_runtime_get_mouse_y(size_t _dummy)
 {
     UNUSED(_dummy);
     return mouse_y;
+}
+
+extern DLLEXPORT uint32_t necro_runtime_get_key_press(size_t _dummy)
+{
+    UNUSED(_dummy);
+    return key_press;
 }
 
 // extern DLLEXPORT void necro_runtime_print(int value)
@@ -524,6 +531,10 @@ extern DLLEXPORT void necro_runtime_update()
             {
                 necro_runtime_state = NECRO_RUNTIME_IS_DONE;
             }
+            else
+            {
+              keyPress = (uint32_t) input_record[i].Event.KeyEvent.uChar.AsciiChar;
+            }
             break;
         case MOUSE_EVENT:
             // printf("MOUSE_EVENT: %d\n", i);
@@ -571,6 +582,8 @@ extern DLLEXPORT void necro_runtime_shutdown()
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/Xresource.h>
+#include <X11/keysym.h>
+#include <X11/keysymdef.h>
 
 static Window root;
 static Display* display = NULL;
@@ -613,6 +626,8 @@ static void query_pointer(Display *d)
     {
         once = true;
         root = DefaultRootWindow(d);
+        XGrabKeyboard(d, root, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+        XSelectInput(d, root, KeyPressMask | SubstructureNotifyMask);
     }
 
     if (!XQueryPointer(d, root, &root, &w, &mouse_x, &mouse_y, &i, &i, &m)) {
@@ -625,7 +640,7 @@ static void query_pointer(Display *d)
         }
     }
 
-    /* fprintf(stdout, "X: %d Y: %d\n", x, y); */
+    /* printf("X: %d Y: %d\n", mouse_x, mouse_y); */
 }
 
 extern DLLEXPORT void necro_runtime_update()
@@ -636,12 +651,47 @@ extern DLLEXPORT void necro_runtime_update()
     assert(display != NULL);
     query_pointer(display);
 
-    // ADD ESCAPE KEY SUPPORT
+    // Keyboard Handling
+    {
+      static XEvent keyEvent;
+      static const size_t KEY_STRING_LENGTH = 16;
+      static char keyString[KEY_STRING_LENGTH] = { 0 };
+      static char ascii = 0;
+      static uint32_t keyEventCode = 0;
+      static int resultLength = 0;
 
-    /* if (input_record[i].Event.KeyEvent.uChar.AsciiChar == 27 || input_record[i].Event.KeyEvent.uChar.AsciiChar == 3 || input_record[i].Event.KeyEvent.uChar.AsciiChar == 4) */
-    /* { */
-    /*     necro_runtime_state = NECRO_RUNTIME_IS_DONE; */
-    /* } */
+      while (XPending(display)) //Repeats until all events are computed
+      {
+        XNextEvent(display, &keyEvent); //Gets exactly one event
+        if (keyEvent.type == KeyPress)
+        {
+          keyEventCode = keyEvent.xkey.keycode; //Gets the key code, NOT ITS CHAR EQUIVALENT
+          /* printf("C -- KeyEventCode: %u\n", keyEventCode); */
+          resultLength = XLookupString(&keyEvent.xkey, keyString, KEY_STRING_LENGTH, NULL, NULL);
+          if (resultLength > 0) // Check size == 1?
+          {
+            /* printf("C -- keyString: %s\n", keyString); */
+            ascii = keyString[0];
+            switch(ascii)
+            {
+            case 3:
+            case 4:
+            case 27:
+              necro_runtime_state = NECRO_RUNTIME_IS_DONE;
+              break;
+            default:
+              key_press = (uint32_t) ascii;
+              break;
+            }
+          }
+        }
+        /* else if(keyEvent.type==keyRelease) */
+        /* { */
+        /*   uint32_t keyEventCode=KeyEvent.xkey.keycode; */
+        /*   #<{(| Code handling a KeyRelease event |)}># */
+        /* } */
+      }
+    }
 }
 
 extern DLLEXPORT size_t necro_runtime_is_done()

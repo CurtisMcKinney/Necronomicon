@@ -916,6 +916,19 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
+    // getKeyPress
+    {
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getKeyPress", NULL,
+            necro_ast_create_type_fn(arena,
+                necro_ast_create_conid(arena, intern, "()", NECRO_CON_TYPE_VAR),
+                necro_ast_create_conid(arena, intern, "UInt", NECRO_CON_TYPE_VAR)),
+            NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top,
+            necro_ast_create_apats_assignment(arena, intern, "getKeyPress",
+                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "_dummy", NECRO_VAR_DECLARATION), NULL),
+                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "primUndefined", NECRO_VAR_VAR), NULL)));
+    }
+
     // && / ||
     // NOTE: && and || turn into NecroMach binops 'and' and 'or', thus use primUndefined.
     {
@@ -1112,6 +1125,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "testAssertion",            &base.test_assertion,              NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "getMouseX",                &base.mouse_x_fn,                  NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "getMouseY",                &base.mouse_y_fn,                  NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "getKeyPress",              &base.keyPress_fn,                 NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "sampleRate",               &base.sample_rate,                 NECRO_PRIMOP_PRIM_VAL);
     necro_base_setup_primitive(scoped_symtable, intern, "recipSampleRate",          &base.recip_sample_rate,           NECRO_PRIMOP_PRIM_VAL);
     necro_base_setup_primitive(scoped_symtable, intern, "printInt",                 &base.print_int,                   NECRO_PRIMOP_PRIM_FN);

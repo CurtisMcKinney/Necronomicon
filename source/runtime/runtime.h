@@ -61,6 +61,13 @@ extern DLLEXPORT size_t necro_runtime_get_block_size();
 extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double* audio_block, size_t world);
 
 //--------------------
+// MIDI
+
+// message array with stride 2 - { message, timestamp }
+extern DLLEXPORT uint64_t* necro_runtime_get_midi_buffer(size_t _dummy);
+extern DLLEXPORT uint64_t  necro_runtime_get_num_buffered_midi_messages(size_t _dummy);
+
+//--------------------
 // Memory
 extern DLLEXPORT uint8_t* necro_runtime_alloc(size_t size);
 extern DLLEXPORT uint8_t* necro_runtime_realloc(uint8_t* ptr, size_t size);

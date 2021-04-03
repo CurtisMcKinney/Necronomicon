@@ -532,6 +532,9 @@ class Bits a where
   toBits         :: a -> UInt
   fromBits       :: UInt -> a
 
+bit :: UInt -> UInt
+bit n = bitShiftLeft 1 n
+
 sqr :: Semiring a => a -> a
 sqr n = n * n
 
@@ -8463,6 +8466,172 @@ endAtLoop s = Seq go
 
 -- TODO: seqShift / seqDelay
 
+----------------------
+-- MIDI
+----------------------
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-- MIDI Internals
+
+-- Runtime C Function
+-- getMIDIMessageBuffer :: () -> Ptr UInt
+-- getMIDIMessageBuffer = primUndefined
+
+-- Runtime C Function
+-- getMIDIMessageBufferSize :: () -> UInt
+-- getMIDIMessageBufferSize = primUndefined
+
+-- Message buffer has a stride of 2, where a message is a pair of uints in the sequence { Message, TimeStamp }
+primMIDIMessageBuffer :: Ptr UInt
+primMIDIMessageBuffer = getMIDIMessageBuffer ()
+
+primMIDIMessageBufferSize :: UInt
+primMIDIMessageBufferSize = getMIDIMessageBufferSize ()
+
+primMIDIMessageSlice :: Slice UInt
+primMIDIMessageSlice =
+  Slice# primMIDIMessageBuffer primMIDIMessageBufferSize
+
+primMIDIMessageTypeMask :: UInt
+primMIDIMessageTypeMask = bitAnd 255 (bitNot 15)
+
+primMIDIMessageType :: UInt -> UInt
+primMIDIMessageType rawMessage = bitShiftRight (bitAnd rawMessage primMIDIMessageTypeMask) 4
+
+primMIDIMessageChannel :: UInt -> UInt
+primMIDIMessageChannel rawMessage = bitAnd rawMessage 15
+
+primMIDIMessageData1 :: UInt -> UInt
+primMIDIMessageData1 rawMessage = bitShiftRight (bitAnd rawMessage (bitShiftLeft 255 8)) 8
+
+primMIDIMessageData2 :: UInt -> UInt
+primMIDIMessageData2 rawMessage = bitShiftRight (bitAnd rawMessage (bitShiftLeft 255 16)) 16
+
+primMIDINoteOffType :: UInt
+primMIDINoteOffType = 8
+
+primMIDINoteOnType :: UInt
+primMIDINoteOnType = 9
+
+primMIDIControlType :: UInt
+primMIDIControlType = 11
+
+primMkMIDIArray :: UInt -> MIDI_Message
+primMkMIDIArray i =
+  if i < midiMessageBufferSize then
+    let
+      j = i * 2
+      rawMessage = unsafePtrPeek j primMIDIMessageBuffer
+      rawTimeStamp = unsafePtrPeek (j + 1) primMIDIMessageBuffer
+      messageType = primMIDIMessageType rawMessage
+      -- channels are encode in messages as 0-15, but the spec denotes them as 1-16
+      midiChannel = primMIDIMessageChannel rawMessage + 1
+      midiMessage = -- case (primMIDIMessageType rawMessage) of
+        if messageType == primMIDINoteOffType then
+          MIDI_NoteOff
+            (MIDI_Channel midiChannel)
+            (MIDI_Note (primMIDIMessageData1 rawMessage))
+            (MIDI_Velocity (primMIDIMessageData2 rawMessage))
+            (MIDI_TimeStamp rawTimeStamp)
+        else if messageType == primMIDINoteOnType then
+          MIDI_NoteOn
+            (MIDI_Channel midiChannel)
+            (MIDI_Note (primMIDIMessageData1 rawMessage))
+            (MIDI_Velocity (primMIDIMessageData2 rawMessage))
+            (MIDI_TimeStamp rawTimeStamp)
+        else if messageType == primMIDIControlType then
+          MIDI_Control
+            (MIDI_Channel midiChannel)
+            (MIDI_ControlNumber (primMIDIMessageData1 rawMessage))
+            (MIDI_ControlValue (primMIDIMessageData2 rawMessage))
+            (MIDI_TimeStamp rawTimeStamp)
+        else MIDI_Undefined
+    in
+      midiMessage
+  else
+    MIDI_Undefined
+
+primMIDIMessageArray :: Array 256 MIDI_Message -- KEEP THIS IN SYNC WITH RT_MIDI_MESSAGE_BUFFER_SIZE IN RUNTIME.C!!!
+primMIDIMessageArray =
+  mkArray primMkMIDIArray
+
+-- ~MIDI Internals
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+midiMessageBufferSize :: UInt
+midiMessageBufferSize = primMIDIMessageBufferSize / 2
+
+midiMessageBuffer :: Slice MIDI_Message
+midiMessageBuffer =
+  subSlice primMIDIMessageArray midiMessageBufferSize
+
+dumpMIDIBuffer :: *World -> *World
+dumpMIDIBuffer w =
+  if sliceLength midiMessageBuffer > 0
+    then
+      printLn midiMessageBuffer w
+    else
+      w
+
+dumpRawMIDIBuffer :: *World -> *World
+dumpRawMIDIBuffer w =
+    (loop (#w', i#) = (#w, 0#) while i < primMIDIMessageBufferSize do
+      (#
+        print "{ Necro :: Message: " w'
+          |> print (unsafePtrPeek i primMIDIMessageBuffer)
+          |> print ", TimeStamp: "
+          |> print (unsafePtrPeek (i + 1) primMIDIMessageBuffer)
+          |> printLn " }",
+        i + 2
+      #)
+    )
+    |> fst'
+    -- |> \w'' ->
+    --   if primMIDIMessageBufferSize > 0
+    --     then print "MIDI Message buffer size: " w'' |> printLn primMIDIMessageBufferSize
+    --     else w''
+
+data MIDI_Channel = MIDI_Channel UInt
+data MIDI_Note = MIDI_Note UInt
+data MIDI_Velocity = MIDI_Velocity UInt
+data MIDI_TimeStamp = MIDI_TimeStamp UInt
+data MIDI_ControlNumber = MIDI_ControlNumber UInt
+data MIDI_ControlValue = MIDI_ControlValue UInt
+
+data MIDI_Message =
+  MIDI_NoteOn  MIDI_Channel MIDI_Note MIDI_Velocity MIDI_TimeStamp |
+  MIDI_NoteOff MIDI_Channel MIDI_Note MIDI_Velocity MIDI_TimeStamp |
+  MIDI_Control MIDI_Channel MIDI_ControlNumber MIDI_ControlValue MIDI_TimeStamp |
+  MIDI_Undefined
+
+middleC_MIDINote :: UInt
+middleC_MIDINote = 60
+
+midiToFrequency :: Scale t d -> MIDI_Message -> Maybe Float
+midiToFrequency scale midiMessage =
+  case midiMessage of
+    MIDI_NoteOn _ (MIDI_Note note) _ _ -> Just <| d2f scale (fromUInt note - fromUInt middleC_MIDINote)
+    _ -> Nothing
+
+m2f :: Scale t d -> MIDI_Message -> Maybe Float
+m2f = midiToFrequency
+
+-- most recent MIDI Note On, if any, otherwise MIDI_Undefined
+midiNotes :: MIDI_Message
+midiNotes =
+  foldl f MIDI_Undefined midiMessageBuffer
+  where
+    f acc message =
+      case message of
+        (MIDI_NoteOn _ _ _ _) -> message
+        _ -> acc
+
+
+-- midiNoteSeq :: Seq MIDI_Message
+-- midiNoteSeq = ...
+
 --------------------
 -- Print
 --------------------
@@ -8562,6 +8731,33 @@ instance Print ScoreBeat where
     |> print beatSectionIndex
     |> print ')'
     |> printNewline
+
+instance Print MIDI_Message where
+  print midiMessage w =
+    case midiMessage of
+      (MIDI_NoteOn (MIDI_Channel channel) (MIDI_Note note) (MIDI_Velocity vel) (MIDI_TimeStamp timeStamp)) ->
+        print "MIDI_NoteOn { " w
+        |> print "(MIDI_Channel " |> print channel |> print ") "
+        |> print "(MIDI_Note " |> print note |> print ") "
+        |> print "(MIDI_Velocity " |> print vel |> print ") "
+        |> print "(MIDI_TimeStamp " |> print timeStamp |> print ") "
+        |> printLn "}"
+      (MIDI_NoteOff (MIDI_Channel channel) (MIDI_Note note) (MIDI_Velocity vel) (MIDI_TimeStamp timeStamp)) ->
+        print "MIDI_NoteOff { " w
+        |> print "(MIDI_Channel " |> print channel |> print ") "
+        |> print "(MIDI_Note " |> print note |> print ") "
+        |> print "(MIDI_Velocity " |> print vel |> print ") "
+        |> print "(MIDI_TimeStamp " |> print timeStamp |> print ") "
+        |> printLn "}"
+      (MIDI_Control (MIDI_Channel channel) (MIDI_ControlNumber num) (MIDI_ControlValue val) (MIDI_TimeStamp timeStamp)) ->
+        print "MIDI_Control { " w
+        |> print "(MIDI_Channel " |> print channel |> print ") "
+        |> print "(MIDI_ControlNumber " |> print num |> print ") "
+        |> print "(MIDI_ControlValue " |> print val |> print ") "
+        |> print "(MIDI_TimeStamp " |> print timeStamp |> print ") "
+        |> printLn "}"
+      MIDI_Undefined -> printLn "(MIDI_Undefined)" w
+      _ -> printLn "(MIDI_? Print support note implemented!)" w
 
 -- instance Print Alphabet where
 --   print alphabet w =

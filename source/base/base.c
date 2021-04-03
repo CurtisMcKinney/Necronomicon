@@ -929,6 +929,32 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
                 necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "primUndefined", NECRO_VAR_VAR), NULL)));
     }
 
+    // getMIDIMessageBuffer
+    {
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getMIDIMessageBuffer", NULL,
+            necro_ast_create_type_fn(arena,
+                necro_ast_create_conid(arena, intern, "()", NECRO_CON_TYPE_VAR),
+                necro_ast_create_type_app(arena, necro_ast_create_conid(arena, intern, "Ptr", NECRO_CON_TYPE_VAR), necro_ast_create_conid(arena, intern, "UInt", NECRO_CON_TYPE_VAR))),
+            NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top,
+            necro_ast_create_apats_assignment(arena, intern, "getMIDIMessageBuffer",
+                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "_dummy", NECRO_VAR_DECLARATION), NULL),
+                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "primUndefined", NECRO_VAR_VAR), NULL)));
+    }
+
+    // getMIDIMessageBufferSize
+    {
+        necro_append_top(arena, top, necro_ast_create_fn_type_sig(arena, intern, "getMIDIMessageBufferSize", NULL,
+            necro_ast_create_type_fn(arena,
+                necro_ast_create_conid(arena, intern, "()", NECRO_CON_TYPE_VAR),
+                necro_ast_create_conid(arena, intern, "UInt", NECRO_CON_TYPE_VAR)),
+            NECRO_VAR_SIG, NECRO_SIG_DECLARATION));
+        necro_append_top(arena, top,
+            necro_ast_create_apats_assignment(arena, intern, "getMIDIMessageBufferSize",
+                necro_ast_create_apats(arena, necro_ast_create_var(arena, intern, "_dummy", NECRO_VAR_DECLARATION), NULL),
+                necro_ast_create_rhs(arena, necro_ast_create_var(arena, intern, "primUndefined", NECRO_VAR_VAR), NULL)));
+    }
+
     // && / ||
     // NOTE: && and || turn into NecroMach binops 'and' and 'or', thus use primUndefined.
     {
@@ -1126,6 +1152,8 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "getMouseX",                &base.mouse_x_fn,                  NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "getMouseY",                &base.mouse_y_fn,                  NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "getKeyPress",              &base.keyPress_fn,                 NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "getMIDIMessageBuffer",     &base.midi_msg_buffer_fn,          NECRO_PRIMOP_PRIM_FN);
+    necro_base_setup_primitive(scoped_symtable, intern, "getMIDIMessageBufferSize", &base.midi_msg_buffer_size_fn,     NECRO_PRIMOP_PRIM_FN);
     necro_base_setup_primitive(scoped_symtable, intern, "sampleRate",               &base.sample_rate,                 NECRO_PRIMOP_PRIM_VAL);
     necro_base_setup_primitive(scoped_symtable, intern, "recipSampleRate",          &base.recip_sample_rate,           NECRO_PRIMOP_PRIM_VAL);
     necro_base_setup_primitive(scoped_symtable, intern, "printInt",                 &base.print_int,                   NECRO_PRIMOP_PRIM_FN);

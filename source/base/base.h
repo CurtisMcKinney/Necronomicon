@@ -142,6 +142,8 @@ typedef struct NecroBase
     NecroAstSymbol* mouse_x_fn;
     NecroAstSymbol* mouse_y_fn;
     NecroAstSymbol* keyPress_fn;
+    NecroAstSymbol* midi_msg_buffer_fn;
+    NecroAstSymbol* midi_msg_buffer_size_fn;
     NecroAstSymbol* ptr_malloc;
     // NecroAstSymbol* unsafe_peek;
     // NecroAstSymbol* unsafe_poke;

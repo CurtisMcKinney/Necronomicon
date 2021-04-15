@@ -885,7 +885,7 @@ static void query_pointer(Display *d)
     {
         once = true;
         root = DefaultRootWindow(d);
-        XGrabKeyboard(d, root, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+        /* XGrabKeyboard(d, root, True, GrabModeAsync, GrabModeAsync, CurrentTime); This is proving probelmatic as it takes control completely away. TODO: Find an alternative*/
         XSelectInput(d, root, KeyPressMask | SubstructureNotifyMask);
     }
 

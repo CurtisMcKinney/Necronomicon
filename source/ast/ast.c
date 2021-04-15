@@ -2938,7 +2938,8 @@ NecroAst* necro_ast_deep_copy_with_new_names_go(NecroPagedArena* arena, NecroInt
         case NECRO_VAR_CLASS_SIG:
         case NECRO_VAR_TYPE_FREE_VAR:
         default:
-            assert(false);
+            printf("ast->variable.var_type: %d unhandled!\n", ast->variable.var_type);
+            assert(false && "ast->variable.var_type unhandled!");
             return NULL;
         }
 
@@ -3160,7 +3161,7 @@ NecroAst* necro_ast_deep_copy_with_new_names_go(NecroPagedArena* arena, NecroInt
             necro_ast_deep_copy_with_new_names_go(arena, intern, scope, declaration_group, ast->attribute.attribute_type),
             ast->attribute.type));
     default:
-        assert(false);
+        assert(false && "ast->type unhandled!");
         return NULL;
     }
 }

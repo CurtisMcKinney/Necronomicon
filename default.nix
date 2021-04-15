@@ -33,6 +33,7 @@ in
     configureFlags = [
       (mkFlag IS_DEBUG "debug")
       (mkFlag IS_DEBUG "debug-symbols")
+      (mkFlag IS_DEBUG "debug-runtime")
     ];
 
     cmakeBuildType = if IS_DEBUG then "Debug" else "Release";

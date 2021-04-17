@@ -1197,6 +1197,7 @@ NecroBase necro_base_compile(NecroIntern* intern, NecroScopedSymTable* scoped_sy
     necro_base_setup_primitive(scoped_symtable, intern, "ptrFree",              NULL, NECRO_PRIMOP_PTR_FREE);
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrPoke",        NULL, NECRO_PRIMOP_PTR_POKE);
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrPeek",        NULL, NECRO_PRIMOP_PTR_PEEK);
+    necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrPeekU",       NULL, NECRO_PRIMOP_PTR_PEEK_U);
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrSwapElement", NULL, NECRO_PRIMOP_PTR_SWAP);
     necro_base_setup_primitive(scoped_symtable, intern, "unsafePtrCast",        NULL, NECRO_PRIMOP_PTR_CAST);
 

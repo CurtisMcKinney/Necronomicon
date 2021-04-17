@@ -1857,6 +1857,10 @@ unsafePtrPeek :: UInt -> Ptr a -> a
 unsafePtrPeek index ptr =
   primUndefined
 
+unsafePtrPeekU :: UInt -> .Ptr a -> (#a, .Ptr a#)
+unsafePtrPeekU index ptr =
+  primUndefined
+
 unsafePtrPoke :: UInt -> .a -> *Ptr .a -> *Ptr .a
 unsafePtrPoke index value ptr =
   primUndefined
@@ -2071,6 +2075,9 @@ arrayFrom x =
       loop a = unsafeEmptyArray () for i <- each do
         writeArray i x a
 
+arrayFromN :: NatVal n -> a -> .Array n a
+arrayFromN _ x = arrayFrom x
+
 mkArray :: (UInt -> a) -> .Array n a
 mkArray f =
   freezeArray xa
@@ -2283,15 +2290,16 @@ data PolyVoiceBankCapacity = PolyVoiceBankCapacity UInt
 data PolyVoiceBankNumActive = PolyVoiceBankNumActive UInt
 data PolyVoiceBankOrderCounter = PolyVoiceBankOrderCounter UInt
 
-data PolyVoiceBank n a = PolyVoiceBank# .(Array n (PolyVoiceState a)) PolyVoiceBankCapacity PolyVoiceBankNumActive PolyVoiceBankOrderCounter
+-- data PolyVoiceBank n a = PolyVoiceBank# .(Array n (PolyVoiceState a)) PolyVoiceBankCapacity PolyVoiceBankNumActive PolyVoiceBankOrderCounter
+data PolyVoiceBank a = PolyVoiceBank# .(Ptr (PolyVoiceState a)) PolyVoiceBankCapacity PolyVoiceBankNumActive PolyVoiceBankOrderCounter
 
 instance (Default a) => Default (PolyVoiceState a) where
   default = PolyVoiceState# (VoiceID 0) (PolyVoiceStateOrderID 0) VoiceStateInactive default
 
 polyVoiceBank_CreateOrStealVoice ::
   PolyVoiceState a ->
-  *PolyVoiceBank n a ->
-  *PolyVoiceBank n a
+  *PolyVoiceBank a ->
+  *PolyVoiceBank a
 polyVoiceBank_CreateOrStealVoice
   (PolyVoiceState# vid _ vstate va)
   (PolyVoiceBank# a (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)) =
@@ -2310,32 +2318,31 @@ polyVoiceBank_CreateOrStealVoice
       PolyVoiceBank# ua (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1))
     -- 2. Second try to fill an empty whole
     else if n < c then
-      (loop (#a', created#) = (#ua, False#) for i <- each do
+      (loop (#a', created, i#) = (#ua, False, 0#) while i < c do
         if created then
-          (#a', True#)
+          (#a', True, i + 1#)
         else
           let
-            (#PolyVoiceState# _ _ voiceState _, readA#) = readArrayU i a'
+            (#PolyVoiceState# _ _ voiceState _, readA#) = unsafePtrPeekU i a'
             create =
               case voiceState of
                 VoiceStateInactive -> True
                 _ -> False
           in
             if create then
-              (#writeArray i (PolyVoiceState# vid (PolyVoiceStateOrderID o) vstate va) readA, True#)
+              (#unsafePtrPoke i (PolyVoiceState# vid (PolyVoiceStateOrderID o) vstate va) readA, True, i + 1#)
             else
-              (#readA, False#)
-      ) |> \(#a', created#) ->
+              (#readA, False, i + 1#)
+      ) |> \(#a', created, _#) ->
         if created then
           PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive (n + 1)) (PolyVoiceBankOrderCounter (o + 1))
         else -- this should never happen!!
           PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o) |> traceLn "polyVoiceBank_CreateOrStealVoice failed to create voice?!?!?"
     -- 3. Third, if none created then steal the oldest releasing voice
     else
-      (loop (#a', maybeStolenId, soid, stolenIndex#) = (#ua, Nothing, 0, 0#) for i <- each do
+      (loop (#a', maybeStolenId, soid, stolenIndex, i#) = (#ua, Nothing, 0, 0, 0#) while i < c do
         let
-          Index index = i
-          (#PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _, readA#) = readArrayU i a'
+          (#PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _, readA#) = unsafePtrPeekU i a'
           steal =
             case voiceState of
               VoiceStateReleasing -> True
@@ -2343,67 +2350,63 @@ polyVoiceBank_CreateOrStealVoice
         in
           if steal then
             case maybeStolenId of
-              Nothing -> (#readA, Just vid, oid, index#)
+              Nothing -> (#readA, Just vid, oid, i, i + 1#)
               Just svid ->
                 if oid < soid then
-                  (#readA, Just vid, oid, index#)
+                  (#readA, Just vid, oid, i, i + 1#)
                 else
-                  (#readA, Just svid, soid, stolenIndex#)
+                  (#readA, maybeStolenId, soid, stolenIndex, i + 1#)
           else
-            (#readA, Just vid, oid, index#)
-      ) |> \(#a', maybeStolenId, _, stolenIndex#) ->
+            (#readA, maybeStolenId, soid, stolenIndex, i + 1#)
+      ) |> \(#a', maybeStolenId, _, stolenIndex, _#) ->
         case maybeStolenId of
           Just svid ->
             let
-              writeA = writeArray (unsafeUIntToIndex stolenIndex) (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining va) a'
+              writeA = unsafePtrPoke stolenIndex (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining va) a'
             in
               PolyVoiceBank# writeA (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1))
           _ ->
             -- 4. Fourth, if no releasing voices, then steal the oldest voices
-            (loop (#a'', maybeStolenId, soid, stolenIndex#) = (#a', Nothing, 0, 0#) for i <- each do
+            (loop (#a'', maybeStolenId, soid, stolenIndex, i#) = (#a', Nothing, 0, 0, 0#) while i < c do
               let
-                Index index = i
-                (#PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _, readA#) = readArrayU i a''
+                (#PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _, readA#) = unsafePtrPeekU i a''
               in
                 case maybeStolenId of
-                  Nothing -> (#readA, Just vid, oid, index#)
+                  Nothing -> (#readA, Just vid, oid, i, i + 1#)
                   Just svid ->
                     if oid < soid then
-                      (#readA, Just vid, oid, index#)
+                      (#readA, Just vid, oid, i, i + 1#)
                     else
-                      (#readA, Just svid, soid, stolenIndex#)
-            ) |> \(#a', maybeStolenId, _, stolenIndex#) ->
+                      (#readA, maybeStolenId, soid, stolenIndex, i + 1#)
+            ) |> \(#a', maybeStolenId, _, stolenIndex, _#) ->
               case maybeStolenId of
                 Nothing ->
                   PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o) |> traceLn "polyVoiceBank_CreateOrStealVoice failed to steal voice?!?!?"
                 Just svid ->
                   let
-                    writeA = writeArray (unsafeUIntToIndex stolenIndex) (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining va) a'
+                    writeA = unsafePtrPoke stolenIndex (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining va) a'
                   in
                     PolyVoiceBank# writeA (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1))
 
 polyVoiceBank_UpdateFirstElementWhere ::
   ((PolyVoiceState a) -> Bool) ->
   (PolyVoiceState a -> PolyVoiceState a) ->
-  *PolyVoiceBank n a ->
-  (#Bool, *PolyVoiceBank n a#)
-polyVoiceBank_UpdateFirstElementWhere f u (PolyVoiceBank# a c n o) =
-  (loop (#found, a'#) = (#False, a#) for i <- each do
-    if found then
-      (#True, a'#)
-    else
-      let
-        (#element, readA#) = readArrayU i a'
-        found = f element
-        writeA =
-          if found then
-            writeArray i (u element) readA
-          else
-            readA
-      in
-        (#found, writeA#))
-  |> \(#found, a'#) ->
-    (#found, PolyVoiceBank# a' c n o#)
+  *PolyVoiceBank a ->
+  (#Bool, *PolyVoiceBank a#)
+polyVoiceBank_UpdateFirstElementWhere f u (PolyVoiceBank# a (PolyVoiceBankCapacity c) n o) =
+  (loop (#found, a', i#) = (#False, a, 0#) while (i < c && (not found)) do
+    let
+      (#element, readA#) = unsafePtrPeekU i a'
+      found = f element
+      writeA =
+        if found then
+          unsafePtrPoke i (u element) readA
+        else
+          readA
+    in
+      (#found, writeA, i + 1#))
+  |> \(#found, a', _#) ->
+    (#found, PolyVoiceBank# a' (PolyVoiceBankCapacity c) n o#)
 
 -- OLD uninlined version
 -- polyVoiceBank_HandleVoiceEvents ::
@@ -2484,8 +2487,16 @@ data PolyVoiceBank_VoiceBehavior =
 --   |> \(#voices', n', voiceAudio#) ->
 --     (#PolyVoiceBank# voices' c (PolyVoiceBankNumActive n') o, voiceAudio#)
 
-polyVoiceBank_mkVoices :: Default a => NatVal n -> .PolyVoiceBank n a
-polyVoiceBank_mkVoices numVoices = PolyVoiceBank# (arrayFrom default) (PolyVoiceBankCapacity <| natVal numVoices) (PolyVoiceBankNumActive 0) (PolyVoiceBankOrderCounter 0)
+-- polyVoiceBank_mkVoices :: Default a => NatVal n -> .PolyVoiceBank n a
+-- polyVoiceBank_mkVoices numVoices = PolyVoiceBank# (arrayFrom default) (PolyVoiceBankCapacity <| natVal numVoices) (PolyVoiceBankNumActive 0) (PolyVoiceBankOrderCounter 0)
+
+polyVoiceBank_mkVoices :: Default a => NatVal n -> *PolyVoiceBank a
+polyVoiceBank_mkVoices numVoices = PolyVoiceBank# (ptrMalloc capacity |> initVoiceBank) (PolyVoiceBankCapacity capacity) (PolyVoiceBankNumActive 0) (PolyVoiceBankOrderCounter 0)
+  where
+    capacity = natVal numVoices
+    initVoiceBank pVoices =
+      fst' <| loop (#pVoices', i#) = (#pVoices, 0#) while i < capacity do
+        (#unsafePtrPoke i default pVoices', i + 1#)
 
 -- TODO: Change input to be array of floats? Slice of Floats? --> For sample accurac --> write into audio buffer!
 --> Add adsr triggers to retrigger env to beginning of attack, and also optionally pass that into the synth!
@@ -2571,21 +2582,50 @@ polyVoiceBank_WithBehavior ::
   PolyVoiceBank_VoiceBehavior ->
   f Audio
 polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
-  case voiceBank of
-    (PolyVoiceBank# voices _ _ _) ->
-      foldl foldAudio (pure 0) voices
+  case mutRefTake (\_ -> polyVoiceBank_mkVoices numVoices) of
+    (#voiceBank, mref#) ->
+      foldl foldEvents voiceBank voiceEvents
+      |> \(PolyVoiceBank# pVoices (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) o) ->
+        -- if (sliceLength voiceEvents) > 0 then
+        --   (#voiceBank' |> traceLn2 "polyVoiceBank_WithBehavior handleVoiceEvents: ", True#)
+        -- else
+        (loop (#pVoices', n', voiceAudio, i#) = (#pVoices, n, pure 0, 0#) for index <- each do
+          let
+            (#PolyVoiceState# vid oid vstate vinput, pReadVoices#) = unsafePtrPeekU i pVoices'
+            _ = readArray index staticArray
+          in
+            case vstate of
+              VoiceStateInactive -> (#pReadVoices, n', voiceAudio, i + 1#)
+              _ ->
+                let
+                  gate =
+                    -- TODO: Translate this to proper audio block with sample accuracy according to time stamp!
+                    case vstate of
+                      VoiceStateSustaining -> pure 1 |> traceLn "Sustaining"
+                      _ -> pure 0 |> traceLn "Releasing"
+                  envOut = envGen gate (pure 1)
+                  -- Pass in trigger (as audio?) in additiont o envGen?
+                  accVoiceAudio env = map2 (+) voiceAudio (voice vinput env)
+                in
+                  case voiceBehavior of
+                    PolyVoiceBank_InfiniteRelease ->
+                      (#pReadVoices, n', accVoiceAudio envOut, i + 1#)
+                    PolyVoiceBank_DeactivateAfterRelease ->
+                      case vstate of
+                        VoiceStateReleasing ->
+                          if foldl (\acc c -> acc && c == 0) True envOut then
+                            let
+                              pWriteVoices = unsafePtrPoke i default pReadVoices
+                            in
+                              (#pWriteVoices, n' - 1, voiceAudio, i + 1#) |> traceLn "Kill Voices!"
+                          else
+                            (#pReadVoices, n', accVoiceAudio envOut, i + 1#)
+                        _ -> (#pReadVoices, n', accVoiceAudio envOut, i + 1#)
+        ) |> \(# pVoices', n', voiceAudio, _#) ->
+          case mutRefPut (PolyVoiceBank# pVoices' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n') o) mref of
+            _ -> voiceAudio
   where
-    voiceBank ~ polyVoiceBank_mkVoices numVoices =
-      case voiceBank of
-        (PolyVoiceBank# voices c (PolyVoiceBankNumActive n) o) ->
-          foldl foldEvents (PolyVoiceBank# (deepCopyArray voices) c (PolyVoiceBankNumActive n) o) voiceEvents
-          |> \(PolyVoiceBank# voices' c n' o') ->
-            PolyVoiceBank# (freezeArray voices') c n' o'
-          |> \voiceBank' ->
-            if (sliceLength voiceEvents) > 0 then
-              voiceBank' |> traceLn2 "polyVoiceBank_WithBehavior handleVoiceEvents: "
-            else
-              voiceBank'
+    staticArray = arrayFromN numVoices 0 -- dummy array to force the runtime to generate a stateful synth for every voice index
     foldEvents voices' (VoiceEvent (VoiceID voiceID) activity (VoiceTimeStamp ts) voiceInput) =
       case activity of
         VoiceActive ->
@@ -2602,28 +2642,6 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
             case updateResult of
               (#False, voices''#) -> voices'' |> traceLn "FAILED TO UPDATE VOICE AFTER INACTIVE EVENT!!!!!!!!"
               (#True, voices''#) -> voices''
-    foldAudio accAudio (PolyVoiceState# vid oid vstate vinput) =
-      case vstate of
-        VoiceStateInactive -> accAudio
-        _ ->
-          let
-            gate =
-              -- TODO: Translate this to proper audio block with sample accuracy according to time stamp!
-              case vstate of
-                VoiceStateSustaining -> pure 1
-                _ -> pure 0
-            envOut = envGen gate (pure 1)
-            -- Pass in trigger (as audio?) in additiont o envGen?
-            voiceAudio env = map2 (+) accAudio (voice vinput env)
-          in
-            case voiceBehavior of
-              PolyVoiceBank_InfiniteRelease ->
-                voiceAudio envOut
-              PolyVoiceBank_DeactivateAfterRelease ->
-                if foldl (\acc c -> acc && c == 0) True envOut then
-                  voiceAudio envOut
-                else
-                  accAudio
 
 -- Deactivates after release when the envGen reaches 0
 polyVoiceBank ::
@@ -6303,12 +6321,22 @@ data EnvState = EnvState# Float Float Float Float
 
 envMk :: Float -> Float -> Float -> Float -> Float -> () -> *EnvState
 envMk level endLevel length curve currTime _ =
-  EnvState# (a2 |> traceLn2 "envMk a2: ") (b1 |> traceLn2 "envMk b1: ") grow (currTime |> traceLn2 "envMk currTime: ")
+  EnvState# a2 b1 grow currTime
   where
-    length' = (length |> traceLn2 "envMk length: ") * audioSampleRateF |> floor |> max 1 |> traceLn2 "envMk length': "
-    b1      = ((endLevel |> traceLn2 "envMk endLevel: ") - (level |> traceLn2 "envMk level: ")) / (1 - exp curve) |> traceLn2 "envMk b1: "
-    a2      = level + b1 |> traceLn2 "envMk a2: "
-    grow    = exp ((curve |> traceLn2 "envMk curve: ") / length') |> traceLn2 "envMk grow: "
+    length' = length * audioSampleRateF |> max 1
+    b1      = (endLevel - level) / (1 - exp curve)
+    a2      = level + b1
+    grow    = exp (curve / length')
+
+-- Adjusted version that truncates to sample, possibly addresses overshooting issue?
+envMk' :: Float -> Float -> Float -> Float -> Float -> () -> *EnvState
+envMk' level endLevel length curve currTime _ =
+  EnvState# a2 b1 grow currTime
+  where
+    length' = length * audioSampleRateF |> floor |> max 1
+    b1      = (endLevel - level) / (1 - exp curve)
+    a2      = level + b1
+    grow    = exp (curve / length')
 
 envIsRunning :: Float -> *EnvState -> (#*EnvState, Bool#)
 envIsRunning totalTime (EnvState# a2 b1 grow currTime) =
@@ -6376,7 +6404,7 @@ adsrTick attackTime decayTime sustainLevel releaseTime totalTime curve gate inpu
       case adsrState of
         ADSRState_Attack ->
           if currTime1 > attackTime then
-            (#ADSRState_Decay, envMk (a20 - b10) sustainLevel decayTime curve currTime1 ()#) |> traceLn "Attack -> Decay"
+            (#ADSRState_Decay, envMk' (a20 - b10) sustainLevel decayTime curve currTime1 ()#) |> traceLn "Attack -> Decay"
           else
             (#ADSRState_Attack, EnvState# a20 b10 grow0 currTime1#)
         ADSRState_Decay ->
@@ -6384,12 +6412,12 @@ adsrTick attackTime decayTime sustainLevel releaseTime totalTime curve gate inpu
             if gate > 0 then
               (#ADSRState_Sustain, EnvState# sustainLevel b10 0 currTime1#) |> traceLn "Decay -> Sustain"
             else
-              (#ADSRState_Release, envMk (a20 - b10) 0 releaseTime curve currTime1 ()#) |> traceLn "Decay -> Release"
+              (#ADSRState_Release, envMk' (a20 - b10) 0 releaseTime curve currTime1 ()#) |> traceLn "Decay -> Release"
           else
             (#ADSRState_Decay, EnvState# a20 b10 grow0 currTime1#)
         ADSRState_Sustain ->
             if gate == 0 then
-              (#ADSRState_Release, envMk (a20 - b10) 0 releaseTime curve attackAndDecayTime ()#) |> traceLn "Sustain -> Release"
+              (#ADSRState_Release, envMk' (a20 - b10) 0 releaseTime curve attackAndDecayTime ()#) |> traceLn "Sustain -> Release"
             else
               (#ADSRState_Sustain, EnvState# a20 b10 0 currTime0#)
         ADSRState_Release ->
@@ -6399,14 +6427,14 @@ adsrTick attackTime decayTime sustainLevel releaseTime totalTime curve gate inpu
               reAttackLength = min attackTime (((currTime1 - attackTime) / releaseTime) * attackTime) |> traceLn2 "reAttackLength: "
               currTime2 = attackTime - reAttackLength + recipSampleRate |> traceLn2 "currTime2: "
             in
-              (#ADSRState_Attack, envMk currentLevel 1 reAttackLength curve currTime2 ()#) |> traceLn "Release -> Attack"
+              (#ADSRState_Attack, envMk' currentLevel 1 reAttackLength curve currTime2 ()#) |> traceLn "Release -> Attack"
           else if currTime1 > totalTime then
               (#ADSRState_End, EnvState# 0 0 0 totalTime#) |> traceLn "Release -> End"
           else
             (#ADSRState_Release, EnvState# a20 b10 grow0 currTime1#)
         ADSRState_End ->
           if gate > 0 then
-            (#ADSRState_Attack, envMk 0 1 attackTime curve recipSampleRate ()#) |> traceLn "End -> Attack"
+            (#ADSRState_Attack, envMk' 0 1 attackTime curve recipSampleRate ()#) |> traceLn "End -> Attack"
           else
             (#ADSRState_End, EnvState# 0 0 0 totalTime#) -- |> trace "end"
     b12   = b1 * grow
@@ -9546,10 +9574,10 @@ instance (Print a) => Print (PolyVoiceState a) where
     |> print a
     |> print ")"
 
-instance (Print a) => Print (PolyVoiceBank n a) where
+instance (Print a) => Print (PolyVoiceBank a) where
   print (PolyVoiceBank# a (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)) w =
     print "(PolyVoiceBank# " w
-    |> print a
+    |> print (Slice# a c)
     |> print " (PolyVoiceBankCapacity "
     |> print c
     |> print ") (PolyVoiceBankNumActive "

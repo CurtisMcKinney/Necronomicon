@@ -2277,7 +2277,9 @@ currSampleCount =
 --------------------
 
 data VoiceID = VoiceID UInt
-data VoiceTimeStamp = VoiceTimeStamp Rational -- Expected to fall within current block
+data VoiceTimeStamp =
+  VoiceTimeStamp_RealTime Rational | -- Expected to fall within current block
+  VoiceTimeStamp_Block -- Fills entire block
 data VoiceActivity =
   VoiceInactive |
   VoiceActive
@@ -2290,7 +2292,8 @@ data VoiceState =
   VoiceStateInactive
 
 data PolyVoiceStateOrderID = PolyVoiceStateOrderID UInt -- Used to track creation order for note stealing
-data PolyVoiceState a = PolyVoiceState# VoiceID PolyVoiceStateOrderID VoiceState a
+data PolyVoiceLifetime = PolyVoiceLifetime# Rational Rational -- Start/End time
+data PolyVoiceState a = PolyVoiceState# VoiceID PolyVoiceStateOrderID VoiceState PolyVoiceLifetime a
 
 data PolyVoiceBankCapacity = PolyVoiceBankCapacity UInt
 data PolyVoiceBankNumActive = PolyVoiceBankNumActive UInt
@@ -2299,20 +2302,20 @@ data PolyVoiceBankOrderCounter = PolyVoiceBankOrderCounter UInt
 data PolyVoiceBank n a = PolyVoiceBank# .(Array n (PolyVoiceState a)) PolyVoiceBankCapacity PolyVoiceBankNumActive PolyVoiceBankOrderCounter
 
 instance (Default a) => Default (PolyVoiceState a) where
-  default = PolyVoiceState# (VoiceID 0) (PolyVoiceStateOrderID 0) VoiceStateInactive default
+  default = PolyVoiceState# (VoiceID 0) (PolyVoiceStateOrderID 0) VoiceStateInactive (PolyVoiceLifetime# 0 0) default
 
 polyVoiceBank_CreateOrStealVoice ::
   PolyVoiceState a ->
   *PolyVoiceBank n a ->
   *PolyVoiceBank n a
 polyVoiceBank_CreateOrStealVoice
-  (PolyVoiceState# vid _ vstate va)
+  (PolyVoiceState# vid _ vstate vlifetime va)
   (PolyVoiceBank# a (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)) =
   let
     VoiceID vidU = vid
     -- 1. First see if the current note is already playing, if so set back to sustain
-    isElement (PolyVoiceState# (VoiceID vid2) _ _ _) = vidU == vid2
-    updateElement (PolyVoiceState# vid _ _ _) = PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining va
+    isElement (PolyVoiceState# (VoiceID vid2) _ _ _ _) = vidU == vid2
+    updateElement (PolyVoiceState# vid _ _ _ _) = PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime va
     (#updated, (PolyVoiceBank# ua _ _ _)#) =
       polyVoiceBank_UpdateFirstElementWhere
         isElement
@@ -2328,14 +2331,14 @@ polyVoiceBank_CreateOrStealVoice
           (#a', True#)
         else
           let
-            (#PolyVoiceState# _ _ voiceState _, readA#) = readArrayU i a'
+            (#PolyVoiceState# _ _ voiceState _ _, readA#) = readArrayU i a'
             create =
               case voiceState of
                 VoiceStateInactive -> True
                 _ -> False
           in
             if create then
-              (#writeArray i (PolyVoiceState# vid (PolyVoiceStateOrderID o) vstate va) readA, True#)
+              (#writeArray i (PolyVoiceState# vid (PolyVoiceStateOrderID o) vstate vlifetime va) readA, True#)
             else
               (#readA, False#)
       ) |> \(#a', created#) ->
@@ -2348,7 +2351,7 @@ polyVoiceBank_CreateOrStealVoice
       (loop (#a', maybeStolenId, soid, stolenIndex#) = (#ua, Nothing, 0, 0#) for i <- each do
         let
           Index index = i
-          (#PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _, readA#) = readArrayU i a'
+          (#PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _ _, readA#) = readArrayU i a'
           steal =
             case voiceState of
               VoiceStateReleasing -> True
@@ -2368,7 +2371,7 @@ polyVoiceBank_CreateOrStealVoice
         case maybeStolenId of
           Just svid ->
             let
-              writeA = writeArray (unsafeUIntToIndex stolenIndex) (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining va) a'
+              writeA = writeArray (unsafeUIntToIndex stolenIndex) (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime va) a'
             in
               PolyVoiceBank# writeA (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1))
           _ ->
@@ -2376,7 +2379,7 @@ polyVoiceBank_CreateOrStealVoice
             (loop (#a'', maybeStolenId, soid, stolenIndex#) = (#a', Nothing, 0, 0#) for i <- each do
               let
                 Index index = i
-                (#PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _, readA#) = readArrayU i a''
+                (#PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _ _, readA#) = readArrayU i a''
               in
                 case maybeStolenId of
                   Nothing -> (#readA, Just vid, oid, index#)
@@ -2391,7 +2394,7 @@ polyVoiceBank_CreateOrStealVoice
                   PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o) |> traceLn "polyVoiceBank_CreateOrStealVoice failed to steal voice?!?!?"
                 Just svid ->
                   let
-                    writeA = writeArray (unsafeUIntToIndex stolenIndex) (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining va) a'
+                    writeA = writeArray (unsafeUIntToIndex stolenIndex) (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime va) a'
                   in
                     PolyVoiceBank# writeA (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1))
 
@@ -2442,17 +2445,29 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
   case mutRefTake (\_ -> polyVoiceBank_mkVoices numVoices) of
     (#voiceBank, mref#) ->
       let
-        foldEvents voices' (VoiceEvent (VoiceID voiceID) activity (VoiceTimeStamp ts) voiceInput) =
+        foldEvents voices' (VoiceEvent (VoiceID voiceID) activity ts voiceInput) =
           case activity of
             VoiceActive ->
-              polyVoiceBank_CreateOrStealVoice
-                (PolyVoiceState# (VoiceID voiceID) (PolyVoiceStateOrderID 0) VoiceStateSustaining voiceInput)
-                voices'
-              |> \voices'' -> voices''
+              let
+                voiceLifetime =
+                  case ts of
+                    VoiceTimeStamp_RealTime rt -> PolyVoiceLifetime# rt 0
+                    VoiceTimeStamp_Block -> PolyVoiceLifetime# currBlockTime 0
+              in
+                polyVoiceBank_CreateOrStealVoice
+                  (PolyVoiceState# (VoiceID voiceID) (PolyVoiceStateOrderID 0) VoiceStateSustaining voiceLifetime voiceInput)
+                  voices'
+                |> \voices'' -> voices''
             VoiceInactive ->
               let
-                isElement (PolyVoiceState# (VoiceID voiceID2) _ _ _) =  voiceID == voiceID2
-                updateElement (PolyVoiceState# vid oid _ vinput) = PolyVoiceState# vid oid VoiceStateReleasing vinput
+                isElement (PolyVoiceState# (VoiceID voiceID2) _ _ _ _) =  voiceID == voiceID2
+                updateElement (PolyVoiceState# vid oid _ (PolyVoiceLifetime# start _) vinput) =
+                  PolyVoiceState# vid oid VoiceStateReleasing voiceLifetime vinput
+                  where
+                    voiceLifetime =
+                      case ts of
+                        VoiceTimeStamp_RealTime rt -> PolyVoiceLifetime# start rt
+                        VoiceTimeStamp_Block -> PolyVoiceLifetime# start currBlockTime
                 updateResult = polyVoiceBank_UpdateFirstElementWhere isElement updateElement voices'
               in
                 case updateResult of
@@ -2484,16 +2499,28 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
           -- 2. clear inactive voices, decrementing n for each removed
           (loop (#voices', n', voiceAudio#) = (#voices, n, pure 0#) for i <- each do
             let
-              (#(PolyVoiceState# vid oid vstate vinput), readA#) = readArrayU i voices'
+              (#(PolyVoiceState# vid oid vstate (PolyVoiceLifetime# vStartTime vEndTime) vinput), readA#) = readArrayU i voices'
             in
               case vstate of
                 VoiceStateInactive -> (#readA, n', voiceAudio#)
                 _ ->
                   let
-                    gate =
-                      case vstate of
-                        VoiceStateSustaining -> pure 1
-                        _ -> pure 0
+                    gate = -- generate gate audio buffer according to start/end time of the voice for sample accurate timing
+                      let
+                        vEndTime' = if vEndTime == 0 then nextBlockTime else vEndTime
+                      in
+                        if vEndTime == 0 then
+                          if vStartTime <= currBlockTime then
+                            pure 1
+                          else
+                            genAudio (\st -> if st >= vStartTime then 1 else 0) |> pure
+                        else
+                          if vEndTime <= currBlockTime then
+                            pure 0
+                          else if vStartTime <= currBlockTime then
+                            genAudio (\st -> if st < vEndTime' then 1 else 0) |> pure
+                          else
+                            genAudio (\st -> if st >= vStartTime && st < vEndTime' then 1 else 0) |> pure
                     envOut = envGen gate (pure 1)
                     -- Pass in trigger (as audio?) in additiont o envGen?
                     (#writeA, n''#) =
@@ -2730,6 +2757,17 @@ foldAudio f init c =
     AudioEnd    -> init
     BlockRate x -> f init x
     AudioRate b -> foldl f init b
+
+genAudio :: (Rational -> Float) -> Audio
+genAudio f =
+  AudioRate
+    <| freezeArray
+    <| loop a = audioInitArray () for i <- each do
+      let
+        (Index n) = i
+        sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+      in
+        writeArray i (f sampleTime) a
 
 const :: .a -> .b -> .a
 const x _ = x
@@ -9197,7 +9235,7 @@ midiVoiceEvents =
             (VoiceEvent
               (VoiceID note)
               VoiceActive
-              (VoiceTimeStamp (Rational# (fromUInt timeStamp) 1)) -- TODO: FIGURE OUT THIS CONVERSION!!!!!!!!!!!!!!!!!!!!!!!!!1 
+              VoiceTimeStamp_Block
               (MIDI_VoiceEvent# (MIDI_VoiceEvent_Note note) (MIDI_VoiceEvent_TimeStamp timeStamp)))
             dyn |> snd'
         (MIDI_NoteOff _ (MIDI_Note note) _ (MIDI_TimeStamp timeStamp)) ->
@@ -9205,7 +9243,7 @@ midiVoiceEvents =
             (VoiceEvent
               (VoiceID note)
               VoiceInactive
-              (VoiceTimeStamp (Rational# (fromUInt timeStamp) 1)) -- TODO: FIGURE OUT THIS CONVERSION!!!!!!!!!!!!!!!!!!!!!!!!!1 
+              VoiceTimeStamp_Block
               (MIDI_VoiceEvent# (MIDI_VoiceEvent_Note note) (MIDI_VoiceEvent_TimeStamp timeStamp)))
             dyn |> snd'
         (MIDI_Control (MIDI_Channel channel) (MIDI_ControlNumber num) (MIDI_ControlValue val) (MIDI_TimeStamp timeStamp)) ->
@@ -9227,7 +9265,7 @@ midiNoteNumVoiceEvents =
             (VoiceEvent
               (VoiceID note)
               VoiceActive
-              (VoiceTimeStamp (Rational# (fromUInt timeStamp) 1)) -- TODO: FIGURE OUT THIS CONVERSION!!!!!!!!!!!!!!!!!!!!!!!!!1 
+              VoiceTimeStamp_Block
               note)
             dyn |> snd'
         (MIDI_NoteOff _ (MIDI_Note note) _ (MIDI_TimeStamp timeStamp)) ->
@@ -9235,7 +9273,7 @@ midiNoteNumVoiceEvents =
             (VoiceEvent
               (VoiceID note)
               VoiceInactive
-              (VoiceTimeStamp (Rational# (fromUInt timeStamp) 1)) -- TODO: FIGURE OUT THIS CONVERSION!!!!!!!!!!!!!!!!!!!!!!!!!1 
+              VoiceTimeStamp_Block
               note)
             dyn |> snd'
         (MIDI_Control (MIDI_Channel channel) (MIDI_ControlNumber num) (MIDI_ControlValue val) (MIDI_TimeStamp timeStamp)) ->
@@ -9452,13 +9490,20 @@ instance Print VoiceActivity where
       VoiceActive -> print "VoiceActive" w
 
 instance (Print a) => Print (VoiceEvent a) where
-  print (VoiceEvent (VoiceID vid) voiceActivity (VoiceTimeStamp ts) a) w =
+  print (VoiceEvent (VoiceID vid) voiceActivity ts a) w =
     print "(VoiceEvent (VoiceID " w
     |> print vid
     |> print ") "
     |> print voiceActivity
     |> print " (VoiceTimeStamp "
-    |> print ts
+    |> \w' ->
+      case ts of
+        VoiceTimeStamp_RealTime rt ->
+          print "(VoiceTimeStamp_RealTime " w'
+          |> print rt
+          |> print ")"
+        VoiceTimeStamp_Block ->
+          print "VoiceTimeStamp_Block" w'
     |> print ") "
     |> print a
     |> print")"
@@ -9471,14 +9516,18 @@ instance Print VoiceState where
       VoiceStateInactive -> print "VoiceStateInactive" w
 
 instance (Print a) => Print (PolyVoiceState a) where
-  print (PolyVoiceState# (VoiceID vid) (PolyVoiceStateOrderID oid) voiceState a) w =
+  print (PolyVoiceState# (VoiceID vid) (PolyVoiceStateOrderID oid) voiceState (PolyVoiceLifetime# start end) a) w =
     print "(PolyVoiceState# (VoiceID " w
     |> print vid
     |> print ") (PolyVoiceStateOrderID "
     |> print oid
     |> print ") "
     |> print voiceState
+    |> print " (PolyVoiceStateLifetime "
+    |> print start
     |> print " "
+    |> print end
+    |> print ") "
     |> print a
     |> print ")"
 

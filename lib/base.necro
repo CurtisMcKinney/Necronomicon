@@ -2329,7 +2329,7 @@ polyVoiceBank_CreateOrStealVoice ::
   PolyVoiceLifetime ->
   Float ->
   *PolyVoiceBank numVoices ->
-  (#*PolyVoiceBank numVoices, UInt, Float#)
+  (#*PolyVoiceBank numVoices, UInt, PolyVoiceState#)
 polyVoiceBank_CreateOrStealVoice
   vid
   vlifetime
@@ -2351,8 +2351,8 @@ polyVoiceBank_CreateOrStealVoice
           (#Nothing, PolyVoiceBank# a (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)#)
     in
       case maybeUpdatedIndex of
-        Just (#updatedIndex, prevParams#) ->
-          (#PolyVoiceBank# ua (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1)), updatedIndex, prevParams#)
+        Just (#updatedIndex, prevState#) ->
+          (#PolyVoiceBank# ua (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1)), updatedIndex, prevState#)
         Nothing ->
           -- 2. Second try to fill an empty whole
           if n < c then
@@ -2362,29 +2362,31 @@ polyVoiceBank_CreateOrStealVoice
                 Nothing ->
                   let
                     (Index createdIndex) = i
-                    (#PolyVoiceState# _ _ voiceState _ prevParams, readA#) = readArrayU i a'
+                    (#prevState, readA#) = readArrayU i a'
+                    (PolyVoiceState# _ _ voiceState _ _ ) = prevState
                   in
                     case voiceState of
                       VoiceStateInactive ->
-                        (#writeArray i (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime vparams) readA, Just (#createdIndex, prevParams#)#)
+                        (#writeArray i (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime vparams) readA, Just (#createdIndex, prevState#)#)
                       _ -> (#readA, Nothing#)
             ) |> \(#a', maybeCreatedIndex#) ->
               case maybeCreatedIndex of
-                Just (#createdIndex, prevParams#) ->
-                  (#PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive (n + 1)) (PolyVoiceBankOrderCounter (o + 1)), createdIndex, prevParams#)
+                Just (#createdIndex, prevState#) ->
+                  (#PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive (n + 1)) (PolyVoiceBankOrderCounter (o + 1)), createdIndex, prevState#)
                 Nothing -> -- this should never happen!!
                   (#
                     PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)
                       |> traceLn "polyVoiceBank_CreateOrStealVoice failed to create voice?!?!?",
                     0,
-                    0
+                    default
                   #)
           -- 3. Third, if none created then steal the oldest releasing voice
           else
-            (loop (#a', maybeStolenId, soid, stolenIndex, stolenParams#) = (#ua, Nothing, 0, 0, 0#) for i <- each do
+            (loop (#a', maybeStolenId, soid, stolenIndex, stolenState#) = (#ua, Nothing, 0, 0, default#) for i <- each do
               let
                 Index index = i
-                (#PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _ prevParams, readA#) = readArrayU i a'
+                (#prevState, readA#) = readArrayU i a'
+                (PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _ prevParams) = prevState
                 steal =
                   case voiceState of
                     VoiceStateReleasing -> True
@@ -2392,15 +2394,15 @@ polyVoiceBank_CreateOrStealVoice
               in
                 if steal then
                   case maybeStolenId of
-                    Nothing -> (#readA, Just vid, oid, index, prevParams#)
+                    Nothing -> (#readA, Just vid, oid, index, prevState#)
                     Just svid ->
                       if oid < soid then
-                        (#readA, Just vid, oid, index, prevParams#)
+                        (#readA, Just vid, oid, index, prevState#)
                       else
-                        (#readA, maybeStolenId, soid, stolenIndex, stolenParams#)
+                        (#readA, maybeStolenId, soid, stolenIndex, stolenState#)
                 else
-                  (#readA, maybeStolenId, soid, stolenIndex, stolenParams#)
-            ) |> \(#a', maybeStolenId, _, si, stolenParams#) ->
+                  (#readA, maybeStolenId, soid, stolenIndex, stolenState#)
+            ) |> \(#a', maybeStolenId, _, si, stolenState#) ->
               case maybeStolenId of
                 Just svid ->
                   let
@@ -2411,29 +2413,30 @@ polyVoiceBank_CreateOrStealVoice
                         (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime vparams)
                         a'
                   in
-                    (#PolyVoiceBank# writeA (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1)), si, stolenParams#)
+                    (#PolyVoiceBank# writeA (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1)), si, stolenState#)
                 _ ->
                   -- 4. Fourth, if no releasing voices, then steal the oldest voices
-                  (loop (#a'', maybeStolenId, soid, stolenIndex, stolenParams#) = (#a', Nothing, 0, 0, 0#) for i <- each do
+                  (loop (#a'', maybeStolenId, soid, stolenIndex, stolenState#) = (#a', Nothing, 0, 0, default#) for i <- each do
                     let
                       Index index = i
-                      (#PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _ prevParams, readA#) = readArrayU i a''
+                      (#prevState, readA#) = readArrayU i a''
+                      (PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _ prevParams) = prevState
                     in
                       case maybeStolenId of
-                        Nothing -> (#readA, Just vid, oid, index, prevParams#)
+                        Nothing -> (#readA, Just vid, oid, index, prevState#)
                         Just svid ->
                           if oid < soid then
-                            (#readA, Just vid, oid, index, prevParams#)
+                            (#readA, Just vid, oid, index, prevState#)
                           else
-                            (#readA, maybeStolenId, soid, stolenIndex, stolenParams#)
-                  ) |> \(#a', maybeStolenId, _, si, stolenParams#) ->
+                            (#readA, maybeStolenId, soid, stolenIndex, stolenState#)
+                  ) |> \(#a', maybeStolenId, _, si, stolenState#) ->
                     case maybeStolenId of
                       Nothing ->
                         (#
                           PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)
                             |> traceLn "polyVoiceBank_CreateOrStealVoice failed to steal voice?!?!?",
                           0,
-                          0
+                          default
                         #)
                       Just svid ->
                         let
@@ -2444,14 +2447,14 @@ polyVoiceBank_CreateOrStealVoice
                               (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime vparams)
                               a'
                         in
-                          (#PolyVoiceBank# writeA (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1)), si, stolenParams#)
+                          (#PolyVoiceBank# writeA (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1)), si, stolenState#)
 
--- Returns Just (foundIndex) or Nothing if not found
+-- Returns Just (#foundIndex, prevState#) or Nothing if not found
 polyVoiceBank_UpdateFirstElementWhere ::
   (PolyVoiceState -> Bool) ->
   (PolyVoiceState -> PolyVoiceState) ->
   *PolyVoiceBank numVoices ->
-  (#Maybe (#UInt, Float#), *PolyVoiceBank numVoices#)
+  (#Maybe (#UInt, PolyVoiceState#), *PolyVoiceBank numVoices#)
 polyVoiceBank_UpdateFirstElementWhere f u (PolyVoiceBank# a c n o) =
   (loop (#maybeIndex, a'#) = (#Nothing, a#) for i <- each do
     case maybeIndex of
@@ -2463,12 +2466,7 @@ polyVoiceBank_UpdateFirstElementWhere f u (PolyVoiceBank# a c n o) =
           found = f element
         in
           if found then
-            let
-              prevParams =
-                case element of
-                  PolyVoiceState# _ _ _ _ prevParams -> prevParams
-            in
-              (#Just (#n, prevParams#), writeArray i (u element) readA#)
+            (#Just (#n, element#), writeArray i (u element) readA#)
           else
             (#Nothing, readA#)
   ) -- ~loop
@@ -2483,16 +2481,12 @@ polyVoiceBank_mkVoices :: NatVal numVoices -> .PolyVoiceBank numVoices
 polyVoiceBank_mkVoices numVoices =
   PolyVoiceBank# (arrayFrom default) (PolyVoiceBankCapacity <| natVal numVoices) (PolyVoiceBankNumActive 0) (PolyVoiceBankOrderCounter 0)
 
--- TODO: Change input to be array of floats? Slice of Floats? --> For sample accurac --> write into audio buffer!
---> Add adsr triggers to retrigger env to beginning of attack, and also optionally pass that into the synth!
-
--- -- Sample accuracy of events? parameter handling? don't start synth until x place in block
 -- -- Uses oldest note voice stealing
 polyVoiceBank_WithBehavior ::
   (AudioFormat f) =>
   NatVal numVoices -> -- size of voice bank
-  (VoiceID -> Mono Audio -> f Audio -> f Audio) -> -- (\voiceEventParameter envGenValue -> audioOut)
-  (f Audio -> f Audio -> f Audio) -> -- (\gate audioIn -> audioOut)
+  (VoiceID -> Mono Audio -> f Audio -> f Audio -> f Audio) -> -- (\voiceID voiceEventParameter envGenValue -> trigger -> audioOut)
+  (f Audio -> f Audio -> f Audio -> f Audio) -> -- (\gate trigger audioIn -> audioOut)
   Slice VoiceEvent -> -- stream of voice events, timing should fall within current block
   PolyVoiceBank_VoiceBehavior ->
   f Audio
@@ -2500,23 +2494,26 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
   case mutRefTake (\_ -> polyVoiceBank_mkVoices numVoices) of
     (#voiceBank, mref#) ->
       let
-        nothingAudioArray = arrayFrom Nothing
-        foldEvents (#voices', onsetParamsArray#) (VoiceEvent (VoiceID voiceID) activity ts newVoiceParams) =
+        nothingAudioArray _ = arrayFrom Nothing
+        foldEvents (#voices', onsetParamsArray, gateArray, triggerArray#) (VoiceEvent (VoiceID voiceID) activity ts newVoiceParams) =
           case activity of
             VoiceActive ->
               let
-                (#voiceLifetime, start#) =
+                (#start, stop#) =
                   case ts of
-                    VoiceTimeStamp_Rational rt -> (#PolyVoiceLifetime# rt 0, rt#)
-                    VoiceTimeStamp_Block -> (#PolyVoiceLifetime# currBlockTime 0, currBlockTime#)
-                    VoiceTimeStamp_StartStop_Rational start stop -> (#PolyVoiceLifetime# start stop, start#)
-                (#updatedVoices, si, prevParams#) =
+                    VoiceTimeStamp_Rational rt -> (#rt, 0#)
+                    VoiceTimeStamp_Block -> (#currBlockTime, 0#)
+                    VoiceTimeStamp_StartStop_Rational start stop -> (#start, stop#)
+                (#updatedVoices, si, prevState#) =
                   polyVoiceBank_CreateOrStealVoice
                     (VoiceID voiceID)
-                    voiceLifetime
+                    (PolyVoiceLifetime# start stop)
                     newVoiceParams
                     voices'
+                (PolyVoiceState# prVID prOID prVS (PolyVoiceLifetime# prStart prStop) prevParams) = prevState
                 stolenIndex = unsafeUIntToIndex si
+                -----------------------------------
+                -- Voice params
                 (#maybeCurrentVoiceOnsetParams, readOnsetParamsArray#) = readArrayU stolenIndex onsetParamsArray
                 sampleAccurateOnsetParams =
                   if start <= currBlockTime then
@@ -2550,28 +2547,120 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
                           in
                             writeArray i updatedSample a
                 onsetParamsArray' = writeArray stolenIndex (Just sampleAccurateOnsetParams) readOnsetParamsArray
+                -----------------------------------
+                -- Gate params
+                (#maybeCurrentVoiceGate, readGateArray#) = readArrayU stolenIndex gateArray
+                sampleAccurateGate =
+                  case maybeCurrentVoiceGate of
+                    Nothing ->
+                      (loop g = unsafeEmptyArray () for i <- each do
+                        let
+                          (Index n) = i
+                          sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                          gateSample =
+                            if stop > 0 && sampleTime >= stop then
+                              0
+                            else if sampleTime >= start then
+                              1
+                            else if sampleTime >= prStart && (prStop == 0 || sampleTime < prStop) then
+                              1
+                            else
+                              0
+                        in
+                          writeArray i gateSample g
+                      ) |> freezeArray
+                    Just gateSamples ->
+                      (loop g = unsafeEmptyArray () for i <- each do
+                        let
+                          (Index n) = i
+                          sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                          currentGateSample = readArray i gateSamples
+                          updatedGateSample =
+                            if stop > 0 && sampleTime >= stop then
+                              0
+                            else if sampleTime >= start then
+                              1
+                            else
+                              currentGateSample
+                        in
+                          writeArray i updatedGateSample g
+                      ) |> freezeArray
+                gateArray' = writeArray stolenIndex (Just sampleAccurateGate) readGateArray
+                -----------------------------------
+                -- Trigger params
+                (#maybeCurrentVoiceTrigger, readTriggerArray#) = readArrayU stolenIndex triggerArray
+                sampleAccurateTrigger =
+                  case maybeCurrentVoiceTrigger of
+                    Nothing ->
+                      (loop t = unsafeEmptyArray () for i <- each do
+                        let
+                          (Index n) = i
+                          sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                          triggerSample = if sampleTime == start then 1 else 0
+                        in
+                          writeArray i triggerSample t
+                      ) |> freezeArray
+                    Just triggerSamples ->
+                      (loop t = unsafeEmptyArray () for i <- each do
+                        let
+                          (Index n) = i
+                          sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                          currentTriggerSample = readArray i triggerSamples
+                          updatedTriggerSample = if sampleTime == start then 1 else currentTriggerSample
+                        in
+                          writeArray i updatedTriggerSample t
+                      ) |> freezeArray
+                triggerArray' = writeArray stolenIndex (Just sampleAccurateTrigger) readTriggerArray
               in
-                (#updatedVoices, onsetParamsArray'#)
+                (#updatedVoices, onsetParamsArray', gateArray', triggerArray'#)
             VoiceInactive ->
               let
                 isElement (PolyVoiceState# (VoiceID voiceID2) _ _ _ _) =  voiceID == voiceID2
                 updateElement (PolyVoiceState# vid oid _ (PolyVoiceLifetime# start _) vparams) =
-                  PolyVoiceState# vid oid VoiceStateReleasing voiceLifetime vparams
+                  PolyVoiceState# vid oid VoiceStateReleasing (PolyVoiceLifetime# start' stop') vparams
                   where
-                    voiceLifetime =
+                    (#start', stop'#) =
                       case ts of
-                        VoiceTimeStamp_Rational rt -> PolyVoiceLifetime# start rt
-                        VoiceTimeStamp_Block -> PolyVoiceLifetime# start currBlockTime
-                        VoiceTimeStamp_StartStop_Rational _ stop -> PolyVoiceLifetime# start stop
-                updateResult = polyVoiceBank_UpdateFirstElementWhere isElement updateElement voices'
+                        VoiceTimeStamp_Rational rt -> (#start, rt#)
+                        VoiceTimeStamp_Block -> (#start, currBlockTime#)
+                        VoiceTimeStamp_StartStop_Rational _ stop' -> (#start, stop'#)
+                (#maybeFoundIndex, voices''#) = polyVoiceBank_UpdateFirstElementWhere isElement updateElement voices'
               in
-                case updateResult of
-                  (#Nothing, voices''#) -> (#voices'', onsetParamsArray#) |> traceLn "FAILED TO UPDATE VOICE AFTER INACTIVE EVENT!!!!!!!!"
-                  (#Just _, voices''#) -> (#voices'', onsetParamsArray#)
+                case maybeFoundIndex of
+                  Nothing -> (#voices'', onsetParamsArray, gateArray, triggerArray#) |> traceLn "FAILED TO UPDATE VOICE AFTER INACTIVE EVENT!!!!!!!!"
+                  Just (#fi, PolyVoiceState# _ _ _ (PolyVoiceLifetime# prStart prStop) _#) ->
+                    let
+                      foundIndex = unsafeUIntToIndex fi
+                      (PolyVoiceBank# v c n o) = voices''
+                      (#(PolyVoiceState# _ _ _ (PolyVoiceLifetime# start stop) _), readVoiceBank#) = readArrayU foundIndex v
+                      (#maybeCurrentVoiceGate, readGateArray#) = readArrayU foundIndex gateArray
+                      sampleAccurateGate =
+                        case maybeCurrentVoiceGate of
+                          Nothing ->
+                            arrayFrom 0
+                          Just gateSamples ->
+                            (loop g = unsafeEmptyArray () for i <- each do
+                              let
+                                (Index n) = i
+                                sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                                currentGateSample = readArray i gateSamples
+                                updatedGateSample =
+                                  if stop > 0 && sampleTime >= stop then
+                                    0
+                                  else if sampleTime >= start then
+                                    1
+                                  else
+                                    currentGateSample
+                              in
+                                writeArray i updatedGateSample g
+                            ) |> freezeArray
+                    in
+                      (#PolyVoiceBank# readVoiceBank c n o, onsetParamsArray, writeArray foundIndex (Just sampleAccurateGate) readGateArray, triggerArray#)
+
       in
-        foldl foldEvents (#voiceBank, nothingAudioArray#) voiceEvents
+        foldl foldEvents (#voiceBank, nothingAudioArray (), nothingAudioArray (), nothingAudioArray ()#) voiceEvents
         -- -- Uncomment this block for debug printing --------------------------------------------------------
-        -- |> \(#PolyVoiceBank# vp cp (PolyVoiceBankNumActive np) op, onsetParamsArrayU#) ->
+        -- |> \(#PolyVoiceBank# vp cp (PolyVoiceBankNumActive np) op, onsetParamsArrayU, maybeGateArrayU, maybeTriggerArrayU#) ->
         --   (if sliceLength voiceEvents > 0 then
         --     ()
         --     |> traceLn "PolyVoiceBank"
@@ -2584,41 +2673,53 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
         --         in
         --           readVoices
         --       ) |> \vp' ->
-        --         (#PolyVoiceBank# vp' cp (PolyVoiceBankNumActive (np |> traceLn2 "n: ")) op, onsetParamsArrayU#)
+        --         (#PolyVoiceBank# vp' cp (PolyVoiceBankNumActive (np |> traceLn2 "n: ")) op, onsetParamsArrayU, maybeGateArrayU, maybeTriggerArrayU#)
         --   else
-        --     (#PolyVoiceBank# vp cp (PolyVoiceBankNumActive np) op, onsetParamsArrayU#)
+        --     (#PolyVoiceBank# vp cp (PolyVoiceBankNumActive np) op, onsetParamsArrayU, maybeGateArrayU, maybeTriggerArrayU#)
         --   )
         -- -- Uncomment this block for debug printing --------------------------------------------------------
-        |> \(#PolyVoiceBank# voices c (PolyVoiceBankNumActive n) o, onsetParamsArrayU#) ->
+        |> \(#PolyVoiceBank# voices c (PolyVoiceBankNumActive n) o, onsetParamsArrayU, maybeGateArrayU, maybeTriggerArrayU#) ->
           let
-            onsetParamsArray = onsetParamsArrayU |> freezeArray |> map (unwrapOr (arrayFrom 0))
+            onsetParamsArray = onsetParamsArrayU |> freezeArray
+            gateArray = maybeGateArrayU |> freezeArray
+            triggerArray = maybeTriggerArrayU |> freezeArray
           in
             -- Generate voice output, and handle voice activity based on envGen output
             (loop (#voices', n', voiceAudio#) = (#voices, n, pure 0#) for i <- each do
               let
                 (#(PolyVoiceState# vid oid vstate (PolyVoiceLifetime# vStartTime vEndTime) voiceParams), readA#) = readArrayU i voices'
+                vEndTime' = if vEndTime == 0 then nextBlockTime else vEndTime
+                lookupOnsetParams i =
+                  case (readArray i onsetParamsArray) of
+                    Nothing -> Mono <| BlockRate voiceParams
+                    Just o -> Mono <| AudioRate o
+                lookupGateSamples i array =
+                  case (readArray i array) of
+                    Nothing -> pure <| genAudio (\sampleTime -> if sampleTime >= vStartTime && sampleTime < vEndTime' then 1 else 0)
+                    Just samples -> pure <| AudioRate samples
+                lookupTriggerSamples i array =
+                  case (readArray i array) of
+                    Nothing -> pure <| BlockRate 0
+                    Just samples -> pure <| AudioRate samples
               in
                 case vstate of
                   VoiceStateInactive -> (#readA, n', voiceAudio#)
-                  _ -> -- MOVE GATE HANDLING TO SAME PLACE AS ONSET PARAMS?!??!
+                  _ ->
                     let
-                      (#gate, sampleAccurateVoiceParams, isReleasing#) = -- TODO: Handle multiple start/stop times within block for gate param -> possibly an onset caching solution similar to the params
-                        let
-                          vEndTime' = if vEndTime == 0 then nextBlockTime else vEndTime
-                        in
-                          if vEndTime == 0 then
-                            if vStartTime <= currBlockTime then
-                              (#pure <| BlockRate 1, Mono <| BlockRate voiceParams, False#)
-                            else
-                              (#pure <| genAudio (\st -> if st >= vStartTime then 1 else 0), Mono <| AudioRate <| readArray i onsetParamsArray, False#)
+                      (#gate, trigger, sampleAccurateVoiceParams, isReleasing#) =
+                        if vEndTime == 0 then
+                          if vStartTime < currBlockTime then
+                            (#pure <| BlockRate 1, pure <| BlockRate 0, Mono <| BlockRate voiceParams, False#)
                           else
-                            if vEndTime' <= currBlockTime then
-                              (#pure <| BlockRate 0, Mono <| BlockRate voiceParams, True#)
-                            else if vStartTime <= currBlockTime then
-                              (#pure <| genAudio (\st -> if st < vEndTime' then 1 else 0), Mono <| BlockRate voiceParams, False#)
-                            else
-                              (#pure <| genAudio (\st -> if st >= vStartTime && st < vEndTime' then 1 else 0), Mono <| AudioRate <| readArray i onsetParamsArray, False#)
-                      envOut = envGen gate (pure <| BlockRate 1)
+                            (#lookupGateSamples i gateArray, lookupTriggerSamples i triggerArray, lookupOnsetParams i, False#)
+                        else
+                          if vEndTime' <= currBlockTime then
+                            (#pure <| BlockRate 0, pure <| BlockRate 0, Mono <| BlockRate voiceParams, True#)
+                          else if vStartTime < currBlockTime then
+                            (#lookupGateSamples i gateArray, pure <| BlockRate 0, Mono <| BlockRate voiceParams, False#)
+                          else
+                            (#lookupGateSamples i gateArray, lookupTriggerSamples i triggerArray, lookupOnsetParams i, False#)
+                      envOut = envGen gate trigger (pure <| BlockRate 1)
                       (#gateUpdatedA, vstate'#) =
                         if isReleasing then
                           case vstate of
@@ -2634,7 +2735,6 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
                             _ -> (#readA, vstate#)
                         else
                           (#readA, vstate#)
-                      -- Pass in trigger (as audio?) in additiont o envGen?
                       (#writeA, n''#) =
                         case voiceBehavior of
                           PolyVoiceBank_InfiniteRelease -> (#gateUpdatedA, n'#)
@@ -2662,7 +2762,7 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
                                     (#gateUpdatedA, n'#)
                               _ -> (#gateUpdatedA, n'#)
                     in
-                      (#writeA, n'', map2 (+) voiceAudio (voice vid sampleAccurateVoiceParams envOut)#)
+                      (#writeA, n'', map2 (+) voiceAudio (voice vid sampleAccurateVoiceParams envOut trigger)#)
             ) -- ~loop
         |> \(#voices', n', voiceAudio#) ->
           case mutRefPut (PolyVoiceBank# voices' c (PolyVoiceBankNumActive n') o) mref of
@@ -2672,8 +2772,8 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
 polyVoiceBank ::
   (AudioFormat f) =>
   NatVal numVoices -> -- size of voice bank
-  (VoiceID -> Mono Audio -> f Audio -> f Audio) -> -- (\voiceEventParameter envGenValue -> audioOut)
-  (f Audio -> f Audio -> f Audio) -> -- (\gate audioIn -> audioOut)
+  (VoiceID -> Mono Audio -> f Audio -> f Audio -> f Audio) -> -- (\voiceID voiceEventParameter envGenValue trigger -> audioOut)
+  (f Audio -> f Audio -> f Audio -> f Audio) -> -- (\gate trigger audioIn -> audioOut)
   Slice VoiceEvent -> -- stream of voice events, timing should fall within current block
   f Audio
 polyVoiceBank numVoices voice envGen voiceEvents =
@@ -2684,8 +2784,8 @@ polyVoiceBank numVoices voice envGen voiceEvents =
 polyVoiceBank_InfiniteRelease ::
   (AudioFormat f) =>
   NatVal numVoices -> -- size of voice bank
-  (VoiceID -> Mono Audio -> f Audio -> f Audio) -> -- (\voiceEventParameter envGenValue -> audioOut)
-  (f Audio -> f Audio -> f Audio) -> -- (\gate audioIn -> audioOut)
+  (VoiceID -> Mono Audio -> f Audio -> f Audio -> f Audio) -> -- (\voiceID voiceEventParameter envGenValue trigger -> audioOut)
+  (f Audio -> f Audio -> f Audio -> f Audio) -> -- (\gate trigger audioIn -> audioOut)
   Slice VoiceEvent -> -- stream of voice events, timing should fall within current block
   f Audio
 polyVoiceBank_InfiniteRelease numVoices voice envGen voiceEvents =
@@ -2880,6 +2980,14 @@ genAudio f =
         sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
       in
         writeArray i (f sampleTime) a
+
+-- An impulse in the first sample of the audio buffer, the rest is 0s
+singleImpulse :: Audio
+singleImpulse =
+  AudioRate
+    <| freezeArray
+    <| writeArray (unsafeUIntToIndex 0) 1
+    <| audioInitArray ()
 
 const :: .a -> .b -> .a
 const x _ = x
@@ -6432,59 +6540,72 @@ data ADSRAccumulateState = ADSRAccumulateState# ADSRState EnvState
 instance Default ADSRAccumulateState where
   default = ADSRAccumulateState# ADSRState_End (EnvState# 0 0 0 0)
 
-adsrTick :: Float -> Float -> Float -> Float -> Float -> Float -> Float -> Float -> ADSRAccumulateState -> (#ADSRAccumulateState, Float#)
-adsrTick attackTime decayTime sustainLevel releaseTime totalTime curve gate input (ADSRAccumulateState# adsrState (EnvState# a20 b10 grow0 currTime0)) =
+adsrTick :: Float -> Float -> Float -> Float -> Float -> Float -> Float -> Float -> Float -> ADSRAccumulateState -> (#ADSRAccumulateState, Float#)
+adsrTick attackTime decayTime sustainLevel releaseTime totalTime curve gate trigger input (ADSRAccumulateState# adsrState (EnvState# a20 b10 grow0 currTime0)) =
   (#ADSRAccumulateState# state2 (EnvState# a2 b12 grow currTime), out#)
   where
     attackAndDecayTime = attackTime + decayTime
-    currTime1                     = currTime0 + recipSampleRate -- |> traceLn2 "ADSR currTime1: "
+    currTime1 = currTime0 + recipSampleRate -- |> traceLn2 "ADSR currTime1: "
     (ADSRAccumulateState# state2 (EnvState# a2 b1 grow currTime)) =
-      case adsrState of
-        ADSRState_Attack ->
-          if currTime1 > attackTime then
-            ADSRAccumulateState# ADSRState_Decay (envMk' (a20 - b10) sustainLevel decayTime curve currTime1 ()) -- |> traceLn2 "Attack -> Decay: "
-          else
-            ADSRAccumulateState# ADSRState_Attack (EnvState# a20 b10 grow0 currTime1)
-        ADSRState_Decay ->
-          if currTime1 > attackAndDecayTime then
-            if gate > 0 then
-              ADSRAccumulateState# ADSRState_Sustain (EnvState# sustainLevel b10 0 currTime1) -- |> traceLn2 "Decay -> Sustain: "
-            else
-              ADSRAccumulateState# ADSRState_Release (envMk' (a20 - b10) 0 releaseTime curve currTime1 ()) -- |> traceLn2 "Decay -> Release: "
-          else
-            ADSRAccumulateState# ADSRState_Decay (EnvState# a20 b10 grow0 currTime1)
-        ADSRState_Sustain ->
-            if gate == 0 then
-              ADSRAccumulateState# ADSRState_Release (envMk' (a20 - b10) 0 releaseTime curve attackAndDecayTime ()) -- |> traceLn2 "Sustain -> Release: "
-            else
-              ADSRAccumulateState# ADSRState_Sustain (EnvState# a20 b10 0 currTime0)
-        ADSRState_Release ->
-          if gate > 0 then
-            let
+      let
+        mkReAttack lastState =
+          ADSRAccumulateState# ADSRState_Attack (envMk' currentLevel 1 reAttackLength curve currTime2 ()) -- |> traceLn2 debugText
+            where
               currentLevel = (a20 - b10) -- |> traceLn2 "value: "
               reAttackLength = min attackTime (((currTime1 - attackTime) / releaseTime) * attackTime) -- |> traceLn2 "reAttackLength: "
               currTime2 = attackTime - reAttackLength + recipSampleRate -- |> traceLn2 "currTime2: "
-            in
-              ADSRAccumulateState# ADSRState_Attack (envMk' currentLevel 1 reAttackLength curve currTime2 ()) -- |> traceLn2 "Release -> Attack: "
-          else if currTime1 > totalTime then
-              ADSRAccumulateState# ADSRState_End (EnvState# 0 0 0 totalTime) -- |> traceLn2 "Release -> End: "
-          else
-            ADSRAccumulateState# ADSRState_Release (EnvState# a20 b10 grow0 currTime1)
-        ADSRState_End ->
-          if gate > 0 then
-            ADSRAccumulateState# ADSRState_Attack (envMk' 0 1 attackTime curve recipSampleRate ()) -- |> traceLn2 "End -> Attack: "
-          else
-            ADSRAccumulateState# ADSRState_End (EnvState# 0 0 0 totalTime) -- |> trace "end"
+      in
+        case adsrState of
+          ADSRState_Attack ->
+            if currTime1 > attackTime then
+              ADSRAccumulateState# ADSRState_Decay (envMk' (a20 - b10) sustainLevel decayTime curve currTime1 ()) -- |> traceLn2 "Attack -> Decay: "
+            else
+              ADSRAccumulateState# ADSRState_Attack (EnvState# a20 b10 grow0 currTime1)
+          ADSRState_Decay ->
+            if trigger > 0 then
+              mkReAttack ADSRState_Decay
+            else if currTime1 > attackAndDecayTime then
+              if gate > 0 then
+                ADSRAccumulateState# ADSRState_Sustain (EnvState# sustainLevel b10 0 currTime1) -- |> traceLn2 "Decay -> Sustain: "
+              else
+                ADSRAccumulateState# ADSRState_Release (envMk' (a20 - b10) 0 releaseTime curve currTime1 ()) -- |> traceLn2 "Decay -> Release: "
+            else
+              ADSRAccumulateState# ADSRState_Decay (EnvState# a20 b10 grow0 currTime1)
+          ADSRState_Sustain ->
+            if trigger > 0 then
+              mkReAttack ADSRState_Sustain
+            else if gate == 0 then
+              ADSRAccumulateState# ADSRState_Release (envMk' (a20 - b10) 0 releaseTime curve attackAndDecayTime ()) -- |> traceLn2 "Sustain -> Release: "
+            else
+              ADSRAccumulateState# ADSRState_Sustain (EnvState# a20 b10 0 currTime0)
+          ADSRState_Release ->
+            if gate > 0 || trigger > 0 then
+              mkReAttack ADSRState_Release
+            else if currTime1 > totalTime then
+                ADSRAccumulateState# ADSRState_End (EnvState# 0 0 0 totalTime) -- |> traceLn2 "Release -> End: "
+            else
+              ADSRAccumulateState# ADSRState_Release (EnvState# a20 b10 grow0 currTime1)
+          ADSRState_End ->
+            if gate > 0 || trigger > 0 then
+              ADSRAccumulateState# ADSRState_Attack (envMk' 0 1 attackTime curve recipSampleRate ()) -- |> traceLn2 "End -> Attack: "
+            else
+              ADSRAccumulateState# ADSRState_End (EnvState# 0 0 0 totalTime) -- |> trace "end"
     b12   = b1 * grow
     level = a2 - b12 -- |> traceLn2 "ADSR level: "
     out   = level * input
 
-adsr :: AudioFormat f => Float -> Float -> Float -> Float -> Float -> f Audio -> f Audio -> f Audio
-adsr attackTime decayTime sustainLevel releaseTime curve gate input =
-  accumulate2 update constTrue gate input
+-- gate param will trigger and sustain, trigger param can retrigger the env from a sustained state (will move back to attack then decay then sustain)
+adsrMultiTrigger :: AudioFormat f => Float -> Float -> Float -> Float -> Float -> f Audio -> f Audio -> f Audio -> f Audio
+adsrMultiTrigger attackTime decayTime sustainLevel releaseTime curve gate trigger input =
+  accumulate3 update constTrue gate trigger input
   where
     totalTime = attackTime + decayTime + releaseTime
-    update    = adsrTick attackTime decayTime (sustainLevel |> clamp 0 1) releaseTime totalTime curve
+    update    = adsrTick attackTime decayTime (clamp sustainLevel 0 1) releaseTime totalTime curve
+
+-- gate triggers the envelope when changing from 0 to positive and will hold the env to the sustain level while the gate remains open
+adsr :: AudioFormat f => Float -> Float -> Float -> Float -> Float -> f Audio -> f Audio -> f Audio
+adsr attackTime decayTime sustainLevel releaseTime curve gate input =
+  adsrMultiTrigger attackTime decayTime sustainLevel releaseTime curve gate (pure 0) input
 
 -----------
 -- sustainRelease
@@ -9329,6 +9450,21 @@ midiNotes_LastNotePriority =
         then Just (readArray (unsafeUIntToIndex (size - 1)) a)
         else Nothing
 
+midiNotesAndTriggers_LastNotePriority :: AudioFormat f => Maybe (UInt, f Audio)
+midiNotesAndTriggers_LastNotePriority =
+  case midiNotes_LastNotePriorityBuffer of
+    DynArrayFixedCapacity# a _ size ->
+      if size > 0 then
+        Just
+          (
+            (readArray (unsafeUIntToIndex (size - 1)) a),
+            case midiNoteOnMessages of
+              Nothing -> pure <| BlockRate 0
+              Just _ -> pure <| singleImpulse
+          )
+      else
+        Nothing
+
 dumpMIDINotes_LastNotePriorityBuffer :: *World -> *World
 dumpMIDINotes_LastNotePriorityBuffer w =
   if dynArrayFixedCapacity_Size midiNotes_LastNotePriorityBuffer > 0 then
@@ -9379,33 +9515,64 @@ midiVoiceEvents scale =
 --   else
 --     w
 
+midiMonoTest :: () -> Stereo Audio
+midiMonoTest _ =
+  saw (afreq |> mixStereo)
+    |> mul 0.3
+    |> adsr 0.01 0.1 0.5 1 -1 gate
+  where
+    gate = fromFloat rawFreq
+    afreq = fromFloat freq -- |> traceLn2 "freq: "
+    rawFreq =
+      case midiNotes_LastNotePriority of
+        Just note -> d2f chromatic <| m2d note
+        _ -> 0
+    freq ~ 0 =
+      if rawFreq > 0
+        then rawFreq
+        else freq
+
+midiMonoMultiTriggerTest :: () -> Stereo Audio
+midiMonoMultiTriggerTest _ =
+  saw (afreq |> mixStereo)
+    |> mul 0.3
+    |> adsrMultiTrigger 0.01 0.1 0.5 1 -1 gate trigger
+  where
+    gate = fromFloat rawFreq
+    afreq = fromFloat freq -- |> traceLn2 "freq: "
+    (rawFreq, trigger) =
+      case midiNotesAndTriggers_LastNotePriority of
+        Just (note, trigger) -> (d2f chromatic <| m2d note, trigger)
+        _ -> (0, 0)
+    freq ~ 0 =
+      if rawFreq > 0
+        then rawFreq
+        else freq
+
 polyVoiceBank_MIDITest :: () -> Stereo Audio
 polyVoiceBank_MIDITest _ =
   polyVoiceBank numVoices synth envGen <| midiVoiceEvents <| primaxial12 middleC
   where
     numVoices :: NatVal 88
     numVoices = NatVal
-    envGen :: Stereo Audio -> Stereo Audio -> Stereo Audio
-    envGen gate audioIn =
+    envGen :: Stereo Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    envGen gate trigger audioIn =
       adsr 0.01 0.1 0.5 1 -4 gate audioIn
-    synth :: VoiceID -> Mono Audio -> Stereo Audio -> Stereo Audio
-    synth _ freq envVal =
+    synth :: VoiceID -> Mono Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    synth _ freq envVal trigger =
       tri (mixStereo freq) * envVal * 0.05
 
--- THIS IS CRASHING ON NOT STEALING!??!?!?!?!?!?!
--- CAN'T USE CACHED ARRAYS? -----> EXPERIMENT WITH NOT USING THEM!??!?!?!?!
--- Using only block params ----> MONO?!?!?!?!?!?
 polyVoiceBank_SeqTest :: () -> Stereo Audio
 polyVoiceBank_SeqTest _ =
   polyVoiceBank numVoices synth envGen seqVE
   where
     numVoices :: NatVal 4
     numVoices = NatVal
-    envGen :: Stereo Audio -> Stereo Audio -> Stereo Audio
-    envGen gate audioIn =
-      adsr 0.01 0.1 0.5 3 -4 gate audioIn
-    synth :: VoiceID -> Mono Audio -> Stereo Audio -> Stereo Audio
-    synth (VoiceID vid) freq envVal =
+    envGen :: Stereo Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    envGen gate trigger audioIn =
+      adsrMultiTrigger 0.01 0.1 0.75 3 -4 gate trigger audioIn
+    synth :: VoiceID -> Mono Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    synth (VoiceID vid) freq envVal trigger =
       (tri (freq |> lag 0.1 |> mixStereo) * envVal * 0.03)
       +
       (tri (freq * 0.5 |> lag 0.1 |> mixStereo) * envVal * 0.03)
@@ -9414,7 +9581,35 @@ polyVoiceBank_SeqTest _ =
     seqVE =
       [ 0 _ <0 0> _ <0 <0 0>> ]
       |> map (\_ -> let n ~ -1 = (n + 1) in n)
-      |> map (\id -> (id, 1, d2f (blackstar middleC) ((id * 6) % (10 * 4)) |> mul 0.5))
+      |> map (\id -> (id, 1 // 3, d2f (blackstar middleC) ((id * 6) % (10 * 4)) |> mul 0.5))
+      |> seqSpeed (bpm 120)
+      |> seqToVoiceEvents
+
+polyVoiceBank_SeqVibeTest :: () -> Stereo Audio
+polyVoiceBank_SeqVibeTest _ =
+  polyVoiceBank_InfiniteRelease numVoices synth envGen seqVE
+  where
+    numVoices :: NatVal 40
+    numVoices = NatVal
+    envGen :: Stereo Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    envGen gate trigger audioIn =
+      adsrMultiTrigger 0.01 0.1 0.75 40 -16 gate trigger audioIn
+    maxDelayInBlocks :: NatVal 64
+    maxDelayInBlocks = NatVal
+    synth :: VoiceID -> Mono Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    synth (VoiceID vid) freq envVal trigger =
+      sin (mixStereo freq) * envVal |> mul (sin 4 * 0.125 + 0.75)
+      |> pan (((fromInt vid) / 38.0) + (1 / 38.0) |> fromFloat)
+      |> mul (1 / 20)
+    seqVE :: Slice VoiceEvent
+    seqVE =
+      [ 0 _ <0 0> _ <0 <0 0>> ]
+      |> map (\_ -> let n ~ -1 = (n + 1) in n)
+      |> map (\nID ->
+        let
+          id = ((nID * 6) % (10 * 4))
+        in
+          (id, 1 // 3, d2f (blackstar middleC) id |> mul 0.5))
       |> seqSpeed (bpm 120)
       |> seqToVoiceEvents
 

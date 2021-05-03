@@ -2689,10 +2689,6 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
               let
                 (#(PolyVoiceState# vid oid vstate (PolyVoiceLifetime# vStartTime vEndTime) voiceParams), readA#) = readArrayU i voices'
                 vEndTime' = if vEndTime == 0 then nextBlockTime else vEndTime
-                lookupOnsetParams i =
-                  case (readArray i onsetParamsArray) of
-                    Nothing -> Mono <| BlockRate voiceParams
-                    Just o -> Mono <| AudioRate o
                 lookupGateSamples i array =
                   case (readArray i array) of
                     Nothing -> pure <| genAudio (\sampleTime -> if sampleTime >= vStartTime && sampleTime < vEndTime' then 1 else 0)
@@ -2711,14 +2707,26 @@ polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
                           if vStartTime < currBlockTime then
                             (#pure <| BlockRate 1, pure <| BlockRate 0, Mono <| BlockRate voiceParams, False#)
                           else
-                            (#lookupGateSamples i gateArray, lookupTriggerSamples i triggerArray, lookupOnsetParams i, False#)
+                            let
+                              onsetParams =
+                                case (readArray i onsetParamsArray) of
+                                  Nothing -> Mono <| BlockRate voiceParams
+                                  Just o -> Mono <| AudioRate o
+                            in
+                              (#lookupGateSamples i gateArray, lookupTriggerSamples i triggerArray, onsetParams, False#)
                         else
                           if vEndTime' <= currBlockTime then
                             (#pure <| BlockRate 0, pure <| BlockRate 0, Mono <| BlockRate voiceParams, True#)
                           else if vStartTime < currBlockTime then
                             (#lookupGateSamples i gateArray, pure <| BlockRate 0, Mono <| BlockRate voiceParams, False#)
                           else
-                            (#lookupGateSamples i gateArray, lookupTriggerSamples i triggerArray, lookupOnsetParams i, False#)
+                            let
+                              onsetParams =
+                                case (readArray i onsetParamsArray) of
+                                  Nothing -> Mono <| BlockRate voiceParams
+                                  Just o -> Mono <| AudioRate o
+                            in
+                              (#lookupGateSamples i gateArray, lookupTriggerSamples i triggerArray, onsetParams, False#)
                       envOut = envGen gate trigger (pure <| BlockRate 1)
                       (#gateUpdatedA, vstate'#) =
                         if isReleasing then

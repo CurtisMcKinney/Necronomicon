@@ -349,7 +349,7 @@ static necro_midi_stream* necro_midi_streams = NULL;
 static size_t necro_num_midi_streams = 0;
 
 // NRT MIDI State
-static const uint64_t NRT_MIDI_MESSAGE_BUFFER_SIZE = 256;
+#define NRT_MIDI_MESSAGE_BUFFER_SIZE 256
 static PmEvent necro_nrt_midi_message_buffer[NRT_MIDI_MESSAGE_BUFFER_SIZE];
 static uint64_t necro_nrt_num_buffered_midi_messages = 0;
 
@@ -360,13 +360,14 @@ typedef struct
 } necro_midi_message;
 
 // RT MIDI State
-static const uint64_t RT_MIDI_MESSAGE_BUFFER_SIZE = 256; // KEEP THIS IN SYNC midiArray in base.necro !!!
+// KEEP THIS IN SYNC midiArray in base.necro !!!
+#define RT_MIDI_MESSAGE_BUFFER_SIZE 256
 static necro_midi_message necro_rt_midi_message_buffer[RT_MIDI_MESSAGE_BUFFER_SIZE];
 static size_t necro_rt_num_buffered_midi_messages = 0;
 
 // MIDI FIFO
-static const size_t MIDI_FIFO_SIZE = 512;
-static const size_t MIDI_FIFO_SIZE_MASK = MIDI_FIFO_SIZE - 1;
+#define MIDI_FIFO_SIZE 512
+#define MIDI_FIFO_SIZE_MASK (MIDI_FIFO_SIZE - 1)
 static necro_midi_message necro_midi_message_fifo[MIDI_FIFO_SIZE];
 static size_t necro_midi_fifo_head = 0;
 static size_t necro_midi_fifo_tail = 0;
@@ -442,7 +443,7 @@ NecroResult(void) necro_runtime_midi_init()
           }
           else
           {
-            static const uint64_t filters =
+            static const int32_t filters =
               PM_FILT_ACTIVE | PM_FILT_SYSEX | PM_FILT_CLOCK | PM_FILT_PLAY | PM_FILT_TICK | PM_FILT_FD |
               PM_FILT_RESET | PM_FILT_REALTIME | PM_FILT_CHANNEL_AFTERTOUCH | PM_FILT_POLY_AFTERTOUCH |
               PM_FILT_AFTERTOUCH | PM_FILT_PROGRAM | PM_FILT_PITCHBEND | PM_FILT_MTC |
@@ -531,9 +532,9 @@ NecroResult(void) necro_runtime_midi_update()
       {
         necro_nrt_num_buffered_midi_messages = read_result;
 
-        for (size_t i = 0; i < necro_nrt_num_buffered_midi_messages; ++i)
+        for (size_t j = 0; j < necro_nrt_num_buffered_midi_messages; ++j)
         {
-          const PmEvent* event = necro_nrt_midi_message_buffer + i;
+          const PmEvent* event = necro_nrt_midi_message_buffer + j;
 
 #if DEBUG_PORT_MIDI > 0
           printf(
@@ -752,6 +753,7 @@ HANDLE       h_out;
 DWORD        num_read;
 INPUT_RECORD input_record[32];
 COORD        mouse_coord;
+uint32_t     keyPress;
 DWORD        original_fdw_mode;
 
 extern DLLEXPORT void necro_runtime_init()

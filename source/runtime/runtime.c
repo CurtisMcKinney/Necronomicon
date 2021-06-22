@@ -8,6 +8,7 @@
 #include <string.h>
 #include <time.h>
 #include <inttypes.h>
+#include <immintrin.h>
 
 #ifdef _WIN32
 #define UNICODE 1
@@ -20,6 +21,7 @@
 
 #include <math.h>
 #include "portaudio.h"
+#include "portmidi.h"
 #include "runtime.h"
 #include "utility.h"
 
@@ -38,6 +40,7 @@ typedef enum
 NECRO_RUNTIME_STATE necro_runtime_state = NECRO_RUNTIME_UNINITIALIZED;
 int                 mouse_x             = 0;
 int                 mouse_y             = 0;
+uint32_t            key_press           = 0;
 bool                is_test_true        = true;
 
 extern DLLEXPORT int necro_runtime_get_mouse_x(size_t _dummy)
@@ -50,6 +53,12 @@ extern DLLEXPORT int necro_runtime_get_mouse_y(size_t _dummy)
 {
     UNUSED(_dummy);
     return mouse_y;
+}
+
+extern DLLEXPORT uint32_t necro_runtime_get_key_press(size_t _dummy)
+{
+    UNUSED(_dummy);
+    return key_press;
 }
 
 // extern DLLEXPORT void necro_runtime_print(int value)
@@ -322,6 +331,261 @@ extern DLLEXPORT void necro_runtime_free(uint8_t* data)
 
 
 ///////////////////////////////////////////////////////
+// MIDI
+///////////////////////////////////////////////////////
+
+// Set to 1 for more verbose midi debugging code
+#define DEBUG_PORT_MIDI 0
+
+// MIDI Streams
+typedef struct
+{
+  PortMidiStream* pm_midi_stream;
+  bool is_opened;
+} necro_midi_stream;
+
+
+static necro_midi_stream* necro_midi_streams = NULL;
+static size_t necro_num_midi_streams = 0;
+
+// NRT MIDI State
+#define NRT_MIDI_MESSAGE_BUFFER_SIZE 256
+static PmEvent necro_nrt_midi_message_buffer[NRT_MIDI_MESSAGE_BUFFER_SIZE];
+static uint64_t necro_nrt_num_buffered_midi_messages = 0;
+
+typedef struct
+{
+  uint64_t message;
+  uint64_t timestamp;
+} necro_midi_message;
+
+// RT MIDI State
+// KEEP THIS IN SYNC midiArray in base.necro !!!
+#define RT_MIDI_MESSAGE_BUFFER_SIZE 256
+static necro_midi_message necro_rt_midi_message_buffer[RT_MIDI_MESSAGE_BUFFER_SIZE];
+static size_t necro_rt_num_buffered_midi_messages = 0;
+
+// MIDI FIFO
+#define MIDI_FIFO_SIZE 512
+#define MIDI_FIFO_SIZE_MASK (MIDI_FIFO_SIZE - 1)
+static necro_midi_message necro_midi_message_fifo[MIDI_FIFO_SIZE];
+static size_t necro_midi_fifo_head = 0;
+static size_t necro_midi_fifo_tail = 0;
+
+extern DLLEXPORT uint64_t* necro_runtime_get_midi_buffer(size_t _dummy)
+{
+  UNUSED(_dummy);
+  // reinterpret as a uint64 array with stride 2
+  return (uint64_t*) necro_rt_midi_message_buffer;
+}
+
+extern DLLEXPORT uint64_t necro_runtime_get_num_buffered_midi_messages(size_t _dummy)
+{
+  UNUSED(_dummy);
+  static const uint64_t MESSAGE_STRIDE = 2;
+  return necro_rt_num_buffered_midi_messages * MESSAGE_STRIDE;
+}
+
+NecroResult(void) necro_runtime_midi_init()
+{
+  {
+    memset(necro_nrt_midi_message_buffer, 0, sizeof(PmEvent) * NRT_MIDI_MESSAGE_BUFFER_SIZE);
+    memset(necro_midi_message_fifo, 0, sizeof(necro_midi_message) * MIDI_FIFO_SIZE);
+    memset(necro_rt_midi_message_buffer, 0, sizeof(necro_midi_message) * RT_MIDI_MESSAGE_BUFFER_SIZE);
+    PmError init_error = Pm_Initialize();
+    if (init_error != pmNoError)
+    {
+      return necro_runtime_audio_error(Pm_GetErrorText(init_error));
+    }
+  }
+
+  puts("___________________________________");
+  puts("Opening MIDI Devices...");
+  int num_midi_devices = Pm_CountDevices();
+  if (num_midi_devices > 0)
+  {
+    necro_num_midi_streams = num_midi_devices;
+    necro_midi_streams = (necro_midi_stream*) malloc(sizeof(necro_midi_stream) * num_midi_devices);
+    memset(necro_midi_streams, 0, sizeof(necro_midi_stream) * num_midi_devices);
+    for (int i = 0; i < num_midi_devices; ++i)
+    {
+      const PmDeviceInfo* p_device_info = Pm_GetDeviceInfo(i);
+      if (p_device_info)
+      {
+        assert(p_device_info->name);
+        printf(
+          "%s : %s - Device ID: %d - Input: %d, Output: %d\n",
+          p_device_info->interf,
+          p_device_info->name,
+          i,
+          p_device_info->input,
+          p_device_info->output
+        );
+
+        if (p_device_info->input > 0)
+        {
+          PmError open_error = Pm_OpenInput(
+            &necro_midi_streams[i].pm_midi_stream, /* PortMidiStream**	stream */
+            i, /* PmDeviceID  	inputDevice */
+            NULL, /*void *  	inputDriverInfo */
+            NRT_MIDI_MESSAGE_BUFFER_SIZE, /* long  	bufferSize */
+            NULL, /* PmTimeProcPtr  	time_proc */
+            NULL /* void *  	time_info */
+          );
+
+          if (open_error != pmNoError)
+          {
+            printf(
+              "Failed to open up midi device %s - DeviceID: %d\n. Reason: %s\n",
+              p_device_info->name,
+              i,
+              Pm_GetErrorText(open_error));
+          }
+          else
+          {
+            static const int32_t filters =
+              PM_FILT_ACTIVE | PM_FILT_SYSEX | PM_FILT_CLOCK | PM_FILT_PLAY | PM_FILT_TICK | PM_FILT_FD |
+              PM_FILT_RESET | PM_FILT_REALTIME | PM_FILT_CHANNEL_AFTERTOUCH | PM_FILT_POLY_AFTERTOUCH |
+              PM_FILT_AFTERTOUCH | PM_FILT_PROGRAM | PM_FILT_PITCHBEND | PM_FILT_MTC |
+              PM_FILT_SONG_POSITION | PM_FILT_SONG_SELECT | PM_FILT_TUNE | PM_FILT_SYSTEMCOMMON;
+
+            assert(necro_midi_streams[i].pm_midi_stream != NULL);
+            PmError filter_error = Pm_SetFilter(necro_midi_streams[i].pm_midi_stream, filters);
+            if (filter_error != pmNoError)
+            {
+              printf(
+                  "Failed to set message filter for midi device %s - DeviceID: %d\n. Reason: %s\n",
+                  p_device_info->name,
+                  i,
+                  Pm_GetErrorText(filter_error));
+            }
+            else
+            {
+              necro_midi_streams[i].is_opened = true;
+              printf("Device ID: %d opened!\n", i);
+            }
+          }
+        }
+      }
+      else
+      {
+        printf("PortMidi error: unknown device id: %d\n", i);
+      }
+    }
+
+    puts("___________________________________\n");
+  }
+
+  return ok_void();
+}
+
+NecroResult(void) necro_runtime_midi_shutdown()
+{
+    if (necro_midi_streams != NULL)
+    {
+      for (size_t i = 0; i < necro_num_midi_streams; ++i)
+      {
+        if (necro_midi_streams[i].is_opened)
+        {
+          assert(necro_midi_streams[i].pm_midi_stream != NULL);
+          PmError close_error = Pm_Close(necro_midi_streams[i].pm_midi_stream);
+          if (close_error != pmNoError)
+          {
+            printf(
+                "Failed to close midi device! Reason: %s\n",
+                Pm_GetErrorText(close_error));
+          }
+        }
+      }
+
+      free(necro_midi_streams);
+      necro_midi_streams = NULL;
+    }
+
+    PmError pm_error = Pm_Terminate();
+    if (pm_error != pmNoError)
+    {
+      return necro_runtime_audio_error(Pm_GetErrorText(pm_error));
+    }
+
+    return ok_void();
+}
+
+NecroResult(void) necro_runtime_midi_update()
+{
+  for (size_t i = 0; i < necro_num_midi_streams; ++i)
+  {
+    if (necro_midi_streams[i].is_opened)
+    {
+      assert(necro_midi_streams[i].pm_midi_stream != NULL);
+      int read_result = Pm_Read(
+        necro_midi_streams[i].pm_midi_stream,
+        necro_nrt_midi_message_buffer,
+        NRT_MIDI_MESSAGE_BUFFER_SIZE
+      );
+
+      if (read_result < 0)
+      {
+        return necro_runtime_audio_error(Pm_GetErrorText(read_result));
+      }
+      else
+      {
+        necro_nrt_num_buffered_midi_messages = read_result;
+
+        for (size_t j = 0; j < necro_nrt_num_buffered_midi_messages; ++j)
+        {
+          const PmEvent* event = necro_nrt_midi_message_buffer + j;
+
+#if DEBUG_PORT_MIDI > 0
+          printf(
+            "{ NRT   :: Message: %d, TimeStamp: %d } necro_midi_fifo_head: %lu\n",
+            event->message,
+            event->timestamp,
+            necro_midi_fifo_head
+          );
+#endif
+
+          { // Push from NRT buffer to MIDI FIFO
+            const necro_midi_message midi_message = (necro_midi_message) { (uint64_t) event->message, (uint64_t) event->timestamp };
+            assert((_mm_lfence(),  necro_midi_fifo_head != ((necro_midi_fifo_tail - 1) & MIDI_FIFO_SIZE_MASK)) && "MIDI MESSAGE FIFO FULL!");
+            necro_midi_message_fifo[necro_midi_fifo_head] = midi_message;
+            _mm_sfence();
+            necro_midi_fifo_head = (necro_midi_fifo_head + 1) & MIDI_FIFO_SIZE_MASK;
+          }
+        }
+      }
+    }
+  }
+  return ok_void();
+}
+
+void necro_midi_rt_update()
+{
+  // For simplicity for the moment, assume the buffer is fully consumed every frame
+  // TODO: Timestamp based curation/consuming of the messages
+  necro_rt_num_buffered_midi_messages = 0;
+
+  // Pop messages from MIDI FIFO to RT buffer
+  while (_mm_lfence(), necro_midi_fifo_tail != necro_midi_fifo_head)
+  {
+    assert(necro_rt_num_buffered_midi_messages < RT_MIDI_MESSAGE_BUFFER_SIZE && "RT MIDI MESSAGE BUFFER FULL!");
+    necro_rt_midi_message_buffer[necro_rt_num_buffered_midi_messages++] = necro_midi_message_fifo[necro_midi_fifo_tail];
+    _mm_sfence();
+    necro_midi_fifo_tail = (necro_midi_fifo_tail + 1) & MIDI_FIFO_SIZE_MASK;
+
+#if DEBUG_PORT_MIDI > 0
+    printf(
+      "{ RT    :: Message: %lu, TimeStamp: %lu } necro_midi_fifo_tail: %lu\n",
+      necro_rt_midi_message_buffer[necro_rt_num_buffered_midi_messages - 1].message,
+      necro_rt_midi_message_buffer[necro_rt_num_buffered_midi_messages - 1].timestamp,
+      (necro_midi_fifo_tail - 1) & MIDI_FIFO_SIZE_MASK
+    );
+#endif
+  }
+
+}
+
+///////////////////////////////////////////////////////
 // Audio
 ///////////////////////////////////////////////////////
 static NecroLangCallback* necro_runtime_audio_lang_callback       = NULL;
@@ -372,6 +636,7 @@ static int necro_runtime_audio_pa_callback(const void* input_buffer, void* outpu
     necro_runtime_audio_output_buffer = output_buffer;
     necro_runtime_audio_curr_time     = time_info->currentTime - necro_runtime_audio_start_time;
     // RT update
+    necro_midi_rt_update();
     necro_runtime_audio_lang_callback();
     return 0;
 }
@@ -400,6 +665,7 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
     //--------------------
     // Init, then start RT thread
     necro_try(void, necro_runtime_audio_init());
+    necro_try(void, necro_runtime_midi_init());
     necro_heap = necro_heap_create(4096000000);
     necro_runtime_init();
     necro_runtime_audio_lang_callback = necro_main;
@@ -415,9 +681,10 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
     {
         // TODO: Need to synchronize this (lockless) with rt thread!
         necro_runtime_update();
-        double cpu_load = Pa_GetStreamCpuLoad(necro_runtime_audio_pa_stream);
+        necro_try(void, necro_runtime_midi_update());
         if (cpu_check > 9)
         {
+            double cpu_load = Pa_GetStreamCpuLoad(necro_runtime_audio_pa_stream);
             printf("  cpu: %.2f%%  mem: %.2fmb        \r", cpu_load * 100.0, (((double)necro_heap.bump) / 1000000.0));
             cpu_check = 0;
         }
@@ -427,6 +694,7 @@ NecroResult(void) necro_runtime_audio_start(NecroLangCallback* necro_init, Necro
     }
     //--------------------
     // Shutdown
+    necro_try(void, necro_runtime_midi_shutdown());
     necro_try(void, necro_runtime_audio_stop());
     necro_try(void, necro_runtime_audio_shutdown());
     // TODO: remove, for now freeing seems broken...
@@ -470,7 +738,6 @@ extern DLLEXPORT size_t necro_runtime_get_block_size()
     return necro_runtime_audio_block_size;
 }
 
-
 ///////////////////////////////////////////////////////
 // Runtime Windows
 ///////////////////////////////////////////////////////
@@ -486,6 +753,7 @@ HANDLE       h_out;
 DWORD        num_read;
 INPUT_RECORD input_record[32];
 COORD        mouse_coord;
+uint32_t     keyPress;
 DWORD        original_fdw_mode;
 
 extern DLLEXPORT void necro_runtime_init()
@@ -523,6 +791,10 @@ extern DLLEXPORT void necro_runtime_update()
             if (input_record[i].Event.KeyEvent.uChar.AsciiChar == 27 || input_record[i].Event.KeyEvent.uChar.AsciiChar == 3 || input_record[i].Event.KeyEvent.uChar.AsciiChar == 4)
             {
                 necro_runtime_state = NECRO_RUNTIME_IS_DONE;
+            }
+            else
+            {
+              keyPress = (uint32_t) input_record[i].Event.KeyEvent.uChar.AsciiChar;
             }
             break;
         case MOUSE_EVENT:
@@ -571,6 +843,8 @@ extern DLLEXPORT void necro_runtime_shutdown()
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <X11/Xresource.h>
+#include <X11/keysym.h>
+#include <X11/keysymdef.h>
 
 static Window root;
 static Display* display = NULL;
@@ -613,6 +887,8 @@ static void query_pointer(Display *d)
     {
         once = true;
         root = DefaultRootWindow(d);
+        /* XGrabKeyboard(d, root, True, GrabModeAsync, GrabModeAsync, CurrentTime); This is proving probelmatic as it takes control completely away. TODO: Find an alternative*/
+        XSelectInput(d, root, KeyPressMask | SubstructureNotifyMask);
     }
 
     if (!XQueryPointer(d, root, &root, &w, &mouse_x, &mouse_y, &i, &i, &m)) {
@@ -625,7 +901,7 @@ static void query_pointer(Display *d)
         }
     }
 
-    /* fprintf(stdout, "X: %d Y: %d\n", x, y); */
+    /* printf("X: %d Y: %d\n", mouse_x, mouse_y); */
 }
 
 extern DLLEXPORT void necro_runtime_update()
@@ -636,12 +912,47 @@ extern DLLEXPORT void necro_runtime_update()
     assert(display != NULL);
     query_pointer(display);
 
-    // ADD ESCAPE KEY SUPPORT
+    // Keyboard Handling
+    {
+      static XEvent keyEvent;
+      static const size_t KEY_STRING_LENGTH = 16;
+      static char keyString[KEY_STRING_LENGTH] = { 0 };
+      static char ascii = 0;
+      static uint32_t keyEventCode = 0;
+      static int resultLength = 0;
 
-    /* if (input_record[i].Event.KeyEvent.uChar.AsciiChar == 27 || input_record[i].Event.KeyEvent.uChar.AsciiChar == 3 || input_record[i].Event.KeyEvent.uChar.AsciiChar == 4) */
-    /* { */
-    /*     necro_runtime_state = NECRO_RUNTIME_IS_DONE; */
-    /* } */
+      while (XPending(display)) //Repeats until all events are computed
+      {
+        XNextEvent(display, &keyEvent); //Gets exactly one event
+        if (keyEvent.type == KeyPress)
+        {
+          keyEventCode = keyEvent.xkey.keycode; //Gets the key code, NOT ITS CHAR EQUIVALENT
+          /* printf("C -- KeyEventCode: %u\n", keyEventCode); */
+          resultLength = XLookupString(&keyEvent.xkey, keyString, KEY_STRING_LENGTH, NULL, NULL);
+          if (resultLength > 0) // Check size == 1?
+          {
+            /* printf("C -- keyString: %s\n", keyString); */
+            ascii = keyString[0];
+            switch(ascii)
+            {
+            case 3:
+            case 4:
+            case 27:
+              necro_runtime_state = NECRO_RUNTIME_IS_DONE;
+              break;
+            default:
+              key_press = (uint32_t) ascii;
+              break;
+            }
+          }
+        }
+        /* else if(keyEvent.type==keyRelease) */
+        /* { */
+        /*   uint32_t keyEventCode=KeyEvent.xkey.keycode; */
+        /*   #<{(| Code handling a KeyRelease event |)}># */
+        /* } */
+      }
+    }
 }
 
 extern DLLEXPORT size_t necro_runtime_is_done()

@@ -1762,6 +1762,9 @@ void necro_llvm_codegen(NecroCompileInfo info, NecroMachProgram* program, NecroL
     necro_llvm_map_check_symbol(context->base->print_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_get_mouse_x);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_get_mouse_y);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_get_key_press);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_get_midi_msg_buffer);
+    necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_get_midi_msg_buffer_size);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_is_done);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_alloc);
     necro_llvm_map_check_symbol(context->program->runtime.necro_runtime_realloc);
@@ -1852,6 +1855,9 @@ void necro_llvm_jit_go(NecroCompileInfo info, NecroLLVM* context, const char* ji
     necro_llvm_map_runtime_symbol(context->engine, context->base->print_float->core_ast_symbol->mach_symbol);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_get_mouse_x);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_get_mouse_y);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_get_key_press);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_get_midi_msg_buffer);
+    necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_get_midi_msg_buffer_size);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_is_done);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_alloc);
     necro_llvm_map_runtime_symbol(context->engine, context->program->runtime.necro_runtime_realloc);

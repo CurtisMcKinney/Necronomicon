@@ -147,6 +147,9 @@ mouseX = getMouseX ()
 mouseY :: Int
 mouseY = getMouseY ()
 
+keyPress :: UInt
+keyPress = getKeyPress ()
+
 asTypeOf :: a -> a -> a
 asTypeOf x _ = x
 
@@ -359,6 +362,9 @@ data File = File
 arrayLength :: NatVal n -> Array n a -> UInt
 arrayLength n _ = natVal n
 
+arrayLengthNatVal :: NatVal n -> Array n a -> NatVal n
+arrayLengthNatVal n _ = n
+
 -- arrayLengthU :: NatVal n -> .Array n a -> (#UInt, .Array n a#)
 arrayLengthU n arr = (#natVal n, arr#)
 
@@ -528,6 +534,9 @@ class Bits a where
   bitReverse     :: a -> a
   toBits         :: a -> UInt
   fromBits       :: UInt -> a
+
+bit :: UInt -> UInt
+bit n = bitShiftLeft 1 n
 
 sqr :: Semiring a => a -> a
 sqr n = n * n
@@ -1154,6 +1163,12 @@ iEEESignificandMask = bitAnd (-1) (bitNot (bitOr iEEEExponentMask iEEESignMask))
 
 iEEESignificandMaskF :: Float
 iEEESignificandMaskF = fromBits iEEESignificandMask
+
+floatEpsilon :: Float
+floatEpsilon = 0.00000000000000022204460492503131
+
+floatEpsilonA :: Audio
+floatEpsilonA = 0.00000000000000022204460492503131
 
 allBits :: UInt
 allBits = -1
@@ -1848,6 +1863,10 @@ unsafePtrPeek :: UInt -> Ptr a -> a
 unsafePtrPeek index ptr =
   primUndefined
 
+unsafePtrPeekU :: UInt -> .Ptr a -> (#a, .Ptr a#)
+unsafePtrPeekU index ptr =
+  primUndefined
+
 unsafePtrPoke :: UInt -> .a -> *Ptr .a -> *Ptr .a
 unsafePtrPoke index value ptr =
   primUndefined
@@ -2062,6 +2081,9 @@ arrayFrom x =
       loop a = unsafeEmptyArray () for i <- each do
         writeArray i x a
 
+arrayFromN :: NatVal n -> a -> .Array n a
+arrayFromN _ x = arrayFrom x
+
 mkArray :: (UInt -> a) -> .Array n a
 mkArray f =
   freezeArray xa
@@ -2087,6 +2109,16 @@ instance Functor (Array n) where
         loop a' = unsafeEmptyArray () for i <- each do
           writeArray i (f (readArray i a)) a'
 
+instance FunctorN (Array n) where
+  map2 f a b =
+    freezeArray <| loop c = unsafeEmptyArray () for i <- each do
+      writeArray i (f (readArray i a) (readArray i b)) c
+  map3 f a b c =
+    freezeArray <| loop d = unsafeEmptyArray () for i <- each do
+      writeArray i (f (readArray i a) (readArray i b) (readArray i c)) d
+  map4 f a b c d =
+    freezeArray <| loop e = unsafeEmptyArray () for i <- each do
+      writeArray i (f (readArray i a) (readArray i b) (readArray i c) (readArray i d)) e
 
 --------------------
 -- Slice
@@ -2100,8 +2132,14 @@ subSlice array sliceSize =
 
 instance Print a => Print (Slice a) where
   print (Slice# p n) w =
-    fst' <| loop (#w', i#) = (#w, 0#) while i < n do
-      (#print (unsafePtrPeek i p) w', i + 1#)
+    print '}' <| print ' ' <| fst' <| loop (#w', i#) = (#print '{' w |> print ' ', 0#) while i < n do
+      let
+        printDelimiter w =
+          if i < (n - 1)
+            then print ',' w |> print ' '
+            else w
+      in
+        (#print (unsafePtrPeek i p) w' |> printDelimiter, i + 1#)
 
 toSlice :: Array n a -> Slice a
 toSlice array =
@@ -2242,6 +2280,524 @@ currSampleCount =
   t * audioBlockSize
   where
     t ~ -1 = t + 1
+
+
+--------------------
+-- Poly Voice Bank
+--------------------
+
+data VoiceID = VoiceID Int
+data VoiceTimeStamp =
+  VoiceTimeStamp_Rational Rational | -- Expected to fall within current block
+  VoiceTimeStamp_Block | -- Fills entire block
+  VoiceTimeStamp_StartStop_Rational Rational Rational -- Start Expected to fall within current block, Stop can extend arbitrarily into the future
+
+data VoiceActivity =
+  VoiceInactive |
+  VoiceActive
+
+data VoiceEvent = VoiceEvent VoiceID VoiceActivity VoiceTimeStamp Float
+
+data VoiceState =
+  VoiceStateSustaining |
+  VoiceStateReleasing |
+  VoiceStateInactive
+
+data PolyVoiceStateOrderID = PolyVoiceStateOrderID UInt -- Used to track creation order for note stealing
+data PolyVoiceLifetime = PolyVoiceLifetime# Rational Rational -- Start/End time
+ -- First array is the start sample accurate version for onsets, second is block rate for faster updates regularly
+data PolyVoiceState = PolyVoiceState# VoiceID PolyVoiceStateOrderID VoiceState PolyVoiceLifetime Float
+
+data PolyVoiceBankCapacity = PolyVoiceBankCapacity UInt
+data PolyVoiceBankNumActive = PolyVoiceBankNumActive UInt
+data PolyVoiceBankOrderCounter = PolyVoiceBankOrderCounter UInt
+
+data PolyVoiceBank numVoices = PolyVoiceBank# .(Array numVoices PolyVoiceState) PolyVoiceBankCapacity PolyVoiceBankNumActive PolyVoiceBankOrderCounter
+
+instance Default PolyVoiceState where
+  default =
+    PolyVoiceState#
+      (VoiceID 0)
+      (PolyVoiceStateOrderID 0)
+      VoiceStateInactive
+      (PolyVoiceLifetime# 0 0)
+      0
+
+ -- Returns the index and previous params for the created/stolen voice
+polyVoiceBank_CreateOrStealVoice ::
+  VoiceID ->
+  PolyVoiceLifetime ->
+  Float ->
+  *PolyVoiceBank numVoices ->
+  (#*PolyVoiceBank numVoices, UInt, PolyVoiceState#)
+polyVoiceBank_CreateOrStealVoice
+  vid
+  vlifetime
+  vparams
+  (PolyVoiceBank# a (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)) =
+    let
+      VoiceID vidU = vid
+      -- 1. First see if the current note is already playing, if so set back to sustain
+      isElement (PolyVoiceState# (VoiceID vid2) _ _ _ _) = vidU == vid2
+      updateElement _ =
+        PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime vparams
+      (#maybeUpdatedIndex, (PolyVoiceBank# ua _ _ _)#) =
+        if n > 0 then
+          polyVoiceBank_UpdateFirstElementWhere
+            isElement
+            updateElement 
+            (PolyVoiceBank# a (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o))
+        else
+          (#Nothing, PolyVoiceBank# a (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)#)
+    in
+      case maybeUpdatedIndex of
+        Just (#updatedIndex, prevState#) ->
+          (#PolyVoiceBank# ua (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1)), updatedIndex, prevState#)
+        Nothing ->
+          -- 2. Second try to fill an empty whole
+          if n < c then
+            (loop (#a', maybeCreatedIndex#) = (#ua, Nothing#) for i <- each do
+              case maybeCreatedIndex of
+                Just _ -> (#a', maybeCreatedIndex#)
+                Nothing ->
+                  let
+                    (Index createdIndex) = i
+                    (#prevState, readA#) = readArrayU i a'
+                    (PolyVoiceState# _ _ voiceState _ _ ) = prevState
+                  in
+                    case voiceState of
+                      VoiceStateInactive ->
+                        (#writeArray i (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime vparams) readA, Just (#createdIndex, prevState#)#)
+                      _ -> (#readA, Nothing#)
+            ) |> \(#a', maybeCreatedIndex#) ->
+              case maybeCreatedIndex of
+                Just (#createdIndex, prevState#) ->
+                  (#PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive (n + 1)) (PolyVoiceBankOrderCounter (o + 1)), createdIndex, prevState#)
+                Nothing -> -- this should never happen!!
+                  (#
+                    PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)
+                      |> traceLn "polyVoiceBank_CreateOrStealVoice failed to create voice?!?!?",
+                    0,
+                    default
+                  #)
+          -- 3. Third, if none created then steal the oldest releasing voice
+          else
+            (loop (#a', maybeStolenId, soid, stolenIndex, stolenState#) = (#ua, Nothing, 0, 0, default#) for i <- each do
+              let
+                Index index = i
+                (#prevState, readA#) = readArrayU i a'
+                (PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _ prevParams) = prevState
+                steal =
+                  case voiceState of
+                    VoiceStateReleasing -> True
+                    _ -> False
+              in
+                if steal then
+                  case maybeStolenId of
+                    Nothing -> (#readA, Just vid, oid, index, prevState#)
+                    Just svid ->
+                      if oid < soid then
+                        (#readA, Just vid, oid, index, prevState#)
+                      else
+                        (#readA, maybeStolenId, soid, stolenIndex, stolenState#)
+                else
+                  (#readA, maybeStolenId, soid, stolenIndex, stolenState#)
+            ) |> \(#a', maybeStolenId, _, si, stolenState#) ->
+              case maybeStolenId of
+                Just svid ->
+                  let
+                    stolenIndex = unsafeUIntToIndex si
+                    writeA =
+                      writeArray
+                        stolenIndex
+                        (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime vparams)
+                        a'
+                  in
+                    (#PolyVoiceBank# writeA (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1)), si, stolenState#)
+                _ ->
+                  -- 4. Fourth, if no releasing voices, then steal the oldest voices
+                  (loop (#a'', maybeStolenId, soid, stolenIndex, stolenState#) = (#a', Nothing, 0, 0, default#) for i <- each do
+                    let
+                      Index index = i
+                      (#prevState, readA#) = readArrayU i a''
+                      (PolyVoiceState# vid (PolyVoiceStateOrderID oid) voiceState _ prevParams) = prevState
+                    in
+                      case maybeStolenId of
+                        Nothing -> (#readA, Just vid, oid, index, prevState#)
+                        Just svid ->
+                          if oid < soid then
+                            (#readA, Just vid, oid, index, prevState#)
+                          else
+                            (#readA, maybeStolenId, soid, stolenIndex, stolenState#)
+                  ) |> \(#a', maybeStolenId, _, si, stolenState#) ->
+                    case maybeStolenId of
+                      Nothing ->
+                        (#
+                          PolyVoiceBank# a' (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)
+                            |> traceLn "polyVoiceBank_CreateOrStealVoice failed to steal voice?!?!?",
+                          0,
+                          default
+                        #)
+                      Just svid ->
+                        let
+                          stolenIndex = unsafeUIntToIndex si
+                          writeA =
+                            writeArray
+                              stolenIndex
+                              (PolyVoiceState# vid (PolyVoiceStateOrderID o) VoiceStateSustaining vlifetime vparams)
+                              a'
+                        in
+                          (#PolyVoiceBank# writeA (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter (o + 1)), si, stolenState#)
+
+-- Returns Just (#foundIndex, prevState#) or Nothing if not found
+polyVoiceBank_UpdateFirstElementWhere ::
+  (PolyVoiceState -> Bool) ->
+  (PolyVoiceState -> PolyVoiceState) ->
+  *PolyVoiceBank numVoices ->
+  (#Maybe (#UInt, PolyVoiceState#), *PolyVoiceBank numVoices#)
+polyVoiceBank_UpdateFirstElementWhere f u (PolyVoiceBank# a c n o) =
+  (loop (#maybeIndex, a'#) = (#Nothing, a#) for i <- each do
+    case maybeIndex of
+      Just _ -> (#maybeIndex, a'#)
+      Nothing ->
+        let
+          (Index n) = i
+          (#element, readA#) = readArrayU i a'
+          found = f element
+        in
+          if found then
+            (#Just (#n, element#), writeArray i (u element) readA#)
+          else
+            (#Nothing, readA#)
+  ) -- ~loop
+  |> \(#maybeIndex, a'#) ->
+    (#maybeIndex, PolyVoiceBank# a' c n o#)
+
+data PolyVoiceBank_VoiceBehavior =
+  PolyVoiceBank_DeactivateAfterRelease |
+  PolyVoiceBank_InfiniteRelease
+
+polyVoiceBank_mkVoices :: NatVal numVoices -> .PolyVoiceBank numVoices
+polyVoiceBank_mkVoices numVoices =
+  PolyVoiceBank# (arrayFrom default) (PolyVoiceBankCapacity <| natVal numVoices) (PolyVoiceBankNumActive 0) (PolyVoiceBankOrderCounter 0)
+
+-- -- Uses oldest note voice stealing
+polyVoiceBank_WithBehavior ::
+  (AudioFormat f) =>
+  NatVal numVoices -> -- size of voice bank
+  (VoiceID -> Mono Audio -> f Audio -> f Audio -> f Audio) -> -- (\voiceID voiceEventParameter envGenValue -> trigger -> audioOut)
+  (f Audio -> f Audio -> f Audio -> f Audio) -> -- (\gate trigger audioIn -> audioOut)
+  Slice VoiceEvent -> -- stream of voice events, timing should fall within current block
+  PolyVoiceBank_VoiceBehavior ->
+  f Audio
+polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents voiceBehavior =
+  case mutRefTake (\_ -> polyVoiceBank_mkVoices numVoices) of
+    (#voiceBank, mref#) ->
+      let
+        nothingAudioArray _ = arrayFrom Nothing
+        foldEvents (#voices', onsetParamsArray, gateArray, triggerArray#) (VoiceEvent (VoiceID voiceID) activity ts newVoiceParams) =
+          case activity of
+            VoiceActive ->
+              let
+                (#start, stop#) =
+                  case ts of
+                    VoiceTimeStamp_Rational rt -> (#rt, 0#)
+                    VoiceTimeStamp_Block -> (#currBlockTime, 0#)
+                    VoiceTimeStamp_StartStop_Rational start stop -> (#start, stop#)
+                (#updatedVoices, si, prevState#) =
+                  polyVoiceBank_CreateOrStealVoice
+                    (VoiceID voiceID)
+                    (PolyVoiceLifetime# start stop)
+                    newVoiceParams
+                    voices'
+                (PolyVoiceState# prVID prOID prVS (PolyVoiceLifetime# prStart prStop) prevParams) = prevState
+                stolenIndex = unsafeUIntToIndex si
+                -----------------------------------
+                -- Voice params
+                (#maybeCurrentVoiceOnsetParams, readOnsetParamsArray#) = readArrayU stolenIndex onsetParamsArray
+                sampleAccurateOnsetParams =
+                  if start <= currBlockTime then
+                    arrayFrom newVoiceParams
+                  else
+                    case maybeCurrentVoiceOnsetParams of
+                      Nothing ->
+                          freezeArray
+                          <| loop a = unsafeEmptyArray () for i <- each do
+                            let
+                              (Index n) = i
+                              sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                              updatedSample =
+                                if sampleTime >= start
+                                  then newVoiceParams 
+                                  else prevParams
+                            in
+                              writeArray i updatedSample a
+                      Just cps ->
+                        freezeArray
+                        <| loop a = unsafeEmptyArray () for i <- each do
+                          let
+                            (Index n) = i
+                            sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                            currentSample = readArray i cps
+                            updatedSample =
+                              if sampleTime >= start then
+                                newVoiceParams
+                              else
+                                currentSample
+                          in
+                            writeArray i updatedSample a
+                onsetParamsArray' = writeArray stolenIndex (Just sampleAccurateOnsetParams) readOnsetParamsArray
+                -----------------------------------
+                -- Gate params
+                (#maybeCurrentVoiceGate, readGateArray#) = readArrayU stolenIndex gateArray
+                sampleAccurateGate =
+                  case maybeCurrentVoiceGate of
+                    Nothing ->
+                      (loop g = unsafeEmptyArray () for i <- each do
+                        let
+                          (Index n) = i
+                          sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                          gateSample =
+                            if stop > 0 && sampleTime >= stop then
+                              0
+                            else if sampleTime >= start then
+                              1
+                            else if sampleTime >= prStart && (prStop == 0 || sampleTime < prStop) then
+                              1
+                            else
+                              0
+                        in
+                          writeArray i gateSample g
+                      ) |> freezeArray
+                    Just gateSamples ->
+                      (loop g = unsafeEmptyArray () for i <- each do
+                        let
+                          (Index n) = i
+                          sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                          currentGateSample = readArray i gateSamples
+                          updatedGateSample =
+                            if stop > 0 && sampleTime >= stop then
+                              0
+                            else if sampleTime >= start then
+                              1
+                            else
+                              currentGateSample
+                        in
+                          writeArray i updatedGateSample g
+                      ) |> freezeArray
+                gateArray' = writeArray stolenIndex (Just sampleAccurateGate) readGateArray
+                -----------------------------------
+                -- Trigger params
+                (#maybeCurrentVoiceTrigger, readTriggerArray#) = readArrayU stolenIndex triggerArray
+                sampleAccurateTrigger =
+                  case maybeCurrentVoiceTrigger of
+                    Nothing ->
+                      (loop t = unsafeEmptyArray () for i <- each do
+                        let
+                          (Index n) = i
+                          sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                          triggerSample = if sampleTime == start then 1 else 0
+                        in
+                          writeArray i triggerSample t
+                      ) |> freezeArray
+                    Just triggerSamples ->
+                      (loop t = unsafeEmptyArray () for i <- each do
+                        let
+                          (Index n) = i
+                          sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                          currentTriggerSample = readArray i triggerSamples
+                          updatedTriggerSample = if sampleTime == start then 1 else currentTriggerSample
+                        in
+                          writeArray i updatedTriggerSample t
+                      ) |> freezeArray
+                triggerArray' = writeArray stolenIndex (Just sampleAccurateTrigger) readTriggerArray
+              in
+                (#updatedVoices, onsetParamsArray', gateArray', triggerArray'#)
+            VoiceInactive ->
+              let
+                isElement (PolyVoiceState# (VoiceID voiceID2) _ _ _ _) =  voiceID == voiceID2
+                updateElement (PolyVoiceState# vid oid _ (PolyVoiceLifetime# start _) vparams) =
+                  PolyVoiceState# vid oid VoiceStateReleasing (PolyVoiceLifetime# start' stop') vparams
+                  where
+                    (#start', stop'#) =
+                      case ts of
+                        VoiceTimeStamp_Rational rt -> (#start, rt#)
+                        VoiceTimeStamp_Block -> (#start, currBlockTime#)
+                        VoiceTimeStamp_StartStop_Rational _ stop' -> (#start, stop'#)
+                (#maybeFoundIndex, voices''#) = polyVoiceBank_UpdateFirstElementWhere isElement updateElement voices'
+              in
+                case maybeFoundIndex of
+                  Nothing -> (#voices'', onsetParamsArray, gateArray, triggerArray#) |> traceLn "FAILED TO UPDATE VOICE AFTER INACTIVE EVENT!!!!!!!!"
+                  Just (#fi, PolyVoiceState# _ _ _ (PolyVoiceLifetime# prStart prStop) _#) ->
+                    let
+                      foundIndex = unsafeUIntToIndex fi
+                      (PolyVoiceBank# v c n o) = voices''
+                      (#(PolyVoiceState# _ _ _ (PolyVoiceLifetime# start stop) _), readVoiceBank#) = readArrayU foundIndex v
+                      (#maybeCurrentVoiceGate, readGateArray#) = readArrayU foundIndex gateArray
+                      sampleAccurateGate =
+                        case maybeCurrentVoiceGate of
+                          Nothing ->
+                            arrayFrom 0
+                          Just gateSamples ->
+                            (loop g = unsafeEmptyArray () for i <- each do
+                              let
+                                (Index n) = i
+                                sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+                                currentGateSample = readArray i gateSamples
+                                updatedGateSample =
+                                  if stop > 0 && sampleTime >= stop then
+                                    0
+                                  else if sampleTime >= start then
+                                    1
+                                  else
+                                    currentGateSample
+                              in
+                                writeArray i updatedGateSample g
+                            ) |> freezeArray
+                    in
+                      (#PolyVoiceBank# readVoiceBank c n o, onsetParamsArray, writeArray foundIndex (Just sampleAccurateGate) readGateArray, triggerArray#)
+
+      in
+        foldl foldEvents (#voiceBank, nothingAudioArray (), nothingAudioArray (), nothingAudioArray ()#) voiceEvents
+        -- -- Uncomment this block for debug printing --------------------------------------------------------
+        -- |> \(#PolyVoiceBank# vp cp (PolyVoiceBankNumActive np) op, onsetParamsArrayU, maybeGateArrayU, maybeTriggerArrayU#) ->
+        --   (if sliceLength voiceEvents > 0 then
+        --     ()
+        --     |> traceLn "PolyVoiceBank"
+        --     |> \_ ->
+        --       (loop vp' = vp for i <- each do
+        --         let
+        --           (#element, readVoices#) = readArrayU i vp'
+        --           (Index index) = i
+        --           _ = (#traceLn2 " i " index, traceLn2 "element: " element#)
+        --         in
+        --           readVoices
+        --       ) |> \vp' ->
+        --         (#PolyVoiceBank# vp' cp (PolyVoiceBankNumActive (np |> traceLn2 "n: ")) op, onsetParamsArrayU, maybeGateArrayU, maybeTriggerArrayU#)
+        --   else
+        --     (#PolyVoiceBank# vp cp (PolyVoiceBankNumActive np) op, onsetParamsArrayU, maybeGateArrayU, maybeTriggerArrayU#)
+        --   )
+        -- -- Uncomment this block for debug printing --------------------------------------------------------
+        |> \(#PolyVoiceBank# voices c (PolyVoiceBankNumActive n) o, onsetParamsArrayU, maybeGateArrayU, maybeTriggerArrayU#) ->
+          let
+            onsetParamsArray = onsetParamsArrayU |> freezeArray
+            gateArray = maybeGateArrayU |> freezeArray
+            triggerArray = maybeTriggerArrayU |> freezeArray
+          in
+            -- Generate voice output, and handle voice activity based on envGen output
+            (loop (#voices', n', voiceAudio#) = (#voices, n, pure 0#) for i <- each do
+              let
+                (#(PolyVoiceState# vid oid vstate (PolyVoiceLifetime# vStartTime vEndTime) voiceParams), readA#) = readArrayU i voices'
+                vEndTime' = if vEndTime == 0 then nextBlockTime else vEndTime
+                lookupGateSamples i array =
+                  case (readArray i array) of
+                    Nothing -> pure <| genAudio (\sampleTime -> if sampleTime >= vStartTime && sampleTime < vEndTime' then 1 else 0)
+                    Just samples -> pure <| AudioRate samples
+                lookupTriggerSamples i array =
+                  case (readArray i array) of
+                    Nothing -> pure <| BlockRate 0
+                    Just samples -> pure <| AudioRate samples
+              in
+                case vstate of
+                  VoiceStateInactive -> (#readA, n', voiceAudio#)
+                  _ ->
+                    let
+                      (#gate, trigger, sampleAccurateVoiceParams, isReleasing#) =
+                        if vEndTime == 0 then
+                          if vStartTime < currBlockTime then
+                            (#pure <| BlockRate 1, pure <| BlockRate 0, Mono <| BlockRate voiceParams, False#)
+                          else
+                            let
+                              onsetParams =
+                                case (readArray i onsetParamsArray) of
+                                  Nothing -> Mono <| BlockRate voiceParams
+                                  Just o -> Mono <| AudioRate o
+                            in
+                              (#lookupGateSamples i gateArray, lookupTriggerSamples i triggerArray, onsetParams, False#)
+                        else
+                          if vEndTime' <= currBlockTime then
+                            (#pure <| BlockRate 0, pure <| BlockRate 0, Mono <| BlockRate voiceParams, True#)
+                          else if vStartTime < currBlockTime then
+                            (#lookupGateSamples i gateArray, pure <| BlockRate 0, Mono <| BlockRate voiceParams, False#)
+                          else
+                            let
+                              onsetParams =
+                                case (readArray i onsetParamsArray) of
+                                  Nothing -> Mono <| BlockRate voiceParams
+                                  Just o -> Mono <| AudioRate o
+                            in
+                              (#lookupGateSamples i gateArray, lookupTriggerSamples i triggerArray, onsetParams, False#)
+                      envOut = envGen gate trigger (pure <| BlockRate 1)
+                      (#gateUpdatedA, vstate'#) =
+                        if isReleasing then
+                          case vstate of
+                            VoiceStateSustaining ->
+                              let
+                                gateUpdatedA =
+                                  writeArray
+                                    i
+                                    (PolyVoiceState# vid oid VoiceStateReleasing (PolyVoiceLifetime# vStartTime vEndTime) voiceParams)
+                                    readA
+                              in
+                                (#gateUpdatedA, VoiceStateReleasing#)
+                            _ -> (#readA, vstate#)
+                        else
+                          (#readA, vstate#)
+                      (#writeA, n''#) =
+                        case voiceBehavior of
+                          PolyVoiceBank_InfiniteRelease -> (#gateUpdatedA, n'#)
+                          PolyVoiceBank_DeactivateAfterRelease ->
+                            case vstate' of
+                              VoiceStateReleasing ->
+                                let
+                                  f acc c =
+                                    case c of
+                                      AudioRate ca ->
+                                        if (readArray (unsafeUIntToIndex 0) ca) >= floatEpsilon then
+                                          False
+                                        else
+                                          acc && True
+                                      BlockRate c ->
+                                        if c >= floatEpsilon then
+                                          False
+                                        else
+                                          acc && True
+                                      _ -> acc && True
+                                in
+                                  if foldl f True envOut then
+                                    (#writeArray i default gateUpdatedA, n' - 1#) -- |> traceLn "Remove Voice!!!!"
+                                  else
+                                    (#gateUpdatedA, n'#)
+                              _ -> (#gateUpdatedA, n'#)
+                    in
+                      (#writeA, n'', map2 (+) voiceAudio (voice vid sampleAccurateVoiceParams envOut trigger)#)
+            ) -- ~loop
+        |> \(#voices', n', voiceAudio#) ->
+          case mutRefPut (PolyVoiceBank# voices' c (PolyVoiceBankNumActive n') o) mref of
+            _ -> voiceAudio
+
+-- Deactivates after release when the envGen reaches 0
+polyVoiceBank ::
+  (AudioFormat f) =>
+  NatVal numVoices -> -- size of voice bank
+  (VoiceID -> Mono Audio -> f Audio -> f Audio -> f Audio) -> -- (\voiceID voiceEventParameter envGenValue trigger -> audioOut)
+  (f Audio -> f Audio -> f Audio -> f Audio) -> -- (\gate trigger audioIn -> audioOut)
+  Slice VoiceEvent -> -- stream of voice events, timing should fall within current block
+  f Audio
+polyVoiceBank numVoices voice envGen voiceEvents =
+  polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents PolyVoiceBank_DeactivateAfterRelease
+
+-- Never deactivates voices once they've been activated.
+-- Good for fixed voices like piano keys or string instrument simulation
+polyVoiceBank_InfiniteRelease ::
+  (AudioFormat f) =>
+  NatVal numVoices -> -- size of voice bank
+  (VoiceID -> Mono Audio -> f Audio -> f Audio -> f Audio) -> -- (\voiceID voiceEventParameter envGenValue trigger -> audioOut)
+  (f Audio -> f Audio -> f Audio -> f Audio) -> -- (\gate trigger audioIn -> audioOut)
+  Slice VoiceEvent -> -- stream of voice events, timing should fall within current block
+  f Audio
+polyVoiceBank_InfiniteRelease numVoices voice envGen voiceEvents =
+  polyVoiceBank_WithBehavior numVoices voice envGen voiceEvents PolyVoiceBank_InfiniteRelease
 
 --------------------
 -- Audio
@@ -2421,6 +2977,25 @@ foldAudio f init c =
     AudioEnd    -> init
     BlockRate x -> f init x
     AudioRate b -> foldl f init b
+
+genAudio :: (Rational -> Float) -> Audio
+genAudio f =
+  AudioRate
+    <| freezeArray
+    <| loop a = audioInitArray () for i <- each do
+      let
+        (Index n) = i
+        sampleTime = currBlockTime + ((Rational# (fromUInt n) 1) * audioSampleDelta)
+      in
+        writeArray i (f sampleTime) a
+
+-- An impulse in the first sample of the audio buffer, the rest is 0s
+singleImpulse :: Audio
+singleImpulse =
+  AudioRate
+    <| freezeArray
+    <| writeArray (unsafeUIntToIndex 0) 1
+    <| audioInitArray ()
 
 const :: .a -> .b -> .a
 const x _ = x
@@ -4881,6 +5456,19 @@ sampleSeq bank modifier seq =
         duration = audioBufferDuration buffer
         synth _ = modifier (audioBufferPlay DontLoop 1 buffer) metadata
 
+-- Generate audio from a sample bank and sequence of integers
+-- Pass in audio generator
+sampleSeq' :: SampleBank n a -> (Stereo Audio -> a -> Stereo Audio) -> Seq Int -> ((Int -> Stereo Audio) -> Seq Int -> Stereo Audio) -> Stereo Audio
+sampleSeq' bank modifier seq gen =
+  gen sampleSynth seq
+  where
+    sampleSynth index =
+      playFor duration synth
+      where
+        (SampleData buffer metadata) = selectSample bank index
+        duration = audioBufferDuration buffer
+        synth _ = modifier (audioBufferPlay DontLoop 1 buffer) metadata
+
 ----------------------
 -- Record Audio
 ----------------------
@@ -5900,12 +6488,22 @@ envMk :: Float -> Float -> Float -> Float -> Float -> () -> *EnvState
 envMk level endLevel length curve currTime _ =
   EnvState# a2 b1 grow currTime
   where
-    length' = length * audioSampleRateF
+    length' = length * audioSampleRateF |> max 1
     b1      = (endLevel - level) / (1 - exp curve)
     a2      = level + b1
     grow    = exp (curve / length')
 
-envIsRunning :: Float -> *EnvState -> (#*EnvState, Bool#)
+-- Adjusted version that truncates to sample, possibly addresses overshooting issue?
+envMk' :: Float -> Float -> Float -> Float -> Float -> () -> .EnvState
+envMk' level endLevel length curve currTime _ =
+  EnvState# a2 b1 grow currTime
+  where
+    length' = length * audioSampleRateF |> floor |> max 1
+    b1      = (endLevel - level) / (1 - exp curve)
+    a2      = level + b1
+    grow    = exp (curve / length')
+
+envIsRunning :: Float -> .EnvState -> (#.EnvState, Bool#)
 envIsRunning totalTime (EnvState# a2 b1 grow currTime) =
   (#EnvState# a2 b1 grow currTime, currTime < totalTime#)
 
@@ -5921,10 +6519,10 @@ asrTick attackTime sustainTime decayTime totalTime curve input (EnvState# a20 b1
     EnvState# a2 b1 grow currTime =
       -- Switch to sustain
       if currTime1 > attackTime && currTime0 <= attackTime then
-        envMk (a20 - b10) 1.0 sustainTime curve currTime1 ()
+        envMk (a20 - b10) 1.0 sustainTime curve currTime1 () -- |> traceLn "Attack -> Sustain"
       -- Switch to decay
       else if currTime1 > attackAndSustainTime && currTime0 <= attackAndSustainTime then
-        envMk (a20 - b10) 0 decayTime curve currTime1 ()
+        envMk (a20 - b10) 0 decayTime curve currTime1 () -- |> traceLn "Sustain -> Release"
       -- End
       else if currTime1 > totalTime then
         EnvState# 0 0 0 currTime1
@@ -5940,13 +6538,95 @@ asr attackTime sustainTime decayTime curve input =
   accumulate1U mk update isRunning input
   where
     totalTime = attackTime + sustainTime + decayTime
-    mk        = envMk 0 1 attackTime curve 0
+    mk        = \_ -> envMk 0 1 attackTime curve 0 () -- |> traceLn "mk"
     update    = asrTick attackTime sustainTime decayTime totalTime curve
     isRunning = envIsRunning totalTime
 
 asr' :: AudioFormat f => Float -> Float -> Float -> Float -> f Audio -> f Audio
 asr' attackTime sustainTime decayTime curve input =
   silenceAtEnd (asr attackTime sustainTime decayTime curve input)
+
+-----------
+-- ADSR
+
+data ADSRState =
+  ADSRState_Attack      |
+  ADSRState_Decay       |
+  ADSRState_Sustain     |
+  ADSRState_Release     |
+  ADSRState_End
+
+data ADSRAccumulateState = ADSRAccumulateState# ADSRState EnvState
+
+instance Default ADSRAccumulateState where
+  default = ADSRAccumulateState# ADSRState_End (EnvState# 0 0 0 0)
+
+adsrTick :: Float -> Float -> Float -> Float -> Float -> Float -> Float -> Float -> Float -> ADSRAccumulateState -> (#ADSRAccumulateState, Float#)
+adsrTick attackTime decayTime sustainLevel releaseTime totalTime curve gate trigger input (ADSRAccumulateState# adsrState (EnvState# a20 b10 grow0 currTime0)) =
+  (#ADSRAccumulateState# state2 (EnvState# a2 b12 grow currTime), out#)
+  where
+    attackAndDecayTime = attackTime + decayTime
+    currTime1 = currTime0 + recipSampleRate -- |> traceLn2 "ADSR currTime1: "
+    (ADSRAccumulateState# state2 (EnvState# a2 b1 grow currTime)) =
+      let
+        mkReAttack lastState =
+          ADSRAccumulateState# ADSRState_Attack (envMk' currentLevel 1 reAttackLength curve currTime2 ()) -- |> traceLn2 debugText
+            where
+              currentLevel = (a20 - b10) -- |> traceLn2 "value: "
+              reAttackLength = min attackTime (((currTime1 - attackTime) / releaseTime) * attackTime) -- |> traceLn2 "reAttackLength: "
+              currTime2 = attackTime - reAttackLength + recipSampleRate -- |> traceLn2 "currTime2: "
+      in
+        case adsrState of
+          ADSRState_Attack ->
+            if currTime1 > attackTime then
+              ADSRAccumulateState# ADSRState_Decay (envMk' (a20 - b10) sustainLevel decayTime curve currTime1 ()) -- |> traceLn2 "Attack -> Decay: "
+            else
+              ADSRAccumulateState# ADSRState_Attack (EnvState# a20 b10 grow0 currTime1)
+          ADSRState_Decay ->
+            if trigger > 0 then
+              mkReAttack ADSRState_Decay
+            else if currTime1 > attackAndDecayTime then
+              if gate > 0 then
+                ADSRAccumulateState# ADSRState_Sustain (EnvState# sustainLevel b10 0 currTime1) -- |> traceLn2 "Decay -> Sustain: "
+              else
+                ADSRAccumulateState# ADSRState_Release (envMk' (a20 - b10) 0 releaseTime curve currTime1 ()) -- |> traceLn2 "Decay -> Release: "
+            else
+              ADSRAccumulateState# ADSRState_Decay (EnvState# a20 b10 grow0 currTime1)
+          ADSRState_Sustain ->
+            if trigger > 0 then
+              mkReAttack ADSRState_Sustain
+            else if gate == 0 then
+              ADSRAccumulateState# ADSRState_Release (envMk' (a20 - b10) 0 releaseTime curve attackAndDecayTime ()) -- |> traceLn2 "Sustain -> Release: "
+            else
+              ADSRAccumulateState# ADSRState_Sustain (EnvState# a20 b10 0 currTime0)
+          ADSRState_Release ->
+            if gate > 0 || trigger > 0 then
+              mkReAttack ADSRState_Release
+            else if currTime1 > totalTime then
+                ADSRAccumulateState# ADSRState_End (EnvState# 0 0 0 totalTime) -- |> traceLn2 "Release -> End: "
+            else
+              ADSRAccumulateState# ADSRState_Release (EnvState# a20 b10 grow0 currTime1)
+          ADSRState_End ->
+            if gate > 0 || trigger > 0 then
+              ADSRAccumulateState# ADSRState_Attack (envMk' 0 1 attackTime curve recipSampleRate ()) -- |> traceLn2 "End -> Attack: "
+            else
+              ADSRAccumulateState# ADSRState_End (EnvState# 0 0 0 totalTime) -- |> trace "end"
+    b12   = b1 * grow
+    level = a2 - b12 -- |> traceLn2 "ADSR level: "
+    out   = level * input
+
+-- gate param will trigger and sustain, trigger param can retrigger the env from a sustained state (will move back to attack then decay then sustain)
+adsrMultiTrigger :: AudioFormat f => Float -> Float -> Float -> Float -> Float -> f Audio -> f Audio -> f Audio -> f Audio
+adsrMultiTrigger attackTime decayTime sustainLevel releaseTime curve gate trigger input =
+  accumulate3 update constTrue gate trigger input
+  where
+    totalTime = attackTime + decayTime + releaseTime
+    update    = adsrTick attackTime decayTime (clamp sustainLevel 0 1) releaseTime totalTime curve
+
+-- gate triggers the envelope when changing from 0 to positive and will hold the env to the sustain level while the gate remains open
+adsr :: AudioFormat f => Float -> Float -> Float -> Float -> Float -> f Audio -> f Audio -> f Audio
+adsr attackTime decayTime sustainLevel releaseTime curve gate input =
+  adsrMultiTrigger attackTime decayTime sustainLevel releaseTime curve gate (pure 0) input
 
 -----------
 -- sustainRelease
@@ -8443,6 +9123,17 @@ seqStutter repetitions s =
                   SeqPure -> (#0, SeqValue# dur SeqLoopEnd value, prevControl#)
                   _       -> (#0, SeqValue# dur prevControl value, prevControl#)
 
+seqSeries :: Int -> Int -> Seq Int
+seqSeries start step =
+  Seq go
+  where
+    go _ = SeqValue# 1 SeqPure n
+      where
+        n ~ Nothing =
+          case n of
+            Nothing -> Just start
+            Just v -> Just <| v + step
+
 endAtLoop :: Seq a -> Seq a
 endAtLoop s = Seq go
   where
@@ -8459,6 +9150,489 @@ endAtLoop s = Seq go
                 _          -> runSeq s p
 
 -- TODO: seqShift / seqDelay
+
+----------------------
+-- MIDI
+----------------------
+
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+-- MIDI Internals
+
+-- Runtime C Function
+-- getMIDIMessageBuffer :: () -> Ptr UInt
+-- getMIDIMessageBuffer = primUndefined
+
+-- Runtime C Function
+-- getMIDIMessageBufferSize :: () -> UInt
+-- getMIDIMessageBufferSize = primUndefined
+
+-- Message buffer has a stride of 2, where a message is a pair of uints in the sequence { Message, TimeStamp }
+primMIDIMessageBuffer :: Ptr UInt
+primMIDIMessageBuffer = getMIDIMessageBuffer ()
+
+primMIDIMessageBufferSize :: UInt
+primMIDIMessageBufferSize = getMIDIMessageBufferSize ()
+
+primMIDIMessageSlice :: Slice UInt
+primMIDIMessageSlice =
+  Slice# primMIDIMessageBuffer primMIDIMessageBufferSize
+
+primMIDIMessageTypeMask :: UInt
+primMIDIMessageTypeMask = bitAnd 255 (bitNot 15)
+
+primMIDIMessageType :: UInt -> UInt
+primMIDIMessageType rawMessage = bitShiftRight (bitAnd rawMessage primMIDIMessageTypeMask) 4
+
+primMIDIMessageChannel :: UInt -> UInt
+primMIDIMessageChannel rawMessage = bitAnd rawMessage 15
+
+primMIDIMessageData1 :: UInt -> UInt
+primMIDIMessageData1 rawMessage = bitShiftRight (bitAnd rawMessage (bitShiftLeft 255 8)) 8
+
+primMIDIMessageData2 :: UInt -> UInt
+primMIDIMessageData2 rawMessage = bitShiftRight (bitAnd rawMessage (bitShiftLeft 255 16)) 16
+
+primMIDINoteOffType :: UInt
+primMIDINoteOffType = 8
+
+primMIDINoteOnType :: UInt
+primMIDINoteOnType = 9
+
+primMIDIControlType :: UInt
+primMIDIControlType = 11
+
+primMkMIDIArray :: UInt -> MIDI_Message
+primMkMIDIArray i =
+  if i < midiMessageBufferSize then
+    let
+      j = i * 2
+      rawMessage = unsafePtrPeek j primMIDIMessageBuffer
+      rawTimeStamp = unsafePtrPeek (j + 1) primMIDIMessageBuffer
+      messageType = primMIDIMessageType rawMessage
+      -- channels are encode in messages as 0-15, but the spec denotes them as 1-16
+      midiChannel = primMIDIMessageChannel rawMessage + 1
+      midiMessage = -- case (primMIDIMessageType rawMessage) of
+        if messageType == primMIDINoteOffType then
+          MIDI_NoteOff
+            (MIDI_Channel midiChannel)
+            (MIDI_Note (primMIDIMessageData1 rawMessage))
+            (MIDI_Velocity (primMIDIMessageData2 rawMessage))
+            (MIDI_TimeStamp rawTimeStamp)
+        else if messageType == primMIDINoteOnType then
+          MIDI_NoteOn
+            (MIDI_Channel midiChannel)
+            (MIDI_Note (primMIDIMessageData1 rawMessage))
+            (MIDI_Velocity (primMIDIMessageData2 rawMessage))
+            (MIDI_TimeStamp rawTimeStamp)
+        else if messageType == primMIDIControlType then
+          MIDI_Control
+            (MIDI_Channel midiChannel)
+            (MIDI_ControlNumber (primMIDIMessageData1 rawMessage))
+            (MIDI_ControlValue (primMIDIMessageData2 rawMessage))
+            (MIDI_TimeStamp rawTimeStamp)
+        else MIDI_Undefined
+    in
+      midiMessage
+  else
+    MIDI_Undefined
+
+primMIDIMessageArray :: Array 256 MIDI_Message -- KEEP THIS IN SYNC WITH RT_MIDI_MESSAGE_BUFFER_SIZE IN RUNTIME.C!!!
+primMIDIMessageArray =
+  mkArray primMkMIDIArray
+
+-- ~MIDI Internals
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+midiMessageBufferSize :: UInt
+midiMessageBufferSize = primMIDIMessageBufferSize / 2
+
+midiMessageBuffer :: Slice MIDI_Message
+midiMessageBuffer =
+  subSlice primMIDIMessageArray midiMessageBufferSize
+
+dumpMIDIBuffer :: *World -> *World
+dumpMIDIBuffer w =
+  if sliceLength midiMessageBuffer > 0
+    then
+      printLn midiMessageBuffer w
+    else
+      w
+
+dumpRawMIDIBuffer :: *World -> *World
+dumpRawMIDIBuffer w =
+    (loop (#w', i#) = (#w, 0#) while i < primMIDIMessageBufferSize do
+      (#
+        print "{ Necro :: Message: " w'
+          |> print (unsafePtrPeek i primMIDIMessageBuffer)
+          |> print ", TimeStamp: "
+          |> print (unsafePtrPeek (i + 1) primMIDIMessageBuffer)
+          |> printLn " }",
+        i + 2
+      #)
+    )
+    |> fst'
+    -- |> \w'' ->
+    --   if primMIDIMessageBufferSize > 0
+    --     then print "MIDI Message buffer size: " w'' |> printLn primMIDIMessageBufferSize
+    --     else w''
+
+data MIDI_Channel = MIDI_Channel UInt
+data MIDI_Note = MIDI_Note UInt
+data MIDI_Velocity = MIDI_Velocity UInt
+data MIDI_TimeStamp = MIDI_TimeStamp UInt
+data MIDI_ControlNumber = MIDI_ControlNumber UInt
+data MIDI_ControlValue = MIDI_ControlValue UInt
+
+data MIDI_Message =
+  MIDI_NoteOn  MIDI_Channel MIDI_Note MIDI_Velocity MIDI_TimeStamp |
+  MIDI_NoteOff MIDI_Channel MIDI_Note MIDI_Velocity MIDI_TimeStamp |
+  MIDI_Control MIDI_Channel MIDI_ControlNumber MIDI_ControlValue MIDI_TimeStamp |
+  MIDI_Undefined -- Used to represent unhandled or not properly bound messages types
+
+instance Eq MIDI_Channel where
+  eq  (MIDI_Channel x) (MIDI_Channel y) = x == y
+  neq (MIDI_Channel x) (MIDI_Channel y) = x /= y
+
+instance Eq MIDI_Note where
+  eq  (MIDI_Note x) (MIDI_Note y) = x == y
+  neq (MIDI_Note x) (MIDI_Note y) = x /= y
+
+instance Eq MIDI_Velocity where
+  eq  (MIDI_Velocity x) (MIDI_Velocity y) = x == y
+  neq (MIDI_Velocity x) (MIDI_Velocity y) = x /= y
+
+instance Eq MIDI_TimeStamp where
+  eq  (MIDI_TimeStamp x) (MIDI_TimeStamp y) = x == y
+  neq (MIDI_TimeStamp x) (MIDI_TimeStamp y) = x /= y
+
+instance Eq MIDI_ControlNumber where
+  eq  (MIDI_ControlNumber x) (MIDI_ControlNumber y) = x == y
+  neq (MIDI_ControlNumber x) (MIDI_ControlNumber y) = x /= y
+
+instance Eq MIDI_ControlValue where
+  eq  (MIDI_ControlValue x) (MIDI_ControlValue y) = x == y
+  neq (MIDI_ControlValue x) (MIDI_ControlValue y) = x /= y
+
+instance Eq MIDI_Message where
+  eq x y =
+    case x of
+      (MIDI_NoteOn cx nx vx tx) ->
+        case y of
+          (MIDI_NoteOn cy ny vy ty) -> cx == cy && nx == ny && vx == vy && tx == ty
+          _ -> False
+      (MIDI_NoteOff cx nx vx tx) ->
+        case y of
+          (MIDI_NoteOff cy ny vy ty) -> cx == cy && nx == ny && vx == vy && tx == ty
+          _ -> False
+      (MIDI_Control cx nx vx tx) ->
+        case y of
+          (MIDI_Control cy ny vy ty) -> cx == cy && nx == ny && vx == vy && tx == ty
+          _ -> False
+      MIDI_Undefined ->
+        case y of
+          MIDI_Undefined -> True
+          _ -> False
+  neq x y = not <| x == y
+
+instance Default MIDI_Message where
+  default = MIDI_Undefined
+
+deepCopyMIDIMessage :: MIDI_Message -> MIDI_Message
+deepCopyMIDIMessage message =
+  case message of
+    (MIDI_NoteOn (MIDI_Channel channel) (MIDI_Note note) (MIDI_Velocity vel) (MIDI_TimeStamp timeStamp)) ->
+      MIDI_NoteOn (MIDI_Channel channel) (MIDI_Note note) (MIDI_Velocity vel) (MIDI_TimeStamp timeStamp)
+    (MIDI_NoteOff (MIDI_Channel channel) (MIDI_Note note) (MIDI_Velocity vel) (MIDI_TimeStamp timeStamp)) ->
+      MIDI_NoteOff (MIDI_Channel channel) (MIDI_Note note) (MIDI_Velocity vel) (MIDI_TimeStamp timeStamp)
+    (MIDI_Control (MIDI_Channel channel) (MIDI_ControlNumber num) (MIDI_ControlValue val) (MIDI_TimeStamp timeStamp)) ->
+      MIDI_Control (MIDI_Channel channel) (MIDI_ControlNumber num) (MIDI_ControlValue val) (MIDI_TimeStamp timeStamp)
+    MIDI_Undefined -> MIDI_Undefined
+
+middleC_MIDINote :: UInt
+middleC_MIDINote = 60
+
+midiToFrequency :: Scale t d -> MIDI_Message -> Maybe Float
+midiToFrequency scale midiMessage =
+  case midiMessage of
+    MIDI_NoteOn _ (MIDI_Note note) _ _ -> Just <| d2f scale (fromUInt note - fromUInt middleC_MIDINote)
+    _ -> Nothing
+
+m2f :: Scale t d -> MIDI_Message -> Maybe Float
+m2f = midiToFrequency
+
+midiNoteToDegree :: UInt -> Int
+midiNoteToDegree m = fromUInt m - 60
+
+m2d :: UInt -> Int
+m2d = midiNoteToDegree
+
+-- most recent MIDI Note On, if any, otherwise Nothing
+midiNoteOnMessages :: Maybe MIDI_Message
+midiNoteOnMessages =
+  foldl f Nothing midiMessageBuffer
+  where
+    f acc message =
+      case message of
+        (MIDI_NoteOn _ _ _ _) -> Just message
+        _ -> acc
+
+midiNoteOnOffMessages :: MIDI_Message
+midiNoteOnOffMessages =
+  foldl f MIDI_Undefined midiMessageBuffer
+  where
+    f acc message =
+      case message of
+        (MIDI_NoteOn _ _ _ _) -> message
+        (MIDI_NoteOff _ _ _ _) -> message
+        _ -> acc
+
+numMIDIKeys :: UInt
+numMIDIKeys = 127
+
+-- TODO: change to bitfield?
+-- How to implement large bitfield?
+-- As array of UInts? --> With Ptr poke/peek semantics with offsets?
+
+midiKeysState :: Array 127 Bool
+midiKeysState ~ arrayFrom False =
+  (loop (#midiKeysState', i#) = (#deepCopyArray midiKeysState, 0#) while i < midiMessageBufferSize do
+    let
+      message = sliceReadClamped i midiMessageBuffer
+      midiKeysState'' =
+        case message of
+          MIDI_NoteOn _ (MIDI_Note note) _ _ ->
+            writeArray (unsafeUIntToIndex note) True midiKeysState'
+          MIDI_NoteOff _ (MIDI_Note note) _ _ ->
+            writeArray (unsafeUIntToIndex note) False midiKeysState'
+          _ -> midiKeysState'
+    in
+      (#midiKeysState'', i + 1#))
+  |> fst'
+  |> freezeArray
+
+data MIDI_ActiveNotesState = MIDI_ActiveNotesState# (Array 127 UInt) UInt
+
+midiKeysPressed :: Slice UInt
+midiKeysPressed =
+  case activeNotesState of
+    MIDI_ActiveNotesState# activeNotes numActiveNotes ->
+      subSlice activeNotes numActiveNotes
+  where
+    activeNotesState :: MIDI_ActiveNotesState
+    activeNotesState ~ MIDI_ActiveNotesState# (arrayFrom 0) 0 =
+      case activeNotesState of
+        MIDI_ActiveNotesState# activeNotes numActiveNotes ->
+          (loop (#activeNotes', numActiveNotes, i, j#) = (#deepCopyArray activeNotes, 0, 0, 0#) while i < numMIDIKeys do
+            let
+              isActive = readArray (unsafeUIntToIndex i) midiKeysState
+              (#activeNotes'', numActiveNotes', j'#) =
+                if isActive
+                  then (#writeArray (unsafeUIntToIndex j) i activeNotes', numActiveNotes + 1, j + 1#)
+                  else (#activeNotes', numActiveNotes, j#)
+            in
+              (#activeNotes'', numActiveNotes', i + 1, j'#))
+          |> \(#activeNotes, numActiveNotes, _, _#) -> MIDI_ActiveNotesState# (freezeArray activeNotes) numActiveNotes
+
+dumpMIDIKeysPressed :: *World -> *World
+dumpMIDIKeysPressed w =
+  if sliceLength midiKeysPressed > 0 then
+    printLn midiKeysPressed w
+  else
+    w
+
+midiBufferUndefined :: Array 127 UInt
+midiBufferUndefined = arrayFrom 0
+
+midiNotes_LastNotePriorityBuffer :: DynArrayFixedCapacity 127 UInt
+midiNotes_LastNotePriorityBuffer ~ (mkEmptyDynArrayFixedCapacity (deepCopyArray midiBufferUndefined) 127) =
+  (loop (#midiKeyBuffer, i#) = (#dynArrayFixedCapacity_DeepCopy midiNotes_LastNotePriorityBuffer, 0#) while i < midiMessageBufferSize do
+    let
+      message = sliceReadClamped i midiMessageBuffer
+      (#_, midiKeyBuffer'#) =
+        case message of
+          MIDI_NoteOn _ (MIDI_Note n) _ _ ->
+            dynArrayFixedCapacity_PushUnique n midiKeyBuffer
+          MIDI_NoteOff _ (MIDI_Note n) _ _ ->
+            dynArrayFixedCapacity_EraseUnique n midiKeyBuffer
+          _ -> (#True, midiKeyBuffer#)
+    in
+      (#midiKeyBuffer', i + 1#))
+  |> \(#DynArrayFixedCapacity# a capacity size, _#) -> DynArrayFixedCapacity# (freezeArray a) capacity size
+
+-- MIDI_NoteOn messages for the last note played, Nothing if no note active
+-- Handles key releases with a FIFO note stack, so if multiple keys pressed and you release a key will revert to the note on the top of the stack
+midiNotes_LastNotePriority :: Maybe UInt
+midiNotes_LastNotePriority =
+  case midiNotes_LastNotePriorityBuffer of
+    DynArrayFixedCapacity# a _ size ->
+      if size > 0
+        then Just (readArray (unsafeUIntToIndex (size - 1)) a)
+        else Nothing
+
+midiNotesAndTriggers_LastNotePriority :: AudioFormat f => Maybe (UInt, f Audio)
+midiNotesAndTriggers_LastNotePriority =
+  case midiNotes_LastNotePriorityBuffer of
+    DynArrayFixedCapacity# a _ size ->
+      if size > 0 then
+        Just
+          (
+            (readArray (unsafeUIntToIndex (size - 1)) a),
+            case midiNoteOnMessages of
+              Nothing -> pure <| BlockRate 0
+              Just _ -> pure <| singleImpulse
+          )
+      else
+        Nothing
+
+dumpMIDINotes_LastNotePriorityBuffer :: *World -> *World
+dumpMIDINotes_LastNotePriorityBuffer w =
+  if dynArrayFixedCapacity_Size midiNotes_LastNotePriorityBuffer > 0 then
+    printLn midiNotes_LastNotePriorityBuffer w
+  else
+    w
+
+midiVoiceEvents :: Scale t d -> Slice VoiceEvent
+midiVoiceEvents scale =
+  dynArrayFixedCapacity_ToSlice voiceEventBuffer
+  where
+    voiceEventBuffer :: DynArrayFixedCapacity 256 VoiceEvent
+    voiceEventBuffer =
+      foldl toVoiceEvent (mkEmptyDynArrayFixedCapacity (unsafeEmptyArray ()) 256) primMIDIMessageArray
+      |> dynArrayFixedCapacity_Freeze
+    toVoiceEvent dyn message =
+      case message of
+        (MIDI_NoteOn _ (MIDI_Note note) _ (MIDI_TimeStamp timeStamp)) ->
+          let
+            freq = d2f scale (fromUInt note - 60)
+          in
+            dynArrayFixedCapacity_PushBack
+              (VoiceEvent
+                (VoiceID <| uintToInt note)
+                VoiceActive
+                VoiceTimeStamp_Block
+                freq)
+              dyn |> snd'
+        (MIDI_NoteOff _ (MIDI_Note note) _ (MIDI_TimeStamp timeStamp)) ->
+          let
+            freq = d2f scale (fromUInt note - 60)
+          in
+            dynArrayFixedCapacity_PushBack
+              (VoiceEvent
+                (VoiceID <| uintToInt note)
+                VoiceInactive
+                VoiceTimeStamp_Block
+                freq)
+              dyn |> snd'
+        (MIDI_Control (MIDI_Channel channel) (MIDI_ControlNumber num) (MIDI_ControlValue val) (MIDI_TimeStamp timeStamp)) ->
+          dyn
+        MIDI_Undefined -> dyn
+
+-- dumpMIDIVoiceEvents :: *World -> *World
+-- dumpMIDIVoiceEvents w =
+--   if sliceLength midiVoiceEvents > 0 then
+--     printLn midiVoiceEvents w
+--   else
+--     w
+
+midiMonoTest :: () -> Stereo Audio
+midiMonoTest _ =
+  saw (afreq |> mixStereo)
+    |> mul 0.3
+    |> adsr 0.01 0.1 0.5 1 -1 gate
+  where
+    gate = fromFloat rawFreq
+    afreq = fromFloat freq -- |> traceLn2 "freq: "
+    rawFreq =
+      case midiNotes_LastNotePriority of
+        Just note -> d2f chromatic <| m2d note
+        _ -> 0
+    freq ~ 0 =
+      if rawFreq > 0
+        then rawFreq
+        else freq
+
+midiMonoMultiTriggerTest :: () -> Stereo Audio
+midiMonoMultiTriggerTest _ =
+  saw (afreq |> mixStereo)
+    |> mul 0.3
+    |> adsrMultiTrigger 0.01 0.1 0.5 1 -1 gate trigger
+  where
+    gate = fromFloat rawFreq
+    afreq = fromFloat freq -- |> traceLn2 "freq: "
+    (rawFreq, trigger) =
+      case midiNotesAndTriggers_LastNotePriority of
+        Just (note, trigger) -> (d2f chromatic <| m2d note, trigger)
+        _ -> (0, 0)
+    freq ~ 0 =
+      if rawFreq > 0
+        then rawFreq
+        else freq
+
+polyVoiceBank_MIDITest :: () -> Stereo Audio
+polyVoiceBank_MIDITest _ =
+  polyVoiceBank numVoices synth envGen <| midiVoiceEvents <| primaxial12 middleC
+  where
+    numVoices :: NatVal 88
+    numVoices = NatVal
+    envGen :: Stereo Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    envGen gate trigger audioIn =
+      adsr 0.01 0.1 0.5 1 -4 gate audioIn
+    synth :: VoiceID -> Mono Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    synth _ freq envVal trigger =
+      tri (mixStereo freq) * envVal * 0.05
+
+polyVoiceBank_SeqTest :: () -> Stereo Audio
+polyVoiceBank_SeqTest _ =
+  polyVoiceBank numVoices synth envGen seqVE
+  where
+    numVoices :: NatVal 4
+    numVoices = NatVal
+    envGen :: Stereo Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    envGen gate trigger audioIn =
+      adsrMultiTrigger 0.01 0.1 0.75 3 -4 gate trigger audioIn
+    synth :: VoiceID -> Mono Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    synth (VoiceID vid) freq envVal trigger =
+      (tri (freq |> lag 0.1 |> mixStereo) * envVal * 0.03)
+      +
+      (tri (freq * 0.5 |> lag 0.1 |> mixStereo) * envVal * 0.03)
+      |> pan (fromInt (vid % 4) * 0.25 + 0.125 |> fromFloat) 
+    seqVE :: Slice VoiceEvent
+    seqVE =
+      [ 0 _ <0 0> _ <0 <0 0>> ]
+      |> map (\_ -> let n ~ -1 = (n + 1) in n)
+      |> map (\id -> (id, 1 // 3, d2f (blackstar middleC) ((id * 6) % (10 * 4)) |> mul 0.5))
+      |> seqSpeed (bpm 120)
+      |> seqToVoiceEvents
+
+polyVoiceBank_SeqVibeTest :: () -> Stereo Audio
+polyVoiceBank_SeqVibeTest _ =
+  polyVoiceBank_InfiniteRelease numVoices synth envGen seqVE
+  where
+    numVoices :: NatVal 40
+    numVoices = NatVal
+    envGen :: Stereo Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    envGen gate trigger audioIn =
+      adsrMultiTrigger 0.01 0.1 0.75 40 -16 gate trigger audioIn
+    maxDelayInBlocks :: NatVal 64
+    maxDelayInBlocks = NatVal
+    synth :: VoiceID -> Mono Audio -> Stereo Audio -> Stereo Audio -> Stereo Audio
+    synth (VoiceID vid) freq envVal trigger =
+      sin (mixStereo freq) * envVal |> mul (sin 4 * 0.125 + 0.75)
+      |> pan (((fromInt vid) / 38.0) + (1 / 38.0) |> fromFloat)
+      |> mul (1 / 20)
+    seqVE :: Slice VoiceEvent
+    seqVE =
+      [ 0 _ <0 0> _ <0 <0 0>> ]
+      |> map (\_ -> let n ~ -1 = (n + 1) in n)
+      |> map (\nID ->
+        let
+          id = ((nID * 6) % (10 * 4))
+        in
+          (id, 1 // 3, d2f (blackstar middleC) id |> mul 0.5))
+      |> seqSpeed (bpm 120)
+      |> seqToVoiceEvents
 
 --------------------
 -- Print
@@ -8560,6 +9734,144 @@ instance Print ScoreBeat where
     |> print ')'
     |> printNewline
 
+instance Print EnvState where
+  print (EnvState# a b grow time) w =
+    print "(EnvState " w
+    |> print a |> print " "
+    |> print b |> print " "
+    |> print grow |> print " "
+    |> print time |> print ")"
+
+instance Print ADSRState where
+  print adsrState w =
+    case adsrState of
+      ADSRState_Attack ->
+        printLn "ADSRState_Attack" w
+      ADSRState_Decay ->
+        printLn "ADSRState_Decay" w
+      ADSRState_Sustain ->
+        printLn "ADSRState_Sustain" w
+      ADSRState_Release ->
+        printLn "ADSRState_Release" w
+      ADSRState_End ->
+        printLn "ADSRState_End" w
+
+instance Print ADSRAccumulateState where
+  print (ADSRAccumulateState# adsrState envState) w =
+    print "(ADSRAccumulateState " w
+    |> print adsrState |> print " "
+    |> print envState |> print ")"
+
+instance Print MIDI_Message where
+  print midiMessage w =
+    case midiMessage of
+      (MIDI_NoteOn (MIDI_Channel channel) (MIDI_Note note) (MIDI_Velocity vel) (MIDI_TimeStamp timeStamp)) ->
+        print "MIDI_NoteOn { " w
+        |> print "(MIDI_Channel " |> print channel |> print ") "
+        |> print "(MIDI_Note " |> print note |> print ") "
+        |> print "(MIDI_Velocity " |> print vel |> print ") "
+        |> print "(MIDI_TimeStamp " |> print timeStamp |> print ") "
+        |> printLn "}"
+      (MIDI_NoteOff (MIDI_Channel channel) (MIDI_Note note) (MIDI_Velocity vel) (MIDI_TimeStamp timeStamp)) ->
+        print "MIDI_NoteOff { " w
+        |> print "(MIDI_Channel " |> print channel |> print ") "
+        |> print "(MIDI_Note " |> print note |> print ") "
+        |> print "(MIDI_Velocity " |> print vel |> print ") "
+        |> print "(MIDI_TimeStamp " |> print timeStamp |> print ") "
+        |> printLn "}"
+      (MIDI_Control (MIDI_Channel channel) (MIDI_ControlNumber num) (MIDI_ControlValue val) (MIDI_TimeStamp timeStamp)) ->
+        print "MIDI_Control { " w
+        |> print "(MIDI_Channel " |> print channel |> print ") "
+        |> print "(MIDI_ControlNumber " |> print num |> print ") "
+        |> print "(MIDI_ControlValue " |> print val |> print ") "
+        |> print "(MIDI_TimeStamp " |> print timeStamp |> print ") "
+        |> printLn "}"
+      MIDI_Undefined -> printLn "(MIDI_Undefined)" w
+      _ -> printLn "(MIDI_? Print support not implemented!)" w
+
+instance Print a => Print (DynArrayFixedCapacity n a) where
+  print (DynArrayFixedCapacity# a capacity size) w =
+    (loop (#w', i#) = (#print "(DynArrayFixedCapacity {" w |> print ' ', 0#) while i < size do
+      let
+        printDelimiter w =
+          if i < (size - 1)
+            then print ',' w |> print ' '
+            else w
+      in
+        (#print (readArray (unsafeUIntToIndex i) a) w' |> printDelimiter, i + 1#))
+    |> fst'
+    |> print " } capacity: "
+    |> print capacity
+    |> print ", size: "
+    |> print size
+    |> print ')'
+
+instance Print VoiceActivity where
+  print voiceActivity w =
+    case voiceActivity of
+      VoiceInactive -> print "VoiceInactive" w
+      VoiceActive -> print "VoiceActive" w
+
+instance Print VoiceEvent where
+  print (VoiceEvent (VoiceID vid) voiceActivity ts params) w =
+    print "(VoiceEvent (VoiceID " w
+    |> print vid
+    |> print ") "
+    |> print voiceActivity
+    |> print " (VoiceTimeStamp "
+    |> \w' ->
+      case ts of
+        VoiceTimeStamp_Rational rt ->
+          print "(VoiceTimeStamp_Rational " w'
+          |> print rt
+          |> print ")"
+        VoiceTimeStamp_Block ->
+          print "VoiceTimeStamp_Block" w'
+        VoiceTimeStamp_StartStop_Rational start stop ->
+          print "(VoiceTimeStamp_StartStop_Rational " w'
+          |> print start
+          |> print " "
+          |> print stop
+          |> print ")"
+    |> print ") "
+    |> print params
+    |> print")"
+
+instance Print VoiceState where
+  print voiceState w =
+    case voiceState of
+      VoiceStateSustaining -> print "VoiceStateSustaining" w
+      VoiceStateReleasing -> print "VoiceStateReleasing" w
+      VoiceStateInactive -> print "VoiceStateInactive" w
+
+instance Print PolyVoiceState where
+  print (PolyVoiceState# (VoiceID vid) (PolyVoiceStateOrderID oid) voiceState (PolyVoiceLifetime# start end) voiceParams) w =
+    print "(PolyVoiceState# (VoiceID " w
+    |> print vid
+    |> print ") (PolyVoiceStateOrderID "
+    |> print oid
+    |> print ") "
+    |> print voiceState
+    |> print " (PolyVoiceStateLifetime "
+    |> print start
+    |> print " "
+    |> print end
+    |> print ") "
+    |> print voiceParams
+    |> print ")"
+
+instance Print (PolyVoiceBank numVoices) where
+  print (PolyVoiceBank# a (PolyVoiceBankCapacity c) (PolyVoiceBankNumActive n) (PolyVoiceBankOrderCounter o)) w =
+    print "(PolyVoiceBank# " w
+    |> print a
+    |> print " (PolyVoiceBankCapacity "
+    |> print c
+    |> print ") (PolyVoiceBankNumActive "
+    |> print n
+    |> print ") (PolyVoiceBankOrderCounter "
+    |> print o
+    |> print "))"
+
 -- instance Print Alphabet where
 --   print alphabet w =
 --     print c w
@@ -8644,6 +9956,460 @@ instance Print ScoreBeat where
 -- appendGo :: SeqValue Rational
 -- appendGo = runSeq (appendSeq 1 2) ()
 
+----------------------------
+-- RingBuffer
+----------------------------
+
+data RingBufferHead = RingBufferHead UInt
+data RingBufferTail = RingBufferTail UInt
+data RingBufferSize = RingBufferSize UInt
+data RingBufferCapacity = RingBufferCapacity UInt
+data RingBuffer n a = RingBuffer# .(Array (NatNextPowerOfTwo n) a) RingBufferCapacity RingBufferHead RingBufferTail RingBufferSize 
+
+mkEmptyRingBuffer :: Default a => NatVal n -> .RingBuffer n a
+mkEmptyRingBuffer n =
+  RingBuffer#
+    (arrayFrom default)
+    (RingBufferCapacity (nextPowerOfTwoNatVal n |> natVal))
+    (RingBufferHead 0)
+    (RingBufferTail 0)
+    (RingBufferSize 0)
+
+deepCopyRingBuffer :: RingBuffer n a -> *RingBuffer n a
+deepCopyRingBuffer (RingBuffer# a c h t s) =
+  RingBuffer# (deepCopyArray a) c h t s
+
+freezeRingBuffer :: *RingBuffer n a -> RingBuffer n a
+freezeRingBuffer (RingBuffer# a c h t s) =
+  RingBuffer# (freezeArray a) c h t s
+
+instance Foldable (RingBuffer n) where
+  fold (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) _ (RingBufferSize s)) =
+    fst' <|
+      loop (#x, i#) = (#mempty, 0#) while i < s  do
+        let
+          index = bitAnd (h + i) cMask |> unsafeUIntToIndex
+        in
+          (#x <> readArray index a, i + 1#)
+    where
+      cMask = c - 1
+  foldl f init (RingBuffer# a0 (RingBufferCapacity c) (RingBufferHead h) _ (RingBufferSize s)) =
+    result
+    where
+      cMask = c - 1
+      (#result, _, _#) =
+        loop (#x, a1, i#) = (#init, a0, 0#) while i < s do
+          let
+            index = bitAnd (h + i) cMask |> unsafeUIntToIndex
+          in
+            case readArrayU index a1 of
+              (#y, a2#) ->
+                (#f x y, a2, i + 1#)
+
+instance Functor (RingBuffer n) where
+  map f (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s)) =
+    (RingBuffer# (freezeArray a') (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s))
+    where
+      cMask = c - 1
+      (#a', _#) =
+        loop (#a', i#) = (#unsafeEmptyArray (), 0#) while i < s do
+          let
+            index = bitAnd (h + i) cMask |> unsafeUIntToIndex
+            a'' = writeArray index (f (readArray index a)) a'
+          in
+            (#a'', i + 1#)
+
+instance (Print a) => Print (RingBuffer n a) where
+  print (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) (RingBufferTail t) (RingBufferSize s)) w =
+    (loop (#w', i#) = (#print "(RingBuffer {" w |> print ' ', 0#) while i < s do
+      let
+        printDelimiter w =
+          if i < (s - 1)
+            then print ',' w |> print ' '
+            else w
+      in
+        (#print (readArray (unsafeUIntToIndex i) a) w' |> printDelimiter, i + 1#))
+    |> fst'
+    |> print " } capacity: "
+    |> print c
+    |> print ", size: "
+    |> print s
+    |> print ", head: "
+    |> print h
+    |> print ", tail: "
+    |> print t
+    |> print ')'
+
+ringBufferSize :: *RingBuffer n a -> (#UInt, *RingBuffer n a#)
+ringBufferSize (RingBuffer# a c h t (RingBufferSize s)) =
+  (#s, RingBuffer# a c h t (RingBufferSize s)#)
+
+ringBufferReadIndex :: Index n -> *RingBuffer n a -> (#Maybe a, *RingBuffer n a#)
+ringBufferReadIndex (Index n) (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s)) =
+  if n >= s then
+    (#Nothing, RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s)#)
+  else
+    let
+      cMask = c - 1
+      rIndex = bitAnd (h + n) cMask |> unsafeUIntToIndex
+      (#v, readA#) = readArrayU rIndex a
+    in
+      (#Just v, RingBuffer# readA (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s)#)
+
+ringBufferPushBack :: a -> *RingBuffer n a -> (#Bool, *RingBuffer n a#)
+ringBufferPushBack v (RingBuffer# a (RingBufferCapacity c) h (RingBufferTail t) (RingBufferSize s)) =
+    (#result, RingBuffer# a' (RingBufferCapacity c) h (RingBufferTail t) (RingBufferSize s')#)
+    where
+      cMask = c - 1
+      (#result, t', s', a'#) =
+        if s >= c then
+          (#False, t, s, a#)
+        else
+          let
+            t' = bitAnd (t + 1) cMask
+            index = t' |> unsafeUIntToIndex 
+          in
+            (#True, t', s + 1, writeArray index v a#)
+
+ringBufferPopBack :: *RingBuffer n a -> (#Maybe a, *RingBuffer n a#)
+ringBufferPopBack (RingBuffer# a (RingBufferCapacity c) h (RingBufferTail t) (RingBufferSize s)) =
+    (#result, RingBuffer# a' (RingBufferCapacity c) h (RingBufferTail t') (RingBufferSize s')#)
+    where
+      cMask = c - 1
+      (#result, t', s', a'#) =
+        if s == 0 then
+          (#Nothing, t, s, a#)
+        else
+          let
+            t' = bitAnd (t - 1) cMask
+            index = unsafeUIntToIndex t
+            (#v, a'#) = readArrayU index a
+          in
+            (#Just v, t', s - 1, a'#)
+
+ringBufferPushFront :: a -> *RingBuffer n a -> (#Bool, *RingBuffer n a#)
+ringBufferPushFront v (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s)) =
+    (#result, RingBuffer# a' (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s')#)
+    where
+      cMask = c - 1
+      (#result, h', s', a'#) =
+        if s >= c then
+          (#False, h, s, a#)
+        else
+          let
+            h' = bitAnd (h - 1) cMask
+            index = h' |> unsafeUIntToIndex 
+          in
+            (#True, h', s + 1, writeArray index v a#)
+
+ringBufferPopFront :: *RingBuffer n a -> (#Maybe a, *RingBuffer n a#)
+ringBufferPopFront (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s)) =
+    (#result, RingBuffer# a' (RingBufferCapacity c) (RingBufferHead h') t (RingBufferSize s')#)
+    where
+      cMask = c - 1
+      (#result, h', s', a'#) =
+        if s == 0 then
+          (#Nothing, h, s, a#)
+        else
+          let
+            h' = bitAnd (h + 1) cMask
+            index = unsafeUIntToIndex h
+            (#v, a'#) = readArrayU index a
+          in
+            (#Just v, h', s - 1, a'#)
+
+ringBufferMoveFrontToBack :: *RingBuffer n a -> *RingBuffer n a
+ringBufferMoveFrontToBack r =
+  case ringBufferPopFront r of
+    (#Nothing, r'#) -> r'
+    (#Just v, r'#) ->
+      case ringBufferPushBack v r' of
+        (#_, r''#) -> r''
+
+ringBufferMoveBackToFront :: *RingBuffer n a -> *RingBuffer n a
+ringBufferMoveBackToFront r =
+  case ringBufferPopBack r of
+    (#Nothing, r'#) -> r'
+    (#Just v, r'#) ->
+      case ringBufferPushFront v r' of
+        (#_, r''#) -> r''
+
+ringBufferContainsElement :: Eq a => a -> *RingBuffer n a -> (#Bool, *RingBuffer n a #)
+ringBufferContainsElement e (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s)) =
+  (#found, RingBuffer# a' (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s)#)
+    where
+      cMask = c - 1
+      (#found, a', _#) =
+        loop (#found, a', i#) = (#False, a, 0#) while (i < s && (not found)) do
+          let
+            index = bitAnd (h + i) cMask |> unsafeUIntToIndex
+            (#e2, a''#) = readArrayU index a'
+          in
+            (#e == e2, a'', i + 1#)
+
+ringBufferContainsElementIf :: (a -> Bool) -> *RingBuffer n a -> (#Bool, *RingBuffer n a #)
+ringBufferContainsElementIf f (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s)) =
+  (#found, RingBuffer# a' (RingBufferCapacity c) (RingBufferHead h) t (RingBufferSize s)#)
+    where
+      cMask = c - 1
+      (#found, a', _#) =
+        loop (#found, a', i#) = (#False, a, 0#) while (i < s && (not found)) do
+          let
+            index = bitAnd (h + i) cMask |> unsafeUIntToIndex
+            (#e, a''#) = readArrayU index a'
+          in
+            (#f e, a'', i + 1#)
+
+ringBufferEraseElement :: Eq a => a -> *RingBuffer n a -> (#Bool, *RingBuffer n a #)
+ringBufferEraseElement e (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) (RingBufferTail t) (RingBufferSize s)) =
+  (#erased, RingBuffer# erasedA (RingBufferCapacity c) (RingBufferHead h) (RingBufferTail t') (RingBufferSize s')#)
+    where
+      cMask = c - 1
+      (#found, foundA, afterI#) =
+        loop (#found, a', i#) = (#False, a, 0#) while (i < s && (not found)) do
+          let
+            index = bitAnd (h + i) cMask |> unsafeUIntToIndex
+            (#e2, a''#) = readArrayU index a'
+          in
+            (#e == e2, a'', i + 1#)
+      (#erased, erasedA, t', s'#) =
+        case found of
+          False -> (#False, foundA, t, s#)
+          True ->
+            (loop (#erasedA, i#) = (#foundA, afterI#) while i < s do
+              let
+                index = bitAnd (h + i) cMask |> unsafeUIntToIndex
+                index0 = bitAnd (h + i - 1) cMask |> unsafeUIntToIndex
+                (#v, readA#) = readArrayU index erasedA
+                writtenA = writeArray index0 v readA
+              in
+                (#writtenA, i + 1#))
+            |> \(#erasedA, _#) ->
+              (#True, erasedA, bitAnd (t - 1) cMask, s - 1#)
+
+ringBufferPushBackUnique:: Eq a => a -> *RingBuffer n a -> (#Bool, *RingBuffer n a#)
+ringBufferPushBackUnique e r =
+  case ringBufferContainsElement e r of
+    (#False, r'#) -> (#False, r'#)
+    (#True, r'#) -> ringBufferPushBack e r'
+
+ringBufferPushBackUniqueIf :: (a -> Bool) -> a -> *RingBuffer n a -> (#Bool, *RingBuffer n a#)
+ringBufferPushBackUniqueIf f e r =
+  case ringBufferContainsElementIf f r of
+    (#False, r'#) -> (#False, r'#)
+    (#True, r'#) -> ringBufferPushBack e r'
+
+ringBufferMoveElementToBackIf :: (a -> Bool) -> *RingBuffer n a -> (#Bool, *RingBuffer n a #)
+ringBufferMoveElementToBackIf f (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) (RingBufferTail t) (RingBufferSize s)) =
+  (#moved, RingBuffer# movedA (RingBufferCapacity c) (RingBufferHead h) (RingBufferTail t) (RingBufferSize s)#)
+    where
+      cMask = c - 1
+      (#maybeE, foundA, afterI#) =
+        loop (#maybeE, a', i#) = (#Nothing, a, 0#) while (i < s && (isNothing maybeE)) do
+          let
+            index = bitAnd (h + i) cMask |> unsafeUIntToIndex
+            (#e, a''#) = readArrayU index a'
+            maybeE = if f e then Just e else Nothing
+          in
+            (#maybeE, a'', i + 1#)
+      (#moved, movedA#) =
+        case maybeE of
+          Nothing -> (#False, foundA#)
+          Just e ->
+            (loop (#movedA, i#) = (#foundA, afterI#) while i < s do
+              let
+                index = bitAnd (h + i) cMask |> unsafeUIntToIndex
+                index0 = bitAnd (h + i - 1) cMask |> unsafeUIntToIndex
+                (#v, readA#) = readArrayU index movedA
+                writtenA = writeArray index0 v readA
+              in
+                (#writtenA, i + 1#))
+            |> \(#movedA, _#) ->
+              (#True, writeArray (unsafeUIntToIndex t) e movedA#)
+
+ringBufferUpdateElementIf :: (a -> Bool) -> (a -> a) -> *RingBuffer n a -> (#Bool, *RingBuffer n a#)
+ringBufferUpdateElementIf f u (RingBuffer# a (RingBufferCapacity c) (RingBufferHead h) (RingBufferTail t) (RingBufferSize s)) =
+  (#found, RingBuffer# updatedA (RingBufferCapacity c) (RingBufferHead h) (RingBufferTail t) (RingBufferSize s)#)
+    where
+      cMask = c - 1
+      (#found, foundA, afterI#) =
+        loop (#found, a', i#) = (#False, a, 0#) while (i < s && (not found)) do
+          let
+            index = bitAnd (h + i) cMask |> unsafeUIntToIndex
+            (#e, a''#) = readArrayU index a'
+          in
+            (#f e, a'', i + 1#)
+      updatedA =
+        if found then
+          foundA
+        else
+          let
+            index = bitAnd (h + afterI - 1) cMask |> unsafeUIntToIndex
+            (#v, readA#) = readArrayU index foundA
+          in
+            writeArray index (u v) readA
+
+----------------------------
+-- DynArrayFixedCapacity
+----------------------------
+
+-- Dynamically resizing array with fixed max capacity
+data DynArrayFixedCapacity n a = DynArrayFixedCapacity# .(Array n a) UInt UInt
+
+-- takes ownership of array
+mkEmptyDynArrayFixedCapacity :: *Array n a -> UInt -> .DynArrayFixedCapacity n a
+mkEmptyDynArrayFixedCapacity a capacity = DynArrayFixedCapacity# (freezeArray a) capacity 0
+
+mkDynArrayFixedCapacity :: NatVal n -> (UInt -> a) -> .DynArrayFixedCapacity n a
+mkDynArrayFixedCapacity n f = DynArrayFixedCapacity# (mkArray f |> freezeArray) c c
+  where
+    c = natVal n
+
+dynArrayFixedCapacity_DeepCopy :: DynArrayFixedCapacity n a -> .DynArrayFixedCapacity n a
+dynArrayFixedCapacity_DeepCopy (DynArrayFixedCapacity# a capacity size) =
+  DynArrayFixedCapacity# (deepCopyArray a) capacity size
+
+dynArrayFixedCapacity_Freeze :: *DynArrayFixedCapacity n a -> DynArrayFixedCapacity n a
+dynArrayFixedCapacity_Freeze (DynArrayFixedCapacity# a capacity size) =
+  DynArrayFixedCapacity# (freezeArray a) capacity size
+
+dynArrayFixedCapacity_ContainsElement :: Eq a => a -> *DynArrayFixedCapacity n a -> (#Bool, *DynArrayFixedCapacity n a#)
+dynArrayFixedCapacity_ContainsElement element (DynArrayFixedCapacity# a capacity size) =
+  (loop (#found, a', i#) = (#False, a, 0#) while (i < size && (not found)) do
+    let
+      (#elementAt, readA#) = readArrayU (unsafeUIntToIndex i) a'
+      isElement = elementAt == element
+    in
+      (#isElement, readA, i + 1#)
+  )
+  |> \(#found, a', _#) -> (#found, DynArrayFixedCapacity# a' capacity size#)
+
+dynArrayFixedCapacity_ContainsElementIf :: (a -> Bool) -> *DynArrayFixedCapacity n a -> (#Bool, *DynArrayFixedCapacity n a#)
+dynArrayFixedCapacity_ContainsElementIf f (DynArrayFixedCapacity# a capacity size) =
+  (loop (#found, a', i#) = (#False, a, 0#) while (i < size && (not found)) do
+    let
+      (#elementAt, readA#) = readArrayU (unsafeUIntToIndex i) a'
+      isElement = f elementAt
+    in
+      (#isElement, readA, i + 1#)
+  )
+  |> \(#found, a', _#) -> (#found, DynArrayFixedCapacity# a' capacity size#)
+
+-- dynArrayFixedCapacity_Capacity :: *DynArrayFixedCapacity n a -> (#UInt, *DynArrayFixedCapacity n a#)
+-- dynArrayFixedCapacity_Capacity n d = (#natVal n, d#)
+--
+-- dynArrayFixedCapacity_SizeAndCapacity :: *DynArrayFixedCapacity n a -> (#UInt, UInt, *DynArrayFixedCapacity n a#)
+-- dynArrayFixedCapacity_SizeAndCapacity dyn =
+--   (#size, maxCapacity, DynArrayFixedCapacity# a size#)
+--   where
+--     (#maxCapacity, (DynArrayFixedCapacity# a size)#) = dynArrayFixedCapacity_Capacity NatVal dyn
+
+dynArrayFixedCapacity_PushBack :: a -> *DynArrayFixedCapacity n a -> (#Bool, *DynArrayFixedCapacity n a#)
+dynArrayFixedCapacity_PushBack element (DynArrayFixedCapacity# a capacity size) =
+  if size >= capacity then
+    (#False, DynArrayFixedCapacity# a capacity size#)
+  else
+    let
+      elementWrittenA = writeArray (unsafeUIntToIndex size) element a
+    in
+      (#True, DynArrayFixedCapacity# elementWrittenA capacity (size + 1)#)
+
+dynArrayFixedCapacity_PopBack :: *DynArrayFixedCapacity n a -> (#Maybe a, *DynArrayFixedCapacity n a#)
+dynArrayFixedCapacity_PopBack (DynArrayFixedCapacity# a capacity size) =
+  if size == 0 then
+    (#Nothing, DynArrayFixedCapacity# a capacity size#)
+  else
+    let
+      size' = size - 1
+      (#element, elementReadA#) = readArrayU (unsafeUIntToIndex size') a
+    in
+      (#Just element, DynArrayFixedCapacity# elementReadA capacity size'#)
+
+
+-- first element is whether the operation was succesful, second element is the updated container
+dynArrayFixedCapacity_PushUnique :: Eq a => a -> *DynArrayFixedCapacity n a -> (#Bool, *DynArrayFixedCapacity n a#)
+dynArrayFixedCapacity_PushUnique element (DynArrayFixedCapacity# a capacity size) =
+  if size >= capacity then
+    (#False, DynArrayFixedCapacity# a capacity size#)
+  else
+    let
+      (#isContained, (DynArrayFixedCapacity# elementReadA _ _)#) = dynArrayFixedCapacity_ContainsElement element (DynArrayFixedCapacity# a capacity size)
+    in
+      if isContained then
+        (#False, DynArrayFixedCapacity# elementReadA capacity size#)
+      else
+        let
+          elementWrittenA = writeArray (unsafeUIntToIndex size) element elementReadA
+        in
+          (#True, DynArrayFixedCapacity# elementWrittenA capacity (size + 1)#)
+
+-- first element is whether the operation was succesful, second element is the updated container
+dynArrayFixedCapacity_PushUniqueIf :: (a -> Bool) -> a -> *DynArrayFixedCapacity n a -> (#Bool, *DynArrayFixedCapacity n a#)
+dynArrayFixedCapacity_PushUniqueIf f element (DynArrayFixedCapacity# a capacity size) =
+  if size >= capacity then
+    (#False, DynArrayFixedCapacity# a capacity size#)
+  else
+    let
+      (#isContained, (DynArrayFixedCapacity# elementReadA _ _)#) = dynArrayFixedCapacity_ContainsElementIf f (DynArrayFixedCapacity# a capacity size)
+    in
+      if isContained then
+        (#False, DynArrayFixedCapacity# elementReadA capacity size#)
+      else
+        let
+          elementWrittenA = writeArray (unsafeUIntToIndex size) element elementReadA
+        in
+          (#True, DynArrayFixedCapacity# elementWrittenA capacity (size + 1)#)
+
+-- first element is whether the operation was succesful, second element is the updated container
+dynArrayFixedCapacity_UpdateElementIf :: (a -> Bool) -> (a -> a) -> *DynArrayFixedCapacity n a -> (#Bool, *DynArrayFixedCapacity n a#)
+dynArrayFixedCapacity_UpdateElementIf f u (DynArrayFixedCapacity# a capacity size) =
+  (#found, DynArrayFixedCapacity# updatedA capacity size#)
+  where
+    (#found, foundA, afterI#) =
+      (loop (#found, a', i#) = (#False, a, 0#) while (i < size && (not found)) do
+        let
+          (#elementAt, readA#) = readArrayU (unsafeUIntToIndex i) a'
+          isElement = f elementAt
+        in
+          (#isElement, readA, i + 1#)
+      )
+    updatedA =
+      if found then
+        foundA
+      else
+        let
+          index = unsafeUIntToIndex (afterI - 1)
+          (#v, readA#) = readArrayU index foundA
+        in
+          writeArray index (u v) readA
+
+-- first element returned is the updated container, second is if the operation was succesful
+dynArrayFixedCapacity_EraseUnique :: Eq a => a -> *DynArrayFixedCapacity n a -> (#Bool, *DynArrayFixedCapacity n a#)
+dynArrayFixedCapacity_EraseUnique element (DynArrayFixedCapacity# a capacity size) =
+  (loop (#found, a', i#) = (#False, a, 0#) while (i < size) do
+    if found then
+      -- move elements down one by one
+      let
+        (#elementAt, elementReadA#) = readArrayU (unsafeUIntToIndex i) a'
+        elementWrittenA = writeArray (unsafeUIntToIndex (i - 1)) elementAt elementReadA
+      in
+        (#True, elementWrittenA, i + 1#)
+    else
+      let
+        (#elementAt, elementReadA#) = readArrayU (unsafeUIntToIndex i) a'
+        isElement = elementAt == element
+      in
+        (#isElement, elementReadA, i + 1#)
+  )
+  |> \(#found, a', _#) ->
+    (#found, DynArrayFixedCapacity# a' capacity (if found then size - 1 else size)#)
+
+dynArrayFixedCapacity_Size :: DynArrayFixedCapacity n a -> UInt
+dynArrayFixedCapacity_Size (DynArrayFixedCapacity# _ _ size) = size
+
+dynArrayFixedCapacity_ToSlice :: DynArrayFixedCapacity n a -> Slice a
+dynArrayFixedCapacity_ToSlice (DynArrayFixedCapacity# a capacity size) =
+  subSlice a size
 
 ----------------------
 -- DynArray
@@ -8976,6 +10742,47 @@ seqToAudio s =
                     SeqValue# seqDuration1 _ _               -> (#True, seqDuration1, prevValue#)
         in
           (#i1, writeArray (Index i0) (fromFloat value) a#)
+
+-- HOW TO DEAL WITH VOICE RELEASE EVENTS?!?!
+-- Bug with initial note? start/end time for voice? time issue with gate?
+-- TO DO: argument handling!
+-- DIFFEENT SEQS FOR ID -> ARG(s?) -> DURATION?
+
+emptySeqToVoiceEventDynArray :: () -> *DynArrayFixedCapacity 256 VoiceEvent
+emptySeqToVoiceEventDynArray _ = mkEmptyDynArrayFixedCapacity (unsafeEmptyArray ()) 256
+
+-- Taks a sequence of (VoiceID, Note_Duration_Seconds, Note_Param), where note param will be forwarded to your synth via polyVoiceBank
+seqToVoiceEvents :: Seq (Int, Rational, Float) -> Slice VoiceEvent
+seqToVoiceEvents sIDs_Durations_Params =
+  (loop (#cont, time, veBuffer#) = (#True, 0, emptySeqToVoiceEventDynArray ()#) while cont do
+    let
+      nextValueTime ~ 0 = nextValueTime + time
+      audioSampleOffset = calculateAudioSampleOffset nextValueTime tick
+    in
+      if nextValueTime < tick then
+        case runSeq sIDs_Durations_Params (getSeqParamAtExactTime nextValueTime) of
+          SeqValue# t _ mx ->
+            case mx of
+              Just (vid, nduration, nparams) ->
+                let
+                  ve =
+                    -- traceLn2 "seqToVoiceEvents: " <|
+                    VoiceEvent
+                      (VoiceID vid)
+                      VoiceActive
+                      (VoiceTimeStamp_StartStop_Rational nextValueTime (nextValueTime + nduration))
+                      nparams
+                  veBuffer' = dynArrayFixedCapacity_PushBack ve veBuffer |> snd'
+                in
+                  (#True, t, veBuffer'#)
+              Nothing -> (#True, t, veBuffer#)
+      else
+        (#False, 0, veBuffer#)
+  ) |> \(#_, _, veBuffer#) ->
+    dynArrayFixedCapacity_Freeze veBuffer
+    |> dynArrayFixedCapacity_ToSlice
+  where
+    tick ~ 0 = tick + audioBlockDelta
 
 -- TODO: Either make poly only accept unboxed types, or making poly ACTUALLY accept boxed types correctly! Or does it do this and I forgot implementing? Double check!
 poly :: Poly b => (a -> b) -> Seq a -> b
@@ -9874,6 +11681,166 @@ partch43 =
   -- Scale partch43Tuning {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42} 250
   Scale partch43Tuning {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42} 300
   -- Scale partch43Tuning {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42} 261.6255653006
+
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+-- Axial based scales
+-- based on the article found here:
+-- https://www.xenharmonikon.org/2020/04/27/the-axial-chord-a-basis-for-2-3-7-11-harmony/ 
+----------------------------------------------------------------------
+
+axialPentatonic :: Float -> Scale 6 5
+axialPentatonic rootFreq =
+  Scale
+    { 1/1, 33/32, 21/16, 11/8, 7/4, 2/1 }
+    { 0, 1, 2, 3, 4 }
+    rootFreq
+
+primal :: Float -> Scale 7 6
+primal rootFreq =
+  Scale
+    { 1/1, 33/32, 21/16, 11/8, 7/4, 231/128, 2/1 }
+    { 0, 1, 2, 3, 4, 5 }
+    rootFreq
+
+axial :: Float -> Scale 8 7
+axial rootFreq =
+  Scale
+    { 1/1, 33/32, 7/6, 21/16, 11/8, 99/64, 7/4, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6 }
+    rootFreq
+
+primaxial :: Float -> Scale 11 10
+primaxial rootFreq =
+  Scale
+    { 1/1, 33/32, 7/6, 77/64, 21/16, 11/8, 3/2, 99/64, 7/4, 231/128, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }
+    rootFreq
+
+blackstar :: Float -> Scale 11 10
+blackstar rootFreq =
+  Scale
+    { 1/1, 33/32, 8/7, 77/64, 21/16, 11/8, 3/2, 11/7, 7/4, 231/128, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }
+    rootFreq
+
+janus :: Float -> Scale 13 12
+janus rootFreq =
+  Scale
+    { 1/1, 33/32, 9/8, 7/6, 5/4, 21/16, 11/8, 3/2, 99/64, 5/3, 7/4, 15/8, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 }
+    rootFreq
+
+primaxial12 :: Float -> Scale 13 12
+primaxial12 rootFreq =
+  Scale
+    { 1/1, 33/32, 9/8, 7/6, 77/64, 21/16, 11/8, 3/2, 99/64, 77/48, 7/4, 231/128, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 }
+    rootFreq
+
+axialK5 :: Float -> Scale 16 15
+axialK5 rootFreq =
+  Scale
+    { 1/1, 33/32, 147/128, 4851/4096, 77/64, 2541/2048, 21/16, 693/512, 11/8, 363/256, 1617/1024, 53361/32768, 7/4, 231/128, 7623/4096, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 }
+    rootFreq
+
+astral17 :: Float -> Scale 18 17
+astral17 rootFreq =
+  Scale
+    { 1/1, 33/32, 147/128, 4851/4096, 77/64, 2541/2048, 21/16, 693/512, 11/8, 363/256, 1617/1024, 53361/32768, 441/256, 7/4, 231/128, 7623/4096, 121/64, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+    rootFreq
+
+astral19 :: Float -> Scale 20 19
+astral19 rootFreq =
+  Scale
+    { 1/1, 33/32, 1089/1024, 147/128, 4851/4096, 77/64, 2541/2048, 21/16, 693/512, 11/8, 363/256, 49/32, 1617/1024, 53361/32768, 441/256, 7/4, 231/128, 7623/4096, 121/64, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 }
+    rootFreq
+
+astral19Diamond :: Float -> Scale 18 17
+astral19Diamond rootFreq =
+  Scale
+    { 1/1, 33/32, 22/21, 8/7, 33/28, 14/11, 21/16, 4/3, 11/8, 16/11, 3/2, 32/21, 11/7, 56/33, 7/4, 21/11, 64/33, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+    rootFreq
+
+astral21 :: Float -> Scale 22 21
+astral21 rootFreq =
+  Scale
+    { 1/1, 33/32, 1089/1024, 693/512, 147/128, 4851/4096, 77/64, 2541/2048, 21/16, 693/512, 11/8, 363/256, 3/2, 49/32, 1617/1024, 53361/32768, 441/256, 7/4, 231/128, 7623/4096, 121/64, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 }
+    rootFreq
+
+astral47 :: Float -> Scale 48 47
+astral47 rootFreq =
+  Scale
+    {
+      1/1, 99/98, 64/63, 33/32, 28/27, 22/21, 256/231, 9/8, 112/99, 8/7, 297/256, 7/6, 33/28, 32/27, 77/64, 14/11, 9/7, 128/99, 21/16, 297/224, 4/3, 693/512, 49/36, 11/8, 16/11, 72/49, 1024/693,
+      3/2, 448/297, 32/21, 99/64, 14/9, 11/7, 128/77, 27/16, 56/33, 12/7, 512/297, 7/4, 99/56, 16/9, 231/128, 21/11, 27/14, 64/33, 63/32, 196/99, 2/1
+    }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46 }
+    rootFreq
+
+chromaxial22 :: Float -> Scale 23 22
+chromaxial22 rootFreq =
+  Scale
+    { 1/1, 2079/2048, 49/48, 33/32, 1089/1024, 147/128, 7/6, 9801/8192, 77/64, 21/16, 693/512, 49/36, 11/8, 363/256, 49/32, 99/64, 3267/2048, 77/48, 441/256, 7/4, 231/128, 121/64, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 }
+    rootFreq
+
+chromaxial17 :: Float -> Scale 18 17
+chromaxial17 rootFreq =
+  Scale
+    { 1/1, 49/48, 33/32, 1089/1024, 147/128, 7/6, 77/64, 21/16, 693/512, 11/8, 363/256, 49/32, 99/64, 77/48, 7/4, 231/128, 121/64, 2/1 }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+    rootFreq
+
+enharmaxial1 :: Float -> Scale 48 47
+enharmaxial1 rootFreq =
+  Scale
+    {
+      1/1, 2079/2048, 49/48, 33/32, 68609/65536, 539/512, 1089/1024, 9/8, 18711/16384, 147/128, 297/256, 7/6, 33/28, 9801/8192, 77/64, 14/11, 1323/1024, 343/264, 21/16, 43659/32768, 343/256,
+      693/512, 49/36, 11/8, 22869/16384, 539/384, 363/256, 3/2, 6237/4096, 49/32, 99/64, 14/9, 11/7, 3267/2048, 77/48, 56/33, 441/256, 343/198, 7/4, 14533/8192, 343/192, 231/128, 49/27, 11/6,
+      7623/4096, 539/288, 121/64, 2/1
+    }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46 }
+    rootFreq
+
+enharmaxial2 :: Float -> Scale 48 47
+enharmaxial2 rootFreq =
+  Scale
+    {
+      1/1, 2079/2048, 49/48, 33/32, 68609/65536, 539/512, 1089/1024, 9/8, 18711/16384, 147/128, 297/256, 7/6, 4851/4096, 9801/8192, 77/64, 160083/131072, 1323/1024, 2673/2048, 21/16, 43659/32768,
+      88209/65536, 693/512, 49/36, 11/8, 22869/16384, 539/384, 363/256, 3/2, 6237/4096, 49/32, 99/64, 14/9, 1617/1024, 3267/2048, 77/48, 53361/32768, 441/256, 891/512, 7/4, 14533/8192, 29403/16384,
+      231/128, 49/27, 11/6, 7623/4096, 539/288, 121/64, 2/1
+    }
+    { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46 }
+    rootFreq
+
+enharmaxialPentatonic1 :: Float -> Scale 6 5
+enharmaxialPentatonic1 rootFreq =
+  Scale
+    { 1/1, 9/8, 14/11, 3/2, 56/33, 2/1 }
+    { 0, 1, 2, 3, 4 }
+    rootFreq
+
+enharmaxialPentatonic2 :: Float -> Scale 6 5
+enharmaxialPentatonic2 rootFreq =
+  Scale
+    { 1/1, 9/8, 1323/1024, 3/2, 441/256, 2/1 }
+    { 0, 1, 2, 3, 4 }
+    rootFreq
+
+enharmaxialPentatonic3 :: Float -> Scale 6 5
+enharmaxialPentatonic3 rootFreq =
+  Scale
+    { 1/1, 8/7, 21/16, 32/21, 7/4, 2/1 }
+    { 0, 1, 2, 3, 4 }
+    rootFreq
+----------------------------------------------------------------------
+----------------------------------------------------------------------
 
 degreeToFrequency :: Scale t d -> Int -> Float
 degreeToFrequency (Scale tuning degrees rootFreq) degree =

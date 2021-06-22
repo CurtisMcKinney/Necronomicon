@@ -75,6 +75,9 @@ void necro_core_state_analysis(NecroCompileInfo info, NecroIntern* intern, Necro
     base->print_int->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
     base->mouse_x_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
     base->mouse_y_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
+    base->keyPress_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
+    base->midi_msg_buffer_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
+    base->midi_msg_buffer_size_fn->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
     base->world_type->core_ast_symbol->state_type = NECRO_STATE_POINTWISE;
 
     // Go

@@ -28,25 +28,26 @@ extern DLLEXPORT void   necro_runtime_sleep(uint32_t milliseconds);
 // IO
 // extern DLLEXPORT void   necro_runtime_print(int value);
 // extern DLLEXPORT void   necro_runtime_debug_print(int value);
-extern DLLEXPORT size_t necro_runtime_print_i32(int32_t value, size_t world);
-extern DLLEXPORT size_t necro_runtime_print_i64(int64_t value, size_t world);
-extern DLLEXPORT size_t necro_runtime_print_u32(uint32_t value, size_t world);
-extern DLLEXPORT size_t necro_runtime_print_u64(uint64_t value, size_t world);
-extern DLLEXPORT size_t necro_runtime_print_f32(float value, size_t world);
-extern DLLEXPORT size_t necro_runtime_print_f64(double value, size_t world);
-extern DLLEXPORT size_t necro_runtime_print_char(size_t value, size_t world);
-extern DLLEXPORT size_t necro_runtime_print_string(size_t* str, size_t str_length, size_t world);
-extern DLLEXPORT int    necro_runtime_get_mouse_x(size_t _dummy);
-extern DLLEXPORT int    necro_runtime_get_mouse_y(size_t _dummy);
-extern DLLEXPORT size_t necro_runtime_test_assertion(size_t is_true, size_t world);
-bool                    necro_runtime_was_test_successful();
-extern DLLEXPORT size_t necro_runtime_panic(size_t world);
-extern DLLEXPORT size_t necro_runtime_open_file(size_t* str, uint64_t str_length);
-extern DLLEXPORT size_t necro_runtime_close_file(size_t file);
-extern DLLEXPORT size_t necro_runtime_write_int_to_file(int64_t value, size_t file);
-extern DLLEXPORT size_t necro_runtime_write_uint_to_file(uint64_t value, size_t file);
-extern DLLEXPORT size_t necro_runtime_write_float_to_file(double value, size_t file);
-extern DLLEXPORT size_t necro_runtime_write_char_to_file(size_t value, size_t file);
+extern DLLEXPORT size_t   necro_runtime_print_i32(int32_t value, size_t world);
+extern DLLEXPORT size_t   necro_runtime_print_i64(int64_t value, size_t world);
+extern DLLEXPORT size_t   necro_runtime_print_u32(uint32_t value, size_t world);
+extern DLLEXPORT size_t   necro_runtime_print_u64(uint64_t value, size_t world);
+extern DLLEXPORT size_t   necro_runtime_print_f32(float value, size_t world);
+extern DLLEXPORT size_t   necro_runtime_print_f64(double value, size_t world);
+extern DLLEXPORT size_t   necro_runtime_print_char(size_t value, size_t world);
+extern DLLEXPORT size_t   necro_runtime_print_string(size_t* str, size_t str_length, size_t world);
+extern DLLEXPORT int      necro_runtime_get_mouse_x(size_t _dummy);
+extern DLLEXPORT int      necro_runtime_get_mouse_y(size_t _dummy);
+extern DLLEXPORT uint32_t necro_runtime_get_key_press(size_t _dummy);
+extern DLLEXPORT size_t   necro_runtime_test_assertion(size_t is_true, size_t world);
+bool                      necro_runtime_was_test_successful();
+extern DLLEXPORT size_t   necro_runtime_panic(size_t world);
+extern DLLEXPORT size_t   necro_runtime_open_file(size_t* str, uint64_t str_length);
+extern DLLEXPORT size_t   necro_runtime_close_file(size_t file);
+extern DLLEXPORT size_t   necro_runtime_write_int_to_file(int64_t value, size_t file);
+extern DLLEXPORT size_t   necro_runtime_write_uint_to_file(uint64_t value, size_t file);
+extern DLLEXPORT size_t   necro_runtime_write_float_to_file(double value, size_t file);
+extern DLLEXPORT size_t   necro_runtime_write_char_to_file(size_t value, size_t file);
 
 //--------------------
 // Audio
@@ -58,6 +59,13 @@ NecroResult(void)       necro_runtime_audio_shutdown();
 extern DLLEXPORT size_t necro_runtime_get_sample_rate();
 extern DLLEXPORT size_t necro_runtime_get_block_size();
 extern DLLEXPORT size_t necro_runtime_out_audio_block(size_t channel_num, double* audio_block, size_t world);
+
+//--------------------
+// MIDI
+
+// message array with stride 2 - { message, timestamp }
+extern DLLEXPORT uint64_t* necro_runtime_get_midi_buffer(size_t _dummy);
+extern DLLEXPORT uint64_t  necro_runtime_get_num_buffered_midi_messages(size_t _dummy);
 
 //--------------------
 // Memory

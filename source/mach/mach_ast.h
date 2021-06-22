@@ -493,6 +493,9 @@ typedef struct NecroMachRuntime
     NecroMachAstSymbol* necro_print_char;
     NecroMachAstSymbol* necro_runtime_get_mouse_x;
     NecroMachAstSymbol* necro_runtime_get_mouse_y;
+    NecroMachAstSymbol* necro_runtime_get_key_press;
+    NecroMachAstSymbol* necro_runtime_get_midi_msg_buffer;
+    NecroMachAstSymbol* necro_runtime_get_midi_msg_buffer_size;
     NecroMachAstSymbol* necro_runtime_is_done;
     NecroMachAstSymbol* necro_runtime_alloc;
     NecroMachAstSymbol* necro_runtime_realloc;

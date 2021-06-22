@@ -13,14 +13,18 @@
 #     - Consult: http://www.portaudio.com/
 #     - Tested with PortAudio 19
 #     - Make note of where the include directory and static library is.
-# Step 5: Build libsndfile
+# Step 5: Build Port Midi
+#     - Consult: http://portmedia.sourceforge.net/portmidi/doxygen/
+#     - Make note of where the include directory and static library is.
+# Step 6: Build libsndfile
 #     - Consult: https://github.com/erikd/libsndfile/
 #     - Tested with libsndfile version 1.0.29
 #     - Make note of where the include directory and static library is.
-# Step 6:
+# Step 7:
 #     - Generate project files for Necronomicon using cmake-gui
 #     - When configuring/generating project files for Necronomicon with cmake-gui set LLVM_DIR to point to where you installed LLVM: <LLVM_Install_Folder>\lib\cmake\llvm
 #     - Configure the portaudio_include and portaudio_lib variables.
+#     - Configure the portmidi and portmidi variables.
 # Necronomicon should now be a functional project you can build
 # This cmake file was cobbled together by consulting this: https://llvm.org/docs/CMake.html
 # =============================================================================
@@ -43,10 +47,13 @@ add_definitions(${LLVM_DEFINITIONS})
 if (MSVC)
     set(PORTAUDIO_INCLUDE "./portaudio/include/" CACHE PATH "portaudio include files")
     set(PORTAUDIO_LIB "./portaudio/build/Debug/portaudio_static.lib" CACHE FILEPATH "portaudio static library")
+    set(PORTMIDI_INCLUDE "./portmidi/include/" CACHE PATH "portmidi include files")
+    set(PORTMIDI_LIB "./portmidi/build/Debug/portmidi_static.lib" CACHE FILEPATH "portmidi static library")
 	set(SNDFILE_INCLUDE "./libsndfile/include/" CACHE PATH "libsndfile include files")
     set(SNDFILE_LIB "./libsndfile/build/Debug/sndfile.lib" CACHE FILEPATH "libsndfile static library")
 else()
     find_package(portaudio)
+    find_package(portmidi)
     find_package(libsndfile)
 endif()
 
@@ -81,6 +88,7 @@ set(INCLUDE_DIR
     source/mach
     source/codegen
 	${PORTAUDIO_INCLUDE}
+  ${PORTMIDI_INCLUDE}
 	${SNDFILE_INCLUDE}
     )
 
@@ -203,7 +211,7 @@ ADD_EXECUTABLE(necro ${project_HEADERS} ${project_SOURCES})
 # that we wish to use
 # llvm_map_components_to_libnames(llvm_libs support core irreader analysis target ScalarOpts native passes mcjit)
 llvm_map_components_to_libnames(llvm_libs core native passes ScalarOpts analysis mcjit target)
-TARGET_LINK_LIBRARIES(necro ${llvm_libs} ${PORTAUDIO_LIB} ${SNDFILE_LIB})
+TARGET_LINK_LIBRARIES(necro ${llvm_libs} ${PORTAUDIO_LIB} ${PORTMIDI_LIB} ${SNDFILE_LIB})
 
 execute_process (
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

@@ -16,7 +16,7 @@ in
         separateDebugInfo = IS_DEBUG;
         });
 
-    buildInputs = [ llvm_7 valgrind bear portaudio libsndfile ];
+    buildInputs = [ llvm_7 valgrind bear portaudio portmidi libsndfile ];
     propagatedBuildInputs = with pkgs; [ xorg.xlibsWrapper ];
     nativeBuildInputs = [ bear cmake ];
     debugVersion = IS_DEBUG;
@@ -26,13 +26,14 @@ in
     hardeningDisable = [ "all" ];
 
     preConfigure = ''
-      export LDFLAGS="-lX11 -lportaudio -lsndfile"
+      export LDFLAGS="-lX11 -lportaudio -lportmidi -lsndfile"
       export NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -fdebug-prefix-map=/build/Necronomicon=." LD=$CC
       '';
 
     configureFlags = [
       (mkFlag IS_DEBUG "debug")
       (mkFlag IS_DEBUG "debug-symbols")
+      (mkFlag IS_DEBUG "debug-runtime")
     ];
 
     cmakeBuildType = if IS_DEBUG then "Debug" else "Release";

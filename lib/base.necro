@@ -5456,6 +5456,19 @@ sampleSeq bank modifier seq =
         duration = audioBufferDuration buffer
         synth _ = modifier (audioBufferPlay DontLoop 1 buffer) metadata
 
+-- Generate audio from a sample bank and sequence of integers
+-- Pass in audio generator
+sampleSeq' :: SampleBank n a -> (Stereo Audio -> a -> Stereo Audio) -> Seq Int -> ((Int -> Stereo Audio) -> Seq Int -> Stereo Audio) -> Stereo Audio
+sampleSeq' bank modifier seq gen =
+  gen sampleSynth seq
+  where
+    sampleSynth index =
+      playFor duration synth
+      where
+        (SampleData buffer metadata) = selectSample bank index
+        duration = audioBufferDuration buffer
+        synth _ = modifier (audioBufferPlay DontLoop 1 buffer) metadata
+
 ----------------------
 -- Record Audio
 ----------------------

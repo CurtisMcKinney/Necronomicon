@@ -1,7 +1,7 @@
 with import <nixpkgs> {};
 
 let
-  IS_DEBUG = true;
+  IS_DEBUG = false;
   mkCmakeFlag = optSet: flag: if optSet then "-D${flag}=ON" else "-D${flag}=OFF";
   mkFlag = cond: name: if cond then "--enable-${name}" else "--disable-${name}";
   stdenvCompiler = overrideCC stdenv clang_7;

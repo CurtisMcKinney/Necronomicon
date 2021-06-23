@@ -5458,7 +5458,7 @@ sampleSeq bank modifier seq =
 
 -- Generate audio from a sample bank and sequence of integers
 -- Pass in audio generator
-sampleSeq' :: SampleBank n a -> (Stereo Audio -> a -> Stereo Audio) -> Seq Int -> ((Int -> Stereo Audio) -> Seq Int -> Stereo Audio) -> Stereo Audio
+sampleSeq' :: SampleBank n a -> (Stereo Audio -> Int -> a -> Stereo Audio) -> Seq Int -> ((Int -> Stereo Audio) -> Seq Int -> Stereo Audio) -> Stereo Audio
 sampleSeq' bank modifier seq gen =
   gen sampleSynth seq
   where
@@ -5467,7 +5467,7 @@ sampleSeq' bank modifier seq gen =
       where
         (SampleData buffer metadata) = selectSample bank index
         duration = audioBufferDuration buffer
-        synth _ = modifier (audioBufferPlay DontLoop 1 buffer) metadata
+        synth _ = modifier (audioBufferPlay DontLoop 1 buffer) index metadata
 
 ----------------------
 -- Record Audio
@@ -11611,22 +11611,22 @@ cHarmonicMinor :: Scale 13 7
 cHarmonicMinor = harmonicMinor middleC
 
 dHarmonicMinor :: Scale 13 7
-dHarmonicMinor = harmonicMinor <| d2f cMinor 1
+dHarmonicMinor = harmonicMinor <| d2f cMajor 1
 
 eHarmonicMinor :: Scale 13 7
-eHarmonicMinor = harmonicMinor <| d2f cMinor 2
+eHarmonicMinor = harmonicMinor <| d2f cMajor 2
 
 fHarmonicMinor :: Scale 13 7
-fHarmonicMinor = harmonicMinor <| d2f cMinor 3
+fHarmonicMinor = harmonicMinor <| d2f cMajor 3
 
 gHarmonicMinor :: Scale 13 7
-gHarmonicMinor = harmonicMinor <| d2f cMinor 4
+gHarmonicMinor = harmonicMinor <| d2f cMajor 4
 
 aHarmonicMinor :: Scale 13 7
-aHarmonicMinor = harmonicMinor <| d2f cMinor 5
+aHarmonicMinor = harmonicMinor <| d2f cMajor 5
 
 bHarmonicMinor :: Scale 13 7
-bHarmonicMinor = harmonicMinor <| d2f cMinor 6
+bHarmonicMinor = harmonicMinor <| d2f cMajor 6
 
 -------------------------
 -- Harmonic Major Scales
@@ -11671,6 +11671,31 @@ justChromatic =
 chromatic :: Scale 13 12
 chromatic =
   Scale equalTemperament {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11} middleC
+
+phrygian :: Float -> Scale 13 7
+phrygian rootFreq =
+  Scale equalTemperament {0, 1, 3, 5, 7, 8, 10} rootFreq
+
+cPhrygian :: Scale 13 7
+cPhrygian = phrygian middleC
+
+dPhrygian :: Scale 13 7
+dPhrygian = phrygian <| d2f cMajor 1
+
+ePhrygian :: Scale 13 7
+ePhrygian = phrygian <| d2f cMajor 2
+
+fPhrygian :: Scale 13 7
+fPhrygian = phrygian <| d2f cMajor 3
+
+gPhrygian :: Scale 13 7
+gPhrygian = phrygian <| d2f cMajor 4
+
+aPhrygian :: Scale 13 7
+aPhrygian = phrygian <| d2f cMajor 5
+
+bPhrygian :: Scale 13 7
+bPhrygian = phrygian <| d2f cMajor 6
 
 coleJI :: Scale 13 12
 coleJI =

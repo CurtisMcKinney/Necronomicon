@@ -4182,6 +4182,9 @@ fftMagSquared a = fftMapMag sqr a
 fftMagSqrRoot :: AudioFormat f => f (FFT k) -> f (FFT k)
 fftMagSqrRoot a = fftMapMag sqrt a
 
+fftMagClamp :: AudioFormat f => Float -> Float -> f (FFT k) -> f (FFT k)
+fftMagClamp min max a = fftMapMag (\m -> clamp m min max) a
+
 fftLerp :: AudioFormat f => Float -> f (FFT k) -> f (FFT k) -> f (FFT k)
 fftLerp delta x y =
   mapFFTAudio2 (\cx cy -> lerpComplex cx cy delta) x y

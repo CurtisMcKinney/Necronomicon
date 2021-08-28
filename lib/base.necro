@@ -5409,6 +5409,38 @@ audioBufferPlayWithAperture freq start end audioBuffers =
       if numSamples == 0 then 0 else
         accumulateAudio3 (audioBufferPlayWithApertureTick (AudioBuffer# audioBuffer numSamples)) constTrue fc sc ec
 
+data AudioBufferPlayerWithApertureState = AudioBufferPlayerWithApertureState# Float Float
+
+instance Default AudioBufferPlayerWithApertureState where
+  default = AudioBufferPlayerWithApertureState# 0 0
+
+-- audioBufferPlayWithApertureTick' :: AudioBuffer -> Float -> Float -> AudioBufferPlayerWithApertureState -> (#AudioBufferPlayerWithApertureState, Float#)
+-- audioBufferPlayWithApertureTick' (AudioBuffer# audioBuffer numSamples) freq apertureDurationSeconds (AudioBufferPlayerWithApertureState# phase0 aperaturePhase0) =
+--   (#AudioBufferPlayerWithApertureState# samplePhase aperturePhase1, sample0#)
+--   where
+--     numSamplesF    = fromUInt numSamples -- |> traceLn2 "numSamplesF: "
+--     direction      = if freq == 0 then 1 else signum freq -- |> traceLn2 "direction: "
+--     -- freq = freqS * audioSampleRateF
+--     phase1         = phase0 + direction -- |> traceLn2 "phase1: "
+--     apertureSize   = apertureDurationSeconds * audioSampleRateF -- |> traceLn2 "apertureSize: "
+--     aperturePhase1 = aperaturePhase0 + freq -- |> traceLn2 "aperturePhase1: "
+--     samplePhase    =
+--       rem (phase1 - aperturePhase1) apertureSize -- |> traceLn2 "rem apertureSize: "
+--       |> \f -> if f < 0 then f + apertureSize else f -- |> traceLn2 "wrap apertureSize: "
+--       |> add aperturePhase1 -- |> traceLn2 "add aperturePhase1: "
+--       |> \f -> rem f numSamplesF -- |> traceLn2 "rem numSamplesF: "
+--       |> \f -> if f < 0 then f + numSamplesF else f -- |> traceLn2 "wrap numSamplesF: "
+--       -- |> traceLn2 "samplePhase: "
+--     -- phase000    = apertureMapPhase phase00 numSamplesF start end direction
+--     sample0        = unsafePtrPeek (floatToUInt samplePhase) audioBuffer
+--
+-- audioBufferPlayWithAperture' :: AudioFormat f => f Audio -> f Audio -> f AudioBuffer -> f Audio
+-- audioBufferPlayWithAperture' freq apertureDurationSeconds audioBuffers =
+--   map3 f audioBuffers freq apertureDurationSeconds
+--   where
+--     f (AudioBuffer# audioBuffer numSamples) fc ac =
+--       if numSamples == 0 then 0 else
+--         accumulateAudio2 (audioBufferPlayWithApertureTick' (AudioBuffer# audioBuffer numSamples)) constTrue fc ac
 
 ----------------------
 -- Sample Bank
@@ -7670,6 +7702,9 @@ nineSec = Seconds
 
 tenSec :: Seconds 10
 tenSec = Seconds
+
+thirtySec :: Seconds 30
+thirtySec = Seconds
 
 
 -----------

@@ -47,8 +47,8 @@ add_definitions(${LLVM_DEFINITIONS})
 if (MSVC)
     set(PORTAUDIO_INCLUDE "./portaudio/include/" CACHE PATH "portaudio include files")
     set(PORTAUDIO_LIB "./portaudio/build/Debug/portaudio_static.lib" CACHE FILEPATH "portaudio static library")
-    set(PORTMIDI_INCLUDE "./portmidi/include/" CACHE PATH "portmidi include files")
-    set(PORTMIDI_LIB "./portmidi/build/Debug/portmidi_static.lib" CACHE FILEPATH "portmidi static library")
+    set(PORTMIDI_INCLUDE "../../portmidi/pm_common/" CACHE PATH "portmidi include files")
+    set(PORTMIDI_LIB "../../portmidi/build/Debug/portmidi_s.lib" CACHE FILEPATH "portmidi static library")
 	set(SNDFILE_INCLUDE "./libsndfile/include/" CACHE PATH "libsndfile include files")
     set(SNDFILE_LIB "./libsndfile/build/Debug/sndfile.lib" CACHE FILEPATH "libsndfile static library")
 else()
@@ -88,7 +88,7 @@ set(INCLUDE_DIR
     source/mach
     source/codegen
 	${PORTAUDIO_INCLUDE}
-  ${PORTMIDI_INCLUDE}
+    ${PORTMIDI_INCLUDE}
 	${SNDFILE_INCLUDE}
     )
 

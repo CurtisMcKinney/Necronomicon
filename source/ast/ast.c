@@ -368,7 +368,6 @@ void necro_ast_print_go(NecroAst* ast, uint32_t depth)
         break;
 
     case NECRO_AST_EXPR_TYPE_SIGNATURE:
-        // printf("\r");
         puts("(ExprTypeSig)");
         for (uint32_t i = 0;  i < depth + 1; ++i) printf(AST_TAB);
         printf(":: ");

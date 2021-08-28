@@ -5523,8 +5523,10 @@ recordAudioChannel :: Array n Char -> UInt -> UInt -> (#UInt, *ScratchBuffer#) -
 recordAudioChannel name nameLength channelCount (#i, sbuffer#) channel =
   case channel of
     AudioRate abuffer -> (#i + 1, recordAudioBlock i channelCount abuffer sbuffer#)
-    BlockRate _       -> (#i + 1, sbuffer#)
+    BlockRate _       -> (#i + 1, recordAudioBlock i channelCount silentBlock sbuffer#)
     AudioEnd          -> (#i + 1, recordAudioBlockFinalize (unsafeArrayToPtr name) nameLength channelCount sbuffer#)
+
+    -- BlockRate _       -> (#i + 1, sbuffer#)
 
 recordAudio :: AudioFormat f => Array n Char -> f Audio -> *World -> *World
 recordAudio name audio world =
